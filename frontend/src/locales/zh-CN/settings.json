@@ -385,17 +385,26 @@
       "aliases": "别名",
       "category": "分类",
       "source": "来源",
-      "permission": "权限",
+      "permission": "生效权限",
       "params": "参数",
       "noParams": "此命令没有额外参数说明",
       "required": "必填",
       "defaultValue": "默认值",
       "allowedValues": "可选值"
     },
+    "permissionEditor": {
+      "label": "权限覆盖",
+      "systemOverrideHint": "当前系统权限已覆盖命令注册时的默认权限。",
+      "systemDefaultHint": "当前系统权限沿用命令注册时的默认权限。",
+      "channelOverrideHint": "当前频道已单独覆盖权限，不受系统权限影响。",
+      "channelInheritedHint": "当前频道未单独设置权限，沿用系统生效权限。"
+    },
     "actions": {
       "reset": "重置为默认",
       "enable": "启用命令",
-      "disable": "禁用命令"
+      "disable": "禁用命令",
+      "resetPermissionDefault": "恢复默认权限",
+      "resetPermissionInherited": "恢复继承权限"
     },
     "permissions": {
       "public": "公开",
@@ -408,6 +417,10 @@
       "toggleFailed": "更新失败",
       "resetSuccess": "已重置命令状态",
       "resetFailed": "重置失败",
+      "permissionUpdateSuccess": "已更新命令权限",
+      "permissionUpdateFailed": "权限更新失败",
+      "permissionResetSuccess": "已重置命令权限",
+      "permissionResetFailed": "权限重置失败",
       "executeSent": "命令已发送，等待输出",
       "executeFailed": "命令执行失败"
     },

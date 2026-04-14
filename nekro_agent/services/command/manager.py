@@ -6,11 +6,15 @@ from typing import Optional
 
 from nonebot import logger
 
-from nekro_agent.core.os_env import OsEnv
-
-COMMAND_STATE_DIR = Path(OsEnv.DATA_DIR) / "configs" / "command_states"
-SYSTEM_STATE_FILE = COMMAND_STATE_DIR / "system.json"
-CHANNEL_STATE_DIR = COMMAND_STATE_DIR / "channels"
+from nekro_agent.core.os_env import (
+    COMMAND_CHANNEL_PERMISSION_DIR,
+    COMMAND_CHANNEL_STATE_DIR,
+    COMMAND_STATE_DIR,
+    COMMAND_SYSTEM_PERMISSION_FILE,
+    COMMAND_SYSTEM_STATE_FILE,
+)
+from nekro_agent.schemas.errors import ValidationError
+from nekro_agent.services.command.base import CommandPermission
 
 
 class CommandManager:
@@ -20,17 +24,21 @@ class CommandManager:
     """
 
     def __init__(self):
-        COMMAND_STATE_DIR.mkdir(parents=True, exist_ok=True)
-        CHANNEL_STATE_DIR.mkdir(parents=True, exist_ok=True)
+        Path(COMMAND_STATE_DIR).mkdir(parents=True, exist_ok=True)
+        Path(COMMAND_CHANNEL_STATE_DIR).mkdir(parents=True, exist_ok=True)
+        Path(COMMAND_CHANNEL_PERMISSION_DIR).mkdir(parents=True, exist_ok=True)
         self._system_cache: Optional[dict[str, bool]] = None
         self._channel_cache: dict[str, dict[str, bool]] = {}
+        self._system_permission_cache: Optional[dict[str, CommandPermission]] = None
+        self._channel_permission_cache: dict[str, dict[str, CommandPermission]] = {}
 
     def _load_system_state(self) -> dict[str, bool]:
         """加载系统级状态（带缓存）"""
         if self._system_cache is None:
-            if SYSTEM_STATE_FILE.exists():
+            system_state_file = Path(COMMAND_SYSTEM_STATE_FILE)
+            if system_state_file.exists():
                 try:
-                    self._system_cache = json.loads(SYSTEM_STATE_FILE.read_text(encoding="utf-8"))
+                    self._system_cache = json.loads(system_state_file.read_text(encoding="utf-8"))
                 except (json.JSONDecodeError, OSError) as e:
                     logger.warning(f"加载系统级命令状态失败: {e}")
                     self._system_cache = {}
@@ -42,7 +50,7 @@ class CommandManager:
     def _load_channel_state(self, chat_key: str) -> dict[str, bool]:
         """加载频道级状态（带缓存）"""
         if chat_key not in self._channel_cache:
-            path = CHANNEL_STATE_DIR / f"{chat_key}.json"
+            path = Path(COMMAND_CHANNEL_STATE_DIR) / f"{chat_key}.json"
             if path.exists():
                 try:
                     self._channel_cache[chat_key] = json.loads(path.read_text(encoding="utf-8"))
@@ -53,17 +61,87 @@ class CommandManager:
                 self._channel_cache[chat_key] = {}
         return self._channel_cache[chat_key]
 
+    @staticmethod
+    def _normalize_permission_state(raw_state: object) -> dict[str, CommandPermission]:
+        if not isinstance(raw_state, dict):
+            return {}
+
+        normalized: dict[str, CommandPermission] = {}
+        for command_name, permission in raw_state.items():
+            if not isinstance(command_name, str) or not isinstance(permission, str):
+                continue
+            try:
+                normalized[command_name] = CommandPermission(permission)
+            except ValueError:
+                logger.warning(f"检测到无效命令权限配置，已忽略: {command_name}={permission}")
+        return normalized
+
+    def _load_system_permission_state(self) -> dict[str, CommandPermission]:
+        """加载系统级权限覆盖（带缓存）。
+
+        返回内部共享缓存，调用方仅应在 setter 流程中原地修改并立即持久化。
+        """
+        if self._system_permission_cache is None:
+            system_permission_file = Path(COMMAND_SYSTEM_PERMISSION_FILE)
+            if system_permission_file.exists():
+                try:
+                    raw_state = json.loads(system_permission_file.read_text(encoding="utf-8"))
+                    self._system_permission_cache = self._normalize_permission_state(raw_state)
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.warning(f"加载系统级命令权限失败: {e}")
+                    self._system_permission_cache = {}
+            else:
+                self._system_permission_cache = {}
+        assert self._system_permission_cache is not None
+        return self._system_permission_cache
+
+    def _load_channel_permission_state(self, chat_key: str) -> dict[str, CommandPermission]:
+        """加载频道级权限覆盖（带缓存）。
+
+        返回内部共享缓存，调用方仅应在 setter 流程中原地修改并立即持久化。
+        """
+        if chat_key not in self._channel_permission_cache:
+            path = Path(COMMAND_CHANNEL_PERMISSION_DIR) / f"{chat_key}.json"
+            if path.exists():
+                try:
+                    raw_state = json.loads(path.read_text(encoding="utf-8"))
+                    self._channel_permission_cache[chat_key] = self._normalize_permission_state(raw_state)
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.warning(f"加载频道 {chat_key} 命令权限失败: {e}")
+                    self._channel_permission_cache[chat_key] = {}
+            else:
+                self._channel_permission_cache[chat_key] = {}
+        return self._channel_permission_cache[chat_key]
+
     def _save_system_state(self, state: dict[str, bool]) -> None:
-        SYSTEM_STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        Path(COMMAND_SYSTEM_STATE_FILE).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         self._system_cache = state
 
     def _save_channel_state(self, chat_key: str, state: dict[str, bool]) -> None:
-        path = CHANNEL_STATE_DIR / f"{chat_key}.json"
+        path = Path(COMMAND_CHANNEL_STATE_DIR) / f"{chat_key}.json"
         if state:
             path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         else:
-            path.unlink(missing_ok=True)  # 空状态则删除文件
+            path.unlink(missing_ok=True)
         self._channel_cache[chat_key] = state
+
+    def _save_system_permission_state(self, state: dict[str, CommandPermission]) -> None:
+        Path(COMMAND_SYSTEM_PERMISSION_FILE).write_text(
+            json.dumps({key: value.value for key, value in state.items()}, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        self._system_permission_cache = state
+
+    def _save_channel_permission_state(self, chat_key: str, state: dict[str, CommandPermission]) -> None:
+        path = Path(COMMAND_CHANNEL_PERMISSION_DIR) / f"{chat_key}.json"
+        if state:
+            path.write_text(
+                json.dumps({key: value.value for key, value in state.items()}, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        else:
+            path.unlink(missing_ok=True)
+        self._channel_permission_cache[chat_key] = state
 
     def is_command_enabled(self, command_name: str, chat_key: Optional[str] = None) -> bool:
         """查询命令是否启用（频道级 > 系统级 > 默认）"""
@@ -76,7 +154,44 @@ class CommandManager:
         if command_name in system_state:
             return system_state[command_name]
 
-        return True  # 默认启用
+        return True
+
+    def get_command_permission(
+        self,
+        command_name: str,
+        default_permission: CommandPermission,
+        chat_key: Optional[str] = None,
+    ) -> CommandPermission:
+        """查询命令生效权限（频道级 > 系统级 > 注册默认）"""
+        if chat_key:
+            channel_state = self._load_channel_permission_state(chat_key)
+            if command_name in channel_state:
+                return channel_state[command_name]
+
+        system_state = self._load_system_permission_state()
+        if command_name in system_state:
+            return system_state[command_name]
+
+        return default_permission
+
+    def has_permission_override(
+        self,
+        command_name: str,
+        chat_key: Optional[str] = None,
+    ) -> bool:
+        """当前作用域下是否存在权限覆盖"""
+        if chat_key:
+            return command_name in self._load_channel_permission_state(chat_key)
+        return command_name in self._load_system_permission_state()
+
+    @staticmethod
+    def _get_command_default_permission(command_name: str) -> CommandPermission:
+        from nekro_agent.services.command.registry import command_registry
+
+        command = command_registry.resolve(command_name)
+        if command is None:
+            raise ValidationError(reason=f"命令不存在: {command_name}")
+        return command.metadata.permission
 
     async def set_command_enabled(
         self,
@@ -85,6 +200,7 @@ class CommandManager:
         chat_key: Optional[str] = None,
     ) -> None:
         """设置命令启用状态"""
+        self._get_command_default_permission(command_name)
         if chat_key:
             state = self._load_channel_state(chat_key)
             state[command_name] = enabled
@@ -93,6 +209,34 @@ class CommandManager:
             state = self._load_system_state()
             state[command_name] = enabled
             self._save_system_state(state)
+        await self.notify_commands_changed(chat_key)
+
+    async def set_command_permission(
+        self,
+        command_name: str,
+        permission: CommandPermission | str,
+        chat_key: Optional[str] = None,
+    ) -> None:
+        """设置命令权限覆盖"""
+        normalized_permission = (
+            permission if isinstance(permission, CommandPermission) else CommandPermission(permission)
+        )
+        default_permission = self._get_command_default_permission(command_name)
+        if chat_key:
+            state = self._load_channel_permission_state(chat_key)
+            inherited_permission = self.get_command_permission(command_name, default_permission, None)
+            if normalized_permission == inherited_permission:
+                state.pop(command_name, None)
+            else:
+                state[command_name] = normalized_permission
+            self._save_channel_permission_state(chat_key, state)
+        else:
+            state = self._load_system_permission_state()
+            if normalized_permission == default_permission:
+                state.pop(command_name, None)
+            else:
+                state[command_name] = normalized_permission
+            self._save_system_permission_state(state)
         await self.notify_commands_changed(chat_key)
 
     async def reset_command_state(
@@ -109,6 +253,23 @@ class CommandManager:
             state = self._load_system_state()
             state.pop(command_name, None)
             self._save_system_state(state)
+        await self.notify_commands_changed(chat_key)
+
+    async def reset_command_permission(
+        self,
+        command_name: str,
+        chat_key: Optional[str] = None,
+    ) -> None:
+        """重置命令权限覆盖（删除覆盖，回退到上级）"""
+        if chat_key:
+            state = self._load_channel_permission_state(chat_key)
+            state.pop(command_name, None)
+            self._save_channel_permission_state(chat_key, state)
+        else:
+            state = self._load_system_permission_state()
+            state.pop(command_name, None)
+            self._save_system_permission_state(state)
+        await self.notify_commands_changed(chat_key)
 
     async def get_all_command_states(
         self,
@@ -123,7 +284,9 @@ class CommandManager:
         result = []
         for meta in commands:
             enabled = self.is_command_enabled(meta.name, chat_key)
+            permission = self.get_command_permission(meta.name, meta.permission, chat_key)
             has_channel_override = chat_key is not None and meta.name in channel_state
+            has_permission_override = self.has_permission_override(meta.name, chat_key)
             source_display_name = "内置" if meta.source == "built_in" else meta.source
             if meta.source != "built_in":
                 plugin = plugin_collector.get_plugin(meta.source)
@@ -136,12 +299,14 @@ class CommandManager:
                 "aliases": meta.aliases,
                 "description": meta.description,
                 "usage": meta.usage,
-                "permission": meta.permission.value,
+                "permission": permission.value,
+                "default_permission": meta.permission.value,
                 "category": meta.category,
                 "source": meta.source,
                 "source_display_name": source_display_name,
                 "enabled": enabled,
                 "has_channel_override": has_channel_override,
+                "has_permission_override": has_permission_override,
                 "params_schema": meta.params_schema,
                 "i18n_description": meta.i18n_description,
                 "i18n_usage": meta.i18n_usage,
@@ -164,6 +329,8 @@ class CommandManager:
         """清除缓存（配置文件外部修改后调用）"""
         self._system_cache = None
         self._channel_cache.clear()
+        self._system_permission_cache = None
+        self._channel_permission_cache.clear()
 
 
 command_manager = CommandManager()

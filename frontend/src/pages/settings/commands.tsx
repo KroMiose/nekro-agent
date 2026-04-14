@@ -158,6 +158,34 @@ function getEffectiveStateDescription(
       )
 }
 
+function getPermissionOverrideDescription(
+  cmd: CommandState,
+  scope: ManageScope,
+  t: TFunction<'settings'>,
+) {
+  if (scope === 'system') {
+    return cmd.has_permission_override
+      ? t(
+          'commands.permissionEditor.systemOverrideHint',
+          '当前系统权限已覆盖命令注册时的默认权限。',
+        )
+      : t(
+          'commands.permissionEditor.systemDefaultHint',
+          '当前系统权限沿用命令注册时的默认权限。',
+        )
+  }
+
+  return cmd.has_permission_override
+    ? t(
+        'commands.permissionEditor.channelOverrideHint',
+        '当前频道已单独覆盖权限，不受系统权限影响。',
+      )
+    : t(
+        'commands.permissionEditor.channelInheritedHint',
+        '当前频道未单独设置权限，沿用系统生效权限。',
+      )
+}
+
 function isManageScope(value: string | null): value is ManageScope {
   return value === 'system' || value === 'channel'
 }
@@ -265,6 +293,10 @@ export default function CommandCenterPage() {
   const deferredSearchInput = useDeferredValue(searchInput)
   const [commandLine, setCommandLine] = useState('')
   const executePanelRef = useRef<HTMLDivElement | null>(null)
+  const invalidateCommandQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['command-center', 'commands'] })
+    queryClient.invalidateQueries({ queryKey: ['command-center', 'execute-commands'] })
+  }, [queryClient])
 
   const updateParams = useCallback(
     (updates: Record<string, string | null>, replace = true) => {
@@ -338,14 +370,17 @@ export default function CommandCenterPage() {
       categorySet.set(cmd.category, getCommandCategory(cmd, i18n.language))
       sourceSet.add(cmd.source)
       permissionSet.add(cmd.permission)
+      permissionSet.add(cmd.default_permission)
     })
 
     return {
       categories: Array.from(categorySet.entries()).sort((a, b) => a[1].localeCompare(b[1])),
       sources: Array.from(sourceSet).sort(),
-      permissions: Array.from(permissionSet).sort(),
+      permissions: Array.from(permissionSet).sort((a, b) =>
+        t(`commands.permissions.${a}`, a).localeCompare(t(`commands.permissions.${b}`, b), i18n.language),
+      ),
     }
-  }, [commands, i18n.language])
+  }, [commands, i18n.language, t])
 
   const filteredCommands = useMemo(() => {
     const keyword = deferredSearchInput.trim().toLowerCase()
@@ -398,8 +433,7 @@ export default function CommandCenterPage() {
     mutationFn: ({ name, enabled }: { name: string; enabled: boolean }) =>
       commandsApi.setCommandState(name, enabled, managementQueryChatKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['command-center', 'commands'] })
-      queryClient.invalidateQueries({ queryKey: ['command-center', 'execute-commands'] })
+      invalidateCommandQueries()
       notification.success(t('commands.messages.toggleSuccess', '已更新命令状态'))
     },
     onError: () => {
@@ -410,12 +444,34 @@ export default function CommandCenterPage() {
   const resetMutation = useMutation({
     mutationFn: (name: string) => commandsApi.resetCommandState(name, managementQueryChatKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['command-center', 'commands'] })
-      queryClient.invalidateQueries({ queryKey: ['command-center', 'execute-commands'] })
+      invalidateCommandQueries()
       notification.success(t('commands.messages.resetSuccess', '已重置命令状态'))
     },
     onError: () => {
       notification.error(t('commands.messages.resetFailed', '重置失败'))
+    },
+  })
+
+  const setPermissionMutation = useMutation({
+    mutationFn: ({ name, permission }: { name: string; permission: string }) =>
+      commandsApi.setCommandPermission(name, permission, managementQueryChatKey),
+    onSuccess: () => {
+      invalidateCommandQueries()
+      notification.success(t('commands.messages.permissionUpdateSuccess', '已更新命令权限'))
+    },
+    onError: () => {
+      notification.error(t('commands.messages.permissionUpdateFailed', '权限更新失败'))
+    },
+  })
+
+  const resetPermissionMutation = useMutation({
+    mutationFn: (name: string) => commandsApi.resetCommandPermission(name, managementQueryChatKey),
+    onSuccess: () => {
+      invalidateCommandQueries()
+      notification.success(t('commands.messages.permissionResetSuccess', '已重置命令权限'))
+    },
+    onError: () => {
+      notification.error(t('commands.messages.permissionResetFailed', '权限重置失败'))
     },
   })
 
@@ -480,6 +536,13 @@ export default function CommandCenterPage() {
         label: t(`commands.permissions.${permission}`, permission),
       })),
     ],
+    [permissions, t],
+  )
+  const permissionEditorOptions = useMemo(
+    () => permissions.map(permission => ({
+      value: permission,
+      label: t(`commands.permissions.${permission}`, permission),
+    })),
     [permissions, t],
   )
 
@@ -821,8 +884,51 @@ export default function CommandCenterPage() {
                       value={getSourceDetailLabel(selectedCommand, t)}
                     />
                     <DetailRow
-                      label={t('commands.detail.permission', '权限')}
-                      value={t(`commands.permissions.${selectedCommand.permission}`, selectedCommand.permission)}
+                      label={t('commands.detail.permission', '生效权限')}
+                      value=""
+                      content={
+                        <Stack spacing={0.75}>
+                          <Stack
+                            direction={{ xs: 'column', sm: 'row' }}
+                            spacing={1}
+                            alignItems={{ xs: 'stretch', sm: 'center' }}
+                          >
+                            <Box sx={{ flex: 1, minWidth: { xs: '100%', sm: 220 } }}>
+                              <FilterSelect
+                                label=""
+                                value={selectedCommand.permission}
+                                options={permissionEditorOptions}
+                                onChange={value => {
+                                  if (
+                                    !selectedCommand ||
+                                    !value ||
+                                    value === selectedCommand.permission
+                                  ) {
+                                    return
+                                  }
+                                  setPermissionMutation.mutate({
+                                    name: selectedCommand.name,
+                                    permission: value,
+                                  })
+                                }}
+                                disabled={setPermissionMutation.isPending || resetPermissionMutation.isPending}
+                              />
+                            </Box>
+                            <ActionButton
+                              tone="secondary"
+                              onClick={() => resetPermissionMutation.mutate(selectedCommand.name)}
+                              disabled={!selectedCommand.has_permission_override || resetPermissionMutation.isPending}
+                            >
+                              {scope === 'system'
+                                ? t('commands.actions.resetPermissionDefault', '恢复默认权限')
+                                : t('commands.actions.resetPermissionInherited', '恢复继承权限')}
+                            </ActionButton>
+                          </Stack>
+                          <Typography variant="caption" color="text.secondary">
+                            {getPermissionOverrideDescription(selectedCommand, scope, t)}
+                          </Typography>
+                        </Stack>
+                      }
                     />
                   </Box>
                 </Box>

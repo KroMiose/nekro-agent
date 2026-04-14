@@ -35,13 +35,14 @@ class CommandCompletionProvider:
         for meta in command_registry.list_all_commands():
             if not command_manager.is_command_enabled(meta.name, chat_key):
                 continue
+            effective_permission = command_manager.get_command_permission(meta.name, meta.permission, chat_key)
             entries.append(
                 CommandCompletionEntry(
                     name=meta.name,
                     description=meta.get_description(lang)[:100],
                     usage=meta.get_usage(lang),
                     category=meta.get_category(lang),
-                    permission=meta.permission,
+                    permission=effective_permission,
                     params_schema=meta.params_schema,
                 )
             )

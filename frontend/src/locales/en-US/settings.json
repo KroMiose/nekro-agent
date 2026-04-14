@@ -385,17 +385,26 @@
       "aliases": "Aliases",
       "category": "Category",
       "source": "Source",
-      "permission": "Permission",
+      "permission": "Effective Permission",
       "params": "Parameters",
       "noParams": "No additional parameter notes",
       "required": "Required",
       "defaultValue": "Default",
       "allowedValues": "Allowed values"
     },
+    "permissionEditor": {
+      "label": "Permission Override",
+      "systemOverrideHint": "The system permission currently overrides the command's registered default permission.",
+      "systemDefaultHint": "The system permission currently follows the command's registered default permission.",
+      "channelOverrideHint": "This channel has its own permission override and does not follow the system permission.",
+      "channelInheritedHint": "This channel has no custom permission and follows the effective system permission."
+    },
     "actions": {
       "reset": "Reset to default",
       "enable": "Enable Command",
-      "disable": "Disable Command"
+      "disable": "Disable Command",
+      "resetPermissionDefault": "Restore Default",
+      "resetPermissionInherited": "Restore Inherited Permission"
     },
     "permissions": {
       "public": "Public",
@@ -408,6 +417,10 @@
       "toggleFailed": "Update failed",
       "resetSuccess": "Command state reset",
       "resetFailed": "Reset failed",
+      "permissionUpdateSuccess": "Command permission updated",
+      "permissionUpdateFailed": "Permission update failed",
+      "permissionResetSuccess": "Command permission reset",
+      "permissionResetFailed": "Permission reset failed",
       "executeSent": "Command sent, waiting for output",
       "executeFailed": "Command execution failed"
     },
