@@ -6,15 +6,15 @@ from typing import Optional
 
 from nonebot import logger
 
-from nekro_agent.core.os_env import OsEnv
+from nekro_agent.core.os_env import (
+    COMMAND_CHANNEL_PERMISSION_DIR,
+    COMMAND_CHANNEL_STATE_DIR,
+    COMMAND_STATE_DIR,
+    COMMAND_SYSTEM_PERMISSION_FILE,
+    COMMAND_SYSTEM_STATE_FILE,
+)
 from nekro_agent.schemas.errors import ValidationError
 from nekro_agent.services.command.base import CommandPermission
-
-COMMAND_STATE_DIR = Path(OsEnv.DATA_DIR) / "configs" / "command_states"
-SYSTEM_STATE_FILE = COMMAND_STATE_DIR / "system.json"
-CHANNEL_STATE_DIR = COMMAND_STATE_DIR / "channels"
-SYSTEM_PERMISSION_FILE = COMMAND_STATE_DIR / "system_permissions.json"
-CHANNEL_PERMISSION_DIR = COMMAND_STATE_DIR / "channel_permissions"
 
 
 class CommandManager:
@@ -24,9 +24,9 @@ class CommandManager:
     """
 
     def __init__(self):
-        COMMAND_STATE_DIR.mkdir(parents=True, exist_ok=True)
-        CHANNEL_STATE_DIR.mkdir(parents=True, exist_ok=True)
-        CHANNEL_PERMISSION_DIR.mkdir(parents=True, exist_ok=True)
+        Path(COMMAND_STATE_DIR).mkdir(parents=True, exist_ok=True)
+        Path(COMMAND_CHANNEL_STATE_DIR).mkdir(parents=True, exist_ok=True)
+        Path(COMMAND_CHANNEL_PERMISSION_DIR).mkdir(parents=True, exist_ok=True)
         self._system_cache: Optional[dict[str, bool]] = None
         self._channel_cache: dict[str, dict[str, bool]] = {}
         self._system_permission_cache: Optional[dict[str, CommandPermission]] = None
@@ -35,9 +35,10 @@ class CommandManager:
     def _load_system_state(self) -> dict[str, bool]:
         """加载系统级状态（带缓存）"""
         if self._system_cache is None:
-            if SYSTEM_STATE_FILE.exists():
+            system_state_file = Path(COMMAND_SYSTEM_STATE_FILE)
+            if system_state_file.exists():
                 try:
-                    self._system_cache = json.loads(SYSTEM_STATE_FILE.read_text(encoding="utf-8"))
+                    self._system_cache = json.loads(system_state_file.read_text(encoding="utf-8"))
                 except (json.JSONDecodeError, OSError) as e:
                     logger.warning(f"加载系统级命令状态失败: {e}")
                     self._system_cache = {}
@@ -49,7 +50,7 @@ class CommandManager:
     def _load_channel_state(self, chat_key: str) -> dict[str, bool]:
         """加载频道级状态（带缓存）"""
         if chat_key not in self._channel_cache:
-            path = CHANNEL_STATE_DIR / f"{chat_key}.json"
+            path = Path(COMMAND_CHANNEL_STATE_DIR) / f"{chat_key}.json"
             if path.exists():
                 try:
                     self._channel_cache[chat_key] = json.loads(path.read_text(encoding="utf-8"))
@@ -81,9 +82,10 @@ class CommandManager:
         返回内部共享缓存，调用方仅应在 setter 流程中原地修改并立即持久化。
         """
         if self._system_permission_cache is None:
-            if SYSTEM_PERMISSION_FILE.exists():
+            system_permission_file = Path(COMMAND_SYSTEM_PERMISSION_FILE)
+            if system_permission_file.exists():
                 try:
-                    raw_state = json.loads(SYSTEM_PERMISSION_FILE.read_text(encoding="utf-8"))
+                    raw_state = json.loads(system_permission_file.read_text(encoding="utf-8"))
                     self._system_permission_cache = self._normalize_permission_state(raw_state)
                 except (json.JSONDecodeError, OSError) as e:
                     logger.warning(f"加载系统级命令权限失败: {e}")
@@ -99,7 +101,7 @@ class CommandManager:
         返回内部共享缓存，调用方仅应在 setter 流程中原地修改并立即持久化。
         """
         if chat_key not in self._channel_permission_cache:
-            path = CHANNEL_PERMISSION_DIR / f"{chat_key}.json"
+            path = Path(COMMAND_CHANNEL_PERMISSION_DIR) / f"{chat_key}.json"
             if path.exists():
                 try:
                     raw_state = json.loads(path.read_text(encoding="utf-8"))
@@ -112,26 +114,26 @@ class CommandManager:
         return self._channel_permission_cache[chat_key]
 
     def _save_system_state(self, state: dict[str, bool]) -> None:
-        SYSTEM_STATE_FILE.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        Path(COMMAND_SYSTEM_STATE_FILE).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         self._system_cache = state
 
     def _save_channel_state(self, chat_key: str, state: dict[str, bool]) -> None:
-        path = CHANNEL_STATE_DIR / f"{chat_key}.json"
+        path = Path(COMMAND_CHANNEL_STATE_DIR) / f"{chat_key}.json"
         if state:
             path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         else:
-            path.unlink(missing_ok=True)  # 空状态则删除文件
+            path.unlink(missing_ok=True)
         self._channel_cache[chat_key] = state
 
     def _save_system_permission_state(self, state: dict[str, CommandPermission]) -> None:
-        SYSTEM_PERMISSION_FILE.write_text(
+        Path(COMMAND_SYSTEM_PERMISSION_FILE).write_text(
             json.dumps({key: value.value for key, value in state.items()}, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         self._system_permission_cache = state
 
     def _save_channel_permission_state(self, chat_key: str, state: dict[str, CommandPermission]) -> None:
-        path = CHANNEL_PERMISSION_DIR / f"{chat_key}.json"
+        path = Path(COMMAND_CHANNEL_PERMISSION_DIR) / f"{chat_key}.json"
         if state:
             path.write_text(
                 json.dumps({key: value.value for key, value in state.items()}, ensure_ascii=False, indent=2),
@@ -152,7 +154,7 @@ class CommandManager:
         if command_name in system_state:
             return system_state[command_name]
 
-        return True  # 默认启用
+        return True
 
     def get_command_permission(
         self,

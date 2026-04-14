@@ -58,7 +58,6 @@ class NaInfoCommand(BaseCommand):
         from nekro_agent.tools.common_util import get_app_version
 
         db_chat_channel = await DBChatChannel.get_channel(chat_key=context.chat_key)
-        effective_config = await db_chat_channel.get_effective_config()
         preset = await db_chat_channel.get_preset()
         version = get_app_version()
         runtime_status_label, runtime_status_phase = _resolve_channel_agent_runtime_status(context.chat_key)
@@ -67,7 +66,6 @@ class NaInfoCommand(BaseCommand):
         subtitle = t(zh_CN="> 更智能、更优雅的代理执行 AI", en_US="> Smarter, more elegant agent execution AI")
         chat_settings = t(zh_CN="========聊天设定========", en_US="========Chat Settings========")
         preset_label = t(zh_CN="人设", en_US="Preset")
-        model_group_label = t(zh_CN="当前模型组", en_US="Current Model Group")
         runtime_status_label_title = t(zh_CN="当前频道机器人运行状态", en_US="Current Channel Agent Runtime Status")
 
         message = (
@@ -79,7 +77,6 @@ class NaInfoCommand(BaseCommand):
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
             f"{chat_settings}\n"
             f"{preset_label}: {preset.name}\n"
-            f"{model_group_label}: {effective_config.USE_MODEL_GROUP}\n"
             f"{runtime_status_label_title}: {runtime_status_label}"
         )
 
@@ -89,7 +86,6 @@ class NaInfoCommand(BaseCommand):
                 "version": version,
                 "in_docker": OsEnv.RUN_IN_DOCKER,
                 "preset": preset.name,
-                "model_group": effective_config.USE_MODEL_GROUP,
                 "agent_runtime_status": runtime_status_label,
                 "agent_runtime_phase": runtime_status_phase,
             },
