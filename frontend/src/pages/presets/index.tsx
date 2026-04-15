@@ -41,6 +41,7 @@ import {
   FilterList as FilterListIcon,
   Clear as ClearIcon,
 } from '@mui/icons-material'
+import { ApiError } from '../../services/api/axios'
 import { Preset, PresetDetail, presetsApi, TagInfo } from '../../services/api/presets'
 import { presetsMarketApi } from '../../services/api/cloud/presets_market'
 import { useSnackbar } from 'notistack'
@@ -1512,20 +1513,27 @@ export default function PresetsPage() {
 
         try {
           detailData = await presetsApi.getDetailByRemoteId(remoteId)
-        } catch {
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.type !== 'NotFoundError') {
+            throw error
+          }
+
           await presetsMarketApi.downloadPreset(remoteId)
           detailData = await presetsApi.getDetailByRemoteId(remoteId)
         }
 
         setEditingPreset(detailData)
         setEditDialog(true)
+
+        void fetchData()
+        void fetchAvailableTags()
       } catch (_error) {
         showError(t('card.loadDetails'))
       } finally {
         clearEditRemoteId()
       }
     },
-    [clearEditRemoteId, showError, showSuccess, t]
+    [clearEditRemoteId, fetchAvailableTags, fetchData, showError, showSuccess, t]
   )
 
   useEffect(() => {
