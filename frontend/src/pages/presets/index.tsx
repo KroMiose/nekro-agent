@@ -42,6 +42,7 @@ import {
   Clear as ClearIcon,
 } from '@mui/icons-material'
 import { Preset, PresetDetail, presetsApi, TagInfo } from '../../services/api/presets'
+import { presetsMarketApi } from '../../services/api/cloud/presets_market'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
 
@@ -1507,7 +1508,15 @@ export default function PresetsPage() {
     async (remoteId: string) => {
       try {
         showSuccess(t('list.loadingDetails'))
-        const detailData = await presetsApi.getDetailByRemoteId(remoteId)
+        let detailData: PresetDetail
+
+        try {
+          detailData = await presetsApi.getDetailByRemoteId(remoteId)
+        } catch {
+          await presetsMarketApi.downloadPreset(remoteId)
+          detailData = await presetsApi.getDetailByRemoteId(remoteId)
+        }
+
         setEditingPreset(detailData)
         setEditDialog(true)
       } catch (_error) {

@@ -17,6 +17,7 @@ export default function FavoriteCard({ favorite, onRemove, onViewDetail, onDownl
   const [iconError, setIconError] = useState(false)
   const isPlugin = favorite.targetType === 'plugin'
   const isObtained = Boolean(favorite.resource.isLocal)
+  const canDownload = !isPlugin || isObtained || Boolean(favorite.resource.moduleName)
 
   return (
     <ProfileResourceCard
@@ -82,6 +83,7 @@ export default function FavoriteCard({ favorite, onRemove, onViewDetail, onDownl
             tone={isObtained ? 'secondary' : 'ghost'}
             startIcon={isObtained ? <DeleteIcon /> : <DownloadIcon />}
             onClick={onDownload}
+            disabled={!canDownload}
             sx={isObtained ? { color: 'error.main' } : undefined}
           >
             {isObtained

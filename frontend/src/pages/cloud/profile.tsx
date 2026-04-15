@@ -85,6 +85,7 @@ export default function CloudProfile() {
 
   const pluginFavorites = favorites.filter(f => f.targetType === 'plugin')
   const presetFavorites = favorites.filter(f => f.targetType === 'preset')
+  const hasSelectedPluginModuleName = Boolean(selectedPlugin?.moduleName)
 
   const setFavoriteLocalState = useCallback((targetType: string, targetId: string, isLocal: boolean) => {
     setFavorites(prev =>
@@ -105,8 +106,19 @@ export default function CloudProfile() {
   const fetchFavorites = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await favoritesApi.getFavorites({ page: 1, page_size: 32 })
-      setFavorites(data.data.items)
+      const pageSize = 100
+      let page = 1
+      let totalPages = 1
+      const allItems: FavoriteItem[] = []
+
+      do {
+        const data = await favoritesApi.getFavorites({ page, page_size: pageSize })
+        allItems.push(...data.data.items)
+        totalPages = data.data.totalPages || 1
+        page += 1
+      } while (page <= totalPages)
+
+      setFavorites(allItems)
       setError(null)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
@@ -355,7 +367,7 @@ export default function CloudProfile() {
         setSelectedPlugin({
           id: favorite.targetId,
           name: favorite.resource.name,
-          moduleName: favorite.targetId,
+          moduleName: '',
           description: favorite.resource.description,
           author: favorite.resource.author,
           hasWebhook: favorite.resource.hasWebhook || false,
@@ -675,7 +687,7 @@ export default function CloudProfile() {
         plugin={selectedPlugin}
         t={t}
         onDownload={
-          selectedPlugin && !selectedPlugin.is_local
+          selectedPlugin && !selectedPlugin.is_local && hasSelectedPluginModuleName
             ? async () => {
                 try {
                   await pluginsMarketApi.downloadPlugin(selectedPlugin.moduleName)
