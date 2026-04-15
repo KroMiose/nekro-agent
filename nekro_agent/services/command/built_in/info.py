@@ -2,11 +2,18 @@
 
 from typing import Any, Literal
 
+from pydantic import ValidationError
+
 from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import CommandExecutionContext, CommandResponse
 from nekro_agent.services.system_broadcast import (
+    WORKSPACE_CC_PHASE_CANCELLED,
+    WORKSPACE_CC_PHASE_COMPLETED,
+    WORKSPACE_CC_PHASE_FAILED,
+    WORKSPACE_CC_PHASE_QUEUED,
+    WORKSPACE_CC_PHASE_RESPONDING,
     WORKSPACE_CC_PHASE_RUNNING,
     WORKSPACE_CC_RUNTIME_PHASE_VALUES,
     WORKSPACE_STATUS_ACTIVE,
@@ -14,7 +21,10 @@ from nekro_agent.services.system_broadcast import (
     WORKSPACE_STATUS_FAILED,
     WORKSPACE_STATUS_STOPPED,
     WORKSPACE_STATUS_VALUES,
+    WorkspaceCcActiveState,
     WorkspaceCcRuntimePhase,
+    WorkspaceCcRuntimeStatusState,
+    WorkspaceStatusState,
     WorkspaceStatusValue,
 )
 
@@ -50,11 +60,14 @@ def _format_agent_runtime_phase(phase: str | None) -> str:
 def _format_workspace_sandbox_status(status: WorkspaceSandboxDisplayStatus) -> str:
     status_labels = {
         WORKSPACE_SANDBOX_STATUS_IDLE: t(zh_CN="闲置中", en_US="Idle"),
-        "queued": t(zh_CN="排队中", en_US="Queued"),
+        WORKSPACE_CC_PHASE_QUEUED: t(zh_CN="排队中", en_US="Queued"),
         WORKSPACE_CC_PHASE_RUNNING: t(zh_CN="执行中", en_US="Running"),
-        "responding": t(zh_CN="回传结果", en_US="Responding"),
-        "completed": t(zh_CN="已完成", en_US="Completed"),
-        "cancelled": t(zh_CN="已中止", en_US="Cancelled"),
+        WORKSPACE_CC_PHASE_RESPONDING: t(zh_CN="回传结果", en_US="Responding"),
+        WORKSPACE_CC_PHASE_COMPLETED: t(zh_CN="已完成", en_US="Completed"),
+        WORKSPACE_CC_PHASE_FAILED: t(zh_CN="执行失败", en_US="Failed"),
+        WORKSPACE_CC_PHASE_CANCELLED: t(zh_CN="已中止", en_US="Cancelled"),
+        # `active` 是底层容器可用状态；展示层会将其归一化为“闲置中”。
+        WORKSPACE_STATUS_ACTIVE: t(zh_CN="闲置中", en_US="Idle"),
         WORKSPACE_STATUS_STOPPED: t(zh_CN="已停止", en_US="Stopped"),
         WORKSPACE_STATUS_FAILED: t(zh_CN="执行失败", en_US="Failed"),
         WORKSPACE_STATUS_DELETING: t(zh_CN="删除中", en_US="Deleting"),
@@ -79,27 +92,56 @@ def _resolve_channel_agent_runtime_status(chat_key: str) -> tuple[str, str]:
     return t(zh_CN="闲置中", en_US="Idle"), "none"
 
 
-def _get_workspace_status_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceStatusValue | None:
+def _get_workspace_status_state_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceStatusState | None:
     workspace_status = snapshot.get("workspace_status", {}).get(str(workspace_id))
     if not isinstance(workspace_status, dict):
         return None
 
-    status = workspace_status.get("status")
-    if isinstance(status, str) and status in WORKSPACE_STATUS_VALUES:
-        return status
+    try:
+        return WorkspaceStatusState.model_validate(workspace_status)
+    except ValidationError:
+        return None
+
+
+def _get_workspace_status_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceStatusValue | None:
+    workspace_status = _get_workspace_status_state_from_snapshot(snapshot, workspace_id)
+    if workspace_status is not None and workspace_status.status in WORKSPACE_STATUS_VALUES:
+        return workspace_status.status
+
+    return None
+
+
+def _get_workspace_cc_runtime_state_from_snapshot(
+    snapshot: dict[str, Any],
+    workspace_id: int,
+) -> WorkspaceCcRuntimeStatusState | None:
+    runtime_status = snapshot.get("workspace_cc_runtime_status", {}).get(str(workspace_id))
+    if isinstance(runtime_status, dict):
+        try:
+            return WorkspaceCcRuntimeStatusState.model_validate(runtime_status)
+        except ValidationError:
+            return None
+
+    return None
+
+
+def _get_workspace_cc_active_state_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceCcActiveState | None:
+    active_status = snapshot.get("workspace_cc_active", {}).get(str(workspace_id))
+    if isinstance(active_status, dict):
+        try:
+            return WorkspaceCcActiveState.model_validate(active_status)
+        except ValidationError:
+            return None
 
     return None
 
 
 def _get_workspace_cc_phase_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceCcRuntimePhase | None:
-    runtime_status = snapshot.get("workspace_cc_runtime_status", {}).get(str(workspace_id))
-    if isinstance(runtime_status, dict):
-        phase = runtime_status.get("phase")
-        if isinstance(phase, str) and phase in WORKSPACE_CC_RUNTIME_PHASE_VALUES:
-            return phase
+    runtime_status = _get_workspace_cc_runtime_state_from_snapshot(snapshot, workspace_id)
+    if runtime_status is not None and runtime_status.phase in WORKSPACE_CC_RUNTIME_PHASE_VALUES:
+        return runtime_status.phase
 
-    active_status = snapshot.get("workspace_cc_active", {}).get(str(workspace_id))
-    if isinstance(active_status, dict):
+    if _get_workspace_cc_active_state_from_snapshot(snapshot, workspace_id) is not None:
         return WORKSPACE_CC_PHASE_RUNNING
 
     return None
