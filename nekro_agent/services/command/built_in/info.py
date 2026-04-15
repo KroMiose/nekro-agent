@@ -30,6 +30,23 @@ def _format_agent_runtime_phase(phase: str | None) -> str:
     return phase_labels.get(phase or "", t(zh_CN="未知", en_US="Unknown"))
 
 
+def _format_workspace_sandbox_status(status: str) -> str:
+    status_labels = {
+        "idle": t(zh_CN="闲置中", en_US="Idle"),
+        "queued": t(zh_CN="排队中", en_US="Queued"),
+        "running": t(zh_CN="执行中", en_US="Running"),
+        "responding": t(zh_CN="回传结果", en_US="Responding"),
+        "completed": t(zh_CN="已完成", en_US="Completed"),
+        "cancelled": t(zh_CN="已中止", en_US="Cancelled"),
+        "active": t(zh_CN="闲置中", en_US="Idle"),
+        "stopped": t(zh_CN="已停止", en_US="Stopped"),
+        "failed": t(zh_CN="执行失败", en_US="Failed"),
+        "deleting": t(zh_CN="删除中", en_US="Deleting"),
+        "unbound": t(zh_CN="未绑定", en_US="Unbound"),
+    }
+    return status_labels.get(status, t(zh_CN="未知", en_US="Unknown"))
+
+
 def _resolve_channel_agent_runtime_status(chat_key: str) -> tuple[str, str]:
     from nekro_agent.services.system_broadcast import get_state_snapshot
 
@@ -44,6 +61,41 @@ def _resolve_channel_agent_runtime_status(chat_key: str) -> tuple[str, str]:
         return t(zh_CN="LLM 生成中", en_US="LLM generating"), "llm_generating"
 
     return t(zh_CN="闲置中", en_US="Idle"), "none"
+
+
+async def _resolve_bound_workspace_sandbox_status(workspace_id: int | None) -> tuple[str, str]:
+    if workspace_id is None:
+        return _format_workspace_sandbox_status("unbound"), "unbound"
+
+    from nekro_agent.models.db_workspace import DBWorkspace
+    from nekro_agent.services.system_broadcast import get_state_snapshot
+
+    snapshot = get_state_snapshot()
+    workspace_status: dict[str, Any] | None = snapshot.get("workspace_status", {}).get(str(workspace_id))
+    if workspace_status is not None:
+        status = str(workspace_status.get("status") or "")
+        if status == "active":
+            runtime_status: dict[str, Any] | None = snapshot.get("workspace_cc_runtime_status", {}).get(str(workspace_id))
+            if runtime_status is not None:
+                phase = str(runtime_status.get("phase") or "")
+                return _format_workspace_sandbox_status(phase), phase or "unknown"
+
+            active_status: dict[str, Any] | None = snapshot.get("workspace_cc_active", {}).get(str(workspace_id))
+            if active_status is not None:
+                return _format_workspace_sandbox_status("running"), "running"
+
+            return _format_workspace_sandbox_status("idle"), "idle"
+
+        return _format_workspace_sandbox_status(status), status or "unknown"
+
+    workspace = await DBWorkspace.get_or_none(id=workspace_id)
+    if workspace is None:
+        return t(zh_CN="未知", en_US="Unknown"), "unknown"
+
+    if workspace.status == "active":
+        return _format_workspace_sandbox_status("idle"), "idle"
+
+    return _format_workspace_sandbox_status(workspace.status), workspace.status
 
 
 class NaInfoCommand(BaseCommand):
@@ -72,6 +124,9 @@ class NaInfoCommand(BaseCommand):
         channel_status = db_chat_channel.channel_status.value
         channel_status_label = _format_channel_status(channel_status)
         runtime_status_label, runtime_status_phase = _resolve_channel_agent_runtime_status(context.chat_key)
+        cc_sandbox_status_label, cc_sandbox_status_value = await _resolve_bound_workspace_sandbox_status(
+            db_chat_channel.workspace_id
+        )
 
         title = t(zh_CN="[Nekro-Agent 信息]", en_US="[Nekro-Agent Info]")
         subtitle = t(zh_CN="> 更智能、更优雅的代理执行 AI", en_US="> Smarter, more elegant agent execution AI")
@@ -79,6 +134,7 @@ class NaInfoCommand(BaseCommand):
         preset_label = t(zh_CN="人设", en_US="Preset")
         channel_status_label_title = t(zh_CN="频道状态", en_US="Channel Status")
         runtime_status_label_title = t(zh_CN="Agent状态", en_US="Agent Status")
+        cc_sandbox_status_label_title = t(zh_CN="CC沙盒状态", en_US="CC Sandbox Status")
 
         message = (
             f"{title}\n"
@@ -90,7 +146,8 @@ class NaInfoCommand(BaseCommand):
             f"{chat_settings}\n"
             f"{preset_label}: {preset.name}\n"
             f"{channel_status_label_title}: {channel_status_label}\n"
-            f"{runtime_status_label_title}: {runtime_status_label}"
+            f"{runtime_status_label_title}: {runtime_status_label}\n"
+            f"{cc_sandbox_status_label_title}: {cc_sandbox_status_label}"
         )
 
         return CmdCtl.success(
@@ -103,6 +160,9 @@ class NaInfoCommand(BaseCommand):
                 "channel_status_value": channel_status,
                 "agent_runtime_status": runtime_status_label,
                 "agent_runtime_phase": runtime_status_phase,
+                "cc_sandbox_status": cc_sandbox_status_label,
+                "cc_sandbox_status_value": cc_sandbox_status_value,
+                "bound_workspace_id": db_chat_channel.workspace_id,
             },
         )
 
