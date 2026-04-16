@@ -283,3 +283,18 @@ async def delete_document_index(document: DBKBDocument) -> None:
     if chunks:
         await kb_qdrant_manager.delete_chunk_points([chunk.id for chunk in chunks])
         await DBKBChunk.filter(document_id=document.id).delete()
+
+
+async def sync_document_index_metadata(document: DBKBDocument) -> int:
+    chunk_ids = await DBKBChunk.filter(document_id=document.id).values_list("id", flat=True)
+    if not chunk_ids:
+        return 0
+    await kb_qdrant_manager.set_payload(
+        chunk_ids=list(chunk_ids),
+        payload={
+            "category": document.category,
+            "tags": document.tags if isinstance(document.tags, list) else [],
+            "is_enabled": document.is_enabled,
+        },
+    )
+    return len(chunk_ids)

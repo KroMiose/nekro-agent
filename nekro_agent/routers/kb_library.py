@@ -29,6 +29,7 @@ from nekro_agent.services.kb.library_index_service import (
 from nekro_agent.services.kb.library_service import (
     TEXT_LIBRARY_FORMATS,
     asset_to_list_item,
+    bind_asset_workspace,
     create_asset_from_upload,
     create_text_asset,
     get_asset,
@@ -37,6 +38,7 @@ from nekro_agent.services.kb.library_service import (
     read_asset_normalized_content,
     read_asset_source_content,
     resolve_kb_library_source_path,
+    unbind_asset_workspace,
     update_asset_bindings,
 )
 from nekro_agent.services.user.deps import get_current_active_user
@@ -64,6 +66,11 @@ async def _get_asset_or_404(asset_id: int) -> DBKBAsset:
     if asset is None:
         raise NotFoundError(resource=f"全局知识库文件 {asset_id}")
     return asset
+
+
+async def _ensure_workspace_exists(workspace_id: int) -> None:
+    if not await DBWorkspace.filter(id=workspace_id).exists():
+        raise ValidationError(reason="存在无效的工作区 ID，无法更新绑定")
 
 
 @router.get("/assets", summary="获取全局知识库文件列表", response_model=KBAssetListResponse)
@@ -248,4 +255,38 @@ async def update_kb_library_asset_bindings(
         if existing_count != len(normalized_ids):
             raise ValidationError(reason="存在无效的工作区 ID，无法更新绑定")
     items = await update_asset_bindings(asset_id, normalized_ids)
+    return KBAssetBindingsResponse(asset_id=asset_id, binding_count=len(items), items=items)
+
+
+@router.put(
+    "/assets/{asset_id}/bindings/{workspace_id}",
+    summary="为工作区绑定全局知识库文件",
+    response_model=KBAssetBindingsResponse,
+)
+@require_role(Role.Admin)
+async def bind_kb_library_asset_workspace(
+    asset_id: int,
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetBindingsResponse:
+    await _get_asset_or_404(asset_id)
+    await _ensure_workspace_exists(workspace_id)
+    items = await bind_asset_workspace(asset_id, workspace_id)
+    return KBAssetBindingsResponse(asset_id=asset_id, binding_count=len(items), items=items)
+
+
+@router.delete(
+    "/assets/{asset_id}/bindings/{workspace_id}",
+    summary="解绑工作区与全局知识库文件",
+    response_model=KBAssetBindingsResponse,
+)
+@require_role(Role.Admin)
+async def unbind_kb_library_asset_workspace(
+    asset_id: int,
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetBindingsResponse:
+    await _get_asset_or_404(asset_id)
+    await _ensure_workspace_exists(workspace_id)
+    items = await unbind_asset_workspace(asset_id, workspace_id)
     return KBAssetBindingsResponse(asset_id=asset_id, binding_count=len(items), items=items)

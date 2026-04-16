@@ -1048,6 +1048,8 @@
       "uploading": "上传中...",
       "chooseFile": "选择文件",
       "reindex": "重建索引",
+      "reuseGlobal": "复用全局知识库",
+      "saveReuse": "保存复用",
       "downloadRaw": "下载原文件",
       "delete": "删除",
       "enable": "启用检索",
@@ -1058,7 +1060,8 @@
     "stats": {
       "documents": "文档 {{count}}",
       "ready": "已就绪 {{count}}",
-      "failed": "异常 {{count}}"
+      "failed": "异常 {{count}}",
+      "reusedGlobal": "复用全局 {{count}}"
     },
     "status": {
       "pending": "待处理",
@@ -1077,7 +1080,8 @@
     },
     "list": {
       "total": "共 {{count}} 份文档",
-      "noPreview": "暂无预览"
+      "noPreview": "暂无预览",
+      "globalBound": "已复用"
     },
     "search": {
       "placeholder": "搜索规则、FAQ、手册、设计文档...",
@@ -1128,6 +1132,7 @@
       "sourcePath": "目标路径",
       "sourcePathPlaceholder": "例如 faq/getting-started.md",
       "supportedFormats": "支持上传的文件格式：{{formats}}",
+      "reuseSearch": "搜索全局知识标题、路径、分类或标签",
       "fileName": "文件名",
       "category": "分类",
       "tags": "标签",
@@ -1138,6 +1143,9 @@
     "dialogs": {
       "createTitle": "新建文本知识",
       "uploadTitle": "上传知识文件",
+      "reuseTitle": "复用全局知识库",
+      "reuseHint": "选择要复用到当前工作区的全局知识文件。保存后，这些文件会与当前工作区建立绑定关系。",
+      "reuseEmpty": "没有匹配到可复用的全局知识文件。",
       "deleteTitle": "确认删除",
       "deleteContent": "确定要删除知识文档“{{title}}”吗？此操作不可恢复。"
     },
@@ -1155,6 +1163,8 @@
       "searchFailed": "搜索失败：{{message}}",
       "updateSuccess": "知识文档已更新",
       "updateFailed": "更新失败：{{message}}",
+      "reuseBindingsSuccess": "全局知识库复用关系已更新",
+      "reuseBindingsFailed": "更新复用关系失败：{{message}}",
       "downloadFailed": "下载失败：{{message}}",
       "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}"
     }

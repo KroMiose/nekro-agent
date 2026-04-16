@@ -1048,6 +1048,8 @@
       "uploading": "Uploading...",
       "chooseFile": "Choose File",
       "reindex": "Reindex",
+      "reuseGlobal": "Reuse Global KB",
+      "saveReuse": "Save Reuse",
       "downloadRaw": "Download Raw",
       "delete": "Delete",
       "enable": "Enable Search",
@@ -1058,7 +1060,8 @@
     "stats": {
       "documents": "{{count}} docs",
       "ready": "{{count}} ready",
-      "failed": "{{count}} issues"
+      "failed": "{{count}} issues",
+      "reusedGlobal": "{{count}} global reused"
     },
     "status": {
       "pending": "Pending",
@@ -1077,7 +1080,8 @@
     },
     "list": {
       "total": "{{count}} documents",
-      "noPreview": "No preview available"
+      "noPreview": "No preview available",
+      "globalBound": "Reused"
     },
     "search": {
       "placeholder": "Search rules, FAQ, manuals, design docs...",
@@ -1128,6 +1132,7 @@
       "sourcePath": "Target Path",
       "sourcePathPlaceholder": "e.g. faq/getting-started.md",
       "supportedFormats": "Supported upload formats: {{formats}}",
+      "reuseSearch": "Search global knowledge by title, path, category, or tags",
       "fileName": "File Name",
       "category": "Category",
       "tags": "Tags",
@@ -1138,6 +1143,9 @@
     "dialogs": {
       "createTitle": "Create Text Knowledge",
       "uploadTitle": "Upload Knowledge File",
+      "reuseTitle": "Reuse Global Knowledge",
+      "reuseHint": "Choose the global knowledge files to reuse in this workspace. Saving will bind those files to the current workspace.",
+      "reuseEmpty": "No reusable global knowledge files match the current filter.",
       "deleteTitle": "Confirm Delete",
       "deleteContent": "Delete knowledge document \"{{title}}\"? This action cannot be undone."
     },
@@ -1155,6 +1163,8 @@
       "searchFailed": "Search failed: {{message}}",
       "updateSuccess": "Knowledge document updated",
       "updateFailed": "Update failed: {{message}}",
+      "reuseBindingsSuccess": "Global knowledge reuse updated",
+      "reuseBindingsFailed": "Failed to update reuse bindings: {{message}}",
       "downloadFailed": "Download failed: {{message}}",
       "unsupportedFormat": "File {{name}} is not supported. Supported formats: {{formats}}"
     }

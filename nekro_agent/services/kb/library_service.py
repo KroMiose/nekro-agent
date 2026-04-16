@@ -238,3 +238,13 @@ async def update_asset_bindings(asset_id: int, workspace_ids: list[int]) -> list
         await DBKBAssetBinding.create(asset_id=asset_id, workspace_id=workspace_id)
 
     return await list_asset_bound_workspaces(asset_id)
+
+
+async def bind_asset_workspace(asset_id: int, workspace_id: int) -> list[KBAssetBoundWorkspace]:
+    await DBKBAssetBinding.get_or_create(asset_id=asset_id, workspace_id=workspace_id)
+    return await list_asset_bound_workspaces(asset_id)
+
+
+async def unbind_asset_workspace(asset_id: int, workspace_id: int) -> list[KBAssetBoundWorkspace]:
+    await DBKBAssetBinding.filter(asset_id=asset_id, workspace_id=workspace_id).delete()
+    return await list_asset_bound_workspaces(asset_id)

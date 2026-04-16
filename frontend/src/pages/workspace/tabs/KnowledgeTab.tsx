@@ -5,6 +5,7 @@ import {
   Card,
   CardContent,
   Chip,
+  Checkbox,
   CircularProgress,
   LinearProgress,
   Dialog,
@@ -33,16 +34,20 @@ import {
   RestartAlt as ReindexIcon,
   Search as SearchIcon,
   Visibility as VisibilityIcon,
+  LibraryBooks as LibraryIcon,
   FolderOpen as FolderOpenIcon,
   Clear as ClearIcon,
 } from '@mui/icons-material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
+  KBAssetDetailResponse,
+  KBAssetListItem,
   KBCreateTextDocumentBody,
   KBDocumentDetailResponse,
   KBSearchResponse,
   KBUploadFilePayload,
+  kbLibraryApi,
   knowledgeBaseApi,
   WorkspaceDetail,
 } from '../../../services/api/workspace'
@@ -53,6 +58,11 @@ import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
 
 type PreviewTab = 'normalized' | 'source'
+type KnowledgeSelection =
+  | { kind: 'document'; id: number }
+  | { kind: 'asset'; id: number }
+  | null
+type KnowledgePreviewDetail = Pick<KBDocumentDetailResponse, 'source_content' | 'normalized_content'> | Pick<KBAssetDetailResponse, 'source_content' | 'normalized_content'>
 
 const TEXT_FORMAT_OPTIONS: Array<{ value: 'markdown' | 'text'; label: string }> = [
   { value: 'markdown', label: 'Markdown' },
@@ -60,6 +70,8 @@ const TEXT_FORMAT_OPTIONS: Array<{ value: 'markdown' | 'text'; label: string }> 
 ]
 
 const EMPTY_DOCUMENTS: KBDocumentDetailResponse['document'][] = []
+const EMPTY_GLOBAL_ASSETS: KBAssetListItem[] = []
+const EMPTY_SEARCH_DOCUMENTS: KBSearchResponse['documents'] = []
 const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.xlsx', '.pdf', '.docx']
 
 
@@ -93,7 +105,9 @@ function statusColor(status: string): 'default' | 'success' | 'warning' | 'error
   return 'default'
 }
 
-function getEffectiveStatus(document: KBDocumentDetailResponse['document']): string {
+function getEffectiveStatus(
+  document: Pick<KBDocumentDetailResponse['document'], 'extract_status' | 'sync_status'>
+): string {
   if (document.extract_status === 'failed' || document.sync_status === 'failed') return 'failed'
   if (document.extract_status !== 'ready') return document.extract_status
   return document.sync_status
@@ -157,7 +171,7 @@ function normalizeTagsInput(raw: string): string[] {
     .filter(Boolean)
 }
 
-function previewContent(detail: KBDocumentDetailResponse | undefined, tab: PreviewTab): string {
+function previewContent(detail: KnowledgePreviewDetail | undefined, tab: PreviewTab): string {
   if (!detail) return ''
   if (tab === 'source') return detail.source_content ?? ''
   return detail.normalized_content ?? ''
@@ -176,13 +190,16 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
   const lastProgressTerminalRef = useRef('')
 
-  const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null)
+  const [selectedItem, setSelectedItem] = useState<KnowledgeSelection>(null)
   const [previewTab, setPreviewTab] = useState<PreviewTab>('normalized')
   const [searchDraft, setSearchDraft] = useState('')
   const [searchResult, setSearchResult] = useState<KBSearchResponse | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [reuseOpen, setReuseOpen] = useState(false)
+  const [reuseSearch, setReuseSearch] = useState('')
+  const [reuseAssetIds, setReuseAssetIds] = useState<number[]>([])
 
   const [createForm, setCreateForm] = useState<KBCreateTextDocumentBody>({
     title: '',
@@ -209,33 +226,112 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     queryKey: ['kb-documents', workspace.id],
     queryFn: () => knowledgeBaseApi.list(workspace.id),
   })
+  const globalAssetsQuery = useQuery({
+    queryKey: ['kb-library-assets'],
+    queryFn: () => kbLibraryApi.list(),
+  })
 
   const documents = documentsQuery.data ?? EMPTY_DOCUMENTS
+  const globalAssets = globalAssetsQuery.data ?? EMPTY_GLOBAL_ASSETS
+  const hasSearchResult = searchResult != null
+  const searchDocuments = searchResult?.documents ?? EMPTY_SEARCH_DOCUMENTS
+  const suggestedDocumentIds = new Set(searchResult?.suggested_document_ids ?? [])
+  const listTitle = hasSearchResult ? t('knowledge.sections.searchResults') : t('knowledge.sections.documents')
+  const boundGlobalAssets = useMemo(
+    () =>
+      globalAssets.filter(asset =>
+        asset.bound_workspaces.some(item => item.workspace_id === workspace.id)
+      ),
+    [globalAssets, workspace.id]
+  )
+  const defaultListEntries = useMemo(
+    () => [
+      ...documents.map(item => ({ kind: 'document' as const, id: item.id, item })),
+      ...boundGlobalAssets.map(item => ({ kind: 'asset' as const, id: item.id, item })),
+    ],
+    [documents, boundGlobalAssets]
+  )
+  const selectedDocumentId = selectedItem?.kind === 'document' ? selectedItem.id : null
+  const selectedAssetId = selectedItem?.kind === 'asset' ? selectedItem.id : null
   const selectedDocument = useMemo(
     () => documents.find(item => item.id === selectedDocumentId) ?? null,
     [documents, selectedDocumentId]
   )
+  const selectedAsset = useMemo(
+    () => boundGlobalAssets.find(item => item.id === selectedAssetId) ?? null,
+    [boundGlobalAssets, selectedAssetId]
+  )
+  const filteredGlobalAssets = useMemo(() => {
+    const keyword = reuseSearch.trim().toLowerCase()
+    if (!keyword) return globalAssets
+    return globalAssets.filter(asset =>
+      [
+        asset.title,
+        asset.source_path,
+        asset.category,
+        asset.summary,
+        asset.file_name,
+        ...asset.tags,
+      ]
+        .join('\n')
+        .toLowerCase()
+        .includes(keyword)
+    )
+  }, [globalAssets, reuseSearch])
 
   useEffect(() => {
-    if (!documents.length) {
-      setSelectedDocumentId(null)
+    if (hasSearchResult) {
+      if (!searchDocuments.length) {
+        setSelectedItem(null)
+        return
+      }
+      const firstSearchItem = searchDocuments[0]
+      const firstSearchSelection = {
+        kind: firstSearchItem.source_kind,
+        id: firstSearchItem.document_id,
+      } as const
+      if (
+        selectedItem == null ||
+        !searchDocuments.some(
+          item => item.source_kind === selectedItem.kind && item.document_id === selectedItem.id
+        )
+      ) {
+        setSelectedItem(firstSearchSelection)
+      }
       return
     }
-    if (selectedDocumentId == null || !documents.some(item => item.id === selectedDocumentId)) {
-      setSelectedDocumentId(documents[0].id)
+
+    if (!defaultListEntries.length) {
+      setSelectedItem(null)
+      return
     }
-  }, [documents, selectedDocumentId])
+    const hasSelection =
+      selectedItem != null &&
+      defaultListEntries.some(entry => entry.kind === selectedItem.kind && entry.id === selectedItem.id)
+    if (!hasSelection) {
+      setSelectedItem({ kind: defaultListEntries[0].kind, id: defaultListEntries[0].id })
+    }
+  }, [defaultListEntries, hasSearchResult, searchDocuments, selectedItem])
 
   const detailQuery = useQuery({
     queryKey: ['kb-document', workspace.id, selectedDocumentId],
     queryFn: () => knowledgeBaseApi.getDocument(workspace.id, selectedDocumentId as number),
     enabled: selectedDocumentId != null,
+    staleTime: 60_000,
+  })
+  const assetDetailQuery = useQuery({
+    queryKey: ['kb-library-asset', selectedAssetId],
+    queryFn: () => kbLibraryApi.getAsset(selectedAssetId as number),
+    enabled: selectedAssetId != null,
+    staleTime: 60_000,
   })
 
   const refreshAll = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['kb-documents', workspace.id] }),
       queryClient.invalidateQueries({ queryKey: ['kb-document', workspace.id] }),
+      queryClient.invalidateQueries({ queryKey: ['kb-library-assets'] }),
+      queryClient.invalidateQueries({ queryKey: ['kb-library-asset'] }),
     ])
   }, [queryClient, workspace.id])
 
@@ -243,7 +339,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     mutationFn: (body: KBCreateTextDocumentBody) => knowledgeBaseApi.createText(workspace.id, body),
     onSuccess: async data => {
       await refreshAll()
-      setSelectedDocumentId(data.document.id)
+      setSelectedItem({ kind: 'document', id: data.document.id })
       setCreateOpen(false)
       setCreateForm({
         title: '',
@@ -267,7 +363,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       knowledgeBaseApi.uploadFile(workspace.id, payload, percent => setUploadProgress(percent)),
     onSuccess: async data => {
       await refreshAll()
-      setSelectedDocumentId(data.document.id)
+      setSelectedItem({ kind: 'document', id: data.document.id })
       setUploadOpen(false)
       setUploadFile(null)
       setUploadTitle('')
@@ -290,8 +386,8 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       const deletedId = selectedDocumentId
       await refreshAll()
       setDeleteOpen(false)
-      if (deletedId === selectedDocumentId) {
-        setSelectedDocumentId(null)
+      if (selectedItem?.kind === 'document' && deletedId === selectedItem.id) {
+        setSelectedItem(null)
       }
       notification.success(t('knowledge.notifications.deleteSuccess'))
     },
@@ -341,15 +437,55 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     onSuccess: data => setSearchResult(data),
     onError: (err: Error) => notification.error(t('knowledge.notifications.searchFailed', { message: err.message })),
   })
+  const reuseBindingsMutation = useMutation({
+    mutationFn: async (assetIds: number[]) => {
+      const selectedAssetSet = new Set(assetIds)
+      const changedAssets = globalAssets.filter(asset => {
+        const isBound = asset.bound_workspaces.some(item => item.workspace_id === workspace.id)
+        return isBound !== selectedAssetSet.has(asset.id)
+      })
+      await Promise.all(
+        changedAssets.map(asset =>
+          selectedAssetSet.has(asset.id)
+            ? kbLibraryApi.bindWorkspace(asset.id, workspace.id)
+            : kbLibraryApi.unbindWorkspace(asset.id, workspace.id)
+        )
+      )
+    },
+    onSuccess: async () => {
+      await refreshAll()
+      setReuseOpen(false)
+      setSearchResult(null)
+      notification.success(t('knowledge.notifications.reuseBindingsSuccess'))
+    },
+    onError: (err: Error) =>
+      notification.error(t('knowledge.notifications.reuseBindingsFailed', { message: err.message })),
+  })
 
   const handleDownloadRaw = async () => {
-    if (!selectedDocumentId || !selectedDocument) return
+    if (selectedDocumentId && selectedDocument) {
+      try {
+        const { blob, filename } = await knowledgeBaseApi.downloadRawFile(workspace.id, selectedDocumentId)
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = filename ?? selectedDocument.file_name
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      } catch (err) {
+        notification.error(t('knowledge.notifications.downloadFailed', { message: (err as Error).message }))
+      }
+      return
+    }
+    if (!selectedAssetId || !selectedAsset) return
     try {
-      const { blob, filename } = await knowledgeBaseApi.downloadRawFile(workspace.id, selectedDocumentId)
+      const { blob, filename } = await kbLibraryApi.downloadRawFile(selectedAssetId)
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = filename ?? selectedDocument.file_name
+      link.download = filename ?? selectedAsset.file_name
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -407,17 +543,28 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     }
   }
 
-  const hasSearchResult = searchResult != null
-  const searchDocuments = searchResult?.documents ?? []
-  const suggestedDocumentIds = new Set(searchResult?.suggested_document_ids ?? [])
-  const activeList = hasSearchResult ? searchDocuments.map(item => item.document_id) : documents.map(item => item.id)
-  const listItems = hasSearchResult ? searchDocuments : documents
-  const listTitle = hasSearchResult ? t('knowledge.sections.searchResults') : t('knowledge.sections.documents')
+  const handleReuseDialogOpen = () => {
+    setReuseAssetIds(boundGlobalAssets.map(asset => asset.id))
+    setReuseSearch('')
+    setReuseOpen(true)
+  }
+
+  const toggleReuseAsset = (assetId: number) => {
+    setReuseAssetIds(prev =>
+      prev.includes(assetId) ? prev.filter(id => id !== assetId) : [...prev, assetId]
+    )
+  }
+
   const detail = detailQuery.data
-  const preview = previewContent(detail, previewTab)
+  const assetDetail = assetDetailQuery.data
+  const selectedDocumentMeta = selectedDocument ?? detail?.document ?? null
+  const selectedAssetMeta = selectedAsset ?? assetDetail?.asset ?? null
+  const preview = previewContent(detail ?? assetDetail ?? undefined, previewTab)
   const statusLabel = (status: string) => t(`knowledge.status.${status}`, { defaultValue: status })
   const selectedProgress = selectedDocumentId != null ? kbIndexProgresses.get(`${workspace.id}:${selectedDocumentId}`) ?? null : null
-  const selectedDerivedStatuses = detail ? getDerivedStatuses(detail.document, selectedProgress) : null
+  const selectedDerivedStatuses = selectedDocumentMeta
+    ? getDerivedStatuses(selectedDocumentMeta, selectedProgress)
+    : null
   const workspaceProgresses = useMemo(
     () => Array.from(kbIndexProgresses.values()).filter(item => item.workspace_id === workspace.id),
     [kbIndexProgresses, workspace.id]
@@ -482,6 +629,14 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 <ActionButton tone="secondary" startIcon={<ReindexIcon />} onClick={() => reindexAllMutation.mutate()} disabled={reindexAllMutation.isPending}>
                   {t('knowledge.actions.reindexAll')}
                 </ActionButton>
+                <ActionButton
+                  tone="secondary"
+                  startIcon={<LibraryIcon />}
+                  onClick={handleReuseDialogOpen}
+                  disabled={globalAssetsQuery.isLoading}
+                >
+                  {t('knowledge.actions.reuseGlobal')}
+                </ActionButton>
                 <ActionButton tone="secondary" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
                   {t('knowledge.actions.createText')}
                 </ActionButton>
@@ -495,6 +650,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               <Chip label={t('knowledge.stats.documents', { count: documents.length })} />
               <Chip label={t('knowledge.stats.ready', { count: documents.filter(item => item.sync_status === 'ready').length })} color="success" />
               <Chip label={t('knowledge.stats.failed', { count: documents.filter(item => item.sync_status === 'failed' || item.extract_status === 'failed').length })} color="error" />
+              <Chip label={t('knowledge.stats.reusedGlobal', { count: boundGlobalAssets.length })} color="info" />
             </Stack>
 
             <TextField
@@ -561,51 +717,51 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               <Typography variant="caption" color="text.secondary">
                 {searchResult
                   ? t('knowledge.search.resultCount', { count: searchResult.document_total })
-                  : t('knowledge.list.total', { count: documents.length })}
+                  : t('knowledge.list.total', { count: defaultListEntries.length })}
               </Typography>
             </Box>
             <Divider />
-            {documentsQuery.isLoading ? (
+            {documentsQuery.isLoading || (!hasSearchResult && globalAssetsQuery.isLoading) ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
                 <CircularProgress size={28} />
               </Box>
-            ) : activeList.length ? (
+            ) : (hasSearchResult ? searchDocuments.length > 0 : defaultListEntries.length > 0) ? (
               <List sx={{ maxHeight: 720, overflowY: 'auto', py: 0 }}>
-                {listItems.map(item => {
-                  const documentId = 'document_id' in item ? item.document_id : item.id
-                  const isSearchDocument = 'document_score' in item
-                  const subtitle = isSearchDocument ? item.best_match_excerpt : item.summary || item.source_path
-                  const isSelected = selectedDocumentId === documentId
-                  const status = 'sync_status' in item ? getDerivedStatuses(item, progressByDocumentId.get(documentId)).overallStatus : 'ready'
-                  return (
-                    <ListItemButton
-                      key={`${documentId}-${isSearchDocument ? 'search-doc' : 'doc'}`}
-                      selected={isSelected}
-                      onClick={() => setSelectedDocumentId(documentId)}
-                      sx={{ alignItems: 'flex-start', py: 1.25 }}
-                    >
-                      <ListItemText
-                        primary={
-                          <Stack spacing={0.75}>
-                            <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.35, minWidth: 0 }}>
-                              {item.title}
-                            </Typography>
-                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                              {'format' in item && <Chip size="small" label={item.format.toUpperCase()} variant="outlined" />}
-                              {isSearchDocument && suggestedDocumentIds.has(documentId) && (
-                                <Chip size="small" label="Suggested" color="primary" variant="outlined" />
-                              )}
-                              <Chip size="small" label={statusLabel(status)} color={statusColor(status)} />
-                            </Stack>
-                          </Stack>
-                        }
-                        secondary={
-                          <Stack spacing={0.5} sx={{ mt: 0.75 }}>
-                            <Typography variant="caption" color="text.secondary">
-                              {'source_path' in item ? item.source_path : ''}
-                            </Typography>
-                            {isSearchDocument && (
-                              <>
+                {hasSearchResult
+                  ? searchDocuments.map(item => {
+                      const documentId = item.document_id
+                      const isSelected =
+                        selectedItem?.kind === item.source_kind && selectedItem.id === documentId
+                      return (
+                        <ListItemButton
+                          key={`${item.source_kind}-${documentId}-search-doc`}
+                          selected={isSelected}
+                          onClick={() => setSelectedItem({ kind: item.source_kind, id: documentId })}
+                          sx={{ alignItems: 'flex-start', py: 1.25 }}
+                        >
+                          <ListItemText
+                            primary={
+                              <Stack spacing={0.75}>
+                                <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.35, minWidth: 0 }}>
+                                  {item.title}
+                                </Typography>
+                                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                  <Chip size="small" label={item.format.toUpperCase()} variant="outlined" />
+                                  {item.source_kind === 'asset' && (
+                                    <Chip size="small" label={t('knowledge.list.globalBound')} color="info" variant="outlined" />
+                                  )}
+                                  {item.source_kind === 'document' && suggestedDocumentIds.has(documentId) && (
+                                    <Chip size="small" label="Suggested" color="primary" variant="outlined" />
+                                  )}
+                                  <Chip size="small" label={statusLabel('ready')} color={statusColor('ready')} />
+                                </Stack>
+                              </Stack>
+                            }
+                            secondary={
+                              <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  {item.source_path}
+                                </Typography>
                                 {!!item.headings.length && (
                                   <Typography variant="caption" color="text.secondary">
                                     {item.headings.join(' / ')}
@@ -624,12 +780,49 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                                     overflow: 'hidden',
                                   }}
                                 >
-                                  {subtitle || t('knowledge.list.noPreview')}
+                                  {item.best_match_excerpt || t('knowledge.list.noPreview')}
                                 </Typography>
-                              </>
-                            )}
-                            {!isSearchDocument && (
-                              <>
+                              </Stack>
+                            }
+                          />
+                        </ListItemButton>
+                      )
+                    })
+                  : defaultListEntries.map(entry => {
+                      const item = entry.item
+                      const isSelected =
+                        selectedItem?.kind === entry.kind && selectedItem.id === entry.id
+                      const status =
+                        entry.kind === 'document'
+                          ? getDerivedStatuses(item, progressByDocumentId.get(entry.id)).overallStatus
+                          : getEffectiveStatus(item)
+                      return (
+                        <ListItemButton
+                          key={`${entry.kind}-${entry.id}`}
+                          selected={isSelected}
+                          onClick={() => setSelectedItem({ kind: entry.kind, id: entry.id })}
+                          sx={{ alignItems: 'flex-start', py: 1.25 }}
+                        >
+                          <ListItemText
+                            primary={
+                              <Stack spacing={0.75}>
+                                <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.35, minWidth: 0 }}>
+                                  {item.title}
+                                </Typography>
+                                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                  <Chip size="small" label={item.format.toUpperCase()} variant="outlined" />
+                                  {entry.kind === 'asset' && (
+                                    <Chip size="small" label={t('knowledge.list.globalBound')} color="info" variant="outlined" />
+                                  )}
+                                  <Chip size="small" label={statusLabel(status)} color={statusColor(status)} />
+                                </Stack>
+                              </Stack>
+                            }
+                            secondary={
+                              <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  {item.source_path}
+                                </Typography>
                                 {!!item.summary && (
                                   <Typography
                                     variant="body2"
@@ -647,14 +840,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                                 <Typography variant="caption" color="text.secondary">
                                   {`${item.chunk_count} chunks`}
                                 </Typography>
-                              </>
-                            )}
-                          </Stack>
-                        }
-                      />
-                    </ListItemButton>
-                  )
-                })}
+                              </Stack>
+                            }
+                          />
+                        </ListItemButton>
+                      )
+                    })}
               </List>
             ) : (
               <Box sx={{ px: 2, py: 4 }}>
@@ -669,13 +860,170 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         <Box sx={{ flex: 1, minWidth: 0, overflow: 'auto', pb: 1 }}>
           <Card sx={{ ...CARD_VARIANTS.default.styles }}>
             <CardContent sx={{ minHeight: 540 }}>
-              {!selectedDocumentId ? (
+              {!selectedItem ? (
                 <Alert severity="info">{t('knowledge.detail.noSelection')}</Alert>
-              ) : detailQuery.isLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                  <CircularProgress size={32} />
-                </Box>
-              ) : detail ? (
+              ) : selectedItem.kind === 'document' && selectedDocumentMeta ? (
+                  <Stack spacing={2}>
+                  <Stack
+                    direction={{ xs: 'column', md: 'row' }}
+                    justifyContent="space-between"
+                    alignItems={{ xs: 'flex-start', md: 'flex-start' }}
+                    spacing={1.5}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.35, wordBreak: 'break-word' }}>
+                        {selectedDocumentMeta.title}
+                      </Typography>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mt: 1 }}>
+                        <Chip label={selectedDocumentMeta.format.toUpperCase()} />
+                        {selectedDerivedStatuses != null && selectedDerivedStatuses.extractStatus === selectedDerivedStatuses.syncStatus ? (
+                          <Chip label={statusLabel(selectedDerivedStatuses.syncStatus)} color={statusColor(selectedDerivedStatuses.syncStatus)} />
+                        ) : (
+                          <>
+                            <Chip
+                              label={t('knowledge.badges.extract', { status: statusLabel(selectedDerivedStatuses?.extractStatus ?? selectedDocumentMeta.extract_status) })}
+                              color={statusColor(selectedDerivedStatuses?.extractStatus ?? selectedDocumentMeta.extract_status)}
+                              variant="outlined"
+                            />
+                            <Chip
+                              label={t('knowledge.badges.sync', { status: statusLabel(selectedDerivedStatuses?.syncStatus ?? selectedDocumentMeta.sync_status) })}
+                              color={statusColor(selectedDerivedStatuses?.syncStatus ?? selectedDocumentMeta.sync_status)}
+                            />
+                          </>
+                        )}
+                      </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                        {selectedDocumentMeta.summary || t('knowledge.detail.noSummary')}
+                      </Typography>
+                    </Box>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <ActionButton
+                        tone={selectedDocumentMeta.is_enabled ? 'secondary' : 'primary'}
+                        onClick={() =>
+                          toggleEnabledMutation.mutate({
+                            documentId: selectedDocumentMeta.id,
+                            isEnabled: !selectedDocumentMeta.is_enabled,
+                          })
+                        }
+                        disabled={toggleEnabledMutation.isPending}
+                        sx={compactActionSx}
+                      >
+                        {selectedDocumentMeta.is_enabled ? t('knowledge.actions.disable') : t('knowledge.actions.enable')}
+                      </ActionButton>
+                      <ActionButton tone="secondary" startIcon={<ReindexIcon />} onClick={() => reindexMutation.mutate(selectedDocumentMeta.id)} disabled={reindexMutation.isPending} sx={compactActionSx}>
+                        {t('knowledge.actions.reindex')}
+                      </ActionButton>
+                      <ActionButton tone="secondary" startIcon={<DownloadIcon />} onClick={handleDownloadRaw} sx={compactActionSx}>
+                        {t('knowledge.actions.downloadRaw')}
+                      </ActionButton>
+                      <ActionButton tone="danger" startIcon={<DeleteIcon />} onClick={() => setDeleteOpen(true)} sx={compactActionSx}>
+                        {t('knowledge.actions.delete')}
+                      </ActionButton>
+                    </Stack>
+                  </Stack>
+
+                  {selectedProgress && (
+                    <Card variant="outlined">
+                      <CardContent>
+                        <Stack spacing={1}>
+                          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+                            <Typography variant="subtitle2">
+                              {t('knowledge.progress.title')}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {`${kbProgressLabel(selectedProgress.phase, t)} · ${selectedProgress.progress_percent}%`}
+                            </Typography>
+                          </Stack>
+                          <LinearProgress
+                            variant="determinate"
+                            value={selectedProgress.progress_percent}
+                            color={selectedProgress.phase === 'failed' ? 'error' : selectedProgress.phase === 'ready' ? 'success' : 'primary'}
+                            sx={{ height: 8, borderRadius: 999 }}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {selectedProgress.total_chunks > 0
+                              ? t('knowledge.progress.detail', {
+                                  processed: selectedProgress.processed_chunks,
+                                  total: selectedProgress.total_chunks,
+                                })
+                              : t('knowledge.progress.pending')}
+                          </Typography>
+                          {selectedProgress.error_summary && (
+                            <Alert severity="error">{selectedProgress.error_summary}</Alert>
+                          )}
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    {selectedDocumentMeta.tags.map(tag => (
+                      <Chip key={tag} size="small" label={tag} variant="outlined" />
+                    ))}
+                    {!selectedDocumentMeta.tags.length && (
+                      <Chip size="small" label={t('knowledge.detail.noTags')} variant="outlined" />
+                    )}
+                  </Stack>
+
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Stack spacing={1}>
+                        <Typography variant="subtitle2">{t('knowledge.detail.metadata')}</Typography>
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                          <TextField label={t('knowledge.detail.category')} size="small" fullWidth value={selectedDocumentMeta.category || '-'} InputProps={{ readOnly: true }} />
+                          <TextField label={t('knowledge.detail.fileName')} size="small" fullWidth value={selectedDocumentMeta.file_name} InputProps={{ readOnly: true }} />
+                          <TextField label={t('knowledge.detail.fileSize')} size="small" fullWidth value={formatFileSize(selectedDocumentMeta.file_size)} InputProps={{ readOnly: true }} />
+                        </Stack>
+                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                          <TextField label={t('knowledge.detail.chunkCount')} size="small" fullWidth value={String(selectedDocumentMeta.chunk_count)} InputProps={{ readOnly: true }} />
+                          <TextField label={t('knowledge.detail.updatedAt')} size="small" fullWidth value={formatDateTime(selectedDocumentMeta.update_time)} InputProps={{ readOnly: true }} />
+                          <TextField label={t('knowledge.detail.indexedAt')} size="small" fullWidth value={formatDateTime(selectedDocumentMeta.last_indexed_at)} InputProps={{ readOnly: true }} />
+                        </Stack>
+                        {selectedDocumentMeta.last_error && <Alert severity="error">{selectedDocumentMeta.last_error}</Alert>}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+
+                  <Card variant="outlined">
+                    <CardContent sx={{ p: 0 }}>
+                      <Box sx={{ px: 2, pt: 1.5 }}>
+                        <Typography variant="subtitle2">{t('knowledge.detail.preview')}</Typography>
+                      </Box>
+                      <Tabs
+                        value={previewTab}
+                        onChange={(_, value: PreviewTab) => setPreviewTab(value)}
+                        sx={{ px: 1.5 }}
+                      >
+                        <Tab value="normalized" label={t('knowledge.preview.normalized')} />
+                        <Tab value="source" label={t('knowledge.preview.source')} />
+                      </Tabs>
+                      <Divider />
+                      <Box
+                        sx={{
+                          p: 2,
+                          maxHeight: 520,
+                          overflow: 'auto',
+                          fontFamily: 'monospace',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                        }}
+                      >
+                        {detailQuery.isLoading ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                            <CircularProgress size={28} />
+                          </Box>
+                        ) : preview ? (
+                          preview
+                        ) : (
+                          t('knowledge.preview.empty')
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                  </Stack>
+              ) : selectedAssetMeta ? (
                 <Stack spacing={2}>
                 <Stack
                   direction={{ xs: 'column', md: 'row' }}
@@ -685,95 +1033,32 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 >
                   <Box sx={{ minWidth: 0 }}>
                     <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.35, wordBreak: 'break-word' }}>
-                      {detail.document.title}
+                      {selectedAssetMeta.title}
                     </Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mt: 1 }}>
-                      <Chip label={detail.document.format.toUpperCase()} />
-                      {selectedDerivedStatuses != null && selectedDerivedStatuses.extractStatus === selectedDerivedStatuses.syncStatus ? (
-                        <Chip label={statusLabel(selectedDerivedStatuses.syncStatus)} color={statusColor(selectedDerivedStatuses.syncStatus)} />
-                      ) : (
-                        <>
-                          <Chip
-                            label={t('knowledge.badges.extract', { status: statusLabel(selectedDerivedStatuses?.extractStatus ?? detail.document.extract_status) })}
-                            color={statusColor(selectedDerivedStatuses?.extractStatus ?? detail.document.extract_status)}
-                            variant="outlined"
-                          />
-                          <Chip
-                            label={t('knowledge.badges.sync', { status: statusLabel(selectedDerivedStatuses?.syncStatus ?? detail.document.sync_status) })}
-                            color={statusColor(selectedDerivedStatuses?.syncStatus ?? detail.document.sync_status)}
-                          />
-                        </>
-                      )}
+                      <Chip label={selectedAssetMeta.format.toUpperCase()} />
+                      <Chip size="small" label={t('knowledge.list.globalBound')} color="info" variant="outlined" />
+                      <Chip label={statusLabel(getEffectiveStatus(selectedAssetMeta))} color={statusColor(getEffectiveStatus(selectedAssetMeta))} />
                     </Stack>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                      {detail.document.summary || t('knowledge.detail.noSummary')}
+                      {selectedAssetMeta.summary || t('knowledge.detail.noSummary')}
                     </Typography>
                   </Box>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                    <ActionButton
-                      tone={detail.document.is_enabled ? 'secondary' : 'primary'}
-                      onClick={() =>
-                        toggleEnabledMutation.mutate({
-                          documentId: detail.document.id,
-                          isEnabled: !detail.document.is_enabled,
-                        })
-                      }
-                      disabled={toggleEnabledMutation.isPending}
-                      sx={compactActionSx}
-                    >
-                      {detail.document.is_enabled ? t('knowledge.actions.disable') : t('knowledge.actions.enable')}
-                    </ActionButton>
-                    <ActionButton tone="secondary" startIcon={<ReindexIcon />} onClick={() => reindexMutation.mutate(detail.document.id)} disabled={reindexMutation.isPending} sx={compactActionSx}>
-                      {t('knowledge.actions.reindex')}
+                    <ActionButton tone="secondary" startIcon={<LibraryIcon />} onClick={handleReuseDialogOpen} sx={compactActionSx}>
+                      {t('knowledge.actions.reuseGlobal')}
                     </ActionButton>
                     <ActionButton tone="secondary" startIcon={<DownloadIcon />} onClick={handleDownloadRaw} sx={compactActionSx}>
                       {t('knowledge.actions.downloadRaw')}
                     </ActionButton>
-                    <ActionButton tone="danger" startIcon={<DeleteIcon />} onClick={() => setDeleteOpen(true)} sx={compactActionSx}>
-                      {t('knowledge.actions.delete')}
-                    </ActionButton>
                   </Stack>
                 </Stack>
 
-                {selectedProgress && (
-                  <Card variant="outlined">
-                    <CardContent>
-                      <Stack spacing={1}>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
-                          <Typography variant="subtitle2">
-                            {t('knowledge.progress.title')}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {`${kbProgressLabel(selectedProgress.phase, t)} · ${selectedProgress.progress_percent}%`}
-                          </Typography>
-                        </Stack>
-                        <LinearProgress
-                          variant="determinate"
-                          value={selectedProgress.progress_percent}
-                          color={selectedProgress.phase === 'failed' ? 'error' : selectedProgress.phase === 'ready' ? 'success' : 'primary'}
-                          sx={{ height: 8, borderRadius: 999 }}
-                        />
-                        <Typography variant="caption" color="text.secondary">
-                          {selectedProgress.total_chunks > 0
-                            ? t('knowledge.progress.detail', {
-                                processed: selectedProgress.processed_chunks,
-                                total: selectedProgress.total_chunks,
-                              })
-                            : t('knowledge.progress.pending')}
-                        </Typography>
-                        {selectedProgress.error_summary && (
-                          <Alert severity="error">{selectedProgress.error_summary}</Alert>
-                        )}
-                      </Stack>
-                    </CardContent>
-                  </Card>
-                )}
-
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  {detail.document.tags.map(tag => (
+                  {selectedAssetMeta.tags.map(tag => (
                     <Chip key={tag} size="small" label={tag} variant="outlined" />
                   ))}
-                  {!detail.document.tags.length && (
+                  {!selectedAssetMeta.tags.length && (
                     <Chip size="small" label={t('knowledge.detail.noTags')} variant="outlined" />
                   )}
                 </Stack>
@@ -783,16 +1068,16 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                     <Stack spacing={1}>
                       <Typography variant="subtitle2">{t('knowledge.detail.metadata')}</Typography>
                       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                        <TextField label={t('knowledge.detail.category')} size="small" fullWidth value={detail.document.category || '-'} InputProps={{ readOnly: true }} />
-                        <TextField label={t('knowledge.detail.fileName')} size="small" fullWidth value={detail.document.file_name} InputProps={{ readOnly: true }} />
-                        <TextField label={t('knowledge.detail.fileSize')} size="small" fullWidth value={formatFileSize(detail.document.file_size)} InputProps={{ readOnly: true }} />
+                        <TextField label={t('knowledge.detail.category')} size="small" fullWidth value={selectedAssetMeta.category || '-'} InputProps={{ readOnly: true }} />
+                        <TextField label={t('knowledge.detail.fileName')} size="small" fullWidth value={selectedAssetMeta.file_name} InputProps={{ readOnly: true }} />
+                        <TextField label={t('knowledge.detail.fileSize')} size="small" fullWidth value={formatFileSize(selectedAssetMeta.file_size)} InputProps={{ readOnly: true }} />
                       </Stack>
                       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                        <TextField label={t('knowledge.detail.chunkCount')} size="small" fullWidth value={String(detail.document.chunk_count)} InputProps={{ readOnly: true }} />
-                        <TextField label={t('knowledge.detail.updatedAt')} size="small" fullWidth value={formatDateTime(detail.document.update_time)} InputProps={{ readOnly: true }} />
-                        <TextField label={t('knowledge.detail.indexedAt')} size="small" fullWidth value={formatDateTime(detail.document.last_indexed_at)} InputProps={{ readOnly: true }} />
+                        <TextField label={t('knowledge.detail.chunkCount')} size="small" fullWidth value={String(selectedAssetMeta.chunk_count)} InputProps={{ readOnly: true }} />
+                        <TextField label={t('knowledge.detail.updatedAt')} size="small" fullWidth value={formatDateTime(selectedAssetMeta.update_time)} InputProps={{ readOnly: true }} />
+                        <TextField label={t('knowledge.detail.indexedAt')} size="small" fullWidth value={formatDateTime(selectedAssetMeta.last_indexed_at)} InputProps={{ readOnly: true }} />
                       </Stack>
-                      {detail.document.last_error && <Alert severity="error">{detail.document.last_error}</Alert>}
+                      {selectedAssetMeta.last_error && <Alert severity="error">{selectedAssetMeta.last_error}</Alert>}
                     </Stack>
                   </CardContent>
                 </Card>
@@ -823,10 +1108,18 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                         lineHeight: 1.7,
                       }}
                     >
-                      {preview ? preview : t('knowledge.preview.empty')}
-                    </Box>
-                  </CardContent>
-                </Card>
+                        {assetDetailQuery.isLoading ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                            <CircularProgress size={28} />
+                          </Box>
+                        ) : preview ? (
+                          preview
+                        ) : (
+                          t('knowledge.preview.empty')
+                        )}
+                      </Box>
+                    </CardContent>
+                  </Card>
                 </Stack>
               ) : (
                 <Alert severity="warning">{t('knowledge.detail.loadFailed')}</Alert>
@@ -997,6 +1290,108 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
             disabled={deleteMutation.isPending || selectedDocumentId == null}
           >
             {t('knowledge.actions.delete')}
+          </ActionButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={reuseOpen}
+        onClose={() => !reuseBindingsMutation.isPending && setReuseOpen(false)}
+        fullWidth
+        maxWidth="md"
+        disableRestoreFocus
+      >
+        <DialogTitle>{t('knowledge.dialogs.reuseTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {t('knowledge.dialogs.reuseHint')}
+            </Typography>
+            <TextField
+              size="small"
+              fullWidth
+              value={reuseSearch}
+              onChange={event => setReuseSearch(event.target.value)}
+              placeholder={t('knowledge.form.reuseSearch')}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            {globalAssetsQuery.isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : filteredGlobalAssets.length ? (
+              <List sx={{ maxHeight: 420, overflowY: 'auto', py: 0 }}>
+                {filteredGlobalAssets.map(asset => {
+                  const checked = reuseAssetIds.includes(asset.id)
+                  const isBound = asset.bound_workspaces.some(item => item.workspace_id === workspace.id)
+                  const status = getEffectiveStatus(asset)
+                  return (
+                    <ListItemButton
+                      key={asset.id}
+                      onClick={() => toggleReuseAsset(asset.id)}
+                      sx={{ alignItems: 'flex-start', py: 1.25 }}
+                    >
+                      <Checkbox checked={checked} tabIndex={-1} disableRipple sx={{ pt: 0.25, pr: 1 }} />
+                      <ListItemText
+                        primary={
+                          <Stack spacing={0.75}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.35 }}>
+                              {asset.title}
+                            </Typography>
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                              <Chip size="small" label={asset.format.toUpperCase()} variant="outlined" />
+                              <Chip size="small" label={statusLabel(status)} color={statusColor(status)} />
+                              {isBound && (
+                                <Chip size="small" label={t('knowledge.list.globalBound')} color="info" variant="outlined" />
+                              )}
+                            </Stack>
+                          </Stack>
+                        }
+                        secondary={
+                          <Stack spacing={0.5} sx={{ mt: 0.75 }}>
+                            <Typography variant="caption" color="text.secondary">
+                              {asset.source_path}
+                            </Typography>
+                            <Typography
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {asset.summary || t('knowledge.list.noPreview')}
+                            </Typography>
+                          </Stack>
+                        }
+                      />
+                    </ListItemButton>
+                  )
+                })}
+              </List>
+            ) : (
+              <Alert severity="info">{t('knowledge.dialogs.reuseEmpty')}</Alert>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton onClick={() => setReuseOpen(false)} disabled={reuseBindingsMutation.isPending}>
+            {t('knowledge.actions.cancel')}
+          </ActionButton>
+          <ActionButton
+            tone="primary"
+            onClick={() => reuseBindingsMutation.mutate(reuseAssetIds)}
+            disabled={reuseBindingsMutation.isPending || globalAssetsQuery.isLoading}
+          >
+            {t('knowledge.actions.saveReuse')}
           </ActionButton>
         </DialogActions>
       </Dialog>

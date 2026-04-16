@@ -41,6 +41,7 @@ from nekro_agent.services.kb.index_service import (
     ensure_kb_collection,
     rebuild_workspace_documents,
     schedule_rebuild_document,
+    sync_document_index_metadata,
 )
 from nekro_agent.services.kb.search_service import search_workspace_kb
 from nekro_agent.services.user.deps import get_current_active_user
@@ -269,10 +270,14 @@ async def update_workspace_kb_document(
     except ValueError as e:
         raise ValidationError(reason=str(e)) from e
 
-    if body.content is not None or body.source_path is not None:
+    source_path_changed = body.source_path is not None and bool(body.source_path.strip())
+    content_changed = body.content is not None
+    metadata_changed = body.category is not None or body.tags is not None or body.is_enabled is not None
+
+    if content_changed or source_path_changed:
         await schedule_rebuild_document(updated)
-    elif body.is_enabled is not None:
-        await schedule_rebuild_document(updated)
+    elif metadata_changed:
+        await sync_document_index_metadata(updated)
 
     refreshed = await _get_document_or_404(workspace_id, document_id)
     return KBDocumentDetailResponse(

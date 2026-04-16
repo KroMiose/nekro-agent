@@ -165,6 +165,18 @@ class KBQdrantManager:
         )
         return len(points)
 
+    async def set_payload(self, *, chunk_ids: list[int], payload: dict[str, Any]) -> None:
+        if not chunk_ids or not payload:
+            return
+        client = await get_qdrant_client()
+        if client is None:
+            return
+        await client.set_payload(
+            collection_name=self.collection_name,
+            payload=payload,
+            points=qdrant_models.PointIdsList(points=chunk_ids),
+        )
+
     async def search(
         self,
         *,

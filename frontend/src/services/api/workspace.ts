@@ -139,6 +139,7 @@ export interface WorkspaceListResponse {
 
 export type KBFormat = 'markdown' | 'text' | 'html' | 'json' | 'yaml' | 'csv' | 'xlsx' | 'pdf' | 'docx'
 export type KBStatus = 'pending' | 'extracting' | 'indexing' | 'ready' | 'failed'
+export type KBSearchSourceKind = 'document' | 'asset'
 
 export interface KBDocumentListItem {
   id: number
@@ -202,6 +203,7 @@ export interface KBFullTextResponse {
 
 export interface KBSearchItem {
   document_id: number
+  source_kind: KBSearchSourceKind
   chunk_id: number
   title: string
   file_name: string
@@ -226,6 +228,7 @@ export interface KBSearchSnippet {
 
 export interface KBSearchDocument {
   document_id: number
+  source_kind: KBSearchSourceKind
   title: string
   file_name: string
   format: KBFormat
@@ -888,6 +891,16 @@ export const kbLibraryApi = {
     const response = await axios.put<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings`, {
       workspace_ids: workspaceIds,
     })
+    return response.data
+  },
+
+  bindWorkspace: async (assetId: number, workspaceId: number): Promise<KBAssetBindingsResponse> => {
+    const response = await axios.put<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings/${workspaceId}`)
+    return response.data
+  },
+
+  unbindWorkspace: async (assetId: number, workspaceId: number): Promise<KBAssetBindingsResponse> => {
+    const response = await axios.delete<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings/${workspaceId}`)
     return response.data
   },
 

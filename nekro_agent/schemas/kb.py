@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 KBFormat = Literal["markdown", "text", "html", "json", "yaml", "csv", "xlsx", "pdf", "docx"]
 KBStatus = Literal["pending", "extracting", "indexing", "ready", "failed"]
+KBSearchSourceKind = Literal["document", "asset"]
 
 
 class KBActionResponse(BaseModel):
@@ -134,6 +135,7 @@ class KBSearchRequest(BaseModel):
 
 class KBSearchItem(BaseModel):
     document_id: int
+    source_kind: KBSearchSourceKind = "document"
     chunk_id: int
     title: str
     file_name: str
@@ -158,6 +160,7 @@ class KBSearchSnippet(BaseModel):
 
 class KBSearchDocument(BaseModel):
     document_id: int
+    source_kind: KBSearchSourceKind = "document"
     title: str
     file_name: str
     format: KBFormat
