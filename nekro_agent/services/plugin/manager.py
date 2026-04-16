@@ -47,6 +47,16 @@ def _build_activation_strategy_meta(plugin) -> dict:
     }
 
 
+async def _notify_commands_changed_after_plugin_toggle(plugin_name: str) -> None:
+    """插件启停后同步命令清单，失败只记录日志。"""
+    from nekro_agent.services.command.manager import command_manager
+
+    try:
+        await command_manager.notify_commands_changed()
+    except Exception as e:
+        logger.warning(f"插件 {plugin_name} 状态已更新，但命令同步失败: {e}")
+
+
 async def get_all_ext_meta_data() -> List[dict]:
     """获取所有已注册插件的元数据（包括加载成功和失败的插件）"""
     plugins = plugin_collector.get_all_plugins()
@@ -234,8 +244,6 @@ async def get_all_plugin_router_info() -> Dict[str, Any]:
 
 async def enable_plugin(plugin_id: str) -> bool:
     """启用插件（支持热重载）"""
-    from nekro_agent.services.command.manager import command_manager
-
     plugin = plugin_collector.get_plugin(plugin_id)
     if not plugin:
         return False
@@ -246,7 +254,7 @@ async def enable_plugin(plugin_id: str) -> bool:
     try:
         # 启用插件 - enable() 方法内部会自动触发回调
         await plugin.enable()
-        
+
         if plugin.key not in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.append(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
@@ -263,7 +271,7 @@ async def enable_plugin(plugin_id: str) -> bool:
             logger.exception(f"插件 {plugin.name} 启用成功，但路由挂载失败: {router_error}")
             # 路由挂载失败不影响插件启用
 
-        await command_manager.notify_commands_changed()
+        await _notify_commands_changed_after_plugin_toggle(plugin.name)
 
     except Exception as e:
         logger.error(f"启用插件失败: {plugin_id}, 错误: {e}")
@@ -274,8 +282,6 @@ async def enable_plugin(plugin_id: str) -> bool:
 
 async def disable_plugin(plugin_id: str) -> bool:
     """禁用插件（支持热重载）"""
-    from nekro_agent.services.command.manager import command_manager
-
     plugin = plugin_collector.get_plugin(plugin_id)
     if not plugin:
         return False
@@ -298,12 +304,12 @@ async def disable_plugin(plugin_id: str) -> bool:
 
         # 禁用插件 - disable() 方法内部会自动触发回调
         await plugin.disable()
-        
+
         if plugin.key in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.remove(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
 
-        await command_manager.notify_commands_changed()
+        await _notify_commands_changed_after_plugin_toggle(plugin.name)
 
     except Exception as e:
         logger.error(f"禁用插件失败: {plugin_id}, 错误: {e}")

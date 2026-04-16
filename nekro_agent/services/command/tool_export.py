@@ -18,10 +18,15 @@ class AgentToolExporter:
         from nekro_agent.services.command.registry import command_registry
 
         tools = []
+        plugin_enabled_cache: dict[str, bool] = {}
         for meta in command_registry.list_all_commands():
             if meta.internal:
                 continue
-            if not command_manager.is_command_enabled_for_meta(meta, chat_key):
+            if not command_manager.is_command_enabled_for_meta(
+                meta,
+                chat_key,
+                plugin_enabled_cache=plugin_enabled_cache,
+            ):
                 continue
             tools.append({
                 "type": "function",
