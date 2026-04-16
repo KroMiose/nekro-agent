@@ -1,6 +1,7 @@
 """内置命令 - 信息类: na_info, na_help"""
 
-from typing import Any, Literal
+from enum import StrEnum
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -9,18 +10,6 @@ from nekro_agent.services.command.base import BaseCommand, CommandMetadata, Comm
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import CommandExecutionContext, CommandResponse
 from nekro_agent.services.system_broadcast import (
-    WORKSPACE_CC_PHASE_CANCELLED,
-    WORKSPACE_CC_PHASE_COMPLETED,
-    WORKSPACE_CC_PHASE_FAILED,
-    WORKSPACE_CC_PHASE_QUEUED,
-    WORKSPACE_CC_PHASE_RESPONDING,
-    WORKSPACE_CC_PHASE_RUNNING,
-    WORKSPACE_CC_RUNTIME_PHASE_VALUES,
-    WORKSPACE_STATUS_ACTIVE,
-    WORKSPACE_STATUS_DELETING,
-    WORKSPACE_STATUS_FAILED,
-    WORKSPACE_STATUS_STOPPED,
-    WORKSPACE_STATUS_VALUES,
     WorkspaceCcActiveState,
     WorkspaceCcRuntimePhase,
     WorkspaceCcRuntimeStatusState,
@@ -28,11 +17,59 @@ from nekro_agent.services.system_broadcast import (
     WorkspaceStatusValue,
 )
 
-WORKSPACE_SANDBOX_STATUS_IDLE = "idle"
-WORKSPACE_SANDBOX_STATUS_UNBOUND = "unbound"
-WORKSPACE_SANDBOX_STATUS_UNKNOWN = "unknown"
 
-WorkspaceSandboxDisplayStatus = WorkspaceStatusValue | WorkspaceCcRuntimePhase | Literal["idle", "unbound", "unknown"]
+class WorkspaceSandboxDisplayStatus(StrEnum):
+    IDLE = "idle"
+    UNBOUND = "unbound"
+    UNKNOWN = "unknown"
+
+    ACTIVE = "active"
+    STOPPED = "stopped"
+    FAILED = "failed"
+    DELETING = "deleting"
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    RESPONDING = "responding"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+    @classmethod
+    def from_workspace_status(cls, status: WorkspaceStatusValue | str) -> "WorkspaceSandboxDisplayStatus | None":
+        parsed = cls._try_parse(status)
+        if parsed in {cls.ACTIVE, cls.STOPPED, cls.FAILED, cls.DELETING}:
+            return parsed
+        return None
+
+    @classmethod
+    def from_cc_phase(cls, phase: WorkspaceCcRuntimePhase | str) -> "WorkspaceSandboxDisplayStatus | None":
+        parsed = cls._try_parse(phase)
+        if parsed in {cls.QUEUED, cls.RUNNING, cls.RESPONDING, cls.COMPLETED, cls.FAILED, cls.CANCELLED}:
+            return parsed
+        return None
+
+    @classmethod
+    def _try_parse(cls, value: str) -> "WorkspaceSandboxDisplayStatus | None":
+        try:
+            return cls(value)
+        except ValueError:
+            return None
+
+    def to_label(self) -> str:
+        labels = {
+            WorkspaceSandboxDisplayStatus.IDLE: t(zh_CN="闲置中", en_US="Idle"),
+            WorkspaceSandboxDisplayStatus.UNBOUND: t(zh_CN="未绑定", en_US="Unbound"),
+            WorkspaceSandboxDisplayStatus.ACTIVE: t(zh_CN="闲置中", en_US="Idle"),
+            WorkspaceSandboxDisplayStatus.STOPPED: t(zh_CN="已停止", en_US="Stopped"),
+            WorkspaceSandboxDisplayStatus.FAILED: t(zh_CN="执行失败", en_US="Failed"),
+            WorkspaceSandboxDisplayStatus.DELETING: t(zh_CN="删除中", en_US="Deleting"),
+            WorkspaceSandboxDisplayStatus.QUEUED: t(zh_CN="排队中", en_US="Queued"),
+            WorkspaceSandboxDisplayStatus.RUNNING: t(zh_CN="执行中", en_US="Running"),
+            WorkspaceSandboxDisplayStatus.RESPONDING: t(zh_CN="回传结果", en_US="Responding"),
+            WorkspaceSandboxDisplayStatus.COMPLETED: t(zh_CN="已完成", en_US="Completed"),
+            WorkspaceSandboxDisplayStatus.CANCELLED: t(zh_CN="已中止", en_US="Cancelled"),
+        }
+        return labels.get(self, t(zh_CN="未知", en_US="Unknown"))
 
 
 def _format_channel_status(status: str) -> str:
@@ -58,22 +95,7 @@ def _format_agent_runtime_phase(phase: str | None) -> str:
 
 
 def _format_workspace_sandbox_status(status: WorkspaceSandboxDisplayStatus) -> str:
-    status_labels = {
-        WORKSPACE_SANDBOX_STATUS_IDLE: t(zh_CN="闲置中", en_US="Idle"),
-        WORKSPACE_CC_PHASE_QUEUED: t(zh_CN="排队中", en_US="Queued"),
-        WORKSPACE_CC_PHASE_RUNNING: t(zh_CN="执行中", en_US="Running"),
-        WORKSPACE_CC_PHASE_RESPONDING: t(zh_CN="回传结果", en_US="Responding"),
-        WORKSPACE_CC_PHASE_COMPLETED: t(zh_CN="已完成", en_US="Completed"),
-        WORKSPACE_CC_PHASE_FAILED: t(zh_CN="执行失败", en_US="Failed"),
-        WORKSPACE_CC_PHASE_CANCELLED: t(zh_CN="已中止", en_US="Cancelled"),
-        # `active` 是底层容器可用状态；展示层会将其归一化为“闲置中”。
-        WORKSPACE_STATUS_ACTIVE: t(zh_CN="闲置中", en_US="Idle"),
-        WORKSPACE_STATUS_STOPPED: t(zh_CN="已停止", en_US="Stopped"),
-        WORKSPACE_STATUS_FAILED: t(zh_CN="执行失败", en_US="Failed"),
-        WORKSPACE_STATUS_DELETING: t(zh_CN="删除中", en_US="Deleting"),
-        WORKSPACE_SANDBOX_STATUS_UNBOUND: t(zh_CN="未绑定", en_US="Unbound"),
-    }
-    return status_labels.get(status, t(zh_CN="未知", en_US="Unknown"))
+    return status.to_label()
 
 
 def _resolve_channel_agent_runtime_status(chat_key: str) -> tuple[str, str]:
@@ -105,10 +127,7 @@ def _get_workspace_status_state_from_snapshot(snapshot: dict[str, Any], workspac
 
 def _get_workspace_status_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceStatusValue | None:
     workspace_status = _get_workspace_status_state_from_snapshot(snapshot, workspace_id)
-    if workspace_status is not None and workspace_status.status in WORKSPACE_STATUS_VALUES:
-        return workspace_status.status
-
-    return None
+    return workspace_status.status if workspace_status is not None else None
 
 
 def _get_workspace_cc_runtime_state_from_snapshot(
@@ -138,43 +157,51 @@ def _get_workspace_cc_active_state_from_snapshot(snapshot: dict[str, Any], works
 
 def _get_workspace_cc_phase_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceCcRuntimePhase | None:
     runtime_status = _get_workspace_cc_runtime_state_from_snapshot(snapshot, workspace_id)
-    if runtime_status is not None and runtime_status.phase in WORKSPACE_CC_RUNTIME_PHASE_VALUES:
+    if runtime_status is not None:
         return runtime_status.phase
 
     if _get_workspace_cc_active_state_from_snapshot(snapshot, workspace_id) is not None:
-        return WORKSPACE_CC_PHASE_RUNNING
+        return WorkspaceSandboxDisplayStatus.RUNNING.value
 
     return None
 
 
 async def _resolve_bound_workspace_sandbox_status(workspace_id: int | None) -> tuple[str, WorkspaceSandboxDisplayStatus]:
     if workspace_id is None:
-        return _format_workspace_sandbox_status(WORKSPACE_SANDBOX_STATUS_UNBOUND), WORKSPACE_SANDBOX_STATUS_UNBOUND
+        return _format_workspace_sandbox_status(WorkspaceSandboxDisplayStatus.UNBOUND), WorkspaceSandboxDisplayStatus.UNBOUND
 
     from nekro_agent.models.db_workspace import DBWorkspace
     from nekro_agent.services.system_broadcast import get_state_snapshot
 
     snapshot = get_state_snapshot()
-    snapshot_status = _get_workspace_status_from_snapshot(snapshot, workspace_id)
+    snapshot_status = WorkspaceSandboxDisplayStatus.from_workspace_status(
+        _get_workspace_status_from_snapshot(snapshot, workspace_id) or ""
+    )
     if snapshot_status is not None:
-        if snapshot_status == WORKSPACE_STATUS_ACTIVE:
-            snapshot_phase = _get_workspace_cc_phase_from_snapshot(snapshot, workspace_id)
+        if snapshot_status is WorkspaceSandboxDisplayStatus.ACTIVE:
+            snapshot_phase = WorkspaceSandboxDisplayStatus.from_cc_phase(
+                _get_workspace_cc_phase_from_snapshot(snapshot, workspace_id) or ""
+            )
             if snapshot_phase is not None:
                 return _format_workspace_sandbox_status(snapshot_phase), snapshot_phase
 
             # `active` 仅表示工作区容器可用；没有 CC 任务时，展示层统一视为闲置中。
-            return _format_workspace_sandbox_status(WORKSPACE_SANDBOX_STATUS_IDLE), WORKSPACE_SANDBOX_STATUS_IDLE
+            return _format_workspace_sandbox_status(WorkspaceSandboxDisplayStatus.IDLE), WorkspaceSandboxDisplayStatus.IDLE
 
         return _format_workspace_sandbox_status(snapshot_status), snapshot_status
 
     workspace = await DBWorkspace.get_or_none(id=workspace_id)
     if workspace is None:
-        return t(zh_CN="未知", en_US="Unknown"), WORKSPACE_SANDBOX_STATUS_UNKNOWN
+        return t(zh_CN="未知", en_US="Unknown"), WorkspaceSandboxDisplayStatus.UNKNOWN
 
-    if workspace.status == WORKSPACE_STATUS_ACTIVE:
-        return _format_workspace_sandbox_status(WORKSPACE_SANDBOX_STATUS_IDLE), WORKSPACE_SANDBOX_STATUS_IDLE
+    workspace_status = WorkspaceSandboxDisplayStatus.from_workspace_status(workspace.status)
+    if workspace_status is None:
+        return t(zh_CN="未知", en_US="Unknown"), WorkspaceSandboxDisplayStatus.UNKNOWN
 
-    return _format_workspace_sandbox_status(workspace.status), workspace.status
+    if workspace_status is WorkspaceSandboxDisplayStatus.ACTIVE:
+        return _format_workspace_sandbox_status(WorkspaceSandboxDisplayStatus.IDLE), WorkspaceSandboxDisplayStatus.IDLE
+
+    return _format_workspace_sandbox_status(workspace_status), workspace_status
 
 
 class NaInfoCommand(BaseCommand):
@@ -240,7 +267,7 @@ class NaInfoCommand(BaseCommand):
                 "agent_runtime_status": runtime_status_label,
                 "agent_runtime_phase": runtime_status_phase,
                 "cc_sandbox_status": cc_sandbox_status_label,
-                "cc_sandbox_status_value": cc_sandbox_status_value,
+                "cc_sandbox_status_value": cc_sandbox_status_value.value,
                 "bound_workspace_id": db_chat_channel.workspace_id,
             },
         )
