@@ -166,14 +166,14 @@ async def get_user_plugins(
     return [UserPlugin(**item.model_dump()) for item in response.data.items]
 
 
-@router.get("/detail/{plugin_id}", summary="获取插件详情")
+@router.get("/detail/{module_name}", summary="获取插件详情")
 @require_role(Role.Admin)
 async def get_plugin_detail(
-    plugin_id: str,
+    module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> CloudPlugin:
     """获取插件详情"""
-    response = await get_plugin(plugin_id)
+    response = await get_plugin(module_name)
 
     if not response.success or not response.data:
         raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
@@ -225,8 +225,8 @@ async def download_plugin(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionResponse:
     """下载云端插件到本地"""
-    local_plugins = plugin_collector.package_data.get_remote_ids()
-    if module_name in local_plugins:
+    existing_package = plugin_collector.package_data.get_package_by_module(module_name)
+    if existing_package:
         raise ConflictError(resource="插件")
 
     response = await get_plugin(module_name)
@@ -269,8 +269,8 @@ async def update_plugin(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionResponse:
     """更新本地插件"""
-    local_plugins = plugin_collector.package_data.get_remote_ids()
-    if module_name not in local_plugins:
+    existing_package = plugin_collector.package_data.get_package_by_module(module_name)
+    if not existing_package:
         raise NotFoundError(resource="插件")
 
     response = await get_plugin(module_name)

@@ -173,16 +173,16 @@ export const pluginsMarketApi = {
   /**
    * 下载云端插件到本地
    */
-  downloadPlugin: async (pluginId: string): Promise<ActionResponse> => {
-    const response = await axios.post<ActionResponse>(`/cloud/plugins-market/download/${pluginId}`)
+  downloadPlugin: async (moduleName: string): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/cloud/plugins-market/download/${moduleName}`)
     return response.data
   },
 
   /**
    * 更新本地插件
    */
-  updatePlugin: async (pluginId: string): Promise<ActionResponse> => {
-    const response = await axios.post<ActionResponse>(`/cloud/plugins-market/update/${pluginId}`)
+  updatePlugin: async (moduleName: string): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/cloud/plugins-market/update/${moduleName}`)
     return response.data
   },
 
