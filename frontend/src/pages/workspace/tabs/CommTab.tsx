@@ -860,7 +860,6 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                     tone="primary"
                     size="medium"
                     disabled
-                    title={t('detail.comm.ccRunning')}
                     sx={{ opacity: 0.6 }}
                   >
                     <CircularProgress size={20} thickness={4} sx={{ color: 'primary.main' }} />
@@ -874,7 +873,6 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                     size="medium"
                     onClick={handleForceCancel}
                     disabled={cancelling}
-                    title={t('detail.comm.forceCancel')}
                   >
                     {cancelling
                       ? <CircularProgress size={20} sx={{ color: 'error.main' }} />
@@ -891,7 +889,6 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                   onClick={handleSend}
                   disabled={sending || !input.trim()}
                   size="medium"
-                  title={t('detail.comm.sendTooltip')}
                 >
                   {sending ? <CircularProgress size={20} /> : <SendIcon />}
                 </IconActionButton>

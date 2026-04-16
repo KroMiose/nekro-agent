@@ -52,7 +52,7 @@ import {
 import { workspaceApi } from '../../services/api/workspace'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
-import SearchActionBar from '../../components/common/SearchActionBar'
+import SearchField from '../../components/common/SearchField'
 import ActionButton from '../../components/common/ActionButton'
 import IconActionButton from '../../components/common/IconActionButton'
 
@@ -734,31 +734,29 @@ export default function CCModelsPage() {
 
       <Box
         sx={{
+          display: 'flex',
+          alignItems: 'center',
           mb: 1.5,
           flexShrink: 0,
+          gap: 1,
         }}
       >
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
-          <Box sx={{ flexGrow: 1 }}>
-            <SearchActionBar
-              value={searchText}
-              onChange={setSearchText}
-              placeholder={t('ccModels.actions.searchPlaceholder')}
-              actionLabel="搜索"
-            />
-          </Box>
-          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-            <ActionButton
-              tone="primary"
-              startIcon={<AddIcon />}
-              onClick={handleAdd}
-              size="small"
-              sx={{ height: 40 }}
-            >
-              {t('ccModels.createBtn')}
-            </ActionButton>
-          </Stack>
-        </Stack>
+        <SearchField
+          size="small"
+          value={searchText}
+          onChange={setSearchText}
+          placeholder={t('ccModels.actions.searchPlaceholder')}
+          sx={{ flex: 1 }}
+        />
+        <ActionButton
+          tone="primary"
+          startIcon={<AddIcon />}
+          onClick={handleAdd}
+          size="small"
+          sx={{ height: 40, whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          {t('ccModels.createBtn')}
+        </ActionButton>
       </Box>
 
       {/* 表格 */}

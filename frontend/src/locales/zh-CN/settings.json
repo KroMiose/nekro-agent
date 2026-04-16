@@ -87,6 +87,7 @@
       "fetching": "正在获取",
       "createCopy": "创建副本",
       "saveFailed": "保存失败",
+      "createBtn": "新建模型组",
       "searchPlaceholder": "搜索组名、模型名或地址",
       "selectAllTestable": "全选可检测项（{{count}}）",
       "clearSelection": "清空选择",

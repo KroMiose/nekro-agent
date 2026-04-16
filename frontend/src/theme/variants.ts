@@ -149,7 +149,7 @@ export const CARD_VARIANTS = {
 
 // 统一统计卡片样式（与工作区管理顶部卡片一致）
 export const STAT_CARD_VARIANTS = {
-  container(color: string, _active: boolean = false): SxProps<Theme> {
+  container(_color: string, _active: boolean = false): SxProps<Theme> {
     return {
       ...CARD_VARIANTS.default.styles,
     }

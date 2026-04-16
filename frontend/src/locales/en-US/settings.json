@@ -87,6 +87,7 @@
       "fetching": "Fetching...",
       "createCopy": "Create Copy",
       "saveFailed": "Save failed",
+      "createBtn": "New Model Group",
       "searchPlaceholder": "Search by name, model or endpoint",
       "selectAllTestable": "Select all testable ({{count}})",
       "clearSelection": "Clear selection",

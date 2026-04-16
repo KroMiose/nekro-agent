@@ -1078,7 +1078,7 @@ export default function ModelGroupsPage() {
           size="small"
           sx={{ height: 40, whiteSpace: 'nowrap', flexShrink: 0 }}
         >
-          {t('modelGroup.dialog.createTitle')}
+          {t('modelGroup.actions.createBtn')}
         </ActionButton>
       </Box>
 
@@ -1381,7 +1381,6 @@ export default function ModelGroupsPage() {
                           size="small"
                           disabled={!config.BASE_URL}
                           sx={{ p: 0.5 }}
-                          title={t('modelGroup.tooltips.visitProvider')}
                         >
                           <LaunchIcon fontSize="small" />
                         </IconActionButton>
@@ -1397,11 +1396,6 @@ export default function ModelGroupsPage() {
                             size="small"
                             disabled={(config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding') || testingGroups.has(name)}
                             sx={{ p: 0.5 }}
-                            title={
-                              config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding'
-                                ? t('modelGroup.tooltips.testOnlyChat')
-                                : t('modelGroup.tooltips.test')
-                            }
                           >
                             {testingGroups.has(name)
                               ? <CircularProgress size={16} />
@@ -1415,7 +1409,6 @@ export default function ModelGroupsPage() {
                           onClick={() => handleEdit(name)}
                           size="small"
                           sx={{ p: 0.5 }}
-                          title={t('modelGroup.tooltips.edit')}
                         >
                           <EditIcon fontSize="small" />
                         </IconActionButton>
@@ -1425,7 +1418,6 @@ export default function ModelGroupsPage() {
                           onClick={() => handleCopy(name)}
                           size="small"
                           sx={{ p: 0.5 }}
-                          title={t('modelGroup.tooltips.copy')}
                         >
                           <ContentCopyIcon fontSize="small" />
                         </IconActionButton>
@@ -1445,11 +1437,6 @@ export default function ModelGroupsPage() {
                             size="small"
                             disabled={name === 'default'}
                             sx={{ p: 0.5 }}
-                            title={
-                              name === 'default'
-                                ? t('modelGroup.tooltips.defaultDelete')
-                                : t('modelGroup.tooltips.delete')
-                            }
                           >
                             <DeleteIcon fontSize="small" />
                           </IconActionButton>
