@@ -20,12 +20,15 @@ export interface CloudPlugin {
   isOwner?: boolean // 标记是否为当前用户上传的插件
   minNaVersion?: string | null // 最低 NA 版本要求
   maxNaVersion?: string | null // 最高 NA 版本要求
+  favoriteCount?: number // 收藏数量
+  isFavorited?: boolean // 是否已收藏
 }
 
 export interface UserPlugin {
   id: string
   name: string
   moduleName: string
+  icon?: string
 }
 
 export interface RepoUser {

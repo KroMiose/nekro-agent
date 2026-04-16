@@ -189,7 +189,7 @@ const router = createHashRouter([
       },
       {
         path: 'profile',
-        element: lazyLoad(() => import('../pages/profile')),
+        element: lazyLoad(() => import('../pages/cloud/profile')),
       },
       {
         path: 'cloud/telemetry',
@@ -202,6 +202,10 @@ const router = createHashRouter([
       {
         path: 'cloud/plugins-market',
         element: lazyLoad(() => import('../pages/cloud/plugins_market')),
+      },
+      {
+        path: 'cloud/profile',
+        element: <Navigate to="/profile" replace />,
       },
       {
         path: 'workspace',

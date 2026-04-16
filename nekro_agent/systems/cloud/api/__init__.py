@@ -1,6 +1,11 @@
 """Nekro Cloud API 客户端模块"""
 
 from .auth import check_official_repos_starred  # noqa: F401
+from .favorite import (  # noqa: F401
+    add_favorite,
+    list_favorites,
+    remove_favorite,
+)
 from .plugin import (  # noqa: F401
     create_plugin,
     delete_plugin,
