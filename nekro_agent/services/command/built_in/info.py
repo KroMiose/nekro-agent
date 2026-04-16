@@ -5,10 +5,12 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import CommandExecutionContext, CommandResponse
+from nekro_agent.services.plugin.task import task as task_api
 from nekro_agent.services.system_broadcast import (
     WorkspaceCcActiveState,
     WorkspaceCcRuntimePhase,
@@ -16,6 +18,7 @@ from nekro_agent.services.system_broadcast import (
     WorkspaceStatusState,
     WorkspaceStatusValue,
 )
+from nekro_agent.services.workspace.client import CCSandboxClient
 
 
 class WorkspaceSandboxDisplayStatus(StrEnum):
@@ -166,13 +169,51 @@ def _get_workspace_cc_phase_from_snapshot(snapshot: dict[str, Any], workspace_id
     return None
 
 
-async def _resolve_bound_workspace_sandbox_status(workspace_id: int | None) -> tuple[str, WorkspaceSandboxDisplayStatus]:
+async def _resolve_workspace_sandbox_live_status(
+    workspace: DBWorkspace,
+    *,
+    chat_key: str,
+) -> WorkspaceSandboxDisplayStatus:
+    if workspace.status != WorkspaceSandboxDisplayStatus.ACTIVE.value:
+        workspace_status = WorkspaceSandboxDisplayStatus.from_workspace_status(workspace.status)
+        return workspace_status or WorkspaceSandboxDisplayStatus.UNKNOWN
+
+    client = CCSandboxClient(workspace)
+    queue_status = await client.get_workspace_queue(workspace_id="default")
+    current_task = queue_status.get("current_task") or {}
+    current_source_chat_key = str(current_task.get("source_chat_key") or "")
+    channel_task_running = task_api.is_running("cc_delegate", chat_key)
+
+    if current_task:
+        if channel_task_running and current_source_chat_key and current_source_chat_key != chat_key:
+            return WorkspaceSandboxDisplayStatus.QUEUED
+        return WorkspaceSandboxDisplayStatus.RUNNING
+
+    if channel_task_running:
+        return WorkspaceSandboxDisplayStatus.QUEUED
+
+    return WorkspaceSandboxDisplayStatus.IDLE
+
+
+async def _resolve_bound_workspace_sandbox_status(
+    workspace_id: int | None,
+    *,
+    chat_key: str,
+) -> tuple[str, WorkspaceSandboxDisplayStatus]:
     if workspace_id is None:
         return _format_workspace_sandbox_status(WorkspaceSandboxDisplayStatus.UNBOUND), WorkspaceSandboxDisplayStatus.UNBOUND
 
-    from nekro_agent.models.db_workspace import DBWorkspace
     from nekro_agent.services.system_broadcast import get_state_snapshot
 
+    workspace = await DBWorkspace.get_or_none(id=workspace_id)
+    if workspace is None:
+        return t(zh_CN="未知", en_US="Unknown"), WorkspaceSandboxDisplayStatus.UNKNOWN
+
+    live_status = await _resolve_workspace_sandbox_live_status(workspace, chat_key=chat_key)
+    if live_status is not WorkspaceSandboxDisplayStatus.UNKNOWN:
+        return _format_workspace_sandbox_status(live_status), live_status
+
+    # 兜底保留旧快照链路，避免极端情况下完全丢状态。
     snapshot = get_state_snapshot()
     snapshot_status = WorkspaceSandboxDisplayStatus.from_workspace_status(
         _get_workspace_status_from_snapshot(snapshot, workspace_id) or ""
@@ -184,24 +225,10 @@ async def _resolve_bound_workspace_sandbox_status(workspace_id: int | None) -> t
             )
             if snapshot_phase is not None:
                 return _format_workspace_sandbox_status(snapshot_phase), snapshot_phase
-
-            # `active` 仅表示工作区容器可用；没有 CC 任务时，展示层统一视为闲置中。
             return _format_workspace_sandbox_status(WorkspaceSandboxDisplayStatus.IDLE), WorkspaceSandboxDisplayStatus.IDLE
-
         return _format_workspace_sandbox_status(snapshot_status), snapshot_status
 
-    workspace = await DBWorkspace.get_or_none(id=workspace_id)
-    if workspace is None:
-        return t(zh_CN="未知", en_US="Unknown"), WorkspaceSandboxDisplayStatus.UNKNOWN
-
-    workspace_status = WorkspaceSandboxDisplayStatus.from_workspace_status(workspace.status)
-    if workspace_status is None:
-        return t(zh_CN="未知", en_US="Unknown"), WorkspaceSandboxDisplayStatus.UNKNOWN
-
-    if workspace_status is WorkspaceSandboxDisplayStatus.ACTIVE:
-        return _format_workspace_sandbox_status(WorkspaceSandboxDisplayStatus.IDLE), WorkspaceSandboxDisplayStatus.IDLE
-
-    return _format_workspace_sandbox_status(workspace_status), workspace_status
+    return t(zh_CN="未知", en_US="Unknown"), WorkspaceSandboxDisplayStatus.UNKNOWN
 
 
 class NaInfoCommand(BaseCommand):
@@ -231,7 +258,8 @@ class NaInfoCommand(BaseCommand):
         channel_status_label = _format_channel_status(channel_status)
         runtime_status_label, runtime_status_phase = _resolve_channel_agent_runtime_status(context.chat_key)
         cc_sandbox_status_label, cc_sandbox_status_value = await _resolve_bound_workspace_sandbox_status(
-            db_chat_channel.workspace_id
+            db_chat_channel.workspace_id,
+            chat_key=context.chat_key,
         )
 
         title = t(zh_CN="[Nekro-Agent 信息]", en_US="[Nekro-Agent Info]")
