@@ -43,6 +43,8 @@ alwaysApply: true
 | `poe sync`               | 同步项目依赖（uv sync）                |
 | `poe sync-dev`           | 同步含开发依赖（uv sync --all-extras） |
 
+注意: 如果遇到权限问题，请使用 `sudo` 命令。
+
 ### 前端（TypeScript/React）— 使用 `poe frontend-*` 或 `pnpm`（在 `frontend/` 目录下）
 
 | 命令                      | 说明                                                              |
