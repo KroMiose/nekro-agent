@@ -19,12 +19,14 @@ from nekro_agent.schemas.kb import (
     KBAssetUploadResponse,
     KBCreateTextDocumentBody,
     KBFullTextResponse,
+    KBUpdateAssetBody,
 )
 from nekro_agent.services.kb.library_index_service import (
     delete_asset_files,
     delete_asset_index,
     ensure_kb_library_collection,
     schedule_rebuild_asset,
+    sync_asset_index_metadata,
 )
 from nekro_agent.services.kb.library_service import (
     TEXT_LIBRARY_FORMATS,
@@ -40,6 +42,7 @@ from nekro_agent.services.kb.library_service import (
     resolve_kb_library_source_path,
     unbind_asset_workspace,
     update_asset_bindings,
+    update_asset_metadata,
 )
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
@@ -167,6 +170,37 @@ async def upload_kb_library_asset(
     if not reused_existing:
         await schedule_rebuild_asset(refreshed)
     return KBAssetUploadResponse(asset=await asset_to_list_item(refreshed), reused_existing=reused_existing)
+
+
+@router.put("/assets/{asset_id}", summary="更新全局知识库文件", response_model=KBAssetDetailResponse)
+@require_role(Role.Admin)
+async def update_kb_library_asset(
+    asset_id: int,
+    body: KBUpdateAssetBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetDetailResponse:
+    asset = await _get_asset_or_404(asset_id)
+    updated = await update_asset_metadata(
+        asset,
+        title=body.title,
+        category=body.category,
+        tags=body.tags,
+        summary=body.summary,
+        is_enabled=body.is_enabled,
+    )
+
+    metadata_changed = body.category is not None or body.tags is not None or body.is_enabled is not None
+    if metadata_changed:
+        await sync_asset_index_metadata(updated)
+
+    refreshed = await _get_asset_or_404(asset_id)
+    source_content = read_asset_source_content(refreshed) if refreshed.format in TEXT_LIBRARY_FORMATS else None
+    normalized_content = read_asset_normalized_content(refreshed) or None
+    return KBAssetDetailResponse(
+        asset=await asset_to_list_item(refreshed),
+        source_content=source_content,
+        normalized_content=normalized_content,
+    )
 
 
 @router.delete("/assets/{asset_id}", summary="删除全局知识库文件", response_model=KBActionResponse)

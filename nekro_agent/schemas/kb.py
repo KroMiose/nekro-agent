@@ -38,6 +38,14 @@ class KBUpdateDocumentBody(BaseModel):
     content: Optional[str] = Field(default=None, description="仅文本类文档可更新源内容")
 
 
+class KBUpdateAssetBody(BaseModel):
+    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    category: Optional[str] = Field(default=None, max_length=64)
+    tags: Optional[list[str]] = None
+    summary: Optional[str] = Field(default=None, max_length=1000)
+    is_enabled: Optional[bool] = None
+
+
 class KBDocumentListItem(BaseModel):
     id: int
     workspace_id: int

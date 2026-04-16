@@ -1035,6 +1035,7 @@
     "title": "工作区知识库",
     "description": "统一管理工作区内的静态知识文件，支持导入、搜索、查看全文和下载源文件。",
     "actions": {
+      "addFile": "新增知识文件",
       "refresh": "刷新",
       "search": "搜索",
       "clearSearch": "清空搜索",
@@ -1143,13 +1144,16 @@
     "dialogs": {
       "createTitle": "新建文本知识",
       "uploadTitle": "上传知识文件",
-      "reuseTitle": "复用全局知识库",
-      "reuseHint": "选择要复用到当前工作区的全局知识文件。保存后，这些文件会与当前工作区建立绑定关系。",
+      "reuseTitle": "从全局知识库添加",
+      "reuseHint": "选择要添加到当前工作区的全局知识文件。保存后，这些文件会与当前工作区建立绑定关系。",
       "reuseEmpty": "没有匹配到可复用的全局知识文件。",
       "deleteTitle": "确认删除",
-      "deleteContent": "确定要删除知识文档“{{title}}”吗？此操作不可恢复。"
+      "deleteContent": "确定要删除知识文档“{{title}}”吗？此操作不可恢复。",
+      "removeContent": "确定要将知识文件“{{title}}”从当前工作区移除吗？这不会删除全局源文件。"
     },
     "notifications": {
+      "addSuccess": "知识文件已添加到当前工作区",
+      "addReusedSuccess": "已复用现有知识文件并添加到当前工作区",
       "createSuccess": "知识文档已创建",
       "createFailed": "创建失败：{{message}}",
       "uploadSuccess": "知识文件已上传",
@@ -1165,6 +1169,8 @@
       "updateFailed": "更新失败：{{message}}",
       "reuseBindingsSuccess": "全局知识库复用关系已更新",
       "reuseBindingsFailed": "更新复用关系失败：{{message}}",
+      "removeSuccess": "知识文件已从当前工作区移除",
+      "removeFailed": "移除知识文件失败：{{message}}",
       "downloadFailed": "下载失败：{{message}}",
       "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}"
     }
@@ -1207,6 +1213,10 @@
     },
     "search": {
       "placeholder": "搜索标题、路径、分类、摘要或标签"
+    },
+    "toolbar": {
+      "cardView": "卡片视图",
+      "listView": "列表视图"
     },
     "list": {
       "total": "共 {{count}} 份文件",

@@ -266,3 +266,18 @@ async def delete_asset_index(asset: DBKBAsset) -> None:
     if chunks:
         await kb_library_qdrant_manager.delete_chunk_points([chunk.id for chunk in chunks])
         await DBKBAssetChunk.filter(asset_id=asset.id).delete()
+
+
+async def sync_asset_index_metadata(asset: DBKBAsset) -> int:
+    chunk_ids = await DBKBAssetChunk.filter(asset_id=asset.id).values_list("id", flat=True)
+    if not chunk_ids:
+        return 0
+    await kb_library_qdrant_manager.set_payload(
+        chunk_ids=list(chunk_ids),
+        payload={
+            "category": asset.category,
+            "tags": asset.tags if isinstance(asset.tags, list) else [],
+            "is_enabled": asset.is_enabled,
+        },
+    )
+    return len(chunk_ids)

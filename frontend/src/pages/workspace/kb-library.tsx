@@ -3,31 +3,25 @@ import {
   Alert,
   Box,
   Card,
-  CardContent,
   Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Drawer,
   FormControl,
   InputLabel,
   LinearProgress,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
   MenuItem,
   OutlinedInput,
   Paper,
   Select,
   Stack,
-  Tab,
   TextField,
   Tooltip,
   Typography,
   useTheme,
-  useMediaQuery,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -42,6 +36,8 @@ import {
   FilterAltOff as FilterAltOffIcon,
   Description as AssetIcon,
   Hub as BindingsIcon,
+  ViewModule as GridViewIcon,
+  FormatListBulleted as ListViewIcon,
 } from '@mui/icons-material'
 import { alpha } from '@mui/material/styles'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -64,10 +60,10 @@ import SearchField from '../../components/common/SearchField'
 import SegmentedControl from '../../components/common/SegmentedControl'
 import IconActionButton from '../../components/common/IconActionButton'
 import ActionButton from '../../components/common/ActionButton'
-import { InlineTabs } from '../../components/common/NekroTabs'
+import StatCard from '../../components/common/StatCard'
 
 type FilterStatus = 'all' | 'ready' | 'indexing' | 'failed'
-type PreviewTab = 'normalized' | 'source'
+type ViewMode = 'card' | 'list'
 
 const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.xlsx', '.pdf', '.docx']
 const EMPTY_ASSETS: KBAssetListItem[] = []
@@ -120,62 +116,9 @@ function normalizeTagsInput(raw: string): string[] {
     .filter(Boolean)
 }
 
-function previewContent(detail: KBAssetDetailResponse | undefined, tab: PreviewTab): string {
+function previewContent(detail: KBAssetDetailResponse | undefined): string {
   if (!detail) return ''
-  if (tab === 'source') return detail.source_content ?? ''
   return detail.normalized_content ?? ''
-}
-
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
-  label: string
-  value: number
-  icon: React.ReactNode
-  color: string
-}) {
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        px: 2,
-        py: 1.5,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        borderRadius: 2,
-        minWidth: 160,
-        flex: '1 1 0',
-      }}
-    >
-      <Box
-        sx={{
-          width: 38,
-          height: 38,
-          borderRadius: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: color,
-          color: '#fff',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-          {value}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-      </Box>
-    </Paper>
-  )
 }
 
 function clearInteractiveFocus() {
@@ -186,7 +129,6 @@ function clearInteractiveFocus() {
 
 export default function KbLibraryPage() {
   const theme = useTheme()
-  const isCompactDialog = useMediaQuery(theme.breakpoints.down('md'))
   const queryClient = useQueryClient()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
@@ -195,8 +137,8 @@ export default function KbLibraryPage() {
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all')
+  const [viewMode, setViewMode] = useState<ViewMode>('card')
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null)
-  const [previewTab, setPreviewTab] = useState<PreviewTab>('normalized')
   const [createOpen, setCreateOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [bindOpen, setBindOpen] = useState(false)
@@ -285,7 +227,6 @@ export default function KbLibraryPage() {
     onSuccess: async data => {
       await refreshAll()
       setSelectedAssetId(data.asset.id)
-      setPreviewTab('normalized')
       setCreateOpen(false)
       setCreateForm({
         title: '',
@@ -424,7 +365,6 @@ export default function KbLibraryPage() {
   }
 
   const detail = assetDetailQuery.data
-  const detailOpen = selectedAssetId != null
   const selectedProgress = selectedAssetId != null ? kbLibraryIndexProgresses.get(selectedAssetId) ?? null : null
   const selectedProgressStatus = getProgressStatus(selectedProgress)
   const progressByAssetId = useMemo(() => new Map<number, KbLibraryIndexProgressInfo>(kbLibraryIndexProgresses), [kbLibraryIndexProgresses])
@@ -437,7 +377,7 @@ export default function KbLibraryPage() {
         .join('|'),
     [kbLibraryIndexProgresses]
   )
-  const preview = previewContent(detail, previewTab)
+  const preview = previewContent(detail)
   const neutralChipSx = CHIP_VARIANTS.base(true)
   const statusChipSx = (status: FilterStatus) => CHIP_VARIANTS.getCustomColorChip({
     ready: theme.palette.success.main,
@@ -453,12 +393,7 @@ export default function KbLibraryPage() {
     void refreshAll()
   }, [refreshAll, terminalSignature])
 
-  useEffect(() => {
-    if (selectedAssetId == null) return
-    setPreviewTab('normalized')
-  }, [selectedAssetId])
-
-  const closeDetailDialog = () => {
+  const closeDrawer = () => {
     if (bindingsMutation.isPending || deleteMutation.isPending) return
     setBindOpen(false)
     setDeleteOpen(false)
@@ -466,10 +401,41 @@ export default function KbLibraryPage() {
     clearInteractiveFocus()
   }
 
+  const handleRefresh = () => {
+    void refreshAll()
+  }
+
+  const handleClearFilters = () => {
+    setSearch('')
+    setStatusFilter('all')
+  }
+
   const compactActionSx = {
     minHeight: 32,
     px: 1.25,
     fontSize: '0.82rem',
+  }
+  const detailSectionSx = [
+    UNIFIED_TABLE_STYLES.paper,
+    {
+      boxShadow: 'none',
+      borderColor: alpha(theme.palette.primary.main, 0.08),
+      backgroundColor: alpha(theme.palette.background.paper, 0.82),
+      '&:hover': {
+        boxShadow: 'none',
+      },
+    },
+  ]
+  const previewBodySx = {
+    px: 2,
+    py: 2.25,
+    maxHeight: { xs: 420, lg: 620 },
+    overflow: 'auto',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    fontSize: '0.92rem',
+    lineHeight: 1.8,
+    backgroundColor: alpha(theme.palette.background.default, 0.42),
   }
 
   return (
@@ -491,349 +457,439 @@ export default function KbLibraryPage() {
         </Box>
 
         <Card sx={CARD_VARIANTS.default.styles}>
-          <CardContent>
-            <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.5} justifyContent="space-between">
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} sx={{ flex: 1 }}>
-                <SearchField
-                  placeholder={t('kbLibrary.search.placeholder')}
-                  value={search}
-                  onChange={setSearch}
-                  onClear={() => setSearch('')}
-                  sx={{ width: { xs: '100%', md: 360 }, maxWidth: '100%' }}
-                />
-                <SegmentedControl
-                  value={statusFilter}
-                  options={[
-                    { value: 'all', label: t('kbLibrary.filter.all') },
-                    { value: 'ready', label: t('kbLibrary.filter.ready') },
-                    { value: 'indexing', label: t('kbLibrary.filter.indexing') },
-                    { value: 'failed', label: t('kbLibrary.filter.failed') },
-                  ]}
-                  onChange={value => setStatusFilter(value)}
-                />
-                {(search.trim() || statusFilter !== 'all') && (
-                  <Tooltip title={t('kbLibrary.actions.clearFilters')}>
-                    <IconActionButton onClick={() => { setSearch(''); setStatusFilter('all') }}>
-                      <FilterAltOffIcon fontSize="small" />
-                    </IconActionButton>
-                  </Tooltip>
-                )}
-              </Stack>
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ alignSelf: 'center' }}>
-                <Typography variant="caption" color="text.secondary">
-                  {t('kbLibrary.list.total', { count: filteredAssets.length })}
-                </Typography>
-                <Tooltip title={t('kbLibrary.actions.refresh')}>
-                  <IconActionButton tone="primary" onClick={() => void refreshAll()} disabled={assetsQuery.isLoading}>
-                    <RefreshIcon fontSize="small" />
+          <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap', flex: '1 1 520px', minWidth: 0 }}>
+              <SearchField
+                placeholder={t('kbLibrary.search.placeholder')}
+                value={search}
+                onChange={setSearch}
+                onClear={() => setSearch('')}
+                clearAriaLabel={t('kbLibrary.actions.clearFilters')}
+                sx={{ width: { xs: '100%', sm: 280, md: 320 }, maxWidth: '100%', flexShrink: 0 }}
+              />
+              <SegmentedControl
+                value={statusFilter}
+                options={[
+                  { value: 'all', label: t('kbLibrary.filter.all') },
+                  { value: 'ready', label: t('kbLibrary.filter.ready') },
+                  { value: 'indexing', label: t('kbLibrary.filter.indexing') },
+                  { value: 'failed', label: t('kbLibrary.filter.failed') },
+                ]}
+                onChange={value => setStatusFilter(value)}
+              />
+              <SegmentedControl
+                value={viewMode}
+                options={[
+                  {
+                    value: 'card',
+                    icon: <GridViewIcon fontSize="small" />,
+                    tooltip: t('kbLibrary.toolbar.cardView'),
+                    ariaLabel: t('kbLibrary.toolbar.cardView'),
+                    iconOnly: true,
+                  },
+                  {
+                    value: 'list',
+                    icon: <ListViewIcon fontSize="small" />,
+                    tooltip: t('kbLibrary.toolbar.listView'),
+                    ariaLabel: t('kbLibrary.toolbar.listView'),
+                    iconOnly: true,
+                  },
+                ]}
+                onChange={value => setViewMode(value)}
+              />
+              {(search.trim() || statusFilter !== 'all') && (
+                <Tooltip title={t('kbLibrary.actions.clearFilters')}>
+                  <IconActionButton size="small" onClick={handleClearFilters}>
+                    <FilterAltOffIcon fontSize="small" />
                   </IconActionButton>
                 </Tooltip>
-                <ActionButton tone="secondary" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-                  {t('kbLibrary.actions.createText')}
-                </ActionButton>
-                <ActionButton tone="primary" startIcon={<FileUploadIcon />} onClick={() => setUploadOpen(true)}>
-                  {t('kbLibrary.actions.upload')}
-                </ActionButton>
-              </Stack>
-            </Stack>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <CardContent sx={{ p: 0, flex: 1, minHeight: 0 }}>
-            {assetsQuery.isLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-                <CircularProgress size={30} />
-              </Box>
-            ) : filteredAssets.length ? (
-              <List sx={{ py: 0, height: '100%', overflow: 'auto' }}>
-                {filteredAssets.map(asset => {
-                  const progress = progressByAssetId.get(asset.id)
-                  const status = getProgressStatus(progress) ?? getEffectiveStatus(asset)
-                  return (
-                    <ListItem
-                      key={asset.id}
-                      disablePadding
-                      divider
-                    >
-                      <ListItemButton
-                        onClick={() => setSelectedAssetId(asset.id)}
-                        sx={{
-                          alignItems: 'flex-start',
-                          py: 1.5,
-                          px: 2,
-                        }}
-                      >
-                        <ListItemText
-                          primary={
-                            <Stack spacing={0.75}>
-                              <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
-                                <Typography variant="body1" sx={{ fontWeight: 700 }}>
-                                  {asset.title}
-                                </Typography>
-                                <Chip size="small" label={asset.format.toUpperCase()} variant="outlined" sx={neutralChipSx} />
-                                <Chip size="small" label={t(`kbLibrary.status.${status}`)} sx={statusChipSx(status)} />
-                                <Chip size="small" label={t('kbLibrary.list.bindingCount', { count: asset.binding_count })} variant="outlined" sx={neutralChipSx} />
-                              </Stack>
-                              <Typography variant="caption" color="text.secondary">
-                                {asset.source_path}
-                              </Typography>
-                              <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: 'vertical',
-                                  overflow: 'hidden',
-                                }}
-                              >
-                                {asset.summary || t('kbLibrary.list.noSummary')}
-                              </Typography>
-                              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                                {asset.tags.slice(0, 4).map(tag => (
-                                  <Chip key={`${asset.id}-${tag}`} size="small" label={tag} variant="outlined" sx={neutralChipSx} />
-                                ))}
-                              </Stack>
-                              {progress && progress.phase !== 'ready' && progress.phase !== 'failed' && (
-                                <Stack spacing={0.5} sx={{ pt: 0.25 }}>
-                                  <LinearProgress
-                                    variant="determinate"
-                                    value={progress.progress_percent}
-                                    sx={{ height: 5, borderRadius: 999 }}
-                                  />
-                                  <Typography variant="caption" color="text.secondary">
-                                    {`${t(`kbLibrary.progress.phase.${progress.phase}`)} · ${progress.progress_percent}%`}
-                                  </Typography>
-                                </Stack>
-                              )}
-                            </Stack>
-                          }
-                        />
-                      </ListItemButton>
-                    </ListItem>
-                  )
-                })}
-              </List>
-            ) : (
-              <Box sx={{ p: 4 }}>
-                <Alert severity="info">
-                  {search.trim() || statusFilter !== 'all' ? t('kbLibrary.empty.noMatch') : t('kbLibrary.empty.title')}
-                </Alert>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
-      </Stack>
-
-      <Dialog
-        open={detailOpen}
-        onClose={closeDetailDialog}
-        fullWidth
-        maxWidth="lg"
-        fullScreen={isCompactDialog}
-        scroll="paper"
-        disableRestoreFocus
-      >
-        <DialogTitle sx={{ px: 3, py: 2 }}>
-          <Stack direction="row" spacing={1.5} justifyContent="space-between" alignItems="flex-start">
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.35 }}>
-                {detail?.asset.title ?? t('kbLibrary.detail.noSelection')}
-              </Typography>
-              {detail?.asset.source_path && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-                  {detail.asset.source_path}
-                </Typography>
               )}
             </Box>
-            <Tooltip title={t('kbLibrary.actions.cancel')}>
-              <IconActionButton onClick={closeDetailDialog}>
-                <CloseIcon fontSize="small" />
-              </IconActionButton>
-            </Tooltip>
-          </Stack>
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, py: 2.5 }}>
-          {!selectedAssetId ? (
-            <Alert severity="info">{t('kbLibrary.detail.noSelection')}</Alert>
-          ) : assetDetailQuery.isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
-              <CircularProgress size={30} />
+
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', marginLeft: 'auto' }}>
+              <Typography variant="caption" color="text.secondary">
+                {t('kbLibrary.list.total', { count: filteredAssets.length })}
+              </Typography>
+              <Tooltip title={t('kbLibrary.actions.refresh')}>
+                <IconActionButton size="small" onClick={handleRefresh} disabled={assetsQuery.isLoading}>
+                  <RefreshIcon fontSize="small" />
+                </IconActionButton>
+              </Tooltip>
+              <ActionButton size="small" tone="secondary" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+                {t('kbLibrary.actions.createText')}
+              </ActionButton>
+              <ActionButton size="small" tone="primary" startIcon={<FileUploadIcon />} onClick={() => setUploadOpen(true)}>
+                {t('kbLibrary.actions.upload')}
+              </ActionButton>
             </Box>
-          ) : detail ? (
-            <Stack spacing={2}>
-              <Stack
-                direction={{ xs: 'column', lg: 'row' }}
-                spacing={1.5}
-                justifyContent="space-between"
-                alignItems={{ xs: 'flex-start', lg: 'center' }}
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.6 }}>
-                    {detail.asset.summary || t('kbLibrary.list.noSummary')}
-                  </Typography>
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.25 }}>
-                    <Chip size="small" label={detail.asset.format.toUpperCase()} variant="outlined" sx={neutralChipSx} />
+          </Box>
+        </Card>
+
+        {assetsQuery.isLoading ? (
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <CircularProgress size={30} />
+          </Box>
+        ) : filteredAssets.length === 0 ? (
+          <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+            <LibraryIcon sx={{ fontSize: 64, opacity: 0.2 }} />
+            <Typography variant="h6" color="text.secondary">
+              {search.trim() || statusFilter !== 'all' ? t('kbLibrary.empty.noMatch') : t('kbLibrary.empty.title')}
+            </Typography>
+          </Box>
+        ) : viewMode === 'card' ? (
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', pr: 0.5 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 2 }}>
+              {filteredAssets.map(asset => {
+                const progress = progressByAssetId.get(asset.id)
+                const status = getProgressStatus(progress) ?? getEffectiveStatus(asset)
+                return (
+                  <Card
+                    key={asset.id}
+                    sx={{
+                      ...CARD_VARIANTS.default.styles,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      cursor: 'pointer',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        boxShadow: 2,
+                      },
+                    }}
+                    onClick={() => setSelectedAssetId(asset.id)}
+                  >
+                    <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                        <Chip size="small" label={asset.format.toUpperCase()} variant="outlined" sx={neutralChipSx} />
+                        <Chip size="small" label={t(`kbLibrary.status.${status}`)} sx={statusChipSx(status)} />
+                        <Chip size="small" label={t('kbLibrary.list.bindingCount', { count: asset.binding_count })} variant="outlined" sx={neutralChipSx} />
+                      </Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+                        {asset.title}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
+                        {asset.source_path}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {asset.summary || t('kbLibrary.list.noSummary')}
+                      </Typography>
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 'auto' }}>
+                        {asset.tags.slice(0, 4).map(tag => (
+                          <Chip key={`${asset.id}-${tag}`} size="small" label={tag} variant="outlined" sx={neutralChipSx} />
+                        ))}
+                      </Stack>
+                      {progress && progress.phase !== 'ready' && progress.phase !== 'failed' && (
+                        <Stack spacing={0.5} sx={{ pt: 0.25 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={progress.progress_percent}
+                            sx={{ height: 5, borderRadius: 999 }}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {`${t(`kbLibrary.progress.phase.${progress.phase}`)} · ${progress.progress_percent}%`}
+                          </Typography>
+                        </Stack>
+                      )}
+                    </Box>
+                  </Card>
+                )
+              })}
+            </Box>
+          </Box>
+        ) : (
+          <Paper sx={{ ...UNIFIED_TABLE_STYLES.tableContentContainer, minHeight: 0 }}>
+            <Box sx={UNIFIED_TABLE_STYLES.tableViewport}>
+              {filteredAssets.map((asset, index) => {
+                const progress = progressByAssetId.get(asset.id)
+                const status = getProgressStatus(progress) ?? getEffectiveStatus(asset)
+                return (
+                  <Box key={asset.id}>
+                    {index > 0 && <Divider />}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        px: 2,
+                        py: 1.25,
+                        gap: 1.5,
+                        cursor: 'pointer',
+                        ...UNIFIED_TABLE_STYLES.row,
+                      }}
+                      onClick={() => setSelectedAssetId(asset.id)}
+                    >
+                      <Chip
+                        size="small"
+                        label={asset.format.toUpperCase()}
+                        variant="outlined"
+                        sx={{ ...neutralChipSx, width: 58, flexShrink: 0 }}
+                      />
+                      <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {asset.title}
+                          </Typography>
+                          <Chip size="small" label={t(`kbLibrary.status.${status}`)} sx={statusChipSx(status)} />
+                          <Chip size="small" label={t('kbLibrary.list.bindingCount', { count: asset.binding_count })} variant="outlined" sx={neutralChipSx} />
+                        </Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                          {asset.source_path}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 1,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            mt: 0.25,
+                          }}
+                        >
+                          {asset.summary || t('kbLibrary.list.noSummary')}
+                        </Typography>
+                      </Box>
+                      {progress && progress.phase !== 'ready' && progress.phase !== 'failed' && (
+                        <Box sx={{ width: 96, flexShrink: 0 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={progress.progress_percent}
+                            sx={{ height: 5, borderRadius: 999, mb: 0.5 }}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {`${progress.progress_percent}%`}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+                  </Box>
+                )
+              })}
+            </Box>
+          </Paper>
+        )}
+      </Stack>
+
+      <Drawer
+        anchor="right"
+        open={selectedAssetId != null}
+        onClose={closeDrawer}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 720, md: 820 },
+            maxWidth: '100vw',
+            mt: { xs: '56px', sm: '64px' },
+            height: { xs: 'calc(100% - 56px)', sm: 'calc(100% - 64px)' },
+          },
+        }}
+      >
+        {selectedAssetId != null && (
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }} noWrap>
+                  {detail?.asset.title ?? selectedAsset?.title ?? t('kbLibrary.detail.noSelection')}
+                </Typography>
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mt: 0.75 }}>
+                  {(detail?.asset ?? selectedAsset)?.format && (
+                    <Chip
+                      size="small"
+                      label={(detail?.asset ?? selectedAsset)?.format.toUpperCase()}
+                      variant="outlined"
+                      sx={neutralChipSx}
+                    />
+                  )}
+                  {detail && (
                     <Chip
                       size="small"
                       label={t(`kbLibrary.status.${selectedProgressStatus ?? getEffectiveStatus(detail.asset)}`)}
                       sx={statusChipSx(selectedProgressStatus ?? getEffectiveStatus(detail.asset))}
                     />
-                    <Chip size="small" label={t('kbLibrary.list.bindingCount', { count: detail.asset.binding_count })} variant="outlined" sx={neutralChipSx} />
-                  </Stack>
-                </Box>
-                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0 }}>
-                  <ActionButton
-                    size="small"
-                    tone="secondary"
-                    startIcon={<BindIcon />}
-                    sx={compactActionSx}
-                    onClick={() => {
-                      setBindWorkspaceIds(detail.asset.bound_workspaces.map(item => item.workspace_id))
-                      setBindOpen(true)
-                    }}
-                  >
-                    {t('kbLibrary.actions.bind')}
-                  </ActionButton>
-                  <ActionButton
-                    size="small"
-                    tone="secondary"
-                    startIcon={<ReindexIcon />}
-                    sx={compactActionSx}
-                    onClick={() => reindexMutation.mutate(detail.asset.id)}
-                  >
-                    {t('kbLibrary.actions.reindex')}
-                  </ActionButton>
-                  <ActionButton
-                    size="small"
-                    tone="secondary"
-                    startIcon={<DownloadIcon />}
-                    sx={compactActionSx}
-                    onClick={() => void handleDownloadRaw(detail.asset)}
-                  >
-                    {t('kbLibrary.actions.downloadRaw')}
-                  </ActionButton>
-                  <ActionButton
-                    size="small"
-                    tone="danger"
-                    startIcon={<DeleteIcon />}
-                    sx={compactActionSx}
-                    onClick={() => setDeleteOpen(true)}
-                  >
-                    {t('kbLibrary.actions.delete')}
-                  </ActionButton>
+                  )}
+                  {(detail?.asset ?? selectedAsset) && (
+                    <Chip
+                      size="small"
+                      label={t('kbLibrary.list.bindingCount', { count: (detail?.asset ?? selectedAsset)?.binding_count ?? 0 })}
+                      variant="outlined"
+                      sx={neutralChipSx}
+                    />
+                  )}
                 </Stack>
-              </Stack>
-
-              {selectedProgress && (
-                <Card variant="outlined">
-                  <CardContent>
-                    <Stack spacing={0.9}>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
-                        <Typography variant="subtitle2">{t('kbLibrary.progress.title')}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {`${t(`kbLibrary.progress.phase.${selectedProgress.phase}`)} · ${selectedProgress.progress_percent}%`}
-                        </Typography>
-                      </Stack>
-                      <LinearProgress
-                        variant="determinate"
-                        value={selectedProgress.progress_percent}
-                        color={selectedProgress.phase === 'failed' ? 'error' : selectedProgress.phase === 'ready' ? 'success' : 'primary'}
-                        sx={{ height: 8, borderRadius: 999 }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        {selectedProgress.total_chunks > 0
-                          ? t('kbLibrary.progress.detail', {
-                              processed: selectedProgress.processed_chunks,
-                              total: selectedProgress.total_chunks,
-                            })
-                          : t('kbLibrary.progress.pending')}
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75, wordBreak: 'break-all' }}>
+                  {detail?.asset.source_path ?? selectedAsset?.source_path ?? ''}
+                </Typography>
+              </Box>
+              <IconActionButton size="small" onClick={closeDrawer}>
+                <CloseIcon fontSize="small" />
+              </IconActionButton>
+            </Box>
+            <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 2 }}>
+              {!selectedAssetId ? (
+                <Alert severity="info">{t('kbLibrary.detail.noSelection')}</Alert>
+              ) : assetDetailQuery.isLoading ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}>
+                  <CircularProgress size={30} />
+                </Box>
+              ) : detail ? (
+                <Stack spacing={2}>
+                  <Stack
+                    direction={{ xs: 'column', lg: 'row' }}
+                    spacing={1.5}
+                    justifyContent="space-between"
+                    alignItems={{ xs: 'flex-start', lg: 'center' }}
+                  >
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.6 }}>
+                        {detail.asset.summary || t('kbLibrary.list.noSummary')}
                       </Typography>
-                      {selectedProgress.error_summary && <Alert severity="error">{selectedProgress.error_summary}</Alert>}
+                    </Box>
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0 }}>
+                      <ActionButton
+                        size="small"
+                        tone="secondary"
+                        startIcon={<BindIcon />}
+                        sx={compactActionSx}
+                        onClick={() => {
+                          setBindWorkspaceIds(detail.asset.bound_workspaces.map(item => item.workspace_id))
+                          setBindOpen(true)
+                        }}
+                      >
+                        {t('kbLibrary.actions.bind')}
+                      </ActionButton>
+                      <ActionButton
+                        size="small"
+                        tone="secondary"
+                        startIcon={<ReindexIcon />}
+                        sx={compactActionSx}
+                        onClick={() => reindexMutation.mutate(detail.asset.id)}
+                      >
+                        {t('kbLibrary.actions.reindex')}
+                      </ActionButton>
+                      <ActionButton
+                        size="small"
+                        tone="secondary"
+                        startIcon={<DownloadIcon />}
+                        sx={compactActionSx}
+                        onClick={() => void handleDownloadRaw(detail.asset)}
+                      >
+                        {t('kbLibrary.actions.downloadRaw')}
+                      </ActionButton>
+                      <ActionButton
+                        size="small"
+                        tone="danger"
+                        startIcon={<DeleteIcon />}
+                        sx={compactActionSx}
+                        onClick={() => setDeleteOpen(true)}
+                      >
+                        {t('kbLibrary.actions.delete')}
+                      </ActionButton>
                     </Stack>
-                  </CardContent>
-                </Card>
-              )}
-
-              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                {detail.asset.tags.length ? (
-                  detail.asset.tags.map(tag => (
-                    <Chip key={`${detail.asset.id}-${tag}`} size="small" label={tag} variant="outlined" sx={neutralChipSx} />
-                  ))
-                ) : (
-                  <Chip size="small" label={t('kbLibrary.detail.noTags')} variant="outlined" sx={neutralChipSx} />
-                )}
-              </Stack>
-
-              <Card variant="outlined">
-                <CardContent>
-                  <Stack spacing={1.25}>
-                    <Typography variant="subtitle2">{t('kbLibrary.detail.meta')}</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {detail.asset.source_path}
-                    </Typography>
-                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                      <Chip size="small" label={t('kbLibrary.detail.chunkCount', { count: detail.asset.chunk_count })} variant="outlined" sx={neutralChipSx} />
-                      <Chip size="small" label={t('kbLibrary.detail.fileSize', { value: formatFileSize(detail.asset.file_size) })} variant="outlined" sx={neutralChipSx} />
-                      <Chip size="small" label={t('kbLibrary.detail.updatedAt', { value: formatDateTime(detail.asset.update_time) })} variant="outlined" sx={neutralChipSx} />
-                    </Stack>
-                    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                      {detail.asset.bound_workspaces.length ? (
-                        detail.asset.bound_workspaces.map(item => (
-                          <Chip
-                            key={`${detail.asset.id}-${item.workspace_id}`}
-                            size="small"
-                            label={`${item.workspace_name} · ${item.workspace_status}`}
-                            variant="outlined"
-                            sx={neutralChipSx}
-                          />
-                        ))
-                      ) : (
-                        <Chip size="small" label={t('kbLibrary.detail.noBindings')} variant="outlined" sx={neutralChipSx} />
-                      )}
-                    </Stack>
-                    {detail.asset.last_error && <Alert severity="error">{detail.asset.last_error}</Alert>}
                   </Stack>
-                </CardContent>
-              </Card>
 
-              <Card variant="outlined">
-                <CardContent sx={{ p: 0 }}>
-                  <Box sx={{ px: 2, pt: 1.5 }}>
-                    <Typography variant="subtitle2">{t('kbLibrary.detail.preview')}</Typography>
-                  </Box>
-                  <InlineTabs
-                    value={previewTab}
-                    onChange={(_, value: PreviewTab) => setPreviewTab(value)}
-                    sx={{ px: 1.5 }}
-                  >
-                    <Tab value="normalized" label={t('kbLibrary.preview.normalized')} />
-                    <Tab value="source" label={t('kbLibrary.preview.source')} />
-                  </InlineTabs>
-                  <Box
-                    sx={{
-                      p: 2,
-                      maxHeight: { xs: 420, lg: 620 },
-                      overflow: 'auto',
-                      fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      fontSize: 13,
-                      lineHeight: 1.7,
-                      bgcolor: alpha(theme.palette.background.default, 0.4),
-                    }}
-                  >
-                    {preview || t('kbLibrary.preview.empty')}
-                  </Box>
-                </CardContent>
-              </Card>
-            </Stack>
-          ) : (
-            <Alert severity="warning">{t('kbLibrary.detail.loadFailed')}</Alert>
-          )}
-        </DialogContent>
-      </Dialog>
+                  {selectedProgress && (
+                    <Paper sx={detailSectionSx}>
+                      <Stack spacing={0.9} sx={{ p: 2 }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+                          <Typography variant="subtitle2">{t('kbLibrary.progress.title')}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {`${t(`kbLibrary.progress.phase.${selectedProgress.phase}`)} · ${selectedProgress.progress_percent}%`}
+                          </Typography>
+                        </Stack>
+                        <LinearProgress
+                          variant="determinate"
+                          value={selectedProgress.progress_percent}
+                          color={selectedProgress.phase === 'failed' ? 'error' : selectedProgress.phase === 'ready' ? 'success' : 'primary'}
+                          sx={{ height: 8, borderRadius: 999 }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedProgress.total_chunks > 0
+                            ? t('kbLibrary.progress.detail', {
+                                processed: selectedProgress.processed_chunks,
+                                total: selectedProgress.total_chunks,
+                              })
+                            : t('kbLibrary.progress.pending')}
+                        </Typography>
+                        {selectedProgress.error_summary && <Alert severity="error">{selectedProgress.error_summary}</Alert>}
+                      </Stack>
+                    </Paper>
+                  )}
+
+                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                    {detail.asset.tags.length ? (
+                      detail.asset.tags.map(tag => (
+                        <Chip key={`${detail.asset.id}-${tag}`} size="small" label={tag} variant="outlined" sx={neutralChipSx} />
+                      ))
+                    ) : (
+                      <Chip size="small" label={t('kbLibrary.detail.noTags')} variant="outlined" sx={neutralChipSx} />
+                    )}
+                  </Stack>
+
+                  <Paper sx={detailSectionSx}>
+                    <Stack spacing={1.25} sx={{ p: 2 }}>
+                      <Typography variant="subtitle2">{t('kbLibrary.detail.meta')}</Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
+                        {detail.asset.source_path}
+                      </Typography>
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                        {detail.asset.category && (
+                          <Chip size="small" label={`${t('kbLibrary.form.category')} · ${detail.asset.category}`} variant="outlined" sx={neutralChipSx} />
+                        )}
+                        <Chip size="small" label={`${t('kbLibrary.form.fileName')} · ${detail.asset.file_name}`} variant="outlined" sx={neutralChipSx} />
+                        <Chip size="small" label={t('kbLibrary.detail.chunkCount', { count: detail.asset.chunk_count })} variant="outlined" sx={neutralChipSx} />
+                        <Chip size="small" label={t('kbLibrary.detail.fileSize', { value: formatFileSize(detail.asset.file_size) })} variant="outlined" sx={neutralChipSx} />
+                        <Chip size="small" label={t('kbLibrary.detail.updatedAt', { value: formatDateTime(detail.asset.update_time) })} variant="outlined" sx={neutralChipSx} />
+                        <Chip size="small" label={`${t('knowledge.detail.indexedAt')} · ${formatDateTime(detail.asset.last_indexed_at)}`} variant="outlined" sx={neutralChipSx} />
+                      </Stack>
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                        {detail.asset.bound_workspaces.length ? (
+                          detail.asset.bound_workspaces.map(item => (
+                            <Chip
+                              key={`${detail.asset.id}-${item.workspace_id}`}
+                              size="small"
+                              label={`${item.workspace_name} · ${item.workspace_status}`}
+                              variant="outlined"
+                              sx={neutralChipSx}
+                            />
+                          ))
+                        ) : (
+                          <Chip size="small" label={t('kbLibrary.detail.noBindings')} variant="outlined" sx={neutralChipSx} />
+                        )}
+                      </Stack>
+                      {detail.asset.last_error && <Alert severity="error">{detail.asset.last_error}</Alert>}
+                    </Stack>
+                  </Paper>
+
+                  <Paper sx={detailSectionSx}>
+                    <Box sx={{ px: 2, pt: 1.5 }}>
+                      <Typography variant="subtitle2">{t('kbLibrary.detail.preview')}</Typography>
+                    </Box>
+                    <Box sx={previewBodySx}>
+                      {preview ? (
+                        <Typography component="pre" variant="body2" sx={{ m: 0, fontFamily: 'inherit', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.8 }}>
+                          {preview}
+                        </Typography>
+                      ) : (
+                        t('kbLibrary.preview.empty')
+                      )}
+                    </Box>
+                  </Paper>
+                </Stack>
+              ) : (
+                <Alert severity="warning">{t('kbLibrary.detail.loadFailed')}</Alert>
+              )}
+            </Box>
+          </Box>
+        )}
+      </Drawer>
 
       <Dialog
         open={createOpen}

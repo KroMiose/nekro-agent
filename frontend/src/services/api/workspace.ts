@@ -278,6 +278,14 @@ export interface KBUpdateDocumentBody {
   content?: string
 }
 
+export interface KBUpdateAssetBody {
+  title?: string
+  category?: string
+  tags?: string[]
+  summary?: string
+  is_enabled?: boolean
+}
+
 export interface KBSearchRequest {
   query: string
   limit?: number
@@ -843,6 +851,11 @@ export const kbLibraryApi = {
 
   getAsset: async (assetId: number): Promise<KBAssetDetailResponse> => {
     const response = await axios.get<KBAssetDetailResponse>(`/kb-library/assets/${assetId}`)
+    return response.data
+  },
+
+  updateAsset: async (assetId: number, body: KBUpdateAssetBody): Promise<KBAssetDetailResponse> => {
+    const response = await axios.put<KBAssetDetailResponse>(`/kb-library/assets/${assetId}`, body)
     return response.data
   },
 

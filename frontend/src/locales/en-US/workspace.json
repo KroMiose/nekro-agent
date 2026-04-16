@@ -1035,6 +1035,7 @@
     "title": "Workspace Knowledge Base",
     "description": "Manage static knowledge files inside the workspace, including import, search, full-text viewing, and raw file download.",
     "actions": {
+      "addFile": "Add Knowledge File",
       "refresh": "Refresh",
       "search": "Search",
       "clearSearch": "Clear Search",
@@ -1143,13 +1144,16 @@
     "dialogs": {
       "createTitle": "Create Text Knowledge",
       "uploadTitle": "Upload Knowledge File",
-      "reuseTitle": "Reuse Global Knowledge",
-      "reuseHint": "Choose the global knowledge files to reuse in this workspace. Saving will bind those files to the current workspace.",
+      "reuseTitle": "Add From Global Knowledge",
+      "reuseHint": "Choose the global knowledge files to add to this workspace. Saving will bind those files to the current workspace.",
       "reuseEmpty": "No reusable global knowledge files match the current filter.",
       "deleteTitle": "Confirm Delete",
-      "deleteContent": "Delete knowledge document \"{{title}}\"? This action cannot be undone."
+      "deleteContent": "Delete knowledge document \"{{title}}\"? This action cannot be undone.",
+      "removeContent": "Remove knowledge file \"{{title}}\" from this workspace? The global source file will be kept."
     },
     "notifications": {
+      "addSuccess": "Knowledge file added to the current workspace",
+      "addReusedSuccess": "Reused an existing knowledge file and added it to the current workspace",
       "createSuccess": "Knowledge document created",
       "createFailed": "Create failed: {{message}}",
       "uploadSuccess": "Knowledge file uploaded",
@@ -1165,6 +1169,8 @@
       "updateFailed": "Update failed: {{message}}",
       "reuseBindingsSuccess": "Global knowledge reuse updated",
       "reuseBindingsFailed": "Failed to update reuse bindings: {{message}}",
+      "removeSuccess": "Knowledge file removed from the current workspace",
+      "removeFailed": "Failed to remove knowledge file: {{message}}",
       "downloadFailed": "Download failed: {{message}}",
       "unsupportedFormat": "File {{name}} is not supported. Supported formats: {{formats}}"
     }
@@ -1207,6 +1213,10 @@
     },
     "search": {
       "placeholder": "Search by title, path, category, summary, or tags"
+    },
+    "toolbar": {
+      "cardView": "Card View",
+      "listView": "List View"
     },
     "list": {
       "total": "{{count}} files",

@@ -223,6 +223,36 @@ async def create_text_asset(
     return asset, False
 
 
+async def update_asset_metadata(
+    asset: DBKBAsset,
+    *,
+    title: str | None = None,
+    category: str | None = None,
+    tags: list[str] | None = None,
+    summary: str | None = None,
+    is_enabled: bool | None = None,
+) -> DBKBAsset:
+    update_fields: list[str] = []
+    if title is not None:
+        asset.title = title.strip()
+        update_fields.append("title")
+    if category is not None:
+        asset.category = category.strip()
+        update_fields.append("category")
+    if tags is not None:
+        asset.tags = normalize_tags(tags)
+        update_fields.append("tags")
+    if summary is not None:
+        asset.summary = summary.strip()
+        update_fields.append("summary")
+    if is_enabled is not None:
+        asset.is_enabled = is_enabled
+        update_fields.append("is_enabled")
+    if update_fields:
+        await asset.save(update_fields=[*sorted(set(update_fields)), "update_time"])
+    return asset
+
+
 async def update_asset_bindings(asset_id: int, workspace_ids: list[int]) -> list[KBAssetBoundWorkspace]:
     normalized_ids = sorted({int(workspace_id) for workspace_id in workspace_ids})
     existing_bindings = await DBKBAssetBinding.filter(asset_id=asset_id).all()
