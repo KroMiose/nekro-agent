@@ -1,11 +1,78 @@
 """内置命令 - 信息类: na_info, na_help"""
 
+from enum import StrEnum
 from typing import Any
 
+from pydantic import ValidationError
+
+from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import CommandExecutionContext, CommandResponse
+from nekro_agent.services.plugin.task import task as task_api
+from nekro_agent.services.system_broadcast import (
+    WorkspaceCcActiveState,
+    WorkspaceCcRuntimePhase,
+    WorkspaceCcRuntimeStatusState,
+    WorkspaceStatusState,
+    WorkspaceStatusValue,
+)
+from nekro_agent.services.workspace.client import CCSandboxClient
+
+
+class WorkspaceSandboxDisplayStatus(StrEnum):
+    IDLE = "idle"
+    UNBOUND = "unbound"
+    UNKNOWN = "unknown"
+
+    ACTIVE = "active"
+    STOPPED = "stopped"
+    FAILED = "failed"
+    DELETING = "deleting"
+
+    QUEUED = "queued"
+    RUNNING = "running"
+    RESPONDING = "responding"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+    @classmethod
+    def from_workspace_status(cls, status: WorkspaceStatusValue | str) -> "WorkspaceSandboxDisplayStatus | None":
+        parsed = cls._try_parse(status)
+        if parsed in {cls.ACTIVE, cls.STOPPED, cls.FAILED, cls.DELETING}:
+            return parsed
+        return None
+
+    @classmethod
+    def from_cc_phase(cls, phase: WorkspaceCcRuntimePhase | str) -> "WorkspaceSandboxDisplayStatus | None":
+        parsed = cls._try_parse(phase)
+        if parsed in {cls.QUEUED, cls.RUNNING, cls.RESPONDING, cls.COMPLETED, cls.FAILED, cls.CANCELLED}:
+            return parsed
+        return None
+
+    @classmethod
+    def _try_parse(cls, value: str) -> "WorkspaceSandboxDisplayStatus | None":
+        try:
+            return cls(value)
+        except ValueError:
+            return None
+
+    def to_label(self) -> str:
+        labels = {
+            WorkspaceSandboxDisplayStatus.IDLE: t(zh_CN="闲置中", en_US="Idle"),
+            WorkspaceSandboxDisplayStatus.UNBOUND: t(zh_CN="未绑定", en_US="Unbound"),
+            WorkspaceSandboxDisplayStatus.ACTIVE: t(zh_CN="闲置中", en_US="Idle"),
+            WorkspaceSandboxDisplayStatus.STOPPED: t(zh_CN="已停止", en_US="Stopped"),
+            WorkspaceSandboxDisplayStatus.FAILED: t(zh_CN="执行失败", en_US="Failed"),
+            WorkspaceSandboxDisplayStatus.DELETING: t(zh_CN="删除中", en_US="Deleting"),
+            WorkspaceSandboxDisplayStatus.QUEUED: t(zh_CN="排队中", en_US="Queued"),
+            WorkspaceSandboxDisplayStatus.RUNNING: t(zh_CN="执行中", en_US="Running"),
+            WorkspaceSandboxDisplayStatus.RESPONDING: t(zh_CN="回传结果", en_US="Responding"),
+            WorkspaceSandboxDisplayStatus.COMPLETED: t(zh_CN="已完成", en_US="Completed"),
+            WorkspaceSandboxDisplayStatus.CANCELLED: t(zh_CN="已中止", en_US="Cancelled"),
+        }
+        return labels.get(self, t(zh_CN="未知", en_US="Unknown"))
 
 
 def _format_channel_status(status: str) -> str:
@@ -30,6 +97,10 @@ def _format_agent_runtime_phase(phase: str | None) -> str:
     return phase_labels.get(phase or "", t(zh_CN="未知", en_US="Unknown"))
 
 
+def _format_workspace_sandbox_status(status: WorkspaceSandboxDisplayStatus) -> str:
+    return status.to_label()
+
+
 def _resolve_channel_agent_runtime_status(chat_key: str) -> tuple[str, str]:
     from nekro_agent.services.system_broadcast import get_state_snapshot
 
@@ -44,6 +115,120 @@ def _resolve_channel_agent_runtime_status(chat_key: str) -> tuple[str, str]:
         return t(zh_CN="LLM 生成中", en_US="LLM generating"), "llm_generating"
 
     return t(zh_CN="闲置中", en_US="Idle"), "none"
+
+
+def _get_workspace_status_state_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceStatusState | None:
+    workspace_status = snapshot.get("workspace_status", {}).get(str(workspace_id))
+    if not isinstance(workspace_status, dict):
+        return None
+
+    try:
+        return WorkspaceStatusState.model_validate(workspace_status)
+    except ValidationError:
+        return None
+
+
+def _get_workspace_status_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceStatusValue | None:
+    workspace_status = _get_workspace_status_state_from_snapshot(snapshot, workspace_id)
+    return workspace_status.status if workspace_status is not None else None
+
+
+def _get_workspace_cc_runtime_state_from_snapshot(
+    snapshot: dict[str, Any],
+    workspace_id: int,
+) -> WorkspaceCcRuntimeStatusState | None:
+    runtime_status = snapshot.get("workspace_cc_runtime_status", {}).get(str(workspace_id))
+    if isinstance(runtime_status, dict):
+        try:
+            return WorkspaceCcRuntimeStatusState.model_validate(runtime_status)
+        except ValidationError:
+            return None
+
+    return None
+
+
+def _get_workspace_cc_active_state_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceCcActiveState | None:
+    active_status = snapshot.get("workspace_cc_active", {}).get(str(workspace_id))
+    if isinstance(active_status, dict):
+        try:
+            return WorkspaceCcActiveState.model_validate(active_status)
+        except ValidationError:
+            return None
+
+    return None
+
+
+def _get_workspace_cc_phase_from_snapshot(snapshot: dict[str, Any], workspace_id: int) -> WorkspaceCcRuntimePhase | None:
+    runtime_status = _get_workspace_cc_runtime_state_from_snapshot(snapshot, workspace_id)
+    if runtime_status is not None:
+        return runtime_status.phase
+
+    if _get_workspace_cc_active_state_from_snapshot(snapshot, workspace_id) is not None:
+        return WorkspaceSandboxDisplayStatus.RUNNING.value
+
+    return None
+
+
+async def _resolve_workspace_sandbox_live_status(
+    workspace: DBWorkspace,
+    *,
+    chat_key: str,
+) -> WorkspaceSandboxDisplayStatus:
+    if workspace.status != WorkspaceSandboxDisplayStatus.ACTIVE.value:
+        workspace_status = WorkspaceSandboxDisplayStatus.from_workspace_status(workspace.status)
+        return workspace_status or WorkspaceSandboxDisplayStatus.UNKNOWN
+
+    client = CCSandboxClient(workspace)
+    queue_status = await client.get_workspace_queue(workspace_id="default")
+    current_task = queue_status.get("current_task") or {}
+    current_source_chat_key = str(current_task.get("source_chat_key") or "")
+    channel_task_running = task_api.is_running("cc_delegate", chat_key)
+
+    if current_task:
+        if channel_task_running and current_source_chat_key and current_source_chat_key != chat_key:
+            return WorkspaceSandboxDisplayStatus.QUEUED
+        return WorkspaceSandboxDisplayStatus.RUNNING
+
+    if channel_task_running:
+        return WorkspaceSandboxDisplayStatus.QUEUED
+
+    return WorkspaceSandboxDisplayStatus.IDLE
+
+
+async def _resolve_bound_workspace_sandbox_status(
+    workspace_id: int | None,
+    *,
+    chat_key: str,
+) -> tuple[str, WorkspaceSandboxDisplayStatus]:
+    if workspace_id is None:
+        return _format_workspace_sandbox_status(WorkspaceSandboxDisplayStatus.UNBOUND), WorkspaceSandboxDisplayStatus.UNBOUND
+
+    from nekro_agent.services.system_broadcast import get_state_snapshot
+
+    workspace = await DBWorkspace.get_or_none(id=workspace_id)
+    if workspace is None:
+        return t(zh_CN="未知", en_US="Unknown"), WorkspaceSandboxDisplayStatus.UNKNOWN
+
+    live_status = await _resolve_workspace_sandbox_live_status(workspace, chat_key=chat_key)
+    if live_status is not WorkspaceSandboxDisplayStatus.UNKNOWN:
+        return _format_workspace_sandbox_status(live_status), live_status
+
+    # 兜底保留旧快照链路，避免极端情况下完全丢状态。
+    snapshot = get_state_snapshot()
+    snapshot_status = WorkspaceSandboxDisplayStatus.from_workspace_status(
+        _get_workspace_status_from_snapshot(snapshot, workspace_id) or ""
+    )
+    if snapshot_status is not None:
+        if snapshot_status is WorkspaceSandboxDisplayStatus.ACTIVE:
+            snapshot_phase = WorkspaceSandboxDisplayStatus.from_cc_phase(
+                _get_workspace_cc_phase_from_snapshot(snapshot, workspace_id) or ""
+            )
+            if snapshot_phase is not None:
+                return _format_workspace_sandbox_status(snapshot_phase), snapshot_phase
+            return _format_workspace_sandbox_status(WorkspaceSandboxDisplayStatus.IDLE), WorkspaceSandboxDisplayStatus.IDLE
+        return _format_workspace_sandbox_status(snapshot_status), snapshot_status
+
+    return t(zh_CN="未知", en_US="Unknown"), WorkspaceSandboxDisplayStatus.UNKNOWN
 
 
 class NaInfoCommand(BaseCommand):
@@ -72,6 +257,10 @@ class NaInfoCommand(BaseCommand):
         channel_status = db_chat_channel.channel_status.value
         channel_status_label = _format_channel_status(channel_status)
         runtime_status_label, runtime_status_phase = _resolve_channel_agent_runtime_status(context.chat_key)
+        cc_sandbox_status_label, cc_sandbox_status_value = await _resolve_bound_workspace_sandbox_status(
+            db_chat_channel.workspace_id,
+            chat_key=context.chat_key,
+        )
 
         title = t(zh_CN="[Nekro-Agent 信息]", en_US="[Nekro-Agent Info]")
         subtitle = t(zh_CN="> 更智能、更优雅的代理执行 AI", en_US="> Smarter, more elegant agent execution AI")
@@ -79,6 +268,7 @@ class NaInfoCommand(BaseCommand):
         preset_label = t(zh_CN="人设", en_US="Preset")
         channel_status_label_title = t(zh_CN="频道状态", en_US="Channel Status")
         runtime_status_label_title = t(zh_CN="Agent状态", en_US="Agent Status")
+        cc_sandbox_status_label_title = t(zh_CN="CC沙盒状态", en_US="CC Sandbox Status")
 
         message = (
             f"{title}\n"
@@ -90,7 +280,8 @@ class NaInfoCommand(BaseCommand):
             f"{chat_settings}\n"
             f"{preset_label}: {preset.name}\n"
             f"{channel_status_label_title}: {channel_status_label}\n"
-            f"{runtime_status_label_title}: {runtime_status_label}"
+            f"{runtime_status_label_title}: {runtime_status_label}\n"
+            f"{cc_sandbox_status_label_title}: {cc_sandbox_status_label}"
         )
 
         return CmdCtl.success(
@@ -103,6 +294,9 @@ class NaInfoCommand(BaseCommand):
                 "channel_status_value": channel_status,
                 "agent_runtime_status": runtime_status_label,
                 "agent_runtime_phase": runtime_status_phase,
+                "cc_sandbox_status": cc_sandbox_status_label,
+                "cc_sandbox_status_value": cc_sandbox_status_value.value,
+                "bound_workspace_id": db_chat_channel.workspace_id,
             },
         )
 
