@@ -65,6 +65,7 @@ from nekro_agent.services.resources import workspace_resource_service
 from nekro_agent.services.runtime_state import is_shutting_down
 from nekro_agent.services.system_broadcast import (
     WorkspaceCcActiveEvent,
+    WorkspaceCcRuntimePhase,
     WorkspaceCcRuntimeStatusEvent,
     WorkspaceStatusEvent,
     publish_system_event,
@@ -3233,7 +3234,7 @@ async def user_send_to_cc(
 
         async def _runtime_status(
             *,
-            phase: Literal["queued", "running", "responding", "completed", "failed", "cancelled"],
+            phase: WorkspaceCcRuntimePhase,
             current_tool: Optional[str] = None,
             queue_length: int = 0,
             last_block_kind: Optional[Literal["tool_call", "tool_result", "text_chunk"]] = None,

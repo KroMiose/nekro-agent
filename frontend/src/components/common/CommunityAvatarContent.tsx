@@ -9,10 +9,7 @@ import {
   alpha,
 } from '@mui/material'
 import {
-  Person as PersonIcon,
   Refresh as RefreshIcon,
-  Settings as SettingsIcon,
-  VpnKey as VpnKeyIcon,
   Campaign as CampaignIcon,
   Email as EmailIcon,
   DoneAll as DoneAllIcon,
@@ -24,6 +21,7 @@ import { getCurrentExtendedPalette } from '../../theme/themeConfig'
 import { BORDER_RADIUS } from '../../theme/variants'
 import AnnouncementList from './AnnouncementList'
 import { InlineTabs } from './NekroTabs'
+import CommunityApiKeyRequiredContent from './CommunityApiKeyRequiredContent'
 import type { AnnouncementSummary } from '../../services/api/cloud/announcement'
 import IconActionButton from './IconActionButton'
 
@@ -225,76 +223,5 @@ export function LoggedInContent({
 }
 
 export function NotConfiguredContent({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation('layout-MainLayout')
-  const navigate = useNavigate()
-  const palette = getCurrentExtendedPalette()
-
-  const footerBtnStyles = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 0.75,
-    px: 1.5,
-    py: 0.75,
-    borderRadius: BORDER_RADIUS.SMALL,
-    cursor: 'pointer',
-    fontSize: '0.75rem',
-    color: 'text.secondary',
-    transition: 'background-color 0.15s ease',
-    '&:hover': {
-      backgroundColor: alpha(palette.primary.main, 0.08),
-      color: palette.primary.main,
-    },
-  }
-
-  return (
-    <Box sx={{ p: 2.5, textAlign: 'center' }}>
-      <Avatar
-        sx={{
-          width: 48,
-          height: 48,
-          mx: 'auto',
-          mb: 1.5,
-          bgcolor: alpha(palette.primary.main, 0.15),
-          color: palette.primary.main,
-        }}
-      >
-        <PersonIcon sx={{ fontSize: 28 }} />
-      </Avatar>
-      <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-        {t('community.notConfiguredTitle')}
-      </Typography>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-        {t('community.notConfiguredDesc')}
-      </Typography>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-        <Box
-          sx={{
-            ...footerBtnStyles,
-            justifyContent: 'center',
-            py: 1,
-            border: `1px solid ${alpha(palette.primary.main, 0.3)}`,
-            color: palette.primary.main,
-            fontWeight: 600,
-          }}
-          onClick={() => {
-            window.open('https://cloud.nekro.ai', '_blank')
-            onClose()
-          }}
-        >
-          <VpnKeyIcon sx={{ fontSize: 16 }} />
-          {t('community.getCommunityKey')}
-        </Box>
-        <Box
-          sx={{ ...footerBtnStyles, justifyContent: 'center', py: 1 }}
-          onClick={() => {
-            navigate('/settings')
-            onClose()
-          }}
-        >
-          <SettingsIcon sx={{ fontSize: 16 }} />
-          {t('community.goToSettings')}
-        </Box>
-      </Box>
-    </Box>
-  )
+  return <CommunityApiKeyRequiredContent onClose={onClose} />
 }

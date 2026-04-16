@@ -39,6 +39,35 @@ _MAX_QUEUE_SIZE = 200
 _MAX_SUBSCRIBERS = 50
 
 
+WorkspaceStatusValue = Literal["active", "stopped", "failed", "deleting"]
+WORKSPACE_STATUS_ACTIVE: WorkspaceStatusValue = "active"
+WORKSPACE_STATUS_STOPPED: WorkspaceStatusValue = "stopped"
+WORKSPACE_STATUS_FAILED: WorkspaceStatusValue = "failed"
+WORKSPACE_STATUS_DELETING: WorkspaceStatusValue = "deleting"
+WORKSPACE_STATUS_VALUES: tuple[WorkspaceStatusValue, ...] = (
+    WORKSPACE_STATUS_ACTIVE,
+    WORKSPACE_STATUS_STOPPED,
+    WORKSPACE_STATUS_FAILED,
+    WORKSPACE_STATUS_DELETING,
+)
+
+WorkspaceCcRuntimePhase = Literal["queued", "running", "responding", "completed", "failed", "cancelled"]
+WORKSPACE_CC_PHASE_QUEUED: WorkspaceCcRuntimePhase = "queued"
+WORKSPACE_CC_PHASE_RUNNING: WorkspaceCcRuntimePhase = "running"
+WORKSPACE_CC_PHASE_RESPONDING: WorkspaceCcRuntimePhase = "responding"
+WORKSPACE_CC_PHASE_COMPLETED: WorkspaceCcRuntimePhase = "completed"
+WORKSPACE_CC_PHASE_FAILED: WorkspaceCcRuntimePhase = "failed"
+WORKSPACE_CC_PHASE_CANCELLED: WorkspaceCcRuntimePhase = "cancelled"
+WORKSPACE_CC_RUNTIME_PHASE_VALUES: tuple[WorkspaceCcRuntimePhase, ...] = (
+    WORKSPACE_CC_PHASE_QUEUED,
+    WORKSPACE_CC_PHASE_RUNNING,
+    WORKSPACE_CC_PHASE_RESPONDING,
+    WORKSPACE_CC_PHASE_COMPLETED,
+    WORKSPACE_CC_PHASE_FAILED,
+    WORKSPACE_CC_PHASE_CANCELLED,
+)
+
+
 # ── 事件模型 ─────────────────────────────────────────────────────────────────
 
 
@@ -47,7 +76,7 @@ class WorkspaceStatusEvent(BaseModel):
 
     type: Literal["workspace_status"] = "workspace_status"
     workspace_id: int
-    status: Literal["active", "stopped", "failed", "deleting"]
+    status: WorkspaceStatusValue
     name: str
     container_name: Optional[str] = None
     host_port: Optional[int] = None
@@ -73,7 +102,7 @@ class WorkspaceCcRuntimeStatusEvent(BaseModel):
     name: Optional[str] = None
     started_at: int = Field(default=0, description="任务开始时间戳（ms）")
     updated_at: int = Field(default=0, description="本次状态更新时间戳（ms）")
-    phase: Literal["queued", "running", "responding", "completed", "failed", "cancelled"] = "running"
+    phase: WorkspaceCcRuntimePhase = WORKSPACE_CC_PHASE_RUNNING
     current_tool: Optional[str] = None
     source_chat_key: Optional[str] = None
     queue_length: int = 0
@@ -169,7 +198,7 @@ SystemEvent = Annotated[
 
 class WorkspaceStatusState(BaseModel):
     workspace_id: int
-    status: Literal["active", "stopped", "failed", "deleting"]
+    status: WorkspaceStatusValue
     name: str
     container_name: Optional[str] = None
     host_port: Optional[int] = None
@@ -189,7 +218,7 @@ class WorkspaceCcRuntimeStatusState(BaseModel):
     name: Optional[str] = None
     started_at: int
     updated_at: int
-    phase: Literal["queued", "running", "responding", "completed", "failed", "cancelled"]
+    phase: WorkspaceCcRuntimePhase
     current_tool: Optional[str] = None
     source_chat_key: Optional[str] = None
     queue_length: int = 0

@@ -64,6 +64,11 @@ export const presetsApi = {
     return response.data
   },
 
+  getDetailByRemoteId: async (remoteId: string): Promise<PresetDetail> => {
+    const response = await axios.get<PresetDetail>(`/presets/by-remote/${encodeURIComponent(remoteId)}`)
+    return response.data
+  },
+
   create: async (data: {
     name: string
     title?: string

@@ -43,6 +43,8 @@ class PresetDetail(NekroCloudModel):
     tags: str = Field(..., description="标签(逗号分隔)")
     author: str = Field(..., description="作者")
     is_owner: bool = Field(default=False, alias="isOwner", description="是否为当前用户拥有")
+    favorite_count: Optional[int] = Field(None, alias="favoriteCount", description="收藏数量")
+    isFavorited: Optional[bool] = Field(None, description="是否已收藏")
     ext_data: Optional[str] = Field("", alias="extData", description="扩展数据")
     created_at: Optional[str] = Field(None, alias="createdAt", description="创建时间")
     updated_at: Optional[str] = Field(None, alias="updatedAt", description="更新时间")
@@ -70,6 +72,8 @@ class UserPresetItem(NekroCloudModel):
     id: str = Field(..., description="人设ID")
     name: str = Field(..., description="人设名称")
     title: str = Field(..., description="资源标题")
+    avatar: Optional[str] = Field(None, description="头像URL")
+    favorite_count: Optional[int] = Field(None, alias="favoriteCount", description="收藏数量")
 
 
 class UserPresetListData(NekroCloudModel):
