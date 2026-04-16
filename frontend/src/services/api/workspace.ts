@@ -92,16 +92,6 @@ export interface CreateWorkspaceBody {
   runtime_policy?: 'agent' | 'relaxed' | 'strict'
 }
 
-export interface WorkspaceEnvVar {
-  key: string
-  value: string
-  description: string
-}
-
-export interface WorkspaceEnvVarsResponse {
-  env_vars: WorkspaceEnvVar[]
-}
-
 export interface PromptLayerItem {
   key: string
   title: string
@@ -121,6 +111,18 @@ export interface PromptComposerResponse {
   na_context: PromptLayerItem
   shared_manual_rules: PromptLayerItem
   na_manual_rules: PromptLayerItem
+}
+
+export interface WorkspaceOverviewStats {
+  memory_enabled: boolean
+  memory_paragraph_count: number
+  memory_entity_count: number
+  memory_relation_count: number
+  memory_reinforcement_7d: number
+  dynamic_skill_count: number
+  resource_binding_count: number
+  na_context_preview: string
+  na_context_updated_at: string | null
 }
 
 export interface UpdateWorkspaceBody {
@@ -167,6 +169,89 @@ export interface McpRegistryItem {
   env_keys?: McpEnvKeyDef[]
   url?: string
   tags?: string[]
+}
+
+export type ResourceFieldValueKind =
+  | 'text'
+  | 'password'
+  | 'host'
+  | 'port'
+  | 'private_key'
+  | 'username'
+  | 'database'
+  | 'json'
+
+export interface WorkspaceResourceField {
+  field_key: string
+  label: string
+  description: string
+  secret: boolean
+  value_kind: ResourceFieldValueKind
+  order: number
+  export_mode: 'env' | 'none'
+  fixed_aliases: string[]
+  value: string
+}
+
+export interface WorkspaceResourceTemplate {
+  key: string
+  name: string
+  summary: string
+  resource_note: string
+  resource_tags: string[]
+  resource_prompt: string
+  fields: WorkspaceResourceField[]
+}
+
+export interface WorkspaceResourceSummary {
+  id: number
+  resource_key: string
+  name: string
+  template_key?: string | null
+  resource_note: string
+  resource_tags: string[]
+  resource_prompt: string
+  field_count: number
+  fixed_aliases: string[]
+  enabled: boolean
+  bound_workspace_count: number
+  bound_workspaces: Array<{
+    id: number
+    name: string
+  }>
+  create_time: string
+  update_time: string
+}
+
+export interface WorkspaceResourceDetail extends WorkspaceResourceSummary {
+  fields: WorkspaceResourceField[]
+}
+
+export interface WorkspaceResourceBinding {
+  binding_id: number
+  resource_id: number
+  enabled: boolean
+  sort_order: number
+  note: string
+  resource: WorkspaceResourceSummary
+}
+
+export interface WorkspaceResourceConflict {
+  env_name: string
+  existing_resource_id: number
+  existing_resource_name: string
+  target_resource_id: number
+  target_resource_name: string
+}
+
+export interface WorkspaceResourceUpsertBody {
+  name: string
+  template_key?: string | null
+  resource_note: string
+  resource_tags: string[]
+  resource_prompt: string
+  fields: WorkspaceResourceField[]
+  enabled: boolean
 }
 
 export const workspaceApi = {
@@ -330,6 +415,65 @@ export const workspaceApi = {
     await axios.post(`/workspaces/${id}/mcp/sync`)
   },
 
+  // Workspace Resources
+  getResourceTemplates: async (): Promise<WorkspaceResourceTemplate[]> => {
+    const response = await axios.get<{ items: WorkspaceResourceTemplate[] }>('/resources/templates')
+    return response.data.items
+  },
+
+  getResources: async (): Promise<WorkspaceResourceSummary[]> => {
+    const response = await axios.get<{ items: WorkspaceResourceSummary[] }>('/resources')
+    return response.data.items
+  },
+
+  getResourceDetail: async (resourceId: number): Promise<WorkspaceResourceDetail> => {
+    const response = await axios.get<{ item: WorkspaceResourceDetail }>(`/resources/${resourceId}`)
+    return response.data.item
+  },
+
+  createResource: async (body: WorkspaceResourceUpsertBody): Promise<WorkspaceResourceDetail> => {
+    const response = await axios.post<{ item: WorkspaceResourceDetail }>('/resources', body)
+    return response.data.item
+  },
+
+  updateResourceDetail: async (resourceId: number, body: WorkspaceResourceUpsertBody): Promise<WorkspaceResourceDetail> => {
+    const response = await axios.patch<{ item: WorkspaceResourceDetail }>(`/resources/${resourceId}`, body)
+    return response.data.item
+  },
+
+  deleteResourceDetail: async (resourceId: number, removeBindings = false): Promise<void> => {
+    await axios.delete(`/resources/${resourceId}`, {
+      params: removeBindings ? { remove_bindings: true } : undefined,
+    })
+  },
+
+  getWorkspaceResources: async (id: number): Promise<WorkspaceResourceBinding[]> => {
+    const response = await axios.get<{ items: WorkspaceResourceBinding[] }>(`/workspaces/${id}/resources`)
+    return response.data.items
+  },
+
+  checkWorkspaceResourceBind: async (id: number, resourceId: number): Promise<WorkspaceResourceConflict[]> => {
+    const response = await axios.post<{ ok: boolean; conflicts: WorkspaceResourceConflict[] }>(
+      `/workspaces/${id}/resources/check-bind`,
+      { resource_id: resourceId },
+    )
+    return response.data.conflicts
+  },
+
+  bindWorkspaceResource: async (id: number, resourceId: number, note = ''): Promise<void> => {
+    await axios.post(`/workspaces/${id}/resources/${resourceId}`, { note })
+  },
+
+  unbindWorkspaceResource: async (id: number, resourceId: number): Promise<void> => {
+    await axios.delete(`/workspaces/${id}/resources/${resourceId}`)
+  },
+
+  reorderWorkspaceResources: async (id: number, bindingIds: number[]): Promise<void> => {
+    await axios.put(`/workspaces/${id}/resources/reorder`, {
+      items: bindingIds.map((bindingId, index) => ({ binding_id: bindingId, sort_order: index * 10 + 10 })),
+    })
+  },
+
   // CC 模型预设
   getCCModelPreset: async (id: number): Promise<{ preset_id: number | null; config_json: Record<string, unknown> | null }> => {
     const response = await axios.get<{ preset_id: number | null; config_json: Record<string, unknown> | null }>(
@@ -340,16 +484,6 @@ export const workspaceApi = {
 
   setCCModelPreset: async (id: number, presetId: number | null): Promise<void> => {
     await axios.put(`/workspaces/${id}/cc-model-preset`, { cc_model_preset_id: presetId })
-  },
-
-  // 环境变量
-  getEnvVars: async (id: number): Promise<WorkspaceEnvVar[]> => {
-    const response = await axios.get<WorkspaceEnvVarsResponse>(`/workspaces/${id}/env-vars`)
-    return response.data.env_vars
-  },
-
-  updateEnvVars: async (id: number, envVars: WorkspaceEnvVar[]): Promise<void> => {
-    await axios.put(`/workspaces/${id}/env-vars`, { env_vars: envVars })
   },
 
   // CLAUDE.md
@@ -377,6 +511,11 @@ export const workspaceApi = {
 
   updatePromptComposerNaRules: async (id: number, content: string): Promise<void> => {
     await axios.put(`/workspaces/${id}/prompt-composer/na-manual-rules`, { content })
+  },
+
+  getOverviewStats: async (id: number): Promise<WorkspaceOverviewStats> => {
+    const response = await axios.get<WorkspaceOverviewStats>(`/workspaces/${id}/overview-stats`)
+    return response.data
   },
 }
 

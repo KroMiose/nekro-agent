@@ -408,6 +408,7 @@
       "memory": "Memory Graph",
       "extensions": "Extensions",
       "mcp": "MCP Services",
+      "resources": "Resource Mounts",
       "prompt": "Collab Context",
       "config": "Config"
     },
@@ -416,6 +417,8 @@
       "statCards": {
         "channels": "Bound Channels",
         "skills": "Enabled Skills",
+        "resources": "Mounted Resources",
+        "memory": "Memory Records",
         "mcp": "MCP Services",
         "comm": "Comm Records"
       },
@@ -425,21 +428,37 @@
       },
       "sections": {
         "basicInfo": "Workspace Info",
-        "sandboxStatus": "Sandbox Status"
+        "sandboxStatus": "Sandbox Status",
+        "naContext": "Collab Context Summary",
+        "channels": "Channel Summary"
       },
       "manage": "Manage",
+      "viewEdit": "View Edit",
+      "noContext": "No collaboration context summary yet.",
+      "noChannels": "No bound channels yet.",
+      "contextUpdated": "Updated: {{time}}",
+      "dynamicSkillSuffix": "{{count}} dynamic",
+      "reinforcement7dSuffix": "{{count}} reinforcements in 7d",
+      "memoryNotEnabled": "The memory system is currently disabled, so memory statistics are hidden from the overview.",
+      "commStatus": {
+        "active": "Running now",
+        "idle": "Idle"
+      },
       "infoRows": {
         "id": "ID",
         "policy": "Policy",
         "image": "Sandbox Image",
         "createdAt": "Created",
         "updatedAt": "Updated",
+        "sandboxStatus": "Runtime",
         "containerName": "Container",
         "hostPort": "Host Port",
         "sessionId": "Session ID",
+        "versionInfo": "Version Info",
         "ccVersion": "Sandbox Version",
         "claudeCodeVersion": "Claude Code",
         "modelGroup": "Model Group",
+        "ccRuntime": "CC Runtime",
         "lastHeartbeat": "Last Heartbeat"
       },
       "defaultImage": "Default Image",
@@ -771,6 +790,109 @@
       "removeAutoInject": "Remove Auto-Inject",
       "autoInjectSuccess": "Auto-inject configuration updated",
       "autoInjectFailed": "Failed to update auto-inject: {{message}}"
+    },
+    "resources": {
+      "searchPlaceholder": "Search by name, note, or resource tag",
+      "mountsTitle": "Mounted Resources",
+      "mountsHint": "Drag to reorder.",
+      "libraryTitle": "Resource Library",
+      "libraryHint": "Choose resources from the library and mount them into the current workspace.",
+      "emptyMounted": "No resources are mounted to this workspace yet.",
+      "emptyLibrary": "The resource library is empty. Create your first workspace resource.",
+      "noDescription": "No note",
+      "fieldCount": "{{count}} fields",
+      "boundCount": "{{count}} workspaces",
+      "stats": {
+        "total": "Total Resources",
+        "shared": "Shared Across Workspaces",
+        "compat": "With Compat Env Names",
+        "mounted": "Mounted",
+        "available": "Available"
+      },
+      "meta": {
+        "tags": "Tags",
+        "fields": "Fields",
+        "compatEnvNames": "Injected Env Vars",
+        "usage": "Workspace Usage"
+      },
+      "tooltips": {
+        "noWorkspaceRef": "Not referenced by any workspace",
+        "workspaceRefsTitle": "Referenced by {{count}} workspaces"
+      },
+      "valueKinds": {
+        "text": "Text",
+        "password": "Password / Token",
+        "host": "Host",
+        "port": "Port",
+        "private_key": "Private Key",
+        "username": "Username",
+        "database": "Database",
+        "json": "JSON"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "create": "Create Resource",
+        "openCenter": "Resource Center",
+        "mounted": "Mounted",
+        "mount": "Mount",
+        "unmount": "Unmount"
+      },
+      "editor": {
+        "createTitle": "Create Workspace Resource",
+        "editTitle": "Edit Workspace Resource",
+        "createAction": "Create",
+        "saveAction": "Save",
+        "template": "Template",
+        "templateSectionTitle": "Template Prefill",
+        "templateSectionHint": "Apply a template at any time, then continue adjusting the form as needed.",
+        "templateAction": "Choose Template",
+        "templateDialogTitle": "Choose Template",
+        "templateDialogHint": "Applying a template will fill the current form with the selected content.",
+        "templateOverwriteWarning": "Applying a template will overwrite the content currently in the form.",
+        "templateApply": "Apply Template",
+        "name": "Resource Name",
+        "resourceNote": "Resource Note",
+        "resourceTags": "Resource Tags",
+        "resourceTagsHint": "Separate tags with commas, for example: ssh, deploy, github",
+        "resourcePrompt": "Resource Prompt",
+        "resourcePromptHelper": "This content enters the AI context and should tell CC when to use this resource and what to watch out for.",
+        "fields": "Field Setup",
+        "fieldsHint": "Drag to reorder fields.",
+        "addField": "Add Field",
+        "removeField": "Remove Field",
+        "unnamedField": "Field {{index}}",
+        "fieldLabel": "Field Label",
+        "fieldDescription": "Field Description",
+        "valueKind": "Field Type",
+        "compatEnvNames": "Injected Env Vars",
+        "compatEnvNamesPlaceholder": "For example: GH_TOKEN, GITHUB_TOKEN",
+        "value": "Field Value",
+        "secretValue": "Sensitive Value",
+        "sensitive": "Sensitive Data",
+        "sensitiveHint": "When enabled, this value will stay out of the prompt body and will only be provided to CC through environment variables."
+      },
+      "deleteDialog": {
+        "title": "Delete Resource",
+        "content": "Delete resource \"{{name}}\"? This action cannot be undone.",
+        "contentWithBindings": "Resource \"{{name}}\" is currently mounted in {{count}} workspaces. Deleting it will remove those mounts at the same time, and this action cannot be undone.",
+        "boundListTitle": "Affected Workspaces",
+        "confirm": "Delete Resource"
+      },
+      "notifications": {
+        "created": "Resource created",
+        "createFailed": "Create failed: {{message}}",
+        "updated": "Resource updated",
+        "updateFailed": "Update failed: {{message}}",
+        "deleted": "Resource deleted",
+        "deleteFailed": "Delete failed: {{message}}",
+        "mounted": "Resource mounted to the current workspace",
+        "mountFailed": "Mount failed: {{message}}",
+        "mountConflict": "Compat environment variable {{env}} conflicts with resource \"{{name}}\"",
+        "unmounted": "Resource removed from the current workspace",
+        "unmountFailed": "Unmount failed: {{message}}",
+        "reorderFailed": "Reorder failed: {{message}}",
+        "workspaceRequired": "Open a workspace before performing this action"
+      }
     },
     "prompt": {
       "summaryCards": {

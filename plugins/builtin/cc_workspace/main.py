@@ -50,6 +50,7 @@ from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.plugin.task import AsyncTaskHandle, TaskCtl
 from nekro_agent.services.plugin.task import task as task_api
+from nekro_agent.services.resources import workspace_resource_service
 from nekro_agent.services.system_broadcast import (
     WorkspaceCcActiveEvent,
     WorkspaceCcRuntimeStatusEvent,
@@ -744,11 +745,7 @@ async def _cc_delegate_task(
                 queue_length=queued_event.queue_length,
             )
 
-        _env_vars = {
-            item["key"]: item["value"]
-            for item in (workspace.metadata or {}).get("env_vars", [])
-            if item.get("key") and item.get("value")
-        }
+        _env_vars = await workspace_resource_service.resolve_workspace_resources_to_env(workspace.id)
         # 使用 asyncio.wait_for 保护每次 __anext__() 等待：
         # _CC_DATA_TIMEOUT 仅在"无任何 data: 事件"时触发，keep-alive (": ping") 不计入，
         # 避免 CC 一直发 keep-alive 导致 httpx read timeout 永远无法触发的永久挂死问题。

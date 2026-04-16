@@ -45,10 +45,8 @@ from nekro_agent.schemas.workspace import (
     WorkspaceCommQueueTask,
     WorkspaceCreate,
     WorkspaceDetail,
-    WorkspaceEnvVar,
-    WorkspaceEnvVarsResponse,
-    WorkspaceEnvVarsUpdate,
     WorkspaceListResponse,
+    WorkspaceOverviewStats,
     WorkspaceSkillsUpdate,
     WorkspaceSummary,
     WorkspaceUpdate,
@@ -63,6 +61,7 @@ from nekro_agent.services.memory.maintenance import MemoryPruneResult, prune_wor
 from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
 from nekro_agent.services.memory.retriever import retrieve_memories
 from nekro_agent.services.memory.semantic_writer import persist_cc_task_memory
+from nekro_agent.services.resources import workspace_resource_service
 from nekro_agent.services.runtime_state import is_shutting_down
 from nekro_agent.services.system_broadcast import (
     WorkspaceCcActiveEvent,
@@ -318,10 +317,8 @@ def _detail(ws: DBWorkspace, *, bound_chat_keys: "List[str] | None" = None) -> W
     )
 
 
-def _get_env_vars_dict(workspace: DBWorkspace) -> "Dict[str, str]":
-    """从 workspace.metadata["env_vars"] 提取 {key: value} 字典，用于注入 CC 请求。"""
-    env_list: List[Dict[str, str]] = (workspace.metadata or {}).get("env_vars", [])
-    return {item["key"]: item["value"] for item in env_list if item.get("key") and item.get("value")}
+async def _resolve_workspace_runtime_env(workspace: DBWorkspace) -> "Dict[str, str]":
+    return await workspace_resource_service.resolve_workspace_resources_to_env(workspace.id)
 
 
 def _get_prompt_layers_metadata(workspace: DBWorkspace) -> dict[str, Any]:
@@ -480,6 +477,62 @@ async def get_workspace(
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     return await _detail_async(ws)
+
+
+@router.get("/{workspace_id}/overview-stats", summary="获取工作区概览统计", response_model=WorkspaceOverviewStats)
+@require_role(Role.Admin)
+async def get_workspace_overview_stats(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> WorkspaceOverviewStats:
+    """聚合工作区各维度统计数据，供概览页一次性获取，避免多次请求。"""
+    from datetime import timedelta
+
+    from nekro_agent.models.db_mem_entity import DBMemEntity
+    from nekro_agent.models.db_mem_paragraph import DBMemParagraph
+    from nekro_agent.models.db_mem_reinforcement_log import DBMemReinforcementLog
+    from nekro_agent.models.db_mem_relation import DBMemRelation
+    from nekro_agent.models.db_workspace_resource_binding import DBWorkspaceResourceBinding
+
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+
+    memory_enabled = is_memory_system_enabled()
+
+    if memory_enabled:
+        paragraph_count, entity_count, relation_count, reinforcement_count_7d = await asyncio.gather(
+            DBMemParagraph.filter(workspace_id=workspace_id).count(),
+            DBMemEntity.filter(workspace_id=workspace_id).count(),
+            DBMemRelation.filter(workspace_id=workspace_id).count(),
+            DBMemReinforcementLog.filter(
+                workspace_id=workspace_id,
+                create_time__gte=datetime.now(timezone.utc) - timedelta(days=7),
+            ).count(),
+        )
+    else:
+        paragraph_count = entity_count = relation_count = reinforcement_count_7d = 0
+
+    resource_binding_count, = await asyncio.gather(
+        DBWorkspaceResourceBinding.filter(workspace_id=workspace_id, enabled=True).count(),
+    )
+
+    dynamic_skill_count = len(WorkspaceService.list_dynamic_skills(workspace_id))
+
+    na_context_body, na_context_updated = WorkspaceService.read_na_context(workspace_id)
+    na_context_preview = na_context_body[:150] if na_context_body else ""
+
+    return WorkspaceOverviewStats(
+        memory_enabled=memory_enabled,
+        memory_paragraph_count=paragraph_count,
+        memory_entity_count=entity_count,
+        memory_relation_count=relation_count,
+        memory_reinforcement_7d=reinforcement_count_7d,
+        dynamic_skill_count=dynamic_skill_count,
+        resource_binding_count=resource_binding_count,
+        na_context_preview=na_context_preview,
+        na_context_updated_at=na_context_updated or None,
+    )
 
 
 @router.patch("/{workspace_id}", summary="更新工作区", response_model=WorkspaceDetail)
@@ -1047,43 +1100,6 @@ async def sync_workspace_skill(
     ok = await WorkspaceService.sync_single_skill(ws, skill_name)
     if not ok:
         raise OperationFailedError(operation=f"同步技能 {skill_name}（未选中或源目录不存在）")
-    return ActionOkResponse(ok=True)
-
-
-# ─────────────────────────────────────────────────────────────
-# 环境变量管理
-# ─────────────────────────────────────────────────────────────
-
-
-@router.get("/{workspace_id}/env-vars", summary="获取工作区环境变量列表", response_model=WorkspaceEnvVarsResponse)
-@require_role(Role.Admin)
-async def get_workspace_env_vars(
-    workspace_id: int,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> WorkspaceEnvVarsResponse:
-    ws = await DBWorkspace.get_or_none(id=workspace_id)
-    if not ws:
-        raise NotFoundError(resource=f"工作区 {workspace_id}")
-    env_list = (ws.metadata or {}).get("env_vars", [])
-    return WorkspaceEnvVarsResponse(env_vars=[WorkspaceEnvVar(**item) for item in env_list if item.get("key")])
-
-
-@router.put("/{workspace_id}/env-vars", summary="更新工作区环境变量列表", response_model=ActionOkResponse)
-@require_role(Role.Admin)
-async def update_workspace_env_vars(
-    workspace_id: int,
-    body: WorkspaceEnvVarsUpdate,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> ActionOkResponse:
-    ws = await DBWorkspace.get_or_none(id=workspace_id)
-    if not ws:
-        raise NotFoundError(resource=f"工作区 {workspace_id}")
-    metadata = dict(ws.metadata or {})
-    metadata["env_vars"] = [item.model_dump() for item in body.env_vars]
-    ws.metadata = metadata
-    await ws.save(update_fields=["metadata", "update_time"])
-    # 即时刷新 CLAUDE.md（bind mount，CC 下次对话时直接读到最新内容）
-    WorkspaceService.update_claude_md(ws)
     return ActionOkResponse(ok=True)
 
 
@@ -3295,7 +3311,7 @@ async def user_send_to_cc(
                     current_tool=current_tool_name,
                     queue_length=SandboxQueuedChunk.model_validate(data).queue_length,
                 ),
-                env_vars=_get_env_vars_dict(ws),
+                env_vars=await _resolve_workspace_runtime_env(ws),
             ):
                 if isinstance(chunk, dict):
                     tool_chunk = SandboxToolChunk.model_validate(chunk)

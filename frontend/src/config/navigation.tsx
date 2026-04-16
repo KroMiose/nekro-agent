@@ -167,6 +167,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'workspace',
       },
       {
+        path: '/workspace/resources',
+        text: t('menu.resourceCenter'),
+        translationKey: 'menu.resourceCenter',
+        icon: <StorageIcon />,
+        parent: 'workspace',
+      },
+      {
         path: '/workspace/timers',
         text: t('menu.timers'),
         translationKey: 'menu.timers',

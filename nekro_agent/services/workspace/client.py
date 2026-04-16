@@ -34,6 +34,17 @@ class CCSandboxClient:
             return {"Authorization": f"Bearer {token}"}
         return {}
 
+    @staticmethod
+    def _normalize_claude_code_version(version: str | None) -> str | None:
+        if version is None:
+            return None
+        normalized = str(version).strip()
+        if not normalized:
+            return None
+        if normalized.endswith("(Claude Code)"):
+            normalized = normalized.removesuffix("(Claude Code)").strip()
+        return normalized or None
+
     async def health_check(self) -> bool:
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
@@ -180,7 +191,7 @@ class CCSandboxClient:
                     data = resp.json()
                     return {
                         "cc_version": str(data.get("version") or "unknown"),
-                        "claude_code_version": data.get("claude_version") or None,
+                        "claude_code_version": self._normalize_claude_code_version(data.get("claude_version")),
                     }
         except Exception:
             pass

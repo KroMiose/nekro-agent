@@ -408,6 +408,7 @@
       "memory": "记忆图谱",
       "extensions": "扩展能力",
       "mcp": "MCP 服务",
+      "resources": "资源挂载",
       "prompt": "协作上下文",
       "config": "配置"
     },
@@ -416,6 +417,8 @@
       "statCards": {
         "channels": "绑定频道",
         "skills": "已启用技能",
+        "resources": "资源挂载",
+        "memory": "记忆内容",
         "mcp": "MCP 服务",
         "comm": "通讯记录"
       },
@@ -425,21 +428,37 @@
       },
       "sections": {
         "basicInfo": "工作区基本信息",
-        "sandboxStatus": "沙盒运行状态"
+        "sandboxStatus": "沙盒运行状态",
+        "naContext": "协作现状摘要",
+        "channels": "绑定频道摘要"
       },
       "manage": "管理",
+      "viewEdit": "查看编辑",
+      "noContext": "当前还没有协作现状摘要。",
+      "noChannels": "当前未绑定频道。",
+      "contextUpdated": "最近更新：{{time}}",
+      "dynamicSkillSuffix": "动态技能 {{count}} 个",
+      "reinforcement7dSuffix": "近 7 天强化 {{count}} 次",
+      "memoryNotEnabled": "记忆系统当前未启用，概览中不展示记忆统计。",
+      "commStatus": {
+        "active": "当前执行中",
+        "idle": "当前空闲"
+      },
       "infoRows": {
         "id": "ID",
         "policy": "运行策略",
         "image": "沙盒镜像",
         "createdAt": "创建时间",
         "updatedAt": "更新时间",
+        "sandboxStatus": "运行状态",
         "containerName": "容器名称",
         "hostPort": "主机端口",
         "sessionId": "Session ID",
+        "versionInfo": "版本信息",
         "ccVersion": "沙盒版本",
         "claudeCodeVersion": "Claude Code",
         "modelGroup": "模型组",
+        "ccRuntime": "CC 状态",
         "lastHeartbeat": "最近心跳"
       },
       "defaultImage": "默认镜像",
@@ -771,6 +790,109 @@
       "removeAutoInject": "取消自动注入",
       "autoInjectSuccess": "已更新自动注入配置",
       "autoInjectFailed": "更新自动注入配置失败：{{message}}"
+    },
+    "resources": {
+      "searchPlaceholder": "搜索资源名称、备注或资源标签",
+      "mountsTitle": "已挂载资源",
+      "mountsHint": "拖动可调整顺序。",
+      "libraryTitle": "资源库",
+      "libraryHint": "从资源库选择需要的资源挂载到当前工作区。",
+      "emptyMounted": "当前工作区还没有挂载任何资源。",
+      "emptyLibrary": "资源库为空，先创建第一条工作区资源。",
+      "noDescription": "暂无备注",
+      "fieldCount": "{{count}} 个字段",
+      "boundCount": "{{count}} 个工作区引用",
+      "stats": {
+        "total": "资源总数",
+        "shared": "跨工作区复用",
+        "compat": "带兼容变量名",
+        "mounted": "已挂载",
+        "available": "可选资源"
+      },
+      "meta": {
+        "tags": "资源标签",
+        "fields": "字段数量",
+        "compatEnvNames": "注入环境变量",
+        "usage": "工作区引用"
+      },
+      "tooltips": {
+        "noWorkspaceRef": "当前没有工作区引用",
+        "workspaceRefsTitle": "被 {{count}} 个工作区引用"
+      },
+      "valueKinds": {
+        "text": "文本",
+        "password": "密码/令牌",
+        "host": "主机地址",
+        "port": "端口",
+        "private_key": "私钥",
+        "username": "用户名",
+        "database": "数据库名",
+        "json": "JSON"
+      },
+      "actions": {
+        "refresh": "刷新",
+        "create": "新建资源",
+        "openCenter": "资源中心",
+        "mounted": "已挂载",
+        "mount": "挂载",
+        "unmount": "卸载"
+      },
+      "editor": {
+        "createTitle": "新建工作区资源",
+        "editTitle": "编辑工作区资源",
+        "createAction": "创建",
+        "saveAction": "保存",
+        "template": "初始化模板",
+        "templateSectionTitle": "模板预填充",
+        "templateSectionHint": "可在填写过程中随时套用模板，再继续按需调整。",
+        "templateAction": "选择模板",
+        "templateDialogTitle": "选择模板",
+        "templateDialogHint": "选择后会用模板内容填充当前表单。",
+        "templateOverwriteWarning": "应用模板会覆盖当前已填写的内容，请确认后继续。",
+        "templateApply": "确认应用",
+        "name": "资源名称",
+        "resourceNote": "资源备注",
+        "resourceTags": "资源标签",
+        "resourceTagsHint": "使用逗号分隔，例如 ssh, deploy, github",
+        "resourcePrompt": "资源提示",
+        "resourcePromptHelper": "这部分会进入 AI 上下文，告诉 CC 这条资源该在什么场景下使用，以及需要注意什么。",
+        "fields": "字段配置",
+        "fieldsHint": "拖动字段可以调整呈现顺序。",
+        "addField": "新增字段",
+        "removeField": "删除字段",
+        "unnamedField": "字段 {{index}}",
+        "fieldLabel": "字段名称",
+        "fieldDescription": "字段说明",
+        "valueKind": "字段类型",
+        "compatEnvNames": "注入环境变量",
+        "compatEnvNamesPlaceholder": "例如 GH_TOKEN, GITHUB_TOKEN",
+        "value": "字段值",
+        "secretValue": "敏感字段值",
+        "sensitive": "敏感信息",
+        "sensitiveHint": "开启后，该字段值不会以明文形式出现在提示词中，只通过环境变量提供给 CC 使用。"
+      },
+      "deleteDialog": {
+        "title": "确认删除资源",
+        "content": "确定删除资源“{{name}}”？此操作不可撤销。",
+        "contentWithBindings": "资源“{{name}}”当前已被 {{count}} 个工作区挂载。确认删除后，这些挂载会一并移除，且此操作不可撤销。",
+        "boundListTitle": "受影响的工作区",
+        "confirm": "删除资源"
+      },
+      "notifications": {
+        "created": "资源已创建",
+        "createFailed": "创建失败：{{message}}",
+        "updated": "资源已更新",
+        "updateFailed": "更新失败：{{message}}",
+        "deleted": "资源已删除",
+        "deleteFailed": "删除失败：{{message}}",
+        "mounted": "资源已挂载到当前工作区",
+        "mountFailed": "挂载失败：{{message}}",
+        "mountConflict": "兼容变量名 {{env}} 与资源“{{name}}”冲突",
+        "unmounted": "资源已从当前工作区卸载",
+        "unmountFailed": "卸载失败：{{message}}",
+        "reorderFailed": "排序失败：{{message}}",
+        "workspaceRequired": "请先进入具体工作区后再执行此操作"
+      }
     },
     "prompt": {
       "summaryCards": {

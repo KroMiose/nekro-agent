@@ -5,6 +5,7 @@ export const WORKSPACE_DETAIL_TABS = [
   'memory',
   'extensions',
   'mcp',
+  'resources',
   'prompt',
   'config',
 ] as const

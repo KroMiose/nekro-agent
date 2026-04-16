@@ -159,23 +159,6 @@ class CommSendBody(BaseModel):
     content: str = Field(..., min_length=1, description="发送给 CC 的指令内容")
 
 
-# ── 环境变量 ────────────────────────────────────────────────────────────────
-
-
-class WorkspaceEnvVar(BaseModel):
-    key: str = Field(..., min_length=1, max_length=256, description="环境变量名称（大写字母+下划线）")
-    value: str = Field(default="", description="环境变量值")
-    description: str = Field(default="", max_length=512, description="用途说明（注入 CLAUDE.md）")
-
-
-class WorkspaceEnvVarsResponse(BaseModel):
-    env_vars: List[WorkspaceEnvVar]
-
-
-class WorkspaceEnvVarsUpdate(BaseModel):
-    env_vars: List[WorkspaceEnvVar]
-
-
 class ClaudeMdResponse(BaseModel):
     content: str
     extra: str
@@ -208,6 +191,27 @@ class PromptComposerResponse(BaseModel):
 
 class PromptLayerUpdate(BaseModel):
     content: str
+
+
+# ── 概览统计 ──────────────────────────────────────────────────────────────────
+
+
+class WorkspaceOverviewStats(BaseModel):
+    """工作区概览统计聚合，供概览页一次性获取所有维度摘要。"""
+
+    # 记忆系统
+    memory_enabled: bool
+    memory_paragraph_count: int
+    memory_entity_count: int
+    memory_relation_count: int
+    memory_reinforcement_7d: int
+    # 技能
+    dynamic_skill_count: int
+    # 资源绑定
+    resource_binding_count: int
+    # 协作现状摘要
+    na_context_preview: str
+    na_context_updated_at: Optional[str]
 
 
 # ── 频道注解 ─────────────────────────────────────────────────────────────────

@@ -211,6 +211,10 @@ const router = createHashRouter([
             element: lazyLoad(() => import('../pages/workspace')),
           },
           {
+            path: 'resources',
+            element: lazyLoad(() => import('../pages/workspace/resources')),
+          },
+          {
             path: 'skills',
             element: lazyLoad(() => import('../pages/workspace/skills')),
           },
