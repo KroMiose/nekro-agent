@@ -21,7 +21,7 @@ class AgentToolExporter:
         for meta in command_registry.list_all_commands():
             if meta.internal:
                 continue
-            if not command_manager.is_command_enabled(meta.name, chat_key):
+            if not command_manager.is_command_enabled_for_meta(meta, chat_key):
                 continue
             tools.append({
                 "type": "function",

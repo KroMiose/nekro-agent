@@ -14,7 +14,7 @@ from nekro_agent.core.os_env import (
     COMMAND_SYSTEM_STATE_FILE,
 )
 from nekro_agent.schemas.errors import ValidationError
-from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.command.base import CommandMetadata, CommandPermission
 
 
 class CommandManager:
@@ -143,8 +143,45 @@ class CommandManager:
             path.unlink(missing_ok=True)
         self._channel_permission_cache[chat_key] = state
 
+    @staticmethod
+    def _is_plugin_command_source_enabled(source: str) -> bool:
+        """检查插件来源命令对应的插件是否已启用。"""
+        if source == "built_in":
+            return True
+
+        from nekro_agent.services.plugin.collector import plugin_collector
+
+        plugin = plugin_collector.get_plugin(source)
+        return bool(plugin and plugin.is_enabled)
+
+    def is_command_enabled_for_meta(
+        self,
+        meta: CommandMetadata,
+        chat_key: Optional[str] = None,
+    ) -> bool:
+        """按命令元数据查询启用状态，同时校验插件启用态。"""
+        if not self._is_plugin_command_source_enabled(meta.source):
+            return False
+
+        if chat_key:
+            channel_state = self._load_channel_state(chat_key)
+            if meta.name in channel_state:
+                return channel_state[meta.name]
+
+        system_state = self._load_system_state()
+        if meta.name in system_state:
+            return system_state[meta.name]
+
+        return True
+
     def is_command_enabled(self, command_name: str, chat_key: Optional[str] = None) -> bool:
-        """查询命令是否启用（频道级 > 系统级 > 默认）"""
+        """查询命令是否启用（频道级 > 系统级 > 默认），并兼容插件启用态。"""
+        from nekro_agent.services.command.registry import command_registry
+
+        command = command_registry.resolve(command_name)
+        if command is not None:
+            return self.is_command_enabled_for_meta(command.metadata, chat_key)
+
         if chat_key:
             channel_state = self._load_channel_state(chat_key)
             if command_name in channel_state:
@@ -283,7 +320,7 @@ class CommandManager:
         channel_state = self._load_channel_state(chat_key) if chat_key else {}
         result = []
         for meta in commands:
-            enabled = self.is_command_enabled(meta.name, chat_key)
+            enabled = self.is_command_enabled_for_meta(meta, chat_key)
             permission = self.get_command_permission(meta.name, meta.permission, chat_key)
             has_channel_override = chat_key is not None and meta.name in channel_state
             has_permission_override = self.has_permission_override(meta.name, chat_key)

@@ -67,6 +67,7 @@ from .prompt_envelope import CcPromptEnvelope
 
 _TASK_TYPE = "cc_delegate"
 _CC_DATA_TIMEOUT: float = 300.0  # 300s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
+_CC_COMMAND_PERMISSION = CommandPermission.SUPER_USER
 
 # 已投递结果去重：(workspace_id, source_chat_key, result_id) → 投递时间
 # 防止 SSE 实时路径和 Watcher 轮询路径重复投递同一结果
@@ -1718,7 +1719,7 @@ async def get_cc_context(_ctx: schemas.AgentCtx) -> str:
     name="cc_help",
     description="查看 CC 协作插件的使用帮助",
     aliases=["cc_guide"],
-    permission=CommandPermission.USER,
+    permission=_CC_COMMAND_PERMISSION,
     usage="cc_help",
     category="CC 协作",
 )
@@ -1759,7 +1760,7 @@ async def cc_help_cmd(context: CommandExecutionContext) -> CommandResponse:
     name="cc_status",
     description="查看当前频道的 CC 协作状态摘要",
     aliases=[],
-    permission=CommandPermission.USER,
+    permission=_CC_COMMAND_PERMISSION,
     usage="cc_status",
     category="CC 协作",
 )
@@ -1774,7 +1775,7 @@ async def cc_status_cmd(context: CommandExecutionContext) -> CommandResponse:
     name="cc_context",
     description="查看当前频道的 CC 协作上下文",
     aliases=[],
-    permission=CommandPermission.USER,
+    permission=_CC_COMMAND_PERMISSION,
     usage="cc_context",
     category="CC 协作",
 )
@@ -1795,7 +1796,7 @@ async def cc_context_cmd(context: CommandExecutionContext) -> CommandResponse:
     name="cc_recent",
     description="查看当前频道最近的 CC 协作记录",
     aliases=["cc_log"],
-    permission=CommandPermission.USER,
+    permission=_CC_COMMAND_PERMISSION,
     usage="cc_recent [数量]",
     category="CC 协作",
 )
@@ -1814,7 +1815,7 @@ async def cc_recent_cmd(
     name="cc_abort",
     description="强制中止当前绑定工作区正在运行的 CC 任务",
     aliases=["cc_kill"],
-    permission=CommandPermission.USER,
+    permission=_CC_COMMAND_PERMISSION,
     usage="cc_abort",
     category="CC 协作",
 )
@@ -1837,7 +1838,7 @@ async def cc_abort_cmd(context: CommandExecutionContext) -> CommandResponse:
     name="cc_reset_session",
     description="重置当前绑定工作区的 CC 会话并清理旧委托摘要缓存",
     aliases=["cc_reset"],
-    permission=CommandPermission.USER,
+    permission=_CC_COMMAND_PERMISSION,
     usage="cc_reset_session",
     category="CC 协作",
 )
@@ -1860,7 +1861,7 @@ async def cc_reset_session_cmd(context: CommandExecutionContext) -> CommandRespo
     name="cc_restart",
     description="重启当前绑定工作区的 CC 沙盒容器",
     aliases=[],
-    permission=CommandPermission.USER,
+    permission=_CC_COMMAND_PERMISSION,
     usage="cc_restart",
     category="CC 协作",
 )
@@ -1883,7 +1884,7 @@ async def cc_restart_cmd(context: CommandExecutionContext) -> CommandResponse:
     name="cc_stop",
     description="停止当前绑定工作区的 CC 沙盒容器",
     aliases=[],
-    permission=CommandPermission.USER,
+    permission=_CC_COMMAND_PERMISSION,
     usage="cc_stop",
     category="CC 协作",
 )

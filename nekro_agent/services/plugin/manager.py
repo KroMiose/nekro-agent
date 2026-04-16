@@ -234,6 +234,8 @@ async def get_all_plugin_router_info() -> Dict[str, Any]:
 
 async def enable_plugin(plugin_id: str) -> bool:
     """启用插件（支持热重载）"""
+    from nekro_agent.services.command.manager import command_manager
+
     plugin = plugin_collector.get_plugin(plugin_id)
     if not plugin:
         return False
@@ -261,6 +263,8 @@ async def enable_plugin(plugin_id: str) -> bool:
             logger.exception(f"插件 {plugin.name} 启用成功，但路由挂载失败: {router_error}")
             # 路由挂载失败不影响插件启用
 
+        await command_manager.notify_commands_changed()
+
     except Exception as e:
         logger.error(f"启用插件失败: {plugin_id}, 错误: {e}")
         return False
@@ -270,6 +274,8 @@ async def enable_plugin(plugin_id: str) -> bool:
 
 async def disable_plugin(plugin_id: str) -> bool:
     """禁用插件（支持热重载）"""
+    from nekro_agent.services.command.manager import command_manager
+
     plugin = plugin_collector.get_plugin(plugin_id)
     if not plugin:
         return False
@@ -296,6 +302,8 @@ async def disable_plugin(plugin_id: str) -> bool:
         if plugin.key in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.remove(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
+
+        await command_manager.notify_commands_changed()
 
     except Exception as e:
         logger.error(f"禁用插件失败: {plugin_id}, 错误: {e}")
