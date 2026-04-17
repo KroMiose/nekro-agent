@@ -171,7 +171,7 @@ class CommandRegistry:
             )
             return
 
-        if not command_manager.is_command_enabled(cmd.metadata.name, request.context.chat_key):
+        if not command_manager.is_command_enabled_for_meta(cmd.metadata, request.context.chat_key):
             yield CommandResponse(
                 status=CommandResponseStatus.DISABLED,
                 message=t(

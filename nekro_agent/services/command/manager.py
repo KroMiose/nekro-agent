@@ -14,7 +14,7 @@ from nekro_agent.core.os_env import (
     COMMAND_SYSTEM_STATE_FILE,
 )
 from nekro_agent.schemas.errors import ValidationError
-from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.command.base import BUILT_IN_SOURCE, CommandMetadata, CommandPermission
 
 
 class CommandManager:
@@ -143,18 +143,79 @@ class CommandManager:
             path.unlink(missing_ok=True)
         self._channel_permission_cache[chat_key] = state
 
-    def is_command_enabled(self, command_name: str, chat_key: Optional[str] = None) -> bool:
-        """查询命令是否启用（频道级 > 系统级 > 默认）"""
+    @staticmethod
+    def _is_plugin_command_source_enabled(
+        source: str,
+        plugin_enabled_cache: Optional[dict[str, bool]] = None,
+    ) -> bool:
+        """检查插件来源命令对应的插件是否已启用。"""
+        if source == BUILT_IN_SOURCE:
+            return True
+
+        if plugin_enabled_cache is not None and source in plugin_enabled_cache:
+            return plugin_enabled_cache[source]
+
+        from nekro_agent.services.plugin.collector import plugin_collector
+
+        plugin = plugin_collector.get_plugin(source)
+        enabled = bool(plugin and plugin.is_enabled)
+        if plugin_enabled_cache is not None:
+            plugin_enabled_cache[source] = enabled
+        return enabled
+
+    def _is_command_enabled_impl(
+        self,
+        command_name: str,
+        chat_key: Optional[str] = None,
+        *,
+        meta: Optional[CommandMetadata] = None,
+        plugin_enabled_cache: Optional[dict[str, bool]] = None,
+    ) -> bool:
+        """统一的命令启用检查实现。"""
+        target_meta = meta
+        if target_meta is None:
+            from nekro_agent.services.command.registry import command_registry
+
+            command = command_registry.resolve(command_name)
+            if command is not None:
+                target_meta = command.metadata
+
+        state_key = target_meta.name if target_meta is not None else command_name
+        if target_meta is not None and not self._is_plugin_command_source_enabled(
+            target_meta.source,
+            plugin_enabled_cache,
+        ):
+            return False
+
         if chat_key:
             channel_state = self._load_channel_state(chat_key)
-            if command_name in channel_state:
-                return channel_state[command_name]
+            if state_key in channel_state:
+                return channel_state[state_key]
 
         system_state = self._load_system_state()
-        if command_name in system_state:
-            return system_state[command_name]
+        if state_key in system_state:
+            return system_state[state_key]
 
         return True
+
+    def is_command_enabled_for_meta(
+        self,
+        meta: CommandMetadata,
+        chat_key: Optional[str] = None,
+        *,
+        plugin_enabled_cache: Optional[dict[str, bool]] = None,
+    ) -> bool:
+        """按命令元数据查询启用状态，同时校验插件启用态。"""
+        return self._is_command_enabled_impl(
+            meta.name,
+            chat_key,
+            meta=meta,
+            plugin_enabled_cache=plugin_enabled_cache,
+        )
+
+    def is_command_enabled(self, command_name: str, chat_key: Optional[str] = None) -> bool:
+        """查询命令是否启用（频道级 > 系统级 > 默认），并兼容插件启用态。"""
+        return self._is_command_enabled_impl(command_name, chat_key)
 
     def get_command_permission(
         self,
@@ -185,13 +246,19 @@ class CommandManager:
         return command_name in self._load_system_permission_state()
 
     @staticmethod
-    def _get_command_default_permission(command_name: str) -> CommandPermission:
+    def _resolve_command(command_name: str) -> tuple[str, CommandPermission]:
+        """解析命令名（含别名）到规范名和默认权限，命令不存在则抛出 ValidationError。"""
         from nekro_agent.services.command.registry import command_registry
 
         command = command_registry.resolve(command_name)
         if command is None:
             raise ValidationError(reason=f"命令不存在: {command_name}")
-        return command.metadata.permission
+        return command.metadata.name, command.metadata.permission
+
+    @staticmethod
+    def _get_command_default_permission(command_name: str) -> CommandPermission:
+        _, permission = CommandManager._resolve_command(command_name)
+        return permission
 
     async def set_command_enabled(
         self,
@@ -200,14 +267,14 @@ class CommandManager:
         chat_key: Optional[str] = None,
     ) -> None:
         """设置命令启用状态"""
-        self._get_command_default_permission(command_name)
+        canonical_name, _ = self._resolve_command(command_name)
         if chat_key:
             state = self._load_channel_state(chat_key)
-            state[command_name] = enabled
+            state[canonical_name] = enabled
             self._save_channel_state(chat_key, state)
         else:
             state = self._load_system_state()
-            state[command_name] = enabled
+            state[canonical_name] = enabled
             self._save_system_state(state)
         await self.notify_commands_changed(chat_key)
 
@@ -221,21 +288,21 @@ class CommandManager:
         normalized_permission = (
             permission if isinstance(permission, CommandPermission) else CommandPermission(permission)
         )
-        default_permission = self._get_command_default_permission(command_name)
+        canonical_name, default_permission = self._resolve_command(command_name)
         if chat_key:
             state = self._load_channel_permission_state(chat_key)
-            inherited_permission = self.get_command_permission(command_name, default_permission, None)
+            inherited_permission = self.get_command_permission(canonical_name, default_permission, None)
             if normalized_permission == inherited_permission:
-                state.pop(command_name, None)
+                state.pop(canonical_name, None)
             else:
-                state[command_name] = normalized_permission
+                state[canonical_name] = normalized_permission
             self._save_channel_permission_state(chat_key, state)
         else:
             state = self._load_system_permission_state()
             if normalized_permission == default_permission:
-                state.pop(command_name, None)
+                state.pop(canonical_name, None)
             else:
-                state[command_name] = normalized_permission
+                state[canonical_name] = normalized_permission
             self._save_system_permission_state(state)
         await self.notify_commands_changed(chat_key)
 
@@ -245,13 +312,17 @@ class CommandManager:
         chat_key: Optional[str] = None,
     ) -> None:
         """重置命令状态（删除覆盖，回退到上级）"""
+        from nekro_agent.services.command.registry import command_registry
+
+        resolved = command_registry.resolve(command_name)
+        canonical_name = resolved.metadata.name if resolved is not None else command_name
         if chat_key:
             state = self._load_channel_state(chat_key)
-            state.pop(command_name, None)
+            state.pop(canonical_name, None)
             self._save_channel_state(chat_key, state)
         else:
             state = self._load_system_state()
-            state.pop(command_name, None)
+            state.pop(canonical_name, None)
             self._save_system_state(state)
         await self.notify_commands_changed(chat_key)
 
@@ -261,13 +332,17 @@ class CommandManager:
         chat_key: Optional[str] = None,
     ) -> None:
         """重置命令权限覆盖（删除覆盖，回退到上级）"""
+        from nekro_agent.services.command.registry import command_registry
+
+        resolved = command_registry.resolve(command_name)
+        canonical_name = resolved.metadata.name if resolved is not None else command_name
         if chat_key:
             state = self._load_channel_permission_state(chat_key)
-            state.pop(command_name, None)
+            state.pop(canonical_name, None)
             self._save_channel_permission_state(chat_key, state)
         else:
             state = self._load_system_permission_state()
-            state.pop(command_name, None)
+            state.pop(canonical_name, None)
             self._save_system_permission_state(state)
         await self.notify_commands_changed(chat_key)
 
@@ -281,14 +356,15 @@ class CommandManager:
 
         commands = command_registry.list_all_commands()
         channel_state = self._load_channel_state(chat_key) if chat_key else {}
+        plugin_enabled_cache: dict[str, bool] = {}
         result = []
         for meta in commands:
-            enabled = self.is_command_enabled(meta.name, chat_key)
+            enabled = self.is_command_enabled_for_meta(meta, chat_key, plugin_enabled_cache=plugin_enabled_cache)
             permission = self.get_command_permission(meta.name, meta.permission, chat_key)
             has_channel_override = chat_key is not None and meta.name in channel_state
             has_permission_override = self.has_permission_override(meta.name, chat_key)
-            source_display_name = "内置" if meta.source == "built_in" else meta.source
-            if meta.source != "built_in":
+            source_display_name = "内置" if meta.source == BUILT_IN_SOURCE else meta.source
+            if meta.source != BUILT_IN_SOURCE:
                 plugin = plugin_collector.get_plugin(meta.source)
                 if plugin:
                     source_display_name = plugin.name

@@ -12,7 +12,6 @@ from typing import TypeVar
 from urllib.parse import quote
 
 from nekro_agent.adapters.interface.schemas.platform import PlatformSendSegment, PlatformSendSegmentType
-from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.services.command.schemas import (
@@ -211,13 +210,19 @@ def _segments_to_platform_send_segments(
     )
 
 
-def build_command_output_messages(response: CommandResponse) -> list[AgentMessageSegment]:
+async def build_command_output_messages(response: CommandResponse, chat_key: str) -> list[AgentMessageSegment]:
     """将命令响应转换为增强发送使用的通用消息段列表。"""
-    normalized_segments = _normalize_command_segments(response, config.AI_COMMAND_OUTPUT_PREFIX)
+    from nekro_agent.services.config_resolver import config_resolver
+
+    effective_config = await config_resolver.get_effective_config(chat_key)
+    normalized_segments = _normalize_command_segments(response, effective_config.AI_COMMAND_OUTPUT_PREFIX)
     return _segments_to_agent_messages(normalized_segments)
 
 
-def build_command_output_platform_segments(response: CommandResponse) -> list[PlatformSendSegment]:
+async def build_command_output_platform_segments(response: CommandResponse, chat_key: str) -> list[PlatformSendSegment]:
     """将命令响应转换为协议端发送段列表。"""
-    normalized_segments = _normalize_command_segments(response, config.AI_COMMAND_OUTPUT_PREFIX)
+    from nekro_agent.services.config_resolver import config_resolver
+
+    effective_config = await config_resolver.get_effective_config(chat_key)
+    normalized_segments = _normalize_command_segments(response, effective_config.AI_COMMAND_OUTPUT_PREFIX)
     return _segments_to_platform_send_segments(normalized_segments)

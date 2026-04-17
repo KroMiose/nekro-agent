@@ -192,7 +192,7 @@ class WxWorkCorpAppAdapter(BaseAdapter[WxWorkCorpAppConfig]):
 
             if response.output_segments:
                 estimated_count = self._estimate_message_count(
-                    build_command_output_platform_segments(response)
+                    await build_command_output_platform_segments(response, chat_key)
                 )
                 if estimated_count > WXWORK_CORP_APP_KF_COMMAND_MAX_MESSAGES:
                     await self._send_kf_command_limit_error(chat_key, estimated_count)
