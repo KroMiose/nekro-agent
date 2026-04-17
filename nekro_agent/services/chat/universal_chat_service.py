@@ -47,10 +47,13 @@ class UniversalChatService:
             message (str): 操作消息内容
         """
 
+        from nekro_agent.services.config_resolver import config_resolver
+
         adapter = await adapter_utils.get_adapter_for_chat(chat_key)
+        effective_config = await config_resolver.get_effective_config(chat_key)
         await self.send_agent_message(
             chat_key=chat_key,
-            messages=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip(),
+            messages=f"{effective_config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip(),
             adapter=adapter,
         )
 

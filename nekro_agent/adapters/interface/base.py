@@ -473,7 +473,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
             await self._send_command_plain_if_any(chat_key, response)
             return
 
-        enhanced_messages = build_command_output_messages(response)
+        enhanced_messages = await build_command_output_messages(response, chat_key)
         if enhanced_messages and self.config.COMMAND_ENHANCED_OUTPUT:
             sent = await self._try_send_enhanced_command_response(
                 chat_key,
@@ -483,7 +483,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
             if sent:
                 return
 
-        platform_segments = build_command_output_platform_segments(response)
+        platform_segments = await build_command_output_platform_segments(response, chat_key)
         if platform_segments:
             plt_response = await self.forward_message(
                 PlatformSendRequest(chat_key=chat_key, segments=platform_segments),

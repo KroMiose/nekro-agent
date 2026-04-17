@@ -246,13 +246,19 @@ class CommandManager:
         return command_name in self._load_system_permission_state()
 
     @staticmethod
-    def _get_command_default_permission(command_name: str) -> CommandPermission:
+    def _resolve_command(command_name: str) -> tuple[str, CommandPermission]:
+        """解析命令名（含别名）到规范名和默认权限，命令不存在则抛出 ValidationError。"""
         from nekro_agent.services.command.registry import command_registry
 
         command = command_registry.resolve(command_name)
         if command is None:
             raise ValidationError(reason=f"命令不存在: {command_name}")
-        return command.metadata.permission
+        return command.metadata.name, command.metadata.permission
+
+    @staticmethod
+    def _get_command_default_permission(command_name: str) -> CommandPermission:
+        _, permission = CommandManager._resolve_command(command_name)
+        return permission
 
     async def set_command_enabled(
         self,
@@ -261,14 +267,14 @@ class CommandManager:
         chat_key: Optional[str] = None,
     ) -> None:
         """设置命令启用状态"""
-        self._get_command_default_permission(command_name)
+        canonical_name, _ = self._resolve_command(command_name)
         if chat_key:
             state = self._load_channel_state(chat_key)
-            state[command_name] = enabled
+            state[canonical_name] = enabled
             self._save_channel_state(chat_key, state)
         else:
             state = self._load_system_state()
-            state[command_name] = enabled
+            state[canonical_name] = enabled
             self._save_system_state(state)
         await self.notify_commands_changed(chat_key)
 
@@ -282,21 +288,21 @@ class CommandManager:
         normalized_permission = (
             permission if isinstance(permission, CommandPermission) else CommandPermission(permission)
         )
-        default_permission = self._get_command_default_permission(command_name)
+        canonical_name, default_permission = self._resolve_command(command_name)
         if chat_key:
             state = self._load_channel_permission_state(chat_key)
-            inherited_permission = self.get_command_permission(command_name, default_permission, None)
+            inherited_permission = self.get_command_permission(canonical_name, default_permission, None)
             if normalized_permission == inherited_permission:
-                state.pop(command_name, None)
+                state.pop(canonical_name, None)
             else:
-                state[command_name] = normalized_permission
+                state[canonical_name] = normalized_permission
             self._save_channel_permission_state(chat_key, state)
         else:
             state = self._load_system_permission_state()
             if normalized_permission == default_permission:
-                state.pop(command_name, None)
+                state.pop(canonical_name, None)
             else:
-                state[command_name] = normalized_permission
+                state[canonical_name] = normalized_permission
             self._save_system_permission_state(state)
         await self.notify_commands_changed(chat_key)
 
@@ -306,13 +312,17 @@ class CommandManager:
         chat_key: Optional[str] = None,
     ) -> None:
         """重置命令状态（删除覆盖，回退到上级）"""
+        from nekro_agent.services.command.registry import command_registry
+
+        resolved = command_registry.resolve(command_name)
+        canonical_name = resolved.metadata.name if resolved is not None else command_name
         if chat_key:
             state = self._load_channel_state(chat_key)
-            state.pop(command_name, None)
+            state.pop(canonical_name, None)
             self._save_channel_state(chat_key, state)
         else:
             state = self._load_system_state()
-            state.pop(command_name, None)
+            state.pop(canonical_name, None)
             self._save_system_state(state)
         await self.notify_commands_changed(chat_key)
 
@@ -322,13 +332,17 @@ class CommandManager:
         chat_key: Optional[str] = None,
     ) -> None:
         """重置命令权限覆盖（删除覆盖，回退到上级）"""
+        from nekro_agent.services.command.registry import command_registry
+
+        resolved = command_registry.resolve(command_name)
+        canonical_name = resolved.metadata.name if resolved is not None else command_name
         if chat_key:
             state = self._load_channel_permission_state(chat_key)
-            state.pop(command_name, None)
+            state.pop(canonical_name, None)
             self._save_channel_permission_state(chat_key, state)
         else:
             state = self._load_system_permission_state()
-            state.pop(command_name, None)
+            state.pop(canonical_name, None)
             self._save_system_permission_state(state)
         await self.notify_commands_changed(chat_key)
 

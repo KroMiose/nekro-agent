@@ -58,7 +58,7 @@ async def _notify_commands_changed_after_plugin_toggle(plugin_key: str, plugin_n
     try:
         await command_manager.notify_commands_changed()
     except Exception as e:
-        logger.warning(f"插件 {plugin_name} (key={plugin_key}) 状态已更新，但命令同步失败: {e}")
+        logger.exception(f"插件 {plugin_name} (key={plugin_key}) 状态已更新，但命令同步失败: {e}")
 
 
 async def get_all_ext_meta_data() -> List[dict]:
