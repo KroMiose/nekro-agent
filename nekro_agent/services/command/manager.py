@@ -14,7 +14,7 @@ from nekro_agent.core.os_env import (
     COMMAND_SYSTEM_STATE_FILE,
 )
 from nekro_agent.schemas.errors import ValidationError
-from nekro_agent.services.command.base import CommandMetadata, CommandPermission
+from nekro_agent.services.command.base import BUILT_IN_SOURCE, CommandMetadata, CommandPermission
 
 
 class CommandManager:
@@ -149,7 +149,7 @@ class CommandManager:
         plugin_enabled_cache: Optional[dict[str, bool]] = None,
     ) -> bool:
         """检查插件来源命令对应的插件是否已启用。"""
-        if source == "built_in":
+        if source == BUILT_IN_SOURCE:
             return True
 
         if plugin_enabled_cache is not None and source in plugin_enabled_cache:
@@ -349,8 +349,8 @@ class CommandManager:
             permission = self.get_command_permission(meta.name, meta.permission, chat_key)
             has_channel_override = chat_key is not None and meta.name in channel_state
             has_permission_override = self.has_permission_override(meta.name, chat_key)
-            source_display_name = "内置" if meta.source == "built_in" else meta.source
-            if meta.source != "built_in":
+            source_display_name = "内置" if meta.source == BUILT_IN_SOURCE else meta.source
+            if meta.source != BUILT_IN_SOURCE:
                 plugin = plugin_collector.get_plugin(meta.source)
                 if plugin:
                     source_display_name = plugin.name

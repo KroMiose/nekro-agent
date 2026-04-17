@@ -47,14 +47,18 @@ def _build_activation_strategy_meta(plugin) -> dict:
     }
 
 
-async def _notify_commands_changed_after_plugin_toggle(plugin_name: str) -> None:
-    """插件启停后同步命令清单，失败只记录日志。"""
+async def _notify_commands_changed_after_plugin_toggle(plugin_key: str, plugin_name: str) -> None:
+    """插件启停后同步命令清单，失败只记录日志。
+
+    plugin_key 是命令 source 字段所用的插件标识符，plugin_name 是供人阅读的显示名称。
+    两者均记录在日志中，便于排查时关联具体命令来源。
+    """
     from nekro_agent.services.command.manager import command_manager
 
     try:
         await command_manager.notify_commands_changed()
     except Exception as e:
-        logger.warning(f"插件 {plugin_name} 状态已更新，但命令同步失败: {e}")
+        logger.warning(f"插件 {plugin_name} (key={plugin_key}) 状态已更新，但命令同步失败: {e}")
 
 
 async def get_all_ext_meta_data() -> List[dict]:
@@ -271,7 +275,7 @@ async def enable_plugin(plugin_id: str) -> bool:
             logger.exception(f"插件 {plugin.name} 启用成功，但路由挂载失败: {router_error}")
             # 路由挂载失败不影响插件启用
 
-        await _notify_commands_changed_after_plugin_toggle(plugin.name)
+        await _notify_commands_changed_after_plugin_toggle(plugin.key, plugin.name)
 
     except Exception as e:
         logger.error(f"启用插件失败: {plugin_id}, 错误: {e}")
@@ -309,7 +313,7 @@ async def disable_plugin(plugin_id: str) -> bool:
             config.PLUGIN_ENABLED.remove(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
 
-        await _notify_commands_changed_after_plugin_toggle(plugin.name)
+        await _notify_commands_changed_after_plugin_toggle(plugin.key, plugin.name)
 
     except Exception as e:
         logger.error(f"禁用插件失败: {plugin_id}, 错误: {e}")

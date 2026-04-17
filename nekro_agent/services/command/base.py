@@ -20,6 +20,10 @@ from nekro_agent.services.command.schemas import (
 )
 
 
+BUILT_IN_SOURCE = "built_in"
+"""内置命令的 source / namespace 标识符，用于与插件命令来源区分。"""
+
+
 class CommandPermission(str, Enum):
     PUBLIC = "public"
     USER = "user"
@@ -29,7 +33,7 @@ class CommandPermission(str, Enum):
 
 class CommandMetadata(BaseModel):
     name: str
-    namespace: str = "built_in"  # 命名空间（内置命令为 "built_in"，插件命令自动填充为插件 key）
+    namespace: str = BUILT_IN_SOURCE  # 命名空间（内置命令为 BUILT_IN_SOURCE，插件命令自动填充为插件 key）
     aliases: list[str] = []
     description: str
     i18n_description: Optional[I18nDict] = None  # 国际化描述
@@ -38,7 +42,7 @@ class CommandMetadata(BaseModel):
     permission: CommandPermission = CommandPermission.PUBLIC
     category: str = "general"
     i18n_category: Optional[I18nDict] = None  # 国际化分类
-    source: str = "built_in"  # "built_in" | 插件 key
+    source: str = BUILT_IN_SOURCE  # BUILT_IN_SOURCE | 插件 key
     tags: list[str] = []  # 标签 (便于 Agent 检索)
     params_schema: Optional[dict] = None  # 自动生成的 JSON Schema (用于 Agent Tool-Use)
     internal: bool = False  # 内部命令 (不在帮助列表和补全中显示, 如 wait 的 callback_cmd)
