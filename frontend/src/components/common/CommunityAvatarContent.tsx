@@ -14,6 +14,7 @@ import {
   Email as EmailIcon,
   DoneAll as DoneAllIcon,
   OpenInNew as OpenInNewIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
