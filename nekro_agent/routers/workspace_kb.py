@@ -363,8 +363,8 @@ async def reindex_workspace_kb_document(
 ) -> KBReindexResponse:
     await ensure_kb_collection()
     document = await _get_document_or_404(workspace_id, document_id)
-    await schedule_rebuild_document(document)
-    return KBReindexResponse(ok=True, total=1, success=0, failed=0)
+    scheduled = await schedule_rebuild_document(document)
+    return KBReindexResponse(ok=True, total=1, success=1 if scheduled else 0, failed=0)
 
 
 @router.post("/{workspace_id}/kb/reindex", summary="重建工作区知识库索引", response_model=KBReindexResponse)
@@ -375,8 +375,8 @@ async def reindex_workspace_kb(
 ) -> KBReindexResponse:
     await _get_workspace_or_404(workspace_id)
     await ensure_kb_collection()
-    success, failed = await rebuild_workspace_documents(workspace_id)
-    return KBReindexResponse(ok=failed == 0, total=success + failed, success=success, failed=failed)
+    scheduled, skipped = await rebuild_workspace_documents(workspace_id)
+    return KBReindexResponse(ok=True, total=scheduled + skipped, success=scheduled, failed=skipped)
 
 
 @router.post("/{workspace_id}/kb/search", summary="搜索工作区知识库", response_model=KBSearchResponse)

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import UploadFile
 
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_kb_asset_binding import DBKBAssetBinding
@@ -19,6 +20,8 @@ from nekro_agent.services.kb.document_service import (
     normalize_tags,
     safe_source_path,
 )
+
+logger = get_sub_logger("kb.library")
 
 _KB_LIBRARY_ROOT = Path(OsEnv.DATA_DIR) / "kb_library"
 _KB_LIBRARY_FILES_ROOT = _KB_LIBRARY_ROOT / "files"
@@ -69,6 +72,9 @@ async def list_asset_bound_workspaces(asset_id: int) -> list[KBAssetBoundWorkspa
     workspace_ids = [binding.workspace_id for binding in bindings]
     workspaces = await DBWorkspace.filter(id__in=workspace_ids).order_by("id").all()
     workspace_map = {workspace.id: workspace for workspace in workspaces}
+    orphan_ids = [binding.workspace_id for binding in bindings if binding.workspace_id not in workspace_map]
+    if orphan_ids:
+        logger.warning(f"全局知识库资产 {asset_id} 存在孤儿绑定记录（工作区已删除）: workspace_ids={orphan_ids}")
     return [
         KBAssetBoundWorkspace(
             workspace_id=binding.workspace_id,
@@ -80,8 +86,41 @@ async def list_asset_bound_workspaces(asset_id: int) -> list[KBAssetBoundWorkspa
     ]
 
 
-async def asset_to_list_item(asset: DBKBAsset) -> KBAssetListItem:
-    bound_workspaces = await list_asset_bound_workspaces(asset.id)
+async def _build_bound_workspaces_map(asset_ids: list[int]) -> dict[int, list[KBAssetBoundWorkspace]]:
+    """批量加载多个资产的工作区绑定信息，避免 N+1 查询。"""
+    if not asset_ids:
+        return {}
+    all_bindings = await DBKBAssetBinding.filter(asset_id__in=asset_ids).order_by("asset_id", "workspace_id").all()
+    if not all_bindings:
+        return {asset_id: [] for asset_id in asset_ids}
+
+    all_workspace_ids = list({binding.workspace_id for binding in all_bindings})
+    workspaces = await DBWorkspace.filter(id__in=all_workspace_ids).all()
+    workspace_map = {workspace.id: workspace for workspace in workspaces}
+
+    orphan_workspace_ids = {binding.workspace_id for binding in all_bindings} - workspace_map.keys()
+    if orphan_workspace_ids:
+        logger.warning(f"全局知识库存在孤儿绑定记录（工作区已删除）: workspace_ids={sorted(orphan_workspace_ids)}")
+
+    result: dict[int, list[KBAssetBoundWorkspace]] = {asset_id: [] for asset_id in asset_ids}
+    for binding in all_bindings:
+        workspace = workspace_map.get(binding.workspace_id)
+        if workspace is None:
+            continue
+        result[binding.asset_id].append(
+            KBAssetBoundWorkspace(
+                workspace_id=binding.workspace_id,
+                workspace_name=workspace.name,
+                workspace_status=workspace.status,
+            )
+        )
+    return result
+
+
+def _asset_to_list_item_with_workspaces(
+    asset: DBKBAsset,
+    bound_workspaces: list[KBAssetBoundWorkspace],
+) -> KBAssetListItem:
     return KBAssetListItem(
         id=asset.id,
         title=asset.title,
@@ -105,6 +144,23 @@ async def asset_to_list_item(asset: DBKBAsset) -> KBAssetListItem:
         update_time=asset.update_time.isoformat(),
         create_time=asset.create_time.isoformat(),
     )
+
+
+async def asset_to_list_item(asset: DBKBAsset) -> KBAssetListItem:
+    bound_workspaces = await list_asset_bound_workspaces(asset.id)
+    return _asset_to_list_item_with_workspaces(asset, bound_workspaces)
+
+
+async def assets_to_list_items(assets: list[DBKBAsset]) -> list[KBAssetListItem]:
+    """批量转换资产列表，避免 N+1 查询。"""
+    if not assets:
+        return []
+    asset_ids = [asset.id for asset in assets]
+    bound_workspaces_map = await _build_bound_workspaces_map(asset_ids)
+    return [
+        _asset_to_list_item_with_workspaces(asset, bound_workspaces_map.get(asset.id, []))
+        for asset in assets
+    ]
 
 
 def read_asset_source_content(asset: DBKBAsset) -> str:

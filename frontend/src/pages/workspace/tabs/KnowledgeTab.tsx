@@ -40,7 +40,7 @@ import {
   CheckCircleOutline as CheckCircleIcon,
   ErrorOutline as ErrorOutlineIcon,
 } from '@mui/icons-material'
-import { alpha } from '@mui/material/styles'
+import { alpha, type SxProps, type Theme } from '@mui/material/styles'
 import { useTheme } from '@mui/material/styles'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -184,9 +184,10 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const queryClient = useQueryClient()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
-  const { kbIndexProgresses } = useSystemEventsContext()
+  const { kbIndexProgresses, kbLibraryIndexProgresses } = useSystemEventsContext()
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
   const lastProgressTerminalRef = useRef('')
+  const lastAssetProgressTerminalRef = useRef('')
 
   const [selectedItem, setSelectedItem] = useState<KnowledgeSelection>(null)
   const [searchDraft, setSearchDraft] = useState('')
@@ -624,6 +625,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const preview = previewContent(detail ?? assetDetail ?? undefined)
   const statusLabel = (status: string) => t(`knowledge.status.${status}`, { defaultValue: status })
   const selectedProgress = selectedDocumentId != null ? kbIndexProgresses.get(`${workspace.id}:${selectedDocumentId}`) ?? null : null
+  const selectedAssetProgress = selectedAssetId != null ? kbLibraryIndexProgresses.get(selectedAssetId) ?? null : null
   const selectedDerivedStatuses = selectedDocumentMeta
     ? getDerivedStatuses(selectedDocumentMeta, selectedProgress)
     : null
@@ -641,6 +643,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     }
     return next
   }, [workspaceProgresses])
+  const boundAssetIds = useMemo(() => new Set(boundGlobalAssets.map(a => a.id)), [boundGlobalAssets])
   const workspaceTerminalSignature = useMemo(
     () =>
       workspaceProgresses
@@ -650,6 +653,15 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         .join('|'),
     [workspaceProgresses]
   )
+  const assetTerminalSignature = useMemo(
+    () =>
+      Array.from(kbLibraryIndexProgresses.values())
+        .filter(item => boundAssetIds.has(item.asset_id) && (item.phase === 'ready' || item.phase === 'failed'))
+        .map(item => `${item.asset_id}:${item.phase}:${item.updated_at}`)
+        .sort()
+        .join('|'),
+    [kbLibraryIndexProgresses, boundAssetIds]
+  )
 
   useEffect(() => {
     if (!workspaceTerminalSignature) return
@@ -658,6 +670,14 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     lastProgressTerminalRef.current = signature
     void refreshAll()
   }, [refreshAll, workspaceTerminalSignature])
+
+  useEffect(() => {
+    if (!assetTerminalSignature) return
+    const signature = assetTerminalSignature
+    if (lastAssetProgressTerminalRef.current === signature) return
+    lastAssetProgressTerminalRef.current = signature
+    void refreshAll()
+  }, [refreshAll, assetTerminalSignature])
 
   const compactActionSx = {
     minHeight: 32,
@@ -687,17 +707,15 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         : theme.palette.warning.main,
     true
   )
-  const detailSectionSx = [
-    UNIFIED_TABLE_STYLES.paper,
-    {
+  const detailSectionSx: SxProps<Theme> = {
+    ...(UNIFIED_TABLE_STYLES.paper as object),
+    boxShadow: 'none',
+    borderColor: alpha(theme.palette.primary.main, 0.08),
+    backgroundColor: alpha(theme.palette.background.paper, 0.82),
+    '&:hover': {
       boxShadow: 'none',
-      borderColor: alpha(theme.palette.primary.main, 0.08),
-      backgroundColor: alpha(theme.palette.background.paper, 0.82),
-      '&:hover': {
-        boxShadow: 'none',
-      },
     },
-  ]
+  }
   const previewBodySx = {
     px: 2,
     py: 2.25,
@@ -930,7 +948,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                         selectedItem?.kind === entry.kind && selectedItem.id === entry.id
                       const status =
                         entry.kind === 'document'
-                          ? getDerivedStatuses(item, progressByDocumentId.get(entry.id)).overallStatus
+                          ? getDerivedStatuses(entry.item, progressByDocumentId.get(entry.id)).overallStatus
                           : getEffectiveStatus(item)
                       return (
                         <ListItemButton
@@ -1211,6 +1229,38 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                   </Stack>
                 </Stack>
 
+                {selectedAssetProgress && (
+                  <Paper sx={detailSectionSx}>
+                    <Stack spacing={1} sx={{ p: 2 }}>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+                        <Typography variant="subtitle2">
+                          {t('knowledge.progress.title')}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {`${kbProgressLabel(selectedAssetProgress.phase, t)} · ${selectedAssetProgress.progress_percent}%`}
+                        </Typography>
+                      </Stack>
+                      <LinearProgress
+                        variant="determinate"
+                        value={selectedAssetProgress.progress_percent}
+                        color={selectedAssetProgress.phase === 'failed' ? 'error' : selectedAssetProgress.phase === 'ready' ? 'success' : 'primary'}
+                        sx={{ height: 8, borderRadius: 999 }}
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        {selectedAssetProgress.total_chunks > 0
+                          ? t('knowledge.progress.detail', {
+                              processed: selectedAssetProgress.processed_chunks,
+                              total: selectedAssetProgress.total_chunks,
+                            })
+                          : t('knowledge.progress.pending')}
+                      </Typography>
+                      {selectedAssetProgress.error_summary && (
+                        <Alert severity="error">{selectedAssetProgress.error_summary}</Alert>
+                      )}
+                    </Stack>
+                  </Paper>
+                )}
+
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   {selectedAssetMeta.tags.map(tag => (
                     <Chip key={tag} size="small" label={tag} variant="outlined" sx={neutralChipSx} />
@@ -1352,6 +1402,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         open={uploadOpen}
         onClose={() => {
           if (uploadMutation.isPending) return
+          setUploadFile(null)
+          setUploadTitle('')
+          setUploadCategory('')
+          setUploadSummary('')
+          setUploadTagsInput('')
+          setUploadEnabled(true)
           setUploadProgress(0)
           setUploadOpen(false)
         }}
@@ -1402,7 +1458,19 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           </Stack>
         </DialogContent>
         <DialogActions>
-          <ActionButton onClick={() => setUploadOpen(false)} disabled={uploadMutation.isPending}>
+          <ActionButton
+            onClick={() => {
+              setUploadFile(null)
+              setUploadTitle('')
+              setUploadCategory('')
+              setUploadSummary('')
+              setUploadTagsInput('')
+              setUploadEnabled(true)
+              setUploadProgress(0)
+              setUploadOpen(false)
+            }}
+            disabled={uploadMutation.isPending}
+          >
             {t('knowledge.actions.cancel')}
           </ActionButton>
           <ActionButton tone="primary" onClick={handleUploadSubmit} disabled={uploadMutation.isPending || !uploadFile}>
@@ -1415,7 +1483,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         open={deleteOpen}
         onClose={() => !(deleteMutation.isPending || unbindAssetMutation.isPending) && setDeleteOpen(false)}
       >
-        <DialogTitle>{t('knowledge.dialogs.deleteTitle')}</DialogTitle>
+        <DialogTitle>
+          {selectedItem?.kind === 'asset'
+            ? t('knowledge.dialogs.removeTitle')
+            : t('knowledge.dialogs.deleteTitle')}
+        </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary">
             {deleteDialogContent}
@@ -1442,7 +1514,9 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 : deleteMutation.isPending || selectedDocumentId == null
             }
           >
-            {t('knowledge.actions.delete')}
+            {selectedItem?.kind === 'asset'
+              ? t('knowledge.actions.remove')
+              : t('knowledge.actions.delete')}
           </ActionButton>
         </DialogActions>
       </Dialog>

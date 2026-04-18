@@ -254,16 +254,16 @@ async def schedule_rebuild_document(document: DBKBDocument) -> bool:
 
 
 async def rebuild_workspace_documents(workspace_id: int) -> tuple[int, int]:
+    """将工作区所有文档提交到后台索引队列。返回 (已调度数, 已跳过数)。"""
     documents = await DBKBDocument.filter(workspace_id=workspace_id).all()
-    success = 0
-    failed = 0
+    scheduled = 0
+    skipped = 0
     for document in documents:
-        try:
-            await rebuild_document(document)
-            success += 1
-        except Exception:
-            failed += 1
-    return success, failed
+        if await schedule_rebuild_document(document):
+            scheduled += 1
+        else:
+            skipped += 1
+    return scheduled, skipped
 
 
 async def delete_document_files(document: DBKBDocument) -> None:

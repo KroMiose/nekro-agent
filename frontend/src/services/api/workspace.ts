@@ -172,18 +172,6 @@ export interface KBDocumentListResponse {
   items: KBDocumentListItem[]
 }
 
-export interface KBTreeNode {
-  name: string
-  path: string
-  type: 'dir' | 'file'
-  document_id: number | null
-  children: KBTreeNode[] | null
-}
-
-export interface KBTreeResponse {
-  nodes: KBTreeNode[]
-}
-
 export interface KBDocumentDetailResponse {
   document: KBDocumentListItem
   source_content: string | null
@@ -194,7 +182,7 @@ export interface KBFullTextResponse {
   document_id: number
   title: string
   source_path: string
-  source_workspace_path: string
+  source_workspace_path: string | null
   normalized_text_path: string | null
   normalized_workspace_path: string | null
   content: string
@@ -751,11 +739,6 @@ export const knowledgeBaseApi = {
   list: async (workspaceId: number): Promise<KBDocumentListItem[]> => {
     const response = await axios.get<KBDocumentListResponse>(`/workspaces/${workspaceId}/kb/documents`)
     return response.data.items
-  },
-
-  getTree: async (workspaceId: number): Promise<KBTreeNode[]> => {
-    const response = await axios.get<KBTreeResponse>(`/workspaces/${workspaceId}/kb/tree`)
-    return response.data.nodes
   },
 
   getDocument: async (workspaceId: number, documentId: number): Promise<KBDocumentDetailResponse> => {

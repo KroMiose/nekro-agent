@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Drawer,
   FormControl,
   InputLabel,
@@ -39,7 +40,7 @@ import {
   ViewModule as GridViewIcon,
   FormatListBulleted as ListViewIcon,
 } from '@mui/icons-material'
-import { alpha } from '@mui/material/styles'
+import { alpha, type SxProps, type Theme } from '@mui/material/styles'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import {
@@ -415,17 +416,15 @@ export default function KbLibraryPage() {
     px: 1.25,
     fontSize: '0.82rem',
   }
-  const detailSectionSx = [
-    UNIFIED_TABLE_STYLES.paper,
-    {
+  const detailSectionSx: SxProps<Theme> = {
+    ...(UNIFIED_TABLE_STYLES.paper as object),
+    boxShadow: 'none',
+    borderColor: alpha(theme.palette.primary.main, 0.08),
+    backgroundColor: alpha(theme.palette.background.paper, 0.82),
+    '&:hover': {
       boxShadow: 'none',
-      borderColor: alpha(theme.palette.primary.main, 0.08),
-      backgroundColor: alpha(theme.palette.background.paper, 0.82),
-      '&:hover': {
-        boxShadow: 'none',
-      },
     },
-  ]
+  }
   const previewBodySx = {
     px: 2,
     py: 2.25,

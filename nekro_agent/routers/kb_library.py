@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
 
@@ -31,6 +31,7 @@ from nekro_agent.services.kb.library_index_service import (
 from nekro_agent.services.kb.library_service import (
     TEXT_LIBRARY_FORMATS,
     asset_to_list_item,
+    assets_to_list_items,
     bind_asset_workspace,
     create_asset_from_upload,
     create_text_asset,
@@ -82,7 +83,7 @@ async def list_kb_library_assets(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBAssetListResponse:
     assets = await list_assets()
-    items = [await asset_to_list_item(asset) for asset in assets]
+    items = await assets_to_list_items(assets)
     return KBAssetListResponse(total=len(items), items=items)
 
 
@@ -248,19 +249,23 @@ async def get_kb_library_raw_file(
 @require_role(Role.Admin)
 async def get_kb_library_fulltext(
     asset_id: int,
+    max_chars: int = Query(default=20000, ge=200, le=200000),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBFullTextResponse:
     asset = await _get_asset_or_404(asset_id)
     content = read_asset_normalized_content(asset)
+    truncated = len(content) > max_chars
+    if truncated:
+        content = content[:max_chars]
     return KBFullTextResponse(
         document_id=asset.id,
         title=asset.title,
         source_path=asset.source_path,
-        source_workspace_path="",
+        source_workspace_path=None,
         normalized_text_path=asset.normalized_text_path,
         normalized_workspace_path=None,
         content=content,
-        truncated=False,
+        truncated=truncated,
     )
 
 
