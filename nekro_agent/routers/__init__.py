@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, Request
@@ -62,6 +63,54 @@ def mount_middlewares(app: FastAPI):
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def request_timing_middleware(request: Request, call_next):
+        """记录 HTTP 请求耗时，并回写响应头。
+
+        说明：
+        - 普通请求记录的是完整处理耗时
+        - 流式响应记录的是开始返回响应前的耗时，不包含整个流结束时间
+        """
+        def get_elapsed_color(elapsed_ms: float) -> str:
+            if elapsed_ms >= 3000:
+                return "red"
+            if elapsed_ms >= 1000:
+                return "yellow"
+            if elapsed_ms >= 300:
+                return "blue"
+            return "green"
+
+        started_at = time.perf_counter()
+        status_code = 500
+
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+        except Exception:
+            elapsed_ms = (time.perf_counter() - started_at) * 1000
+            elapsed_color = get_elapsed_color(elapsed_ms)
+            client_host = request.client.host if request.client else "unknown"
+            logger.opt(colors=True).debug(
+                f"[HTTP] {request.method} {request.url.path} "
+                f"status={status_code} "
+                f"elapsed=<{elapsed_color}>{elapsed_ms:.2f}ms</{elapsed_color}> "
+                f"client={client_host}"
+            )
+            raise
+
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        response.headers["X-Process-Time"] = f"{elapsed_ms:.2f}ms"
+
+        elapsed_color = get_elapsed_color(elapsed_ms)
+        client_host = request.client.host if request.client else "unknown"
+        logger.opt(colors=True).debug(
+            f"[HTTP] {request.method} {request.url.path} "
+            f"status={status_code} "
+            f"elapsed=<{elapsed_color}>{elapsed_ms:.2f}ms</{elapsed_color}> "
+            f"client={client_host}"
+        )
+        return response
 
     # 注册统一的全局异常处理器
     # 支持 AppError 业务错误、验证错误、HTTPException 及通用异常
