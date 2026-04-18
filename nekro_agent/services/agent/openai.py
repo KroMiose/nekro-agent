@@ -509,14 +509,14 @@ async def gen_openai_chat_response(
             try:
                 return await stream_iter.__anext__()
             except StopAsyncIteration as exc:
-                raise ValueError("Stream response ended before the first chunk was received") from exc
+                raise ValueError("流式响应在返回首个数据块前已结束，API 供应商返回了空流") from exc
 
         if timeout_seconds and timeout_seconds > 0:
             try:
                 async with asyncio.timeout(timeout_seconds):
                     return await wait_first_chunk()
             except TimeoutError as exc:
-                raise TimeoutError(f"Stream first token timed out after {timeout_seconds}s") from exc
+                raise TimeoutError(f"等待流式响应首个数据块超时，已超过 {timeout_seconds} 秒") from exc
         return await wait_first_chunk()
 
     # 使用async with语法创建和管理httpx客户端
@@ -559,7 +559,7 @@ async def gen_openai_chat_response(
                     **gen_kwargs,
                 )
                 if not res.choices or len(res.choices) == 0 or not res.choices[0].message.content:
-                    raise ValueError("Chat response is empty! Response: %s", res)  # noqa: TRY301
+                    raise ValueError(f"非流式响应内容为空，供应商未返回可用消息。原始响应: {res}")  # noqa: TRY301
 
                 output = res.choices[0].message.content
                 thought_chain = getattr(res.choices[0].message, thought_chain_field_name, "") or ""
