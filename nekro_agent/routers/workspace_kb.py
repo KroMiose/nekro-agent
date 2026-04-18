@@ -302,9 +302,12 @@ async def delete_workspace_kb_document(
     document_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBActionResponse:
+    from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
     document = await _get_document_or_404(workspace_id, document_id)
     await delete_document_index(document)
     await delete_document_files(document)
+    await DBKBDocumentReference.filter(source_document_id=document_id).delete()
+    await DBKBDocumentReference.filter(target_document_id=document_id).delete()
     await document.delete()
     return KBActionResponse(ok=True)
 

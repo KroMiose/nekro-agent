@@ -96,6 +96,21 @@ function isSupportedUploadFile(file: File): boolean {
   return SUPPORTED_UPLOAD_EXTENSIONS.includes(getFileExtension(file.name))
 }
 
+type BatchItemStatus = 'waiting' | 'uploading' | 'indexing' | 'done' | 'error'
+
+interface BatchQueueItem {
+  id: string
+  file: File
+  status: BatchItemStatus
+  uploadProgress: number
+  assetId?: number
+  errorMessage?: string
+  title: string
+  category: string
+  tags: string
+  summary: string
+}
+
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return '-'
   const date = new Date(value)
@@ -192,6 +207,8 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const { t } = useTranslation('workspace')
   const { kbIndexProgresses, kbLibraryIndexProgresses } = useSystemEventsContext()
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
+  const batchInputRef = useRef<HTMLInputElement | null>(null)
+  const batchProcessingRef = useRef(false)
   const lastProgressTerminalRef = useRef('')
   const lastAssetProgressTerminalRef = useRef('')
 
@@ -200,6 +217,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const [searchResult, setSearchResult] = useState<KBSearchResponse | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [batchUploadOpen, setBatchUploadOpen] = useState(false)
+  const [batchQueue, setBatchQueue] = useState<BatchQueueItem[]>([])
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [batchPanelVisible, setBatchPanelVisible] = useState(false)
+  const [expandedBatchItemId, setExpandedBatchItemId] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [reuseOpen, setReuseOpen] = useState(false)
   const [addMenuAnchorEl, setAddMenuAnchorEl] = useState<HTMLElement | null>(null)
@@ -689,6 +711,83 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     setCreateOpen(true)
   }
 
+  const handleOpenBatchUploadDialog = () => {
+    handleAddMenuClose()
+    setBatchQueue([])
+    setBatchUploadOpen(true)
+  }
+
+  const handleBatchFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (files.length === 0) return
+    const unsupported = files.filter(f => !isSupportedUploadFile(f))
+    if (unsupported.length > 0) {
+      notification.error(
+        t('knowledge.notifications.unsupportedFormat', {
+          name: unsupported.map(f => f.name).join(', '),
+          formats: SUPPORTED_UPLOAD_EXTENSIONS.join(', '),
+        })
+      )
+      return
+    }
+    setBatchQueue(files.map(f => ({
+      id: `${f.name}-${f.size}-${Math.random()}`,
+      file: f,
+      status: 'waiting',
+      uploadProgress: 0,
+      title: f.name.replace(/\.[^.]+$/, ''),
+      category: uploadCategory,
+      tags: uploadTagsInput,
+      summary: '',
+    })))
+  }
+
+  const startBatchUpload = useCallback(async (items: BatchQueueItem[]) => {
+    if (batchProcessingRef.current) return
+    batchProcessingRef.current = true
+    setBatchRunning(true)
+    setBatchUploadOpen(false)
+    setBatchPanelVisible(true)
+    try {
+      for (const item of items) {
+        setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', uploadProgress: 0 } : i))
+        try {
+          const data = await kbLibraryApi.uploadFile(
+            {
+              file: item.file,
+              title: item.title || item.file.name.replace(/\.[^.]+$/, ''),
+              category: item.category,
+              tags: normalizeTagsInput(item.tags),
+              summary: item.summary,
+              is_enabled: true,
+            },
+            pct => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, uploadProgress: pct } : i)),
+          )
+          await kbLibraryApi.bindWorkspace(data.asset.id, workspace.id)
+          setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'indexing', assetId: data.asset.id } : i))
+          const deadline = Date.now() + 300_000
+          while (Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 1500))
+            const detail = await kbLibraryApi.getAsset(data.asset.id)
+            if (detail.asset.sync_status === 'ready' || detail.asset.sync_status === 'failed') break
+          }
+          setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'done' } : i))
+        } catch (err) {
+          setBatchQueue(prev => prev.map(i => i.id === item.id ? {
+            ...i,
+            status: 'error',
+            errorMessage: err instanceof Error ? err.message : String(err),
+          } : i))
+        }
+      }
+    } finally {
+      batchProcessingRef.current = false
+      setBatchRunning(false)
+      await refreshAll()
+    }
+  }, [workspace.id, refreshAll])
+
   const handleOpenUploadDialog = () => {
     handleAddMenuClose()
     setUploadOpen(true)
@@ -940,6 +1039,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
               <MenuItem onClick={handleOpenUploadDialog}>{t('knowledge.actions.uploadFile')}</MenuItem>
+              <MenuItem onClick={handleOpenBatchUploadDialog}>{t('knowledge.actions.batchUpload')}</MenuItem>
               <MenuItem onClick={handleOpenCreateDialog}>{t('knowledge.actions.createText')}</MenuItem>
               <MenuItem onClick={handleReuseDialogOpen}>{t('knowledge.actions.reuseGlobal')}</MenuItem>
             </Menu>
@@ -1742,6 +1842,211 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           </ActionButton>
         </DialogActions>
       </Dialog>
+
+      {/* 批量上传队列对话框 */}
+      <Dialog
+        open={batchUploadOpen}
+        onClose={() => { setBatchUploadOpen(false); setBatchQueue([]) }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{t('knowledge.dialogs.batchUploadTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {batchQueue.length === 0 ? (
+              <ActionButton
+                tone="secondary"
+                startIcon={<FolderOpenIcon />}
+                onClick={() => batchInputRef.current?.click()}
+              >
+                {t('knowledge.actions.chooseFiles')}
+              </ActionButton>
+            ) : (
+              <>
+                <Stack spacing={0.5}>
+                  {batchQueue.map(item => (
+                    <Box key={item.id} sx={{ borderRadius: 1, bgcolor: 'action.hover', overflow: 'hidden' }}>
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ py: 0.75, px: 1 }}>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" noWrap title={item.file.name} sx={{ fontWeight: item.title !== item.file.name.replace(/\.[^.]+$/, '') ? 500 : undefined }}>
+                            {item.title || item.file.name}
+                          </Typography>
+                          {(item.category || item.tags) && (
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {[item.category, item.tags].filter(Boolean).join(' · ')}
+                            </Typography>
+                          )}
+                          {item.status === 'uploading' && (
+                            <LinearProgress variant="determinate" value={item.uploadProgress} sx={{ mt: 0.5, height: 3, borderRadius: 999 }} />
+                          )}
+                          {item.status === 'error' && item.errorMessage && (
+                            <Typography variant="caption" color="error">{item.errorMessage}</Typography>
+                          )}
+                        </Box>
+                        <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
+                          {formatFileSize(item.file.size)}
+                        </Typography>
+                        {item.status === 'waiting' && (
+                          <Tooltip title={t('knowledge.batchStatus.edit')}>
+                            <span>
+                              <IconActionButton
+                                size="small"
+                                onClick={() => setExpandedBatchItemId(prev => prev === item.id ? null : item.id)}
+                              >
+                                <SearchIcon sx={{ fontSize: 14 }} />
+                              </IconActionButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                        {item.status === 'uploading' && <CircularProgress size={14} />}
+                        {item.status === 'indexing' && <CircularProgress size={14} color="warning" />}
+                        {item.status === 'done' && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
+                        {item.status === 'error' && <ErrorOutlineIcon sx={{ fontSize: 16, color: 'error.main' }} />}
+                      </Stack>
+                      {expandedBatchItemId === item.id && item.status === 'waiting' && (
+                        <Box sx={{ px: 1, pb: 1 }}>
+                          <Stack spacing={1}>
+                            <TextField
+                              size="small"
+                              label={t('knowledge.form.title')}
+                              value={item.title}
+                              onChange={e => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, title: e.target.value } : i))}
+                              fullWidth
+                            />
+                            <TextField
+                              size="small"
+                              label={t('knowledge.form.category')}
+                              value={item.category}
+                              onChange={e => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, category: e.target.value } : i))}
+                              fullWidth
+                            />
+                            <TextField
+                              size="small"
+                              label={t('knowledge.form.tags')}
+                              value={item.tags}
+                              onChange={e => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, tags: e.target.value } : i))}
+                              placeholder={t('knowledge.form.tagsPlaceholder')}
+                              fullWidth
+                            />
+                            <TextField
+                              size="small"
+                              label={t('knowledge.form.summary')}
+                              value={item.summary}
+                              onChange={e => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, summary: e.target.value } : i))}
+                              fullWidth
+                            />
+                          </Stack>
+                        </Box>
+                      )}
+                    </Box>
+                  ))}
+                </Stack>
+                {batchQueue.every(i => i.status === 'waiting') && (
+                  <ActionButton
+                    tone="secondary"
+                    startIcon={<FolderOpenIcon />}
+                    onClick={() => batchInputRef.current?.click()}
+                  >
+                    {t('knowledge.actions.reChooseFiles')}
+                  </ActionButton>
+                )}
+              </>
+            )}
+            <Alert severity="info">
+              {t('knowledge.form.supportedFormats', { formats: SUPPORTED_UPLOAD_EXTENSIONS.join(', ') })}
+            </Alert>
+            <input
+              ref={batchInputRef}
+              type="file"
+              hidden
+              multiple
+              onChange={handleBatchFileChange}
+              accept=".md,.txt,.html,.htm,.json,.yaml,.yml,.csv,.xlsx,.pdf,.docx"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton onClick={() => { setBatchUploadOpen(false); setBatchQueue([]) }}>
+            {t('knowledge.actions.cancel')}
+          </ActionButton>
+          {batchQueue.length > 0 && batchQueue.some(i => i.status === 'waiting') && (
+            <ActionButton
+              tone="primary"
+              onClick={() => startBatchUpload(batchQueue.filter(i => i.status === 'waiting'))}
+            >
+              {t('knowledge.actions.startUpload', { count: batchQueue.filter(i => i.status === 'waiting').length })}
+            </ActionButton>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* 批量上传悬浮进度面板 */}
+      {batchPanelVisible && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: 340,
+            zIndex: 1400,
+            boxShadow: 6,
+            borderRadius: 2,
+            overflow: 'hidden',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Stack
+            direction="row"
+            alignItems="center"
+            sx={{ px: 2, py: 1.25, bgcolor: 'primary.main' }}
+          >
+            <Typography variant="subtitle2" sx={{ flex: 1, color: 'primary.contrastText' }}>
+              {batchRunning
+                ? t('knowledge.batchPanel.inProgress', { done: batchQueue.filter(i => i.status === 'done' || i.status === 'error').length, total: batchQueue.length })
+                : t('knowledge.batchPanel.done', { total: batchQueue.length, failed: batchQueue.filter(i => i.status === 'error').length })}
+            </Typography>
+            {!batchRunning && (
+              <Tooltip title={t('knowledge.actions.close')}>
+                <span>
+                  <IconActionButton size="small" sx={{ color: 'primary.contrastText', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }} onClick={() => setBatchPanelVisible(false)}>
+                    <ClearIcon sx={{ fontSize: 16 }} />
+                  </IconActionButton>
+                </span>
+              </Tooltip>
+            )}
+          </Stack>
+          <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
+            {batchQueue.map(item => (
+              <Stack key={item.id} spacing={0.25} sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" noWrap title={item.title || item.file.name}>
+                      {item.title || item.file.name}
+                    </Typography>
+                    {item.category && (
+                      <Typography variant="caption" color="text.secondary" noWrap>{item.category}</Typography>
+                    )}
+                  </Box>
+                  {item.status === 'waiting' && <Typography variant="caption" color="text.disabled">{t('knowledge.batchStatus.waiting')}</Typography>}
+                  {item.status === 'uploading' && <CircularProgress size={14} />}
+                  {item.status === 'indexing' && <CircularProgress size={14} color="warning" />}
+                  {item.status === 'done' && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
+                  {item.status === 'error' && <ErrorOutlineIcon sx={{ fontSize: 16, color: 'error.main' }} />}
+                </Stack>
+                {item.status === 'uploading' && (
+                  <LinearProgress variant="determinate" value={item.uploadProgress} sx={{ height: 3, borderRadius: 999 }} />
+                )}
+                {item.status === 'indexing' && (
+                  <LinearProgress color="warning" sx={{ height: 3, borderRadius: 999 }} />
+                )}
+                {item.status === 'error' && item.errorMessage && (
+                  <Typography variant="caption" color="error" noWrap title={item.errorMessage}>{item.errorMessage}</Typography>
+                )}
+              </Stack>
+            ))}
+          </Box>
+        </Box>
+      )}
 
       <Dialog
         open={uploadOpen}

@@ -1042,12 +1042,17 @@
       "reindexAll": "Reindex All",
       "createText": "New Text Doc",
       "uploadFile": "Upload File",
+      "batchUpload": "Batch Upload",
       "cancel": "Cancel",
+      "close": "Close",
       "create": "Create",
       "creating": "Creating...",
       "upload": "Upload",
       "uploading": "Uploading...",
       "chooseFile": "Choose File",
+      "chooseFiles": "Choose Files (multi-select)",
+      "reChooseFiles": "Re-select Files",
+      "startUpload": "Start Upload ({{count}} files)",
       "reindex": "Reindex",
       "reuseGlobal": "Reuse Global KB",
       "saveReuse": "Save Reuse",
@@ -1059,6 +1064,14 @@
       "enabled": "Enabled",
       "disabled": "Disabled",
       "save": "Save"
+    },
+    "batchStatus": {
+      "waiting": "Waiting",
+      "uploading": "Uploading",
+      "indexing": "Indexing",
+      "done": "Done",
+      "error": "Failed",
+      "edit": "Edit metadata"
     },
     "stats": {
       "documents": "{{count}} docs",
@@ -1146,6 +1159,7 @@
     "dialogs": {
       "createTitle": "Create Text Knowledge",
       "uploadTitle": "Upload Knowledge File",
+      "batchUploadTitle": "Batch Upload Knowledge Files",
       "reuseTitle": "Add From Global Knowledge",
       "reuseHint": "Choose the global knowledge files to add to this workspace. Saving will bind those files to the current workspace.",
       "reuseEmpty": "No reusable global knowledge files match the current filter.",
@@ -1199,6 +1213,10 @@
       "updateSuccess": "Reference description updated",
       "updateFailed": "Failed to update reference: {{message}}",
       "autoDetected": "Automatically detected from document content"
+    },
+    "batchPanel": {
+      "inProgress": "Uploading {{done}}/{{total}}",
+      "done": "Done ({{total}} total, {{failed}} failed)"
     }
   },
   "kbLibrary": {
@@ -1210,7 +1228,12 @@
       "create": "Create",
       "creating": "Creating...",
       "upload": "Upload File",
+      "batchUpload": "Batch Upload",
       "chooseFile": "Choose File",
+      "chooseFiles": "Choose Files (multi-select)",
+      "reChooseFiles": "Re-select Files",
+      "startUpload": "Start Upload ({{count}} files)",
+      "close": "Close",
       "clearFilters": "Clear Filters",
       "bind": "Bind Workspaces",
       "saveBindings": "Save Bindings",
@@ -1218,6 +1241,14 @@
       "downloadRaw": "Download Raw",
       "delete": "Delete File",
       "cancel": "Cancel"
+    },
+    "batchStatus": {
+      "waiting": "Waiting",
+      "uploading": "Uploading",
+      "indexing": "Indexing",
+      "done": "Done",
+      "error": "Failed",
+      "edit": "Edit metadata"
     },
     "stats": {
       "total": "Files",
@@ -1300,6 +1331,7 @@
     "dialogs": {
       "createTitle": "Create Global Text Knowledge",
       "uploadTitle": "Upload Global Knowledge File",
+      "batchUploadTitle": "Batch Upload Global Knowledge Files",
       "bindTitle": "Bind Workspaces",
       "bindHint": "Choose the workspaces that should reuse this file. After binding, the workspaces can use it directly without re-uploading.",
       "deleteTitle": "Delete Global Knowledge File",
@@ -1320,6 +1352,10 @@
       "bindFailed": "Binding failed: {{message}}",
       "downloadFailed": "Download failed: {{message}}",
       "unsupportedFormat": "File {{name}} is not supported. Supported: {{formats}}"
+    },
+    "batchPanel": {
+      "inProgress": "Uploading {{done}}/{{total}}",
+      "done": "Done ({{total}} total, {{failed}} failed)"
     }
   },
   "timers": {

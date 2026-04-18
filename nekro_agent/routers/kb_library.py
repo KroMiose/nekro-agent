@@ -216,12 +216,15 @@ async def delete_kb_library_asset(
     asset_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBActionResponse:
+    from nekro_agent.models.db_kb_asset_reference import DBKBAssetReference
     asset = await _get_asset_or_404(asset_id)
     bound_workspaces = await list_asset_bound_workspaces(asset.id)
     if bound_workspaces:
         raise ConflictError(resource=f"全局知识库文件 {asset.id} 仍被 {len(bound_workspaces)} 个工作区绑定")
     await delete_asset_index(asset)
     await delete_asset_files(asset)
+    await DBKBAssetReference.filter(source_asset_id=asset_id).delete()
+    await DBKBAssetReference.filter(target_asset_id=asset_id).delete()
     await asset.delete()
     return KBActionResponse(ok=True)
 

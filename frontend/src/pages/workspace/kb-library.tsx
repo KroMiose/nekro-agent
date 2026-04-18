@@ -27,14 +27,18 @@ import {
 import {
   Add as AddIcon,
   AutoAwesome as LibraryIcon,
+  CheckCircleOutline as CheckCircleIcon,
   Close as CloseIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
+  ErrorOutline as ErrorOutlineIcon,
   FileUpload as FileUploadIcon,
+  FolderOpen as FolderOpenIcon,
   Link as BindIcon,
   Refresh as RefreshIcon,
   RestartAlt as ReindexIcon,
   FilterAltOff as FilterAltOffIcon,
+  Tune as EditMetaIcon,
   Description as AssetIcon,
   Hub as BindingsIcon,
   ViewModule as GridViewIcon,
@@ -65,6 +69,20 @@ import StatCard from '../../components/common/StatCard'
 
 type FilterStatus = 'all' | 'ready' | 'indexing' | 'failed'
 type ViewMode = 'card' | 'list'
+type BatchItemStatus = 'waiting' | 'uploading' | 'indexing' | 'done' | 'error'
+
+interface BatchQueueItem {
+  id: string
+  file: File
+  status: BatchItemStatus
+  uploadProgress: number
+  assetId?: number
+  errorMessage?: string
+  title: string
+  category: string
+  tags: string
+  summary: string
+}
 
 const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.xlsx', '.pdf', '.docx']
 const EMPTY_ASSETS: KBAssetListItem[] = []
@@ -135,6 +153,8 @@ export default function KbLibraryPage() {
   const { t } = useTranslation('workspace')
   const { kbLibraryIndexProgresses } = useSystemEventsContext()
   const lastProgressTerminalRef = useRef('')
+  const batchInputRef = useRef<HTMLInputElement | null>(null)
+  const batchProcessingRef = useRef(false)
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all')
@@ -144,6 +164,7 @@ export default function KbLibraryPage() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [bindOpen, setBindOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [assetToDelete, setAssetToDelete] = useState<{ id: number; title: string } | null>(null)
   const [createForm, setCreateForm] = useState<KBCreateTextDocumentBody>({
     title: '',
     content: '',
@@ -163,6 +184,11 @@ export default function KbLibraryPage() {
   const [uploadTagsInput, setUploadTagsInput] = useState('')
   const [bindWorkspaceIds, setBindWorkspaceIds] = useState<number[]>([])
   const [uploadProgress, setUploadProgress] = useState<number>(0)
+  const [batchUploadOpen, setBatchUploadOpen] = useState(false)
+  const [batchQueue, setBatchQueue] = useState<BatchQueueItem[]>([])
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [batchPanelVisible, setBatchPanelVisible] = useState(false)
+  const [expandedBatchItemId, setExpandedBatchItemId] = useState<string | null>(null)
 
   const assetsQuery = useQuery({
     queryKey: ['kb-library-assets'],
@@ -287,10 +313,11 @@ export default function KbLibraryPage() {
   const deleteMutation = useMutation({
     mutationFn: (assetId: number) => kbLibraryApi.deleteAsset(assetId),
     onSuccess: async () => {
-      await refreshAll()
       setDeleteOpen(false)
+      setAssetToDelete(null)
       setSelectedAssetId(null)
       clearInteractiveFocus()
+      await refreshAll()
       notification.success(t('kbLibrary.notifications.deleteSuccess'))
     },
     onError: (err: Error) => notification.error(t('kbLibrary.notifications.deleteFailed', { message: err.message })),
@@ -340,6 +367,76 @@ export default function KbLibraryPage() {
       is_enabled: true,
     })
   }
+
+  const handleBatchFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (files.length === 0) return
+    const unsupported = files.filter(f => !isSupportedUploadFile(f))
+    if (unsupported.length > 0) {
+      notification.error(
+        t('kbLibrary.notifications.unsupportedFormat', {
+          name: unsupported.map(f => f.name).join(', '),
+          formats: SUPPORTED_UPLOAD_EXTENSIONS.join(', '),
+        })
+      )
+      return
+    }
+    setBatchQueue(files.map(f => ({
+      id: `${f.name}-${f.size}-${Math.random()}`,
+      file: f,
+      status: 'waiting',
+      uploadProgress: 0,
+      title: f.name.replace(/\.[^.]+$/, ''),
+      category: '',
+      tags: '',
+      summary: '',
+    })))
+  }
+
+  const startBatchUpload = useCallback(async (items: BatchQueueItem[]) => {
+    if (batchProcessingRef.current) return
+    batchProcessingRef.current = true
+    setBatchRunning(true)
+    setBatchUploadOpen(false)
+    setBatchPanelVisible(true)
+    try {
+      for (const item of items) {
+        setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', uploadProgress: 0 } : i))
+        try {
+          const data = await kbLibraryApi.uploadFile(
+            {
+              file: item.file,
+              title: item.title || item.file.name.replace(/\.[^.]+$/, ''),
+              category: item.category,
+              tags: item.tags ? item.tags.split(',').map((s: string) => s.trim()).filter(Boolean) : [],
+              summary: item.summary,
+              is_enabled: true,
+            },
+            pct => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, uploadProgress: pct } : i)),
+          )
+          setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'indexing', assetId: data.asset.id } : i))
+          const deadline = Date.now() + 300_000
+          while (Date.now() < deadline) {
+            await new Promise(r => setTimeout(r, 1500))
+            const detail = await kbLibraryApi.getAsset(data.asset.id)
+            if (detail.asset.sync_status === 'ready' || detail.asset.sync_status === 'failed') break
+          }
+          setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'done' } : i))
+        } catch (err) {
+          setBatchQueue(prev => prev.map(i => i.id === item.id ? {
+            ...i,
+            status: 'error',
+            errorMessage: err instanceof Error ? err.message : String(err),
+          } : i))
+        }
+      }
+    } finally {
+      batchProcessingRef.current = false
+      setBatchRunning(false)
+      await refreshAll()
+    }
+  }, [refreshAll])
 
   const handleCreateSubmit = () => {
     if (!createForm.title.trim() || !createForm.content.trim()) return
@@ -398,6 +495,7 @@ export default function KbLibraryPage() {
     if (bindingsMutation.isPending || deleteMutation.isPending) return
     setBindOpen(false)
     setDeleteOpen(false)
+    setAssetToDelete(null)
     setSelectedAssetId(null)
     clearInteractiveFocus()
   }
@@ -516,6 +614,9 @@ export default function KbLibraryPage() {
               </Tooltip>
               <ActionButton size="small" tone="secondary" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
                 {t('kbLibrary.actions.createText')}
+              </ActionButton>
+              <ActionButton size="small" tone="secondary" startIcon={<FileUploadIcon />} onClick={() => { setBatchQueue([]); setBatchUploadOpen(true) }}>
+                {t('kbLibrary.actions.batchUpload')}
               </ActionButton>
               <ActionButton size="small" tone="primary" startIcon={<FileUploadIcon />} onClick={() => setUploadOpen(true)}>
                 {t('kbLibrary.actions.upload')}
@@ -787,7 +888,7 @@ export default function KbLibraryPage() {
                         tone="danger"
                         startIcon={<DeleteIcon />}
                         sx={compactActionSx}
-                        onClick={() => setDeleteOpen(true)}
+                        onClick={() => { setAssetToDelete({ id: detail.asset.id, title: detail.asset.title }); setDeleteOpen(true) }}
                       >
                         {t('kbLibrary.actions.delete')}
                       </ActionButton>
@@ -981,6 +1082,198 @@ export default function KbLibraryPage() {
         </DialogActions>
       </Dialog>
 
+      {/* 批量上传队列对话框 */}
+      <Dialog
+        open={batchUploadOpen}
+        onClose={() => { setBatchUploadOpen(false); setBatchQueue([]) }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>{t('kbLibrary.dialogs.batchUploadTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {batchQueue.length === 0 ? (
+              <ActionButton tone="secondary" startIcon={<FolderOpenIcon />} onClick={() => batchInputRef.current?.click()}>
+                {t('kbLibrary.actions.chooseFiles')}
+              </ActionButton>
+            ) : (
+              <>
+                <Stack spacing={0.5}>
+                  {batchQueue.map(item => (
+                    <Box key={item.id} sx={{ borderRadius: 1, bgcolor: 'action.hover', overflow: 'hidden' }}>
+                      <Stack direction="row" alignItems="center" spacing={1} sx={{ py: 0.75, px: 1 }}>
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" noWrap title={item.file.name}>
+                            {item.title || item.file.name}
+                          </Typography>
+                          {(item.category || item.tags) && (
+                            <Typography variant="caption" color="text.secondary" noWrap>
+                              {[item.category, item.tags].filter(Boolean).join(' · ')}
+                            </Typography>
+                          )}
+                          {item.status === 'uploading' && (
+                            <LinearProgress variant="determinate" value={item.uploadProgress} sx={{ mt: 0.5, height: 3, borderRadius: 999 }} />
+                          )}
+                          {item.status === 'error' && item.errorMessage && (
+                            <Typography variant="caption" color="error">{item.errorMessage}</Typography>
+                          )}
+                        </Box>
+                        <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
+                          {formatFileSize(item.file.size)}
+                        </Typography>
+                        {item.status === 'waiting' && (
+                          <Tooltip title={t('kbLibrary.batchStatus.edit')}>
+                            <span>
+                              <IconActionButton
+                                size="small"
+                                onClick={() => setExpandedBatchItemId(prev => prev === item.id ? null : item.id)}
+                              >
+                                <EditMetaIcon sx={{ fontSize: 14 }} />
+                              </IconActionButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                        {item.status === 'uploading' && <CircularProgress size={14} />}
+                        {item.status === 'indexing' && <CircularProgress size={14} color="warning" />}
+                        {item.status === 'done' && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
+                        {item.status === 'error' && <ErrorOutlineIcon sx={{ fontSize: 16, color: 'error.main' }} />}
+                      </Stack>
+                      {expandedBatchItemId === item.id && item.status === 'waiting' && (
+                        <Box sx={{ px: 1, pb: 1 }}>
+                          <Stack spacing={1}>
+                            <TextField
+                              size="small"
+                              label={t('kbLibrary.form.title')}
+                              value={item.title}
+                              onChange={e => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, title: e.target.value } : i))}
+                              fullWidth
+                            />
+                            <TextField
+                              size="small"
+                              label={t('kbLibrary.form.category')}
+                              value={item.category}
+                              onChange={e => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, category: e.target.value } : i))}
+                              fullWidth
+                            />
+                            <TextField
+                              size="small"
+                              label={t('kbLibrary.form.tags')}
+                              value={item.tags}
+                              onChange={e => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, tags: e.target.value } : i))}
+                              fullWidth
+                            />
+                            <TextField
+                              size="small"
+                              label={t('kbLibrary.form.summary')}
+                              value={item.summary}
+                              onChange={e => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, summary: e.target.value } : i))}
+                              fullWidth
+                            />
+                          </Stack>
+                        </Box>
+                      )}
+                    </Box>
+                  ))}
+                </Stack>
+                {batchQueue.every(i => i.status === 'waiting') && (
+                  <ActionButton tone="secondary" startIcon={<FolderOpenIcon />} onClick={() => batchInputRef.current?.click()}>
+                    {t('kbLibrary.actions.reChooseFiles')}
+                  </ActionButton>
+                )}
+              </>
+            )}
+            <Alert severity="info">
+              {t('kbLibrary.form.supportedFormats', { formats: SUPPORTED_UPLOAD_EXTENSIONS.join(', ') })}
+            </Alert>
+            <input
+              ref={batchInputRef}
+              type="file"
+              hidden
+              multiple
+              onChange={handleBatchFileChange}
+              accept=".md,.txt,.html,.htm,.json,.yaml,.yml,.csv,.xlsx,.pdf,.docx"
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton onClick={() => { setBatchUploadOpen(false); setBatchQueue([]) }}>
+            {t('kbLibrary.actions.cancel')}
+          </ActionButton>
+          {batchQueue.length > 0 && batchQueue.some(i => i.status === 'waiting') && (
+            <ActionButton
+              tone="primary"
+              onClick={() => startBatchUpload(batchQueue.filter(i => i.status === 'waiting'))}
+            >
+              {t('kbLibrary.actions.startUpload', { count: batchQueue.filter(i => i.status === 'waiting').length })}
+            </ActionButton>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* 批量上传悬浮进度面板 */}
+      {batchPanelVisible && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            width: 340,
+            zIndex: 1400,
+            boxShadow: 6,
+            borderRadius: 2,
+            overflow: 'hidden',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Stack direction="row" alignItems="center" sx={{ px: 2, py: 1.25, bgcolor: 'primary.main' }}>
+            <Typography variant="subtitle2" sx={{ flex: 1, color: 'primary.contrastText' }}>
+              {batchRunning
+                ? t('kbLibrary.batchPanel.inProgress', { done: batchQueue.filter(i => i.status === 'done' || i.status === 'error').length, total: batchQueue.length })
+                : t('kbLibrary.batchPanel.done', { total: batchQueue.length, failed: batchQueue.filter(i => i.status === 'error').length })}
+            </Typography>
+            {!batchRunning && (
+              <Tooltip title={t('kbLibrary.actions.close')}>
+                <span>
+                  <IconActionButton size="small" sx={{ color: 'primary.contrastText', '&:hover': { bgcolor: 'rgba(255,255,255,0.15)' } }} onClick={() => setBatchPanelVisible(false)}>
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconActionButton>
+                </span>
+              </Tooltip>
+            )}
+          </Stack>
+          <Box sx={{ maxHeight: 320, overflowY: 'auto' }}>
+            {batchQueue.map(item => (
+              <Stack key={item.id} spacing={0.25} sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="body2" noWrap title={item.title || item.file.name}>
+                      {item.title || item.file.name}
+                    </Typography>
+                    {item.category && (
+                      <Typography variant="caption" color="text.secondary" noWrap>{item.category}</Typography>
+                    )}
+                  </Box>
+                  {item.status === 'waiting' && <Typography variant="caption" color="text.disabled">{t('kbLibrary.batchStatus.waiting')}</Typography>}
+                  {item.status === 'uploading' && <CircularProgress size={14} />}
+                  {item.status === 'indexing' && <CircularProgress size={14} color="warning" />}
+                  {item.status === 'done' && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
+                  {item.status === 'error' && <ErrorOutlineIcon sx={{ fontSize: 16, color: 'error.main' }} />}
+                </Stack>
+                {item.status === 'uploading' && (
+                  <LinearProgress variant="determinate" value={item.uploadProgress} sx={{ height: 3, borderRadius: 999 }} />
+                )}
+                {item.status === 'indexing' && (
+                  <LinearProgress color="warning" sx={{ height: 3, borderRadius: 999 }} />
+                )}
+                {item.status === 'error' && item.errorMessage && (
+                  <Typography variant="caption" color="error" noWrap title={item.errorMessage}>{item.errorMessage}</Typography>
+                )}
+              </Stack>
+            ))}
+          </Box>
+        </Box>
+      )}
+
       <Dialog
         open={uploadOpen}
         onClose={() => {
@@ -1075,7 +1368,7 @@ export default function KbLibraryPage() {
         <DialogTitle>{t('kbLibrary.dialogs.deleteTitle')}</DialogTitle>
         <DialogContent>
           <Alert severity="warning">
-            {t('kbLibrary.dialogs.deleteContent', { title: selectedAsset?.title ?? '-' })}
+            {t('kbLibrary.dialogs.deleteContent', { title: assetToDelete?.title ?? '-' })}
           </Alert>
         </DialogContent>
         <DialogActions>
@@ -1083,8 +1376,8 @@ export default function KbLibraryPage() {
           <ActionButton
             tone="danger"
             startIcon={<DeleteIcon />}
-            onClick={() => selectedAsset && deleteMutation.mutate(selectedAsset.id)}
-            disabled={!selectedAsset || deleteMutation.isPending}
+            onClick={() => assetToDelete && deleteMutation.mutate(assetToDelete.id)}
+            disabled={!assetToDelete || deleteMutation.isPending}
           >
             {t('kbLibrary.actions.delete')}
           </ActionButton>

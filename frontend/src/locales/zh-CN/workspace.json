@@ -1042,12 +1042,17 @@
       "reindexAll": "全量重建索引",
       "createText": "新建文本知识",
       "uploadFile": "上传知识文件",
+      "batchUpload": "批量上传",
       "cancel": "取消",
+      "close": "关闭",
       "create": "创建",
       "creating": "创建中...",
       "upload": "上传",
       "uploading": "上传中...",
       "chooseFile": "选择文件",
+      "chooseFiles": "选择文件（支持多选）",
+      "reChooseFiles": "重新选择文件",
+      "startUpload": "开始上传（{{count}} 个文件）",
       "reindex": "重建索引",
       "reuseGlobal": "复用全局知识库",
       "saveReuse": "保存复用",
@@ -1059,6 +1064,14 @@
       "enabled": "启用",
       "disabled": "禁用",
       "save": "保存"
+    },
+    "batchStatus": {
+      "waiting": "等待中",
+      "uploading": "上传中",
+      "indexing": "索引中",
+      "done": "完成",
+      "error": "失败",
+      "edit": "编辑元数据"
     },
     "stats": {
       "documents": "文档 {{count}}",
@@ -1146,6 +1159,7 @@
     "dialogs": {
       "createTitle": "新建文本知识",
       "uploadTitle": "上传知识文件",
+      "batchUploadTitle": "批量上传知识文件",
       "reuseTitle": "从全局知识库添加",
       "reuseHint": "选择要添加到当前工作区的全局知识文件。保存后，这些文件会与当前工作区建立绑定关系。",
       "reuseEmpty": "没有匹配到可复用的全局知识文件。",
@@ -1199,6 +1213,10 @@
       "updateSuccess": "引用说明已更新",
       "updateFailed": "更新失败：{{message}}",
       "autoDetected": "由系统从文档内容自动检测"
+    },
+    "batchPanel": {
+      "inProgress": "上传中 {{done}}/{{total}}",
+      "done": "上传完成（共 {{total}} 个，失败 {{failed}} 个）"
     }
   },
   "kbLibrary": {
@@ -1210,7 +1228,12 @@
       "create": "创建",
       "creating": "创建中...",
       "upload": "上传文件",
+      "batchUpload": "批量上传",
       "chooseFile": "选择文件",
+      "chooseFiles": "选择文件（支持多选）",
+      "reChooseFiles": "重新选择文件",
+      "startUpload": "开始上传（{{count}} 个文件）",
+      "close": "关闭",
       "clearFilters": "清空筛选",
       "bind": "绑定工作区",
       "saveBindings": "保存绑定",
@@ -1218,6 +1241,14 @@
       "downloadRaw": "下载原文件",
       "delete": "删除文件",
       "cancel": "取消"
+    },
+    "batchStatus": {
+      "waiting": "等待中",
+      "uploading": "上传中",
+      "indexing": "索引中",
+      "done": "完成",
+      "error": "失败",
+      "edit": "编辑元数据"
     },
     "stats": {
       "total": "文件总数",
@@ -1300,6 +1331,7 @@
     "dialogs": {
       "createTitle": "新建全局文本知识",
       "uploadTitle": "上传全局知识库文件",
+      "batchUploadTitle": "批量上传全局知识库文件",
       "bindTitle": "绑定工作区",
       "bindHint": "选择需要复用这份文件的工作区。绑定后，工作区即可直接使用该文件而无需再次上传。",
       "deleteTitle": "删除全局知识库文件",
@@ -1320,6 +1352,10 @@
       "bindFailed": "绑定失败：{{message}}",
       "downloadFailed": "下载失败：{{message}}",
       "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}"
+    },
+    "batchPanel": {
+      "inProgress": "上传中 {{done}}/{{total}}",
+      "done": "上传完成（共 {{total}} 个，失败 {{failed}} 个）"
     }
   },
   "timers": {
