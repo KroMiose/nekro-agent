@@ -592,7 +592,7 @@ export default function ExtensionsTab({
                     )}
                   </Box>
                   <Tooltip title={t('detail.extensions.removeTooltip')}>
-                    <IconActionButton size="small" color="error" onClick={() => handleRemoveSkill(skill.name)}>
+                    <IconActionButton size="small" tone="danger" onClick={() => handleRemoveSkill(skill.name)}>
                       <DeleteIcon sx={{ fontSize: 15 }} />
                     </IconActionButton>
                   </Tooltip>
@@ -660,7 +660,7 @@ export default function ExtensionsTab({
                           <span>
                             <IconActionButton
                               size="small"
-                              color="success"
+                              tone="primary"
                               disabled={promotingDynamic === skill.dir_name}
                               onClick={() => handlePromoteDynamic(skill.dir_name, true)}
                             >
@@ -677,7 +677,7 @@ export default function ExtensionsTab({
                           <span>
                             <IconActionButton
                               size="small"
-                              color="primary"
+                              tone="primary"
                               disabled={promotingDynamic === skill.dir_name}
                               onClick={() => handlePromoteDynamic(skill.dir_name)}
                             >
@@ -694,7 +694,7 @@ export default function ExtensionsTab({
                         <span>
                           <IconActionButton
                             size="small"
-                            color="error"
+                            tone="danger"
                             disabled={deletingDynamic === skill.dir_name}
                             onClick={() => setDeleteConfirmDynamic(skill.dir_name)}
                           >
@@ -881,7 +881,7 @@ export default function ExtensionsTab({
                   <span>
                     <IconActionButton
                       size="small"
-                      color="success"
+                      tone="primary"
                       disabled={promotingDynamic === drawerDynamic.dir_name}
                       onClick={() => handlePromoteDynamic(drawerDynamic.dir_name, true)}
                     >
@@ -894,7 +894,7 @@ export default function ExtensionsTab({
                   <span>
                     <IconActionButton
                       size="small"
-                      color="primary"
+                      tone="primary"
                       disabled={promotingDynamic === drawerDynamic.dir_name}
                       onClick={() => handlePromoteDynamic(drawerDynamic.dir_name)}
                     >
@@ -1175,7 +1175,7 @@ export default function ExtensionsTab({
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <ActionButton onClick={() => setDynUnsavedTarget(null)}>{t('skills.drawer.keepEditing')}</ActionButton>
-          <ActionButton variant="contained" color="warning" onClick={handleDynDiscardAndSwitch}>{t('skills.drawer.discard')}</ActionButton>
+          <ActionButton tone="ghost" onClick={handleDynDiscardAndSwitch}>{t('skills.drawer.discard')}</ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1196,8 +1196,7 @@ export default function ExtensionsTab({
             {t('detail.extensions.deleteDynamicDialog.cancel')}
           </ActionButton>
           <ActionButton
-            variant="contained"
-            color="error"
+            tone="danger"
             onClick={confirmDeleteDynamic}
             disabled={!!deletingDynamic}
           >

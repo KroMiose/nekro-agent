@@ -19,7 +19,6 @@ from nekro_agent.services.command.schemas import (
     CommandResponseStatus,
 )
 
-
 BUILT_IN_SOURCE = "built_in"
 """内置命令的 source / namespace 标识符，用于与插件命令来源区分。"""
 
