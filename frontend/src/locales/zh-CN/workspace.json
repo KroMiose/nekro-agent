@@ -1057,7 +1057,8 @@
       "enable": "启用检索",
       "disable": "禁用检索",
       "enabled": "启用",
-      "disabled": "禁用"
+      "disabled": "禁用",
+      "save": "保存"
     },
     "stats": {
       "documents": "文档 {{count}}",
@@ -1175,6 +1176,28 @@
       "removeFailed": "移除知识文件失败：{{message}}",
       "downloadFailed": "下载失败：{{message}}",
       "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}"
+    },
+    "references": {
+      "title": "引用关系",
+      "referencesTo": "此文档引用了",
+      "referencedBy": "被以下文档引用",
+      "empty": "暂无引用关系",
+      "add": "添加引用",
+      "remove": "移除引用",
+      "editDesc": "编辑说明",
+      "addDialogTitle": "添加引用文档",
+      "editDialogTitle": "编辑引用说明",
+      "editingTarget": "目标文档：{{title}}",
+      "searchPlaceholder": "搜索文档标题、分类、摘要...",
+      "noCandidates": "没有可添加的文档。所有同类文档已被引用，或当前只有一篇文档。",
+      "descriptionLabel": "引用说明（可选）",
+      "descriptionPlaceholder": "简要说明被引用文档补充了哪些内容，如"第三章详细展开了配置项说明"",
+      "addSuccess": "引用关系已添加",
+      "addFailed": "添加引用失败：{{message}}",
+      "removeSuccess": "引用关系已移除",
+      "removeFailed": "移除引用失败：{{message}}",
+      "updateSuccess": "引用说明已更新",
+      "updateFailed": "更新失败：{{message}}"
     }
   },
   "kbLibrary": {

@@ -10,7 +10,8 @@ from typing import Iterable
 from fastapi import UploadFile
 
 from nekro_agent.models.db_kb_document import DBKBDocument
-from nekro_agent.schemas.kb import KBDocumentListItem
+from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
+from nekro_agent.schemas.kb import KBDocumentListItem, KBDocumentReferences, KBReferenceItem
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 TEXT_FORMATS = {"markdown", "text", "html", "json", "yaml", "csv"}
@@ -266,3 +267,94 @@ async def update_document_metadata(
     if update_fields:
         await document.save(update_fields=[*sorted(set(update_fields)), "update_time"])
     return document
+
+
+# ---------------------------------------------------------------------------
+# 文档引用关系管理
+# ---------------------------------------------------------------------------
+
+
+def _doc_to_reference_item(ref: DBKBDocumentReference, doc: DBKBDocument, is_source: bool) -> KBReferenceItem:
+    return KBReferenceItem(
+        ref_id=ref.id,
+        document_id=doc.id,
+        title=doc.title,
+        category=doc.category,
+        format=doc.format,  # type: ignore[arg-type]
+        summary=doc.summary,
+        description=ref.description,
+    )
+
+
+async def get_document_references(workspace_id: int, document_id: int) -> KBDocumentReferences:
+    refs_to = await DBKBDocumentReference.filter(
+        workspace_id=workspace_id, source_document_id=document_id
+    ).all()
+    refs_by = await DBKBDocumentReference.filter(
+        workspace_id=workspace_id, target_document_id=document_id
+    ).all()
+
+    target_ids = [r.target_document_id for r in refs_to]
+    source_ids = [r.source_document_id for r in refs_by]
+    all_ids = list(set(target_ids + source_ids))
+
+    docs = await DBKBDocument.filter(id__in=all_ids, workspace_id=workspace_id).all()
+    doc_map = {doc.id: doc for doc in docs}
+
+    references_to = [
+        _doc_to_reference_item(ref, doc, is_source=True)
+        for ref in refs_to
+        if (doc := doc_map.get(ref.target_document_id)) is not None
+    ]
+    referenced_by = [
+        _doc_to_reference_item(ref, doc, is_source=False)
+        for ref in refs_by
+        if (doc := doc_map.get(ref.source_document_id)) is not None
+    ]
+    return KBDocumentReferences(references_to=references_to, referenced_by=referenced_by)
+
+
+async def add_document_reference(
+    workspace_id: int,
+    source_document_id: int,
+    target_document_id: int,
+    description: str,
+) -> DBKBDocumentReference:
+    if source_document_id == target_document_id:
+        raise ValueError("不能引用自身")
+    ref, _ = await DBKBDocumentReference.get_or_create(
+        source_document_id=source_document_id,
+        target_document_id=target_document_id,
+        defaults={"workspace_id": workspace_id, "description": description},
+    )
+    if ref.description != description or ref.workspace_id != workspace_id:
+        ref.description = description
+        ref.workspace_id = workspace_id
+        await ref.save(update_fields=["description", "workspace_id", "update_time"])
+    return ref
+
+
+async def remove_document_reference(
+    workspace_id: int,
+    source_document_id: int,
+    target_document_id: int,
+) -> bool:
+    deleted = await DBKBDocumentReference.filter(
+        workspace_id=workspace_id,
+        source_document_id=source_document_id,
+        target_document_id=target_document_id,
+    ).delete()
+    return deleted > 0
+
+
+async def get_referenced_document_ids(workspace_id: int, document_ids: list[int]) -> dict[int, list[int]]:
+    """批量查询多个文档引用了哪些文档，用于搜索时联动展开。"""
+    if not document_ids:
+        return {}
+    refs = await DBKBDocumentReference.filter(
+        workspace_id=workspace_id, source_document_id__in=document_ids
+    ).all()
+    result: dict[int, list[int]] = {doc_id: [] for doc_id in document_ids}
+    for ref in refs:
+        result[ref.source_document_id].append(ref.target_document_id)
+    return result

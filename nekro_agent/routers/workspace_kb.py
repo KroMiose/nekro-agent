@@ -12,9 +12,11 @@ from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
 from nekro_agent.schemas.kb import (
     KBActionResponse,
+    KBAddReferenceBody,
     KBCreateTextDocumentBody,
     KBDocumentDetailResponse,
     KBDocumentListResponse,
+    KBDocumentReferences,
     KBFullTextResponse,
     KBReindexResponse,
     KBSearchRequest,
@@ -23,16 +25,20 @@ from nekro_agent.schemas.kb import (
     KBTreeNode,
     KBTreeResponse,
     KBUpdateDocumentBody,
+    KBUpdateReferenceBody,
 )
 from nekro_agent.services.kb.document_service import (
+    add_document_reference,
     create_file_document,
     create_text_document,
     document_to_list_item,
     get_document,
+    get_document_references,
     list_documents,
     normalize_tags,
     read_normalized_content,
     read_source_content,
+    remove_document_reference,
     update_document_metadata,
 )
 from nekro_agent.services.kb.index_service import (
@@ -395,6 +401,96 @@ async def search_workspace_kb_route(
         category=body.category,
         tags=body.tags,
     )
+
+
+@router.get(
+    "/{workspace_id}/kb/documents/{document_id}/references",
+    summary="获取文档引用关系（双向）",
+    response_model=KBDocumentReferences,
+)
+@require_role(Role.Admin)
+async def get_document_references_route(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentReferences:
+    await _get_document_or_404(workspace_id, document_id)
+    return await get_document_references(workspace_id, document_id)
+
+
+@router.post(
+    "/{workspace_id}/kb/documents/{document_id}/references",
+    summary="添加文档引用关系",
+    response_model=KBDocumentReferences,
+)
+@require_role(Role.Admin)
+async def add_document_reference_route(
+    workspace_id: int,
+    document_id: int,
+    body: KBAddReferenceBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentReferences:
+    await _get_document_or_404(workspace_id, document_id)
+    await _get_document_or_404(workspace_id, body.target_id)
+    try:
+        await add_document_reference(
+            workspace_id=workspace_id,
+            source_document_id=document_id,
+            target_document_id=body.target_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    except IntegrityError as e:
+        raise ConflictError("该引用关系已存在") from e
+    return await get_document_references(workspace_id, document_id)
+
+
+@router.put(
+    "/{workspace_id}/kb/documents/{document_id}/references/{target_id}",
+    summary="更新文档引用说明",
+    response_model=KBDocumentReferences,
+)
+@require_role(Role.Admin)
+async def update_document_reference_route(
+    workspace_id: int,
+    document_id: int,
+    target_id: int,
+    body: KBUpdateReferenceBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentReferences:
+    await _get_document_or_404(workspace_id, document_id)
+    try:
+        await add_document_reference(
+            workspace_id=workspace_id,
+            source_document_id=document_id,
+            target_document_id=target_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    return await get_document_references(workspace_id, document_id)
+
+
+@router.delete(
+    "/{workspace_id}/kb/documents/{document_id}/references/{target_id}",
+    summary="删除文档引用关系",
+    response_model=KBDocumentReferences,
+)
+@require_role(Role.Admin)
+async def remove_document_reference_route(
+    workspace_id: int,
+    document_id: int,
+    target_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentReferences:
+    await _get_document_or_404(workspace_id, document_id)
+    await remove_document_reference(
+        workspace_id=workspace_id,
+        source_document_id=document_id,
+        target_document_id=target_id,
+    )
+    return await get_document_references(workspace_id, document_id)
 
 
 @router.get(

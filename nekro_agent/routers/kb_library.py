@@ -12,14 +12,17 @@ from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
 from nekro_agent.schemas.kb import (
     KBActionResponse,
+    KBAddReferenceBody,
     KBAssetBindingsResponse,
     KBAssetBindingsUpdateBody,
     KBAssetDetailResponse,
     KBAssetListResponse,
+    KBAssetReferences,
     KBAssetUploadResponse,
     KBCreateTextDocumentBody,
     KBFullTextResponse,
     KBUpdateAssetBody,
+    KBUpdateReferenceBody,
 )
 from nekro_agent.services.kb.library_index_service import (
     delete_asset_files,
@@ -30,16 +33,19 @@ from nekro_agent.services.kb.library_index_service import (
 )
 from nekro_agent.services.kb.library_service import (
     TEXT_LIBRARY_FORMATS,
+    add_asset_reference,
     asset_to_list_item,
     assets_to_list_items,
     bind_asset_workspace,
     create_asset_from_upload,
     create_text_asset,
     get_asset,
+    get_asset_references,
     list_asset_bound_workspaces,
     list_assets,
     read_asset_normalized_content,
     read_asset_source_content,
+    remove_asset_reference,
     resolve_kb_library_source_path,
     unbind_asset_workspace,
     update_asset_bindings,
@@ -329,3 +335,83 @@ async def unbind_kb_library_asset_workspace(
     await _ensure_workspace_exists(workspace_id)
     items = await unbind_asset_workspace(asset_id, workspace_id)
     return KBAssetBindingsResponse(asset_id=asset_id, binding_count=len(items), items=items)
+
+
+@router.get(
+    "/assets/{asset_id}/references",
+    summary="获取资产引用关系（双向）",
+    response_model=KBAssetReferences,
+)
+@require_role(Role.Admin)
+async def get_kb_library_asset_references(
+    asset_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetReferences:
+    await _get_asset_or_404(asset_id)
+    return await get_asset_references(asset_id)
+
+
+@router.post(
+    "/assets/{asset_id}/references",
+    summary="添加资产引用关系",
+    response_model=KBAssetReferences,
+)
+@require_role(Role.Admin)
+async def add_kb_library_asset_reference(
+    asset_id: int,
+    body: KBAddReferenceBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetReferences:
+    await _get_asset_or_404(asset_id)
+    await _get_asset_or_404(body.target_id)
+    try:
+        await add_asset_reference(
+            source_asset_id=asset_id,
+            target_asset_id=body.target_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    except IntegrityError as e:
+        raise ConflictError("该引用关系已存在") from e
+    return await get_asset_references(asset_id)
+
+
+@router.put(
+    "/assets/{asset_id}/references/{target_id}",
+    summary="更新资产引用说明",
+    response_model=KBAssetReferences,
+)
+@require_role(Role.Admin)
+async def update_kb_library_asset_reference(
+    asset_id: int,
+    target_id: int,
+    body: KBUpdateReferenceBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetReferences:
+    await _get_asset_or_404(asset_id)
+    try:
+        await add_asset_reference(
+            source_asset_id=asset_id,
+            target_asset_id=target_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    return await get_asset_references(asset_id)
+
+
+@router.delete(
+    "/assets/{asset_id}/references/{target_id}",
+    summary="删除资产引用关系",
+    response_model=KBAssetReferences,
+)
+@require_role(Role.Admin)
+async def remove_kb_library_asset_reference(
+    asset_id: int,
+    target_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetReferences:
+    await _get_asset_or_404(asset_id)
+    await remove_asset_reference(source_asset_id=asset_id, target_asset_id=target_id)
+    return await get_asset_references(asset_id)

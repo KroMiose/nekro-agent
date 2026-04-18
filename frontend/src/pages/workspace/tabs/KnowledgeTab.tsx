@@ -28,8 +28,11 @@ import {
 import {
   Add as AddIcon,
   ArrowDropDown as ArrowDropDownIcon,
+  CallMade as OutboundLinkIcon,
+  CallReceived as InboundLinkIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
+  Link as LinkIcon,
   Refresh as RefreshIcon,
   RestartAlt as ReindexIcon,
   Search as SearchIcon,
@@ -49,6 +52,8 @@ import {
   KBAssetListItem,
   KBCreateTextDocumentBody,
   KBDocumentDetailResponse,
+  KBDocumentReferences,
+  KBReferenceItem,
   KBSearchResponse,
   KBUploadFilePayload,
   kbLibraryApi,
@@ -200,6 +205,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const [reuseSearch, setReuseSearch] = useState('')
   const [reuseAssetIds, setReuseAssetIds] = useState<number[]>([])
 
+  const [refDialogOpen, setRefDialogOpen] = useState(false)
+  const [refTargetSearch, setRefTargetSearch] = useState('')
+  const [refDescription, setRefDescription] = useState('')
+  const [editingRef, setEditingRef] = useState<KBReferenceItem | null>(null)
+
   const [createForm, setCreateForm] = useState<KBCreateTextDocumentBody>({
     title: '',
     content: '',
@@ -325,6 +335,24 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     staleTime: 60_000,
   })
 
+  const documentReferencesQuery = useQuery({
+    queryKey: ['kb-document-references', workspace.id, selectedDocumentId],
+    queryFn: () => knowledgeBaseApi.getReferences(workspace.id, selectedDocumentId as number),
+    enabled: selectedDocumentId != null,
+    staleTime: 30_000,
+  })
+  const assetReferencesQuery = useQuery({
+    queryKey: ['kb-asset-references', selectedAssetId],
+    queryFn: () => kbLibraryApi.getReferences(selectedAssetId as number),
+    enabled: selectedAssetId != null,
+    staleTime: 30_000,
+  })
+  const activeReferences: KBDocumentReferences = (
+    selectedDocumentId != null
+      ? documentReferencesQuery.data
+      : assetReferencesQuery.data
+  ) ?? { references_to: [], referenced_by: [] }
+
   const refreshAll = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['kb-documents', workspace.id] }),
@@ -333,6 +361,15 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       queryClient.invalidateQueries({ queryKey: ['kb-library-asset'] }),
     ])
   }, [queryClient, workspace.id])
+
+  const refreshReferences = useCallback(async () => {
+    if (selectedDocumentId != null) {
+      await queryClient.invalidateQueries({ queryKey: ['kb-document-references', workspace.id, selectedDocumentId] })
+    }
+    if (selectedAssetId != null) {
+      await queryClient.invalidateQueries({ queryKey: ['kb-asset-references', selectedAssetId] })
+    }
+  }, [queryClient, workspace.id, selectedDocumentId, selectedAssetId])
 
   const createMutation = useMutation({
     mutationFn: async (body: KBCreateTextDocumentBody) => {
@@ -469,6 +506,50 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       notification.success(t('knowledge.notifications.updateSuccess'))
     },
     onError: (err: Error) => notification.error(t('knowledge.notifications.updateFailed', { message: err.message })),
+  })
+
+  const addReferenceMutation = useMutation({
+    mutationFn: ({ targetId, description }: { targetId: number; description: string }) =>
+      selectedDocumentId != null
+        ? knowledgeBaseApi.addReference(workspace.id, selectedDocumentId, targetId, description)
+        : kbLibraryApi.addReference(selectedAssetId as number, targetId, description),
+    onSuccess: async () => {
+      await refreshReferences()
+      setRefDialogOpen(false)
+      setRefTargetSearch('')
+      setRefDescription('')
+      setEditingRef(null)
+      notification.success(t('knowledge.references.addSuccess'))
+    },
+    onError: (err: Error) => notification.error(t('knowledge.references.addFailed', { message: err.message })),
+  })
+
+  const removeReferenceMutation = useMutation({
+    mutationFn: (targetId: number) =>
+      selectedDocumentId != null
+        ? knowledgeBaseApi.removeReference(workspace.id, selectedDocumentId, targetId)
+        : kbLibraryApi.removeReference(selectedAssetId as number, targetId),
+    onSuccess: async () => {
+      await refreshReferences()
+      notification.success(t('knowledge.references.removeSuccess'))
+    },
+    onError: (err: Error) => notification.error(t('knowledge.references.removeFailed', { message: err.message })),
+  })
+
+  const updateReferenceMutation = useMutation({
+    mutationFn: ({ targetId, description }: { targetId: number; description: string }) =>
+      selectedDocumentId != null
+        ? knowledgeBaseApi.updateReference(workspace.id, selectedDocumentId, targetId, description)
+        : kbLibraryApi.updateReference(selectedAssetId as number, targetId, description),
+    onSuccess: async () => {
+      await refreshReferences()
+      setRefDialogOpen(false)
+      setRefTargetSearch('')
+      setRefDescription('')
+      setEditingRef(null)
+      notification.success(t('knowledge.references.updateSuccess'))
+    },
+    onError: (err: Error) => notification.error(t('knowledge.references.updateFailed', { message: err.message })),
   })
 
   const searchMutation = useMutation({
@@ -644,6 +725,31 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     return next
   }, [workspaceProgresses])
   const boundAssetIds = useMemo(() => new Set(boundGlobalAssets.map(a => a.id)), [boundGlobalAssets])
+
+  const alreadyReferencedToIds = useMemo(
+    () => new Set(activeReferences.references_to.map(r => r.document_id)),
+    [activeReferences.references_to]
+  )
+  const refCandidates = useMemo(() => {
+    const keyword = refTargetSearch.trim().toLowerCase()
+    if (selectedDocumentId != null) {
+      return documents
+        .filter(doc => doc.id !== selectedDocumentId && !alreadyReferencedToIds.has(doc.id))
+        .filter(doc =>
+          !keyword ||
+          [doc.title, doc.category, doc.summary, doc.file_name, ...doc.tags].join('\n').toLowerCase().includes(keyword)
+        )
+    }
+    if (selectedAssetId != null) {
+      return boundGlobalAssets
+        .filter(a => a.id !== selectedAssetId && !alreadyReferencedToIds.has(a.id))
+        .filter(a =>
+          !keyword ||
+          [a.title, a.category, a.summary, a.file_name, ...a.tags].join('\n').toLowerCase().includes(keyword)
+        )
+    }
+    return []
+  }, [selectedDocumentId, selectedAssetId, documents, boundGlobalAssets, alreadyReferencedToIds, refTargetSearch])
   const workspaceTerminalSignature = useMemo(
     () =>
       workspaceProgresses
@@ -1138,6 +1244,109 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
                   <Paper sx={detailSectionSx}>
                     <Stack spacing={1.25} sx={{ p: 2 }}>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Stack direction="row" spacing={0.75} alignItems="center">
+                          <LinkIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                          <Typography variant="subtitle2">{t('knowledge.references.title')}</Typography>
+                        </Stack>
+                        <ActionButton
+                          tone="primary"
+                          startIcon={<AddIcon />}
+                          sx={{ ...compactActionSx, minHeight: 26, fontSize: '0.78rem' }}
+                          onClick={() => {
+                            setEditingRef(null)
+                            setRefTargetSearch('')
+                            setRefDescription('')
+                            setRefDialogOpen(true)
+                          }}
+                        >
+                          {t('knowledge.references.add')}
+                        </ActionButton>
+                      </Stack>
+                      {activeReferences.references_to.length > 0 && (
+                        <Stack spacing={0.5}>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <OutboundLinkIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                            <Typography variant="caption" color="text.secondary">{t('knowledge.references.referencesTo')}</Typography>
+                          </Stack>
+                          {activeReferences.references_to.map(ref => (
+                            <Stack key={ref.ref_id} direction="row" alignItems="flex-start" spacing={1} sx={{ py: 0.5 }}>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' }, fontWeight: 500 }}
+                                  onClick={() => setSelectedItem({ kind: 'document', id: ref.document_id })}
+                                >
+                                  {ref.title}
+                                </Typography>
+                                {ref.description && (
+                                  <Typography variant="caption" color="text.secondary">{ref.description}</Typography>
+                                )}
+                              </Box>
+                              <Stack direction="row" spacing={0.25}>
+                                <Tooltip title={t('knowledge.references.editDesc')}>
+                                  <span>
+                                    <IconActionButton
+                                      size="small"
+                                      onClick={() => {
+                                        setEditingRef(ref)
+                                        setRefDescription(ref.description)
+                                        setRefTargetSearch('')
+                                        setRefDialogOpen(true)
+                                      }}
+                                    >
+                                      <SearchIcon sx={{ fontSize: 14 }} />
+                                    </IconActionButton>
+                                  </span>
+                                </Tooltip>
+                                <Tooltip title={t('knowledge.references.remove')}>
+                                  <span>
+                                    <IconActionButton
+                                      size="small"
+                                      onClick={() => removeReferenceMutation.mutate(ref.document_id)}
+                                      disabled={removeReferenceMutation.isPending}
+                                    >
+                                      <ClearIcon sx={{ fontSize: 14 }} />
+                                    </IconActionButton>
+                                  </span>
+                                </Tooltip>
+                              </Stack>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      )}
+                      {activeReferences.referenced_by.length > 0 && (
+                        <Stack spacing={0.5}>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <InboundLinkIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                            <Typography variant="caption" color="text.secondary">{t('knowledge.references.referencedBy')}</Typography>
+                          </Stack>
+                          {activeReferences.referenced_by.map(ref => (
+                            <Stack key={ref.ref_id} direction="row" alignItems="flex-start" spacing={1} sx={{ py: 0.5 }}>
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' }, fontWeight: 500 }}
+                                  onClick={() => setSelectedItem({ kind: 'document', id: ref.document_id })}
+                                >
+                                  {ref.title}
+                                </Typography>
+                                {ref.description && (
+                                  <Typography variant="caption" color="text.secondary">{ref.description}</Typography>
+                                )}
+                              </Box>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      )}
+                      {!activeReferences.references_to.length && !activeReferences.referenced_by.length && (
+                        <Typography variant="body2" color="text.disabled">{t('knowledge.references.empty')}</Typography>
+                      )}
+                    </Stack>
+                  </Paper>
+
+                  <Paper sx={detailSectionSx}>
+                    <Stack spacing={1.25} sx={{ p: 2 }}>
                       <Typography variant="subtitle2">{t('knowledge.detail.metadata')}</Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
                         {selectedDocumentMeta.source_path}
@@ -1269,6 +1478,109 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                     <Chip size="small" label={t('knowledge.detail.noTags')} variant="outlined" sx={neutralChipSx} />
                   )}
                 </Stack>
+
+                <Paper sx={detailSectionSx}>
+                  <Stack spacing={1.25} sx={{ p: 2 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Stack direction="row" spacing={0.75} alignItems="center">
+                        <LinkIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        <Typography variant="subtitle2">{t('knowledge.references.title')}</Typography>
+                      </Stack>
+                      <ActionButton
+                        tone="primary"
+                        startIcon={<AddIcon />}
+                        sx={{ ...compactActionSx, minHeight: 26, fontSize: '0.78rem' }}
+                        onClick={() => {
+                          setEditingRef(null)
+                          setRefTargetSearch('')
+                          setRefDescription('')
+                          setRefDialogOpen(true)
+                        }}
+                      >
+                        {t('knowledge.references.add')}
+                      </ActionButton>
+                    </Stack>
+                    {activeReferences.references_to.length > 0 && (
+                      <Stack spacing={0.5}>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <OutboundLinkIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                          <Typography variant="caption" color="text.secondary">{t('knowledge.references.referencesTo')}</Typography>
+                        </Stack>
+                        {activeReferences.references_to.map(ref => (
+                          <Stack key={ref.ref_id} direction="row" alignItems="flex-start" spacing={1} sx={{ py: 0.5 }}>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography
+                                variant="body2"
+                                sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' }, fontWeight: 500 }}
+                                onClick={() => setSelectedItem({ kind: 'asset', id: ref.document_id })}
+                              >
+                                {ref.title}
+                              </Typography>
+                              {ref.description && (
+                                <Typography variant="caption" color="text.secondary">{ref.description}</Typography>
+                              )}
+                            </Box>
+                            <Stack direction="row" spacing={0.25}>
+                              <Tooltip title={t('knowledge.references.editDesc')}>
+                                <span>
+                                  <IconActionButton
+                                    size="small"
+                                    onClick={() => {
+                                      setEditingRef(ref)
+                                      setRefDescription(ref.description)
+                                      setRefTargetSearch('')
+                                      setRefDialogOpen(true)
+                                    }}
+                                  >
+                                    <SearchIcon sx={{ fontSize: 14 }} />
+                                  </IconActionButton>
+                                </span>
+                              </Tooltip>
+                              <Tooltip title={t('knowledge.references.remove')}>
+                                <span>
+                                  <IconActionButton
+                                    size="small"
+                                    onClick={() => removeReferenceMutation.mutate(ref.document_id)}
+                                    disabled={removeReferenceMutation.isPending}
+                                  >
+                                    <ClearIcon sx={{ fontSize: 14 }} />
+                                  </IconActionButton>
+                                </span>
+                              </Tooltip>
+                            </Stack>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    )}
+                    {activeReferences.referenced_by.length > 0 && (
+                      <Stack spacing={0.5}>
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <InboundLinkIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
+                          <Typography variant="caption" color="text.secondary">{t('knowledge.references.referencedBy')}</Typography>
+                        </Stack>
+                        {activeReferences.referenced_by.map(ref => (
+                          <Stack key={ref.ref_id} direction="row" alignItems="flex-start" spacing={1} sx={{ py: 0.5 }}>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Typography
+                                variant="body2"
+                                sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' }, fontWeight: 500 }}
+                                onClick={() => setSelectedItem({ kind: 'asset', id: ref.document_id })}
+                              >
+                                {ref.title}
+                              </Typography>
+                              {ref.description && (
+                                <Typography variant="caption" color="text.secondary">{ref.description}</Typography>
+                              )}
+                            </Box>
+                          </Stack>
+                        ))}
+                      </Stack>
+                    )}
+                    {!activeReferences.references_to.length && !activeReferences.referenced_by.length && (
+                      <Typography variant="body2" color="text.disabled">{t('knowledge.references.empty')}</Typography>
+                    )}
+                  </Stack>
+                </Paper>
 
                 <Paper sx={detailSectionSx}>
                   <Stack spacing={1.25} sx={{ p: 2 }}>
@@ -1620,6 +1932,103 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           >
             {t('knowledge.actions.saveReuse')}
           </ActionButton>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={refDialogOpen}
+        onClose={() => {
+          if (addReferenceMutation.isPending || updateReferenceMutation.isPending) return
+          setRefDialogOpen(false)
+          setRefTargetSearch('')
+          setRefDescription('')
+          setEditingRef(null)
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {editingRef != null ? t('knowledge.references.editDialogTitle') : t('knowledge.references.addDialogTitle')}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {editingRef != null ? (
+              <Typography variant="body2" color="text.secondary">
+                {t('knowledge.references.editingTarget', { title: editingRef.title })}
+              </Typography>
+            ) : (
+              <>
+                <SearchField
+                  value={refTargetSearch}
+                  onChange={setRefTargetSearch}
+                  placeholder={t('knowledge.references.searchPlaceholder')}
+                  fullWidth
+                />
+                {refCandidates.length === 0 ? (
+                  <Alert severity="info">{t('knowledge.references.noCandidates')}</Alert>
+                ) : (
+                  <List sx={{ maxHeight: 320, overflowY: 'auto', py: 0 }}>
+                    {refCandidates.map(doc => (
+                      <ListItemButton
+                        key={doc.id}
+                        onClick={() => {
+                          addReferenceMutation.mutate({ targetId: doc.id, description: refDescription })
+                        }}
+                        disabled={addReferenceMutation.isPending}
+                        sx={{ py: 1 }}
+                      >
+                        <ListItemText
+                          primary={
+                            <Stack spacing={0.5}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>{doc.title}</Typography>
+                              <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                <Chip size="small" label={doc.format.toUpperCase()} variant="outlined" sx={neutralChipSx} />
+                                {doc.category && (
+                                  <Chip size="small" label={doc.category} variant="outlined" sx={neutralChipSx} />
+                                )}
+                              </Stack>
+                            </Stack>
+                          }
+                          secondary={doc.summary || undefined}
+                        />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                )}
+              </>
+            )}
+            <TextField
+              label={t('knowledge.references.descriptionLabel')}
+              fullWidth
+              multiline
+              minRows={2}
+              value={refDescription}
+              onChange={event => setRefDescription(event.target.value)}
+              placeholder={t('knowledge.references.descriptionPlaceholder')}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton
+            onClick={() => {
+              setRefDialogOpen(false)
+              setRefTargetSearch('')
+              setRefDescription('')
+              setEditingRef(null)
+            }}
+            disabled={addReferenceMutation.isPending || updateReferenceMutation.isPending}
+          >
+            {t('knowledge.actions.cancel')}
+          </ActionButton>
+          {editingRef != null && (
+            <ActionButton
+              tone="primary"
+              onClick={() => updateReferenceMutation.mutate({ targetId: editingRef.document_id, description: refDescription })}
+              disabled={updateReferenceMutation.isPending}
+            >
+              {t('knowledge.actions.save')}
+            </ActionButton>
+          )}
         </DialogActions>
       </Dialog>
     </Box>

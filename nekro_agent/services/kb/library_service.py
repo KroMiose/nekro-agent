@@ -8,10 +8,13 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_kb_asset_binding import DBKBAssetBinding
+from nekro_agent.models.db_kb_asset_reference import DBKBAssetReference
 from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.schemas.kb import (
     KBAssetBoundWorkspace,
     KBAssetListItem,
+    KBAssetReferences,
+    KBReferenceItem,
 )
 from nekro_agent.services.kb.document_service import (
     build_default_file_name,
@@ -334,3 +337,81 @@ async def bind_asset_workspace(asset_id: int, workspace_id: int) -> list[KBAsset
 async def unbind_asset_workspace(asset_id: int, workspace_id: int) -> list[KBAssetBoundWorkspace]:
     await DBKBAssetBinding.filter(asset_id=asset_id, workspace_id=workspace_id).delete()
     return await list_asset_bound_workspaces(asset_id)
+
+
+# ---------------------------------------------------------------------------
+# 资产引用关系管理
+# ---------------------------------------------------------------------------
+
+
+def _asset_to_reference_item(ref: DBKBAssetReference, asset: DBKBAsset) -> KBReferenceItem:
+    return KBReferenceItem(
+        ref_id=ref.id,
+        document_id=asset.id,
+        title=asset.title,
+        category=asset.category,
+        format=asset.format,  # type: ignore[arg-type]
+        summary=asset.summary,
+        description=ref.description,
+    )
+
+
+async def get_asset_references(asset_id: int) -> KBAssetReferences:
+    refs_to = await DBKBAssetReference.filter(source_asset_id=asset_id).all()
+    refs_by = await DBKBAssetReference.filter(target_asset_id=asset_id).all()
+
+    target_ids = [r.target_asset_id for r in refs_to]
+    source_ids = [r.source_asset_id for r in refs_by]
+    all_ids = list(set(target_ids + source_ids))
+
+    assets = await DBKBAsset.filter(id__in=all_ids).all()
+    asset_map = {a.id: a for a in assets}
+
+    references_to = [
+        _asset_to_reference_item(ref, a)
+        for ref in refs_to
+        if (a := asset_map.get(ref.target_asset_id)) is not None
+    ]
+    referenced_by = [
+        _asset_to_reference_item(ref, a)
+        for ref in refs_by
+        if (a := asset_map.get(ref.source_asset_id)) is not None
+    ]
+    return KBAssetReferences(references_to=references_to, referenced_by=referenced_by)
+
+
+async def add_asset_reference(
+    source_asset_id: int,
+    target_asset_id: int,
+    description: str,
+) -> DBKBAssetReference:
+    if source_asset_id == target_asset_id:
+        raise ValueError("不能引用自身")
+    ref, _ = await DBKBAssetReference.get_or_create(
+        source_asset_id=source_asset_id,
+        target_asset_id=target_asset_id,
+        defaults={"description": description},
+    )
+    if ref.description != description:
+        ref.description = description
+        await ref.save(update_fields=["description", "update_time"])
+    return ref
+
+
+async def remove_asset_reference(source_asset_id: int, target_asset_id: int) -> bool:
+    deleted = await DBKBAssetReference.filter(
+        source_asset_id=source_asset_id,
+        target_asset_id=target_asset_id,
+    ).delete()
+    return deleted > 0
+
+
+async def get_referenced_asset_ids(asset_ids: list[int]) -> dict[int, list[int]]:
+    """批量查询多个资产引用了哪些资产，用于搜索时联动展开。"""
+    if not asset_ids:
+        return {}
+    refs = await DBKBAssetReference.filter(source_asset_id__in=asset_ids).all()
+    result: dict[int, list[int]] = {asset_id: [] for asset_id in asset_ids}
+    for ref in refs:
+        result[ref.source_asset_id].append(ref.target_asset_id)
+    return result

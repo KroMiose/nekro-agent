@@ -231,6 +231,7 @@ export interface KBSearchDocument {
   headings: string[]
   best_match_excerpt: string
   snippets: KBSearchSnippet[]
+  referenced_document_ids: number[]
 }
 
 export interface KBSearchResponse {
@@ -242,7 +243,25 @@ export interface KBSearchResponse {
   documents: KBSearchDocument[]
   suggested_document_ids: number[]
   next_action_hint: string
+  reference_expanded_items: KBSearchItem[]
 }
+
+export interface KBReferenceItem {
+  ref_id: number
+  document_id: number
+  title: string
+  category: string
+  format: KBFormat
+  summary: string
+  description: string
+}
+
+export interface KBDocumentReferences {
+  references_to: KBReferenceItem[]
+  referenced_by: KBReferenceItem[]
+}
+
+export type KBAssetReferences = KBDocumentReferences
 
 export interface KBCreateTextDocumentBody {
   title: string
@@ -824,6 +843,50 @@ export const knowledgeBaseApi = {
       contentType: response.headers['content-type'] as string | null,
     }
   },
+
+  getReferences: async (workspaceId: number, documentId: number): Promise<KBDocumentReferences> => {
+    const response = await axios.get<KBDocumentReferences>(
+      `/workspaces/${workspaceId}/kb/documents/${documentId}/references`,
+    )
+    return response.data
+  },
+
+  addReference: async (
+    workspaceId: number,
+    documentId: number,
+    targetId: number,
+    description: string,
+  ): Promise<KBDocumentReferences> => {
+    const response = await axios.post<KBDocumentReferences>(
+      `/workspaces/${workspaceId}/kb/documents/${documentId}/references`,
+      { target_id: targetId, description },
+    )
+    return response.data
+  },
+
+  updateReference: async (
+    workspaceId: number,
+    documentId: number,
+    targetId: number,
+    description: string,
+  ): Promise<KBDocumentReferences> => {
+    const response = await axios.put<KBDocumentReferences>(
+      `/workspaces/${workspaceId}/kb/documents/${documentId}/references/${targetId}`,
+      { description },
+    )
+    return response.data
+  },
+
+  removeReference: async (
+    workspaceId: number,
+    documentId: number,
+    targetId: number,
+  ): Promise<KBDocumentReferences> => {
+    const response = await axios.delete<KBDocumentReferences>(
+      `/workspaces/${workspaceId}/kb/documents/${documentId}/references/${targetId}`,
+    )
+    return response.data
+  },
 }
 
 export const kbLibraryApi = {
@@ -911,6 +974,31 @@ export const kbLibraryApi = {
       filename: match?.[1] ?? null,
       contentType: response.headers['content-type'] as string | null,
     }
+  },
+
+  getReferences: async (assetId: number): Promise<KBAssetReferences> => {
+    const response = await axios.get<KBAssetReferences>(`/kb-library/assets/${assetId}/references`)
+    return response.data
+  },
+
+  addReference: async (assetId: number, targetId: number, description: string): Promise<KBAssetReferences> => {
+    const response = await axios.post<KBAssetReferences>(`/kb-library/assets/${assetId}/references`, {
+      target_id: targetId,
+      description,
+    })
+    return response.data
+  },
+
+  updateReference: async (assetId: number, targetId: number, description: string): Promise<KBAssetReferences> => {
+    const response = await axios.put<KBAssetReferences>(`/kb-library/assets/${assetId}/references/${targetId}`, {
+      description,
+    })
+    return response.data
+  },
+
+  removeReference: async (assetId: number, targetId: number): Promise<KBAssetReferences> => {
+    const response = await axios.delete<KBAssetReferences>(`/kb-library/assets/${assetId}/references/${targetId}`)
+    return response.data
   },
 }
 

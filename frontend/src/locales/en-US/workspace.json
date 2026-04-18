@@ -1057,7 +1057,8 @@
       "enable": "Enable Search",
       "disable": "Disable Search",
       "enabled": "Enabled",
-      "disabled": "Disabled"
+      "disabled": "Disabled",
+      "save": "Save"
     },
     "stats": {
       "documents": "{{count}} docs",
@@ -1175,6 +1176,28 @@
       "removeFailed": "Failed to remove knowledge file: {{message}}",
       "downloadFailed": "Download failed: {{message}}",
       "unsupportedFormat": "File {{name}} is not supported. Supported formats: {{formats}}"
+    },
+    "references": {
+      "title": "References",
+      "referencesTo": "This document references",
+      "referencedBy": "Referenced by",
+      "empty": "No references",
+      "add": "Add Reference",
+      "remove": "Remove reference",
+      "editDesc": "Edit description",
+      "addDialogTitle": "Add Reference",
+      "editDialogTitle": "Edit Reference Description",
+      "editingTarget": "Target: {{title}}",
+      "searchPlaceholder": "Search by title, category, summary...",
+      "noCandidates": "No candidates available. All documents in this view are already referenced, or there is only one document.",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "e.g. Chapter 3 expands on configuration details",
+      "addSuccess": "Reference added",
+      "addFailed": "Failed to add reference: {{message}}",
+      "removeSuccess": "Reference removed",
+      "removeFailed": "Failed to remove reference: {{message}}",
+      "updateSuccess": "Reference description updated",
+      "updateFailed": "Failed to update reference: {{message}}"
     }
   },
   "kbLibrary": {

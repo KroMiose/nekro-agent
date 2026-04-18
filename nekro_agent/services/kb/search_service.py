@@ -16,9 +16,15 @@ from nekro_agent.schemas.kb import (
     KBSearchResponse,
     KBSearchSnippet,
 )
-from nekro_agent.services.kb.document_service import read_normalized_content
+from nekro_agent.services.kb.document_service import (
+    get_referenced_document_ids,
+    read_normalized_content,
+)
 from nekro_agent.services.kb.library_qdrant_manager import kb_library_qdrant_manager
-from nekro_agent.services.kb.library_service import read_asset_normalized_content
+from nekro_agent.services.kb.library_service import (
+    get_referenced_asset_ids,
+    read_asset_normalized_content,
+)
 from nekro_agent.services.kb.qdrant_manager import kb_qdrant_manager
 from nekro_agent.services.memory.embedding_service import embed_text
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -611,6 +617,7 @@ def _build_document(bucket: _DocumentBucket, max_chunks_per_document: int) -> KB
         headings=headings,
         best_match_excerpt="\n".join(excerpt_parts),
         snippets=snippets,
+        # referenced_document_ids 由调用方在异步查询后填充
     )
 
 
@@ -834,6 +841,117 @@ async def search_workspace_kb(
         if len(flat_items) >= limit * max_chunks_per_document:
             break
 
+    # 引用展开：查询命中文档/资产的引用关系，填充 referenced_document_ids 并抓取补充 chunks
+    hit_doc_ids = [item.document_id for item in document_hits if item.source_kind == "document"]
+    hit_asset_ids = [item.document_id for item in document_hits if item.source_kind == "asset"]
+
+    doc_ref_map: dict[int, list[int]] = {}
+    asset_ref_map: dict[int, list[int]] = {}
+    if hit_doc_ids:
+        doc_ref_map = await get_referenced_document_ids(workspace_id, hit_doc_ids)
+    if hit_asset_ids:
+        asset_ref_map = await get_referenced_asset_ids(hit_asset_ids)
+
+    for doc_hit in document_hits:
+        if doc_hit.source_kind == "document":
+            doc_hit.referenced_document_ids = doc_ref_map.get(doc_hit.document_id, [])
+        else:
+            doc_hit.referenced_document_ids = asset_ref_map.get(doc_hit.document_id, [])
+
+    # 收集所有被引用但尚未出现在主结果中的文档/资产 ID
+    already_in_results: set[tuple[_SourceKind, int]] = allowed_entry_keys.copy()
+    ref_doc_ids_to_expand = sorted(
+        {
+            ref_id
+            for doc_id, refs in doc_ref_map.items()
+            for ref_id in refs
+            if ("document", ref_id) not in already_in_results
+        }
+    )
+    ref_asset_ids_to_expand = sorted(
+        {
+            ref_id
+            for asset_id, refs in asset_ref_map.items()
+            for ref_id in refs
+            if ("asset", ref_id) not in already_in_results
+        }
+    )
+
+    reference_expanded_items: list[KBSearchItem] = []
+
+    if ref_doc_ids_to_expand:
+        ref_docs = await DBKBDocument.filter(
+            id__in=ref_doc_ids_to_expand, workspace_id=workspace_id, is_enabled=True
+        ).all()
+        ref_doc_map = {doc.id: doc for doc in ref_docs}
+        ref_normalized_cache: dict[int, str] = {}
+        for doc_id in ref_doc_ids_to_expand:
+            doc = ref_doc_map.get(doc_id)
+            if doc is None:
+                continue
+            chunks = await DBKBChunk.filter(document_id=doc_id).order_by("chunk_index").limit(2).all()
+            for chunk in chunks:
+                preview = _extract_preview_from_document(
+                    document=doc, chunk=chunk, normalized_cache=ref_normalized_cache
+                )
+                reference_expanded_items.append(
+                    KBSearchItem(
+                        document_id=doc.id,
+                        source_kind="document",
+                        chunk_id=chunk.id,
+                        title=doc.title,
+                        file_name=doc.file_name,
+                        format=doc.format,  # type: ignore[arg-type]
+                        source_path=doc.source_path,
+                        source_workspace_path=WorkspaceService.get_kb_source_workspace_path(doc.source_path),
+                        normalized_text_path=doc.normalized_text_path,
+                        normalized_workspace_path=(
+                            WorkspaceService.get_kb_normalized_workspace_path(doc.normalized_text_path)
+                            if doc.normalized_text_path
+                            else None
+                        ),
+                        heading_path=chunk.heading_path,
+                        category=doc.category,
+                        tags=_source_tags(doc),
+                        content_preview=preview,
+                        score=0.0,
+                    )
+                )
+
+    if ref_asset_ids_to_expand:
+        ref_assets = await DBKBAsset.filter(id__in=ref_asset_ids_to_expand, is_enabled=True).all()
+        ref_asset_obj_map = {a.id: a for a in ref_assets}
+        ref_asset_normalized_cache: dict[int, str] = {}
+        for asset_id in ref_asset_ids_to_expand:
+            asset = ref_asset_obj_map.get(asset_id)
+            if asset is None:
+                continue
+            chunks = await DBKBAssetChunk.filter(asset_id=asset_id).order_by("chunk_index").limit(2).all()
+            for chunk in chunks:
+                preview = _extract_preview_from_asset(
+                    asset=asset, chunk=chunk, normalized_cache=ref_asset_normalized_cache
+                )
+                reference_expanded_items.append(
+                    KBSearchItem(
+                        document_id=asset.id,
+                        source_kind="asset",
+                        chunk_id=chunk.id,
+                        title=asset.title,
+                        file_name=asset.file_name,
+                        format=asset.format,  # type: ignore[arg-type]
+                        source_path=asset.source_path,
+                        source_workspace_path="",
+                        normalized_text_path=asset.normalized_text_path,
+                        normalized_workspace_path=None,
+                        heading_path=chunk.heading_path,
+                        category=asset.category,
+                        tags=_source_tags(asset),
+                        content_preview=preview,
+                        score=0.0,
+                    )
+                )
+
+    has_references = bool(reference_expanded_items)
     suggested_document_ids = [
         item.document_id
         for item in document_hits
@@ -845,12 +963,14 @@ async def search_workspace_kb(
             "优先阅读命中的条目详情与局部预览；"
             "若命中 source_kind=document，可继续用 chunk 上下文工具读取附近内容；"
             "若命中 source_kind=asset，请直接查看该全局知识条目的详情或全文；"
-            "如果当前结果明显不相关，再改写 query 重新搜索。"
+            + ("reference_expanded_items 中包含命中文档所引用的补充文档片段，如命中内容不完整可参考；" if has_references else "")
+            + "如果当前结果明显不相关，再改写 query 重新搜索。"
             if has_asset_hits
             else (
                 "优先对命中的 chunk_id 调用 read_workspace_kb_chunk_context_tool 读取命中附近上下文；"
                 "如果第一段局部上下文仍不足，可继续使用返回的 next_window_start 或 prev_window_start 翻页；"
-                "只有局部上下文仍不足时，再阅读 suggested_document_ids 中前 1 到 2 篇文档的全文；"
+                + ("reference_expanded_items 中包含命中文档所引用的补充文档片段，若主命中信息不完整可优先查阅；" if has_references else "")
+                + "只有局部上下文仍不足时，再阅读 suggested_document_ids 中前 1 到 2 篇文档的全文；"
                 "如果当前结果明显不相关，再改写 query 重新搜索。"
             )
         )
@@ -867,4 +987,5 @@ async def search_workspace_kb(
         documents=document_hits,
         suggested_document_ids=suggested_document_ids,
         next_action_hint=next_action_hint,
+        reference_expanded_items=reference_expanded_items,
     )

@@ -183,6 +183,10 @@ class KBSearchDocument(BaseModel):
     headings: list[str] = Field(default_factory=list)
     best_match_excerpt: str = ""
     snippets: list[KBSearchSnippet] = Field(default_factory=list)
+    referenced_document_ids: list[int] = Field(
+        default_factory=list,
+        description="该文档引用的其他文档/资产 ID，可据此进一步获取补充内容",
+    )
 
 
 class KBSearchResponse(BaseModel):
@@ -194,6 +198,10 @@ class KBSearchResponse(BaseModel):
     documents: list[KBSearchDocument] = Field(default_factory=list)
     suggested_document_ids: list[int] = Field(default_factory=list)
     next_action_hint: str = ""
+    reference_expanded_items: list[KBSearchItem] = Field(
+        default_factory=list,
+        description="命中文档所引用的其他文档中抽取的补充 chunk，source_kind 与原文档一致",
+    )
 
 
 class KBReindexResponse(BaseModel):
@@ -265,3 +273,43 @@ class KBAssetBindingsResponse(BaseModel):
     asset_id: int
     binding_count: int = 0
     items: list[KBAssetBoundWorkspace] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# 文档/资产引用关系
+# ---------------------------------------------------------------------------
+
+
+class KBReferenceItem(BaseModel):
+    """单条引用关系（用于展示列表）。"""
+
+    ref_id: int
+    document_id: int
+    title: str
+    category: str
+    format: KBFormat
+    summary: str = ""
+    description: str = ""
+
+
+class KBDocumentReferences(BaseModel):
+    """文档的双向引用列表。"""
+
+    references_to: list[KBReferenceItem] = Field(default_factory=list, description="该文档引用了哪些文档")
+    referenced_by: list[KBReferenceItem] = Field(default_factory=list, description="哪些文档引用了该文档")
+
+
+class KBAssetReferences(BaseModel):
+    """资产的双向引用列表。"""
+
+    references_to: list[KBReferenceItem] = Field(default_factory=list, description="该资产引用了哪些资产")
+    referenced_by: list[KBReferenceItem] = Field(default_factory=list, description="哪些资产引用了该资产")
+
+
+class KBAddReferenceBody(BaseModel):
+    target_id: int = Field(..., description="被引用的文档/资产 ID")
+    description: str = Field(default="", max_length=500, description="引用说明")
+
+
+class KBUpdateReferenceBody(BaseModel):
+    description: str = Field(..., max_length=500, description="更新后的引用说明")
