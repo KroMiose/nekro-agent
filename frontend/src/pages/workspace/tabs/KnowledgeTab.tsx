@@ -28,9 +28,6 @@ import {
 import {
   Add as AddIcon,
   ArrowDropDown as ArrowDropDownIcon,
-  AutoAwesome as AutoIcon,
-  CallMade as OutboundLinkIcon,
-  CallReceived as InboundLinkIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
   Link as LinkIcon,
@@ -68,6 +65,7 @@ import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
 import SearchField from '../../../components/common/SearchField'
 import StatCard from '../../../components/common/StatCard'
+import ReferenceGraph from '../components/ReferenceGraph'
 
 type KnowledgeSelection =
   | { kind: 'document'; id: number }
@@ -1345,120 +1343,20 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
                   <Paper sx={detailSectionSx}>
                     <Stack spacing={1.25} sx={{ p: 2 }}>
-                      <Stack direction="row" justifyContent="space-between" alignItems="center">
-                        <Stack direction="row" spacing={0.75} alignItems="center">
-                          <LinkIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                          <Typography variant="subtitle2">{t('knowledge.references.title')}</Typography>
-                        </Stack>
-                        <ActionButton
-                          tone="primary"
-                          startIcon={<AddIcon />}
-                          sx={{ ...compactActionSx, minHeight: 26, fontSize: '0.78rem' }}
-                          onClick={() => {
-                            setEditingRef(null)
-                            setRefTargetSearch('')
-                            setRefDescription('')
-                            setRefDialogOpen(true)
-                          }}
-                        >
-                          {t('knowledge.references.add')}
-                        </ActionButton>
+                      <Stack direction="row" spacing={0.75} alignItems="center">
+                        <LinkIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                        <Typography variant="subtitle2">{t('knowledge.references.title')}</Typography>
                       </Stack>
-                      {activeReferences.references_to.length > 0 && (
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <OutboundLinkIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                            <Typography variant="caption" color="text.secondary">{t('knowledge.references.referencesTo')}</Typography>
-                          </Stack>
-                          {activeReferences.references_to.map(ref => (
-                            <Stack key={ref.ref_id} direction="row" alignItems="flex-start" spacing={1} sx={{ py: 0.5 }}>
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Stack direction="row" spacing={0.5} alignItems="center">
-                                  <Typography
-                                    variant="body2"
-                                    sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' }, fontWeight: 500 }}
-                                    onClick={() => setSelectedItem({ kind: 'document', id: ref.document_id })}
-                                  >
-                                    {ref.title}
-                                  </Typography>
-                                  {ref.is_auto && (
-                                    <Tooltip title={t('knowledge.references.autoDetected')}>
-                                      <AutoIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
-                                    </Tooltip>
-                                  )}
-                                </Stack>
-                                {ref.description && (
-                                  <Typography variant="caption" color="text.secondary">{ref.description}</Typography>
-                                )}
-                              </Box>
-                              {!ref.is_auto && (
-                                <Stack direction="row" spacing={0.25}>
-                                  <Tooltip title={t('knowledge.references.editDesc')}>
-                                    <span>
-                                      <IconActionButton
-                                        size="small"
-                                        onClick={() => {
-                                          setEditingRef(ref)
-                                          setRefDescription(ref.description)
-                                          setRefTargetSearch('')
-                                          setRefDialogOpen(true)
-                                        }}
-                                      >
-                                        <SearchIcon sx={{ fontSize: 14 }} />
-                                      </IconActionButton>
-                                    </span>
-                                  </Tooltip>
-                                  <Tooltip title={t('knowledge.references.remove')}>
-                                    <span>
-                                      <IconActionButton
-                                        size="small"
-                                        onClick={() => removeReferenceMutation.mutate(ref.document_id)}
-                                        disabled={removeReferenceMutation.isPending}
-                                      >
-                                        <ClearIcon sx={{ fontSize: 14 }} />
-                                      </IconActionButton>
-                                    </span>
-                                  </Tooltip>
-                                </Stack>
-                              )}
-                            </Stack>
-                          ))}
-                        </Stack>
-                      )}
-                      {activeReferences.referenced_by.length > 0 && (
-                        <Stack spacing={0.5}>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            <InboundLinkIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                            <Typography variant="caption" color="text.secondary">{t('knowledge.references.referencedBy')}</Typography>
-                          </Stack>
-                          {activeReferences.referenced_by.map(ref => (
-                            <Stack key={ref.ref_id} direction="row" alignItems="flex-start" spacing={1} sx={{ py: 0.5 }}>
-                              <Box sx={{ flex: 1, minWidth: 0 }}>
-                                <Stack direction="row" spacing={0.5} alignItems="center">
-                                  <Typography
-                                    variant="body2"
-                                    sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' }, fontWeight: 500 }}
-                                    onClick={() => setSelectedItem({ kind: 'document', id: ref.document_id })}
-                                  >
-                                    {ref.title}
-                                  </Typography>
-                                  {ref.is_auto && (
-                                    <Tooltip title={t('knowledge.references.autoDetected')}>
-                                      <AutoIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
-                                    </Tooltip>
-                                  )}
-                                </Stack>
-                                {ref.description && (
-                                  <Typography variant="caption" color="text.secondary">{ref.description}</Typography>
-                                )}
-                              </Box>
-                            </Stack>
-                          ))}
-                        </Stack>
-                      )}
-                      {!activeReferences.references_to.length && !activeReferences.referenced_by.length && (
-                        <Typography variant="body2" color="text.disabled">{t('knowledge.references.empty')}</Typography>
-                      )}
+                      <ReferenceGraph
+                        currentTitle={selectedDocumentMeta.title}
+                        referencesTo={activeReferences.references_to}
+                        referencedBy={activeReferences.referenced_by}
+                        onNavigate={id => setSelectedItem({ kind: 'document', id })}
+                        onAdd={() => { setEditingRef(null); setRefTargetSearch(''); setRefDescription(''); setRefDialogOpen(true) }}
+                        onEdit={ref => { setEditingRef(ref); setRefDescription(ref.description); setRefTargetSearch(''); setRefDialogOpen(true) }}
+                        onRemove={id => removeReferenceMutation.mutate(id)}
+                        disabled={removeReferenceMutation.isPending}
+                      />
                     </Stack>
                   </Paper>
 
@@ -1598,120 +1496,20 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
                 <Paper sx={detailSectionSx}>
                   <Stack spacing={1.25} sx={{ p: 2 }}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Stack direction="row" spacing={0.75} alignItems="center">
-                        <LinkIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                        <Typography variant="subtitle2">{t('knowledge.references.title')}</Typography>
-                      </Stack>
-                      <ActionButton
-                        tone="primary"
-                        startIcon={<AddIcon />}
-                        sx={{ ...compactActionSx, minHeight: 26, fontSize: '0.78rem' }}
-                        onClick={() => {
-                          setEditingRef(null)
-                          setRefTargetSearch('')
-                          setRefDescription('')
-                          setRefDialogOpen(true)
-                        }}
-                      >
-                        {t('knowledge.references.add')}
-                      </ActionButton>
+                    <Stack direction="row" spacing={0.75} alignItems="center">
+                      <LinkIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                      <Typography variant="subtitle2">{t('knowledge.references.title')}</Typography>
                     </Stack>
-                    {activeReferences.references_to.length > 0 && (
-                      <Stack spacing={0.5}>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <OutboundLinkIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                          <Typography variant="caption" color="text.secondary">{t('knowledge.references.referencesTo')}</Typography>
-                        </Stack>
-                        {activeReferences.references_to.map(ref => (
-                          <Stack key={ref.ref_id} direction="row" alignItems="flex-start" spacing={1} sx={{ py: 0.5 }}>
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                <Typography
-                                  variant="body2"
-                                  sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' }, fontWeight: 500 }}
-                                  onClick={() => setSelectedItem({ kind: 'asset', id: ref.document_id })}
-                                >
-                                  {ref.title}
-                                </Typography>
-                                {ref.is_auto && (
-                                  <Tooltip title={t('knowledge.references.autoDetected')}>
-                                    <AutoIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
-                                  </Tooltip>
-                                )}
-                              </Stack>
-                              {ref.description && (
-                                <Typography variant="caption" color="text.secondary">{ref.description}</Typography>
-                              )}
-                            </Box>
-                            {!ref.is_auto && (
-                              <Stack direction="row" spacing={0.25}>
-                                <Tooltip title={t('knowledge.references.editDesc')}>
-                                  <span>
-                                    <IconActionButton
-                                      size="small"
-                                      onClick={() => {
-                                        setEditingRef(ref)
-                                        setRefDescription(ref.description)
-                                        setRefTargetSearch('')
-                                        setRefDialogOpen(true)
-                                      }}
-                                    >
-                                      <SearchIcon sx={{ fontSize: 14 }} />
-                                    </IconActionButton>
-                                  </span>
-                                </Tooltip>
-                                <Tooltip title={t('knowledge.references.remove')}>
-                                  <span>
-                                    <IconActionButton
-                                      size="small"
-                                      onClick={() => removeReferenceMutation.mutate(ref.document_id)}
-                                      disabled={removeReferenceMutation.isPending}
-                                    >
-                                      <ClearIcon sx={{ fontSize: 14 }} />
-                                    </IconActionButton>
-                                  </span>
-                                </Tooltip>
-                              </Stack>
-                            )}
-                          </Stack>
-                        ))}
-                      </Stack>
-                    )}
-                    {activeReferences.referenced_by.length > 0 && (
-                      <Stack spacing={0.5}>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          <InboundLinkIcon sx={{ fontSize: 13, color: 'text.disabled' }} />
-                          <Typography variant="caption" color="text.secondary">{t('knowledge.references.referencedBy')}</Typography>
-                        </Stack>
-                        {activeReferences.referenced_by.map(ref => (
-                          <Stack key={ref.ref_id} direction="row" alignItems="flex-start" spacing={1} sx={{ py: 0.5 }}>
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                <Typography
-                                  variant="body2"
-                                  sx={{ cursor: 'pointer', '&:hover': { color: 'primary.main' }, fontWeight: 500 }}
-                                  onClick={() => setSelectedItem({ kind: 'asset', id: ref.document_id })}
-                                >
-                                  {ref.title}
-                                </Typography>
-                                {ref.is_auto && (
-                                  <Tooltip title={t('knowledge.references.autoDetected')}>
-                                    <AutoIcon sx={{ fontSize: 12, color: 'text.disabled' }} />
-                                  </Tooltip>
-                                )}
-                              </Stack>
-                              {ref.description && (
-                                <Typography variant="caption" color="text.secondary">{ref.description}</Typography>
-                              )}
-                            </Box>
-                          </Stack>
-                        ))}
-                      </Stack>
-                    )}
-                    {!activeReferences.references_to.length && !activeReferences.referenced_by.length && (
-                      <Typography variant="body2" color="text.disabled">{t('knowledge.references.empty')}</Typography>
-                    )}
+                    <ReferenceGraph
+                      currentTitle={selectedAssetMeta.title}
+                      referencesTo={activeReferences.references_to}
+                      referencedBy={activeReferences.referenced_by}
+                      onNavigate={id => setSelectedItem({ kind: 'asset', id })}
+                      onAdd={() => { setEditingRef(null); setRefTargetSearch(''); setRefDescription(''); setRefDialogOpen(true) }}
+                      onEdit={ref => { setEditingRef(ref); setRefDescription(ref.description); setRefTargetSearch(''); setRefDialogOpen(true) }}
+                      onRemove={id => removeReferenceMutation.mutate(id)}
+                      disabled={removeReferenceMutation.isPending}
+                    />
                   </Stack>
                 </Paper>
 
