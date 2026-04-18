@@ -29,7 +29,7 @@ logger = get_sub_logger("kb_tools")
 _HIT_START = "\n<<<HIT-START>>>\n"
 _HIT_END = "\n<<<HIT-END>>>\n"
 _TOOL_TEXT_PREVIEW_MAX_CHARS = 1200
-_TOOL_FULLTEXT_MAX_CHARS = 12000
+_TOOL_FULLTEXT_HARD_CAP = 32000
 _TOOL_SEARCH_SNIPPET_MAX_CHARS = 180
 
 
@@ -49,6 +49,7 @@ def _document_prompt_status(document: DBKBDocument) -> str:
 
 
 def _trim_prompt_text(value: str, limit: int) -> str:
+    """压缩空白后截断，保留最后一个完整词，超出时附省略号。"""
     compact = " ".join(value.strip().split())
     if len(compact) <= limit:
         return compact
@@ -67,13 +68,6 @@ def _trim_tool_text(value: str, limit: int) -> tuple[str, bool]:
 
 def _dump_tool_payload(payload: dict[str, Any]) -> str:
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-
-
-def _short_preview(value: str, limit: int) -> str:
-    compact = " ".join(value.strip().split())
-    if len(compact) <= limit:
-        return compact
-    return f"{compact[: max(0, limit - 1)]}…"
 
 
 def _format_document_catalog_line(document: DBKBDocument) -> str:
@@ -293,7 +287,7 @@ async def search_workspace_kb_tool(
                     {
                         "chunk_id": item.snippets[0].chunk_id,
                         "heading_path": item.snippets[0].heading_path,
-                        "content_preview": _short_preview(item.snippets[0].content_preview, _TOOL_SEARCH_SNIPPET_MAX_CHARS),
+                        "content_preview": _trim_prompt_text(item.snippets[0].content_preview, _TOOL_SEARCH_SNIPPET_MAX_CHARS),
                         "score": item.snippets[0].score,
                     }
                     if item.snippets
@@ -370,7 +364,8 @@ async def read_workspace_kb_fulltext_tool(
     document = await get_document(workspace.id, document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")
-    resolved_max_chars = min(max_chars if max_chars > 0 else int(kb_tools_config.DEFAULT_FULLTEXT_MAX_CHARS), _TOOL_FULLTEXT_MAX_CHARS)
+    config_max = int(kb_tools_config.DEFAULT_FULLTEXT_MAX_CHARS)
+    resolved_max_chars = min(max_chars if max_chars > 0 else config_max, _TOOL_FULLTEXT_HARD_CAP)
     content = read_normalized_content(document)
     content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
     payload = {

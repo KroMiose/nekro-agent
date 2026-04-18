@@ -8,7 +8,7 @@ plugin = NekroPlugin(
     module_name="kb_tools",
     description="为主 Agent 提供工作区知识库搜索、全文读取和源文件获取能力",
     version="0.1.0",
-    author="KroMiose",
+    author="liugu",
     url="https://github.com/KroMiose/nekro-agent",
     i18n_name=i18n.i18n_text(
         zh_CN="知识库工具",
@@ -44,7 +44,7 @@ class KBToolsConfig(ConfigBase):
     DEFAULT_FULLTEXT_MAX_CHARS: int = Field(
         default=18000,
         title="全文读取默认最大字符数",
-        description="读取知识库规范化全文时默认返回的最大字符数",
+        description="读取知识库规范化全文时默认返回的最大字符数（硬上限 32000 字符）",
     )
 
     PROMPT_CATALOG_LIMIT: int = Field(
