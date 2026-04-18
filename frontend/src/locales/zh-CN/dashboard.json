@@ -22,7 +22,8 @@
     "stopTypeDistribution": "执行类型分布",
     "messageTypeDistribution": "消息类型分布",
     "noData": "暂无数据",
-    "noRealtimeData": "暂无实时数据，请等待数据收集"
+    "noRealtimeData": "暂无历史数据",
+    "loadingRealtimeData": "正在加载历史数据..."
   },
   "tooltip": {
     "count": "数量",

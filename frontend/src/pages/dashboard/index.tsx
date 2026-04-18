@@ -43,6 +43,7 @@ const DashboardContent: React.FC = () => {
   // 状态
   const [timeRange, setTimeRange] = useState<TimeRange>('day')
   const [realTimeData, setRealTimeData] = useState<RealTimeDataPoint[]>([])
+  const [streamLoading, setStreamLoading] = useState<boolean>(true)
   const [granularity, setGranularity] = useState<number>(10) // 默认10分钟粒度
   const streamCancelRef = useRef<(() => void) | null>(null)
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
@@ -72,6 +73,7 @@ const DashboardContent: React.FC = () => {
     }
     try {
       const newData = JSON.parse(trimmed) as RealTimeDataPoint
+      setStreamLoading(false)
       setRealTimeData(prev => {
         // 检查是否已存在相同时间戳的数据点
         const existingIndex = prev.findIndex(item => item.timestamp === newData.timestamp)
@@ -106,8 +108,9 @@ const DashboardContent: React.FC = () => {
       streamCancelRef.current()
     }
 
-    // 清空之前的数据
+    // 清空之前的数据，重置加载状态
     setRealTimeData([])
+    setStreamLoading(true)
 
     // 创建新的流连接
     const cancelStream = createEventStream({
@@ -343,6 +346,7 @@ const DashboardContent: React.FC = () => {
           <RealTimeStats
             title={t('charts.realTimeData')}
             data={realTimeData}
+            loading={streamLoading}
             granularity={granularity}
             onGranularityChange={handleGranularityChange}
           />
@@ -443,12 +447,12 @@ const DashboardContent: React.FC = () => {
   )
 }
 
-// 提供查询客户端
-const DashboardPage: React.FC = () => {
-  const queryClient = new QueryClient()
+// 模块级静态实例，避免每次渲染重建导致缓存失效
+const dashboardQueryClient = new QueryClient()
 
+const DashboardPage: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={dashboardQueryClient}>
       <DashboardContent />
     </QueryClientProvider>
   )

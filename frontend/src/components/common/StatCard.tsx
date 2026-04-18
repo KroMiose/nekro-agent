@@ -42,7 +42,7 @@ export default function StatCard({
           </Box>
           <Box sx={{ minWidth: 0 }}>
             {loading ? (
-              <Skeleton variant="text" width={28} height={32} />
+              <Skeleton variant="text" width={28} sx={{ fontSize: '1.5rem', lineHeight: 1.1 }} />
             ) : (
               <Typography variant="h5" fontWeight={700} lineHeight={1.1} sx={{ color: valueColor }}>
                 {value}

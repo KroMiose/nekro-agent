@@ -13,6 +13,7 @@ import {
   SelectChangeEvent,
   alpha,
   MenuItem,
+  CircularProgress,
 } from '@mui/material'
 import {
   XAxis,
@@ -33,6 +34,7 @@ import { useTranslation } from 'react-i18next'
 interface RealTimeStatsProps {
   title: string
   data: RealTimeDataPoint[]
+  loading?: boolean
   granularity: number
   onGranularityChange: (granularity: number) => void
 }
@@ -139,6 +141,7 @@ const scrollbar = {
 export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
   title,
   data,
+  loading = false,
   granularity,
   onGranularityChange,
 }) => {
@@ -361,10 +364,19 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
             </Box>
           </Box>
         ) : (
-          <Box className="flex justify-center items-center h-[350px]">
-            <Typography variant="body2" color="text.secondary" className="text-center px-4">
-              {t('charts.noRealtimeData')}
-            </Typography>
+          <Box className="flex flex-col justify-center items-center h-[350px]" gap={2}>
+            {loading ? (
+              <>
+                <CircularProgress size={32} thickness={3} />
+                <Typography variant="body2" color="text.secondary">
+                  {t('charts.loadingRealtimeData')}
+                </Typography>
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary" className="text-center px-4">
+                {t('charts.noRealtimeData')}
+              </Typography>
+            )}
           </Box>
         )}
       </CardContent>

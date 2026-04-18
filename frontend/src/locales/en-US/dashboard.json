@@ -22,7 +22,8 @@
     "stopTypeDistribution": "Execution Type Distribution",
     "messageTypeDistribution": "Message Type Distribution",
     "noData": "No data available",
-    "noRealtimeData": "No real-time data, waiting for collection"
+    "noRealtimeData": "No historical data available",
+    "loadingRealtimeData": "Loading historical data..."
   },
   "tooltip": {
     "count": "Count",
