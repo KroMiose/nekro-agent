@@ -66,7 +66,6 @@ from .plugin import cc_config, plugin
 from .prompt_envelope import CcPromptEnvelope
 
 _TASK_TYPE = "cc_delegate"
-_CC_DATA_TIMEOUT: float = 300.0  # 300s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
 _CC_COMMAND_PERMISSION = CommandPermission.SUPER_USER
 
 # 已投递结果去重：(workspace_id, source_chat_key, result_id) → 投递时间
@@ -748,7 +747,8 @@ async def _cc_delegate_task(
 
         _env_vars = await workspace_resource_service.resolve_workspace_resources_to_env(workspace.id)
         # 使用 asyncio.wait_for 保护每次 __anext__() 等待：
-        # _CC_DATA_TIMEOUT 仅在"无任何 data: 事件"时触发，keep-alive (": ping") 不计入，
+        _cc_data_timeout = cc_config.CC_DATA_TIMEOUT
+        # _cc_data_timeout 仅在"无任何 data: 事件"时触发，keep-alive (": ping") 不计入，
         # 避免 CC 一直发 keep-alive 导致 httpx read timeout 永远无法触发的永久挂死问题。
         _stream = client.stream_message(
             enriched_prompt,
@@ -758,7 +758,7 @@ async def _cc_delegate_task(
         )
         while True:
             try:
-                item = await asyncio.wait_for(_stream.__anext__(), timeout=_CC_DATA_TIMEOUT)
+                item = await asyncio.wait_for(_stream.__anext__(), timeout=_cc_data_timeout)
             except StopAsyncIteration:
                 break
             except asyncio.TimeoutError:
@@ -773,13 +773,13 @@ async def _cc_delegate_task(
                 except Exception:
                     pass
                 logger.warning(
-                    f"[cc_workspace] SSE 数据超时（{int(_CC_DATA_TIMEOUT)}s 无有效响应），"
+                    f"[cc_workspace] SSE 数据超时（{int(_cc_data_timeout)}s 无有效响应），"
                     f"已主动中止 CC 任务。workspace={workspace_id} chat_key={handle.task_id!r} "
                     f"received_chunks={chunk_count} received_chars={sum(len(c) for c in chunks)}"
                 )
                 # 写入 SYSTEM 方向 CommLog，前端 CommTab 可感知
                 _timeout_notice = (
-                    f"[CC 任务超时中止] {_CC_DATA_TIMEOUT:.0f}s 内未收到任何数据，"
+                    f"[CC 任务超时中止] {_cc_data_timeout:.0f}s 内未收到任何数据，"
                     "NA 已主动中止该 CC 任务。这通常意味着 CC 模型服务不可用或网络异常。"
                 )
                 try:
@@ -803,7 +803,7 @@ async def _cc_delegate_task(
                 await _broadcast_cc_status(workspace_id, False, started_at=started_at)
                 await _publish_runtime_status(active=False)
                 yield TaskCtl.fail(
-                    f"CC Sandbox 执行超时（{_CC_DATA_TIMEOUT:.0f}s 内无任何响应），任务已被中止。\n"
+                    f"CC Sandbox 执行超时（{_cc_data_timeout:.0f}s 内无任何响应），任务已被中止。\n"
                     "这通常表示 CC 模型服务暂时不可用（API 超时/网络异常/服务过载）。\n"
                     "请告知用户 CC 当前不可用，建议稍后重试。不要立即自动重试，连续重试只会浪费时间。"
                 )

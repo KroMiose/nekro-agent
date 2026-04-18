@@ -76,6 +76,21 @@ class CCWorkspaceConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    CC_DATA_TIMEOUT: float = Field(
+        default=300.0,
+        title="SSE 数据超时时间（秒）",
+        description="CC 执行任务时，若在此时间内未收到任何有效 data: 事件（keep-alive 不计），则主动终止 SSE 流并中止任务",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="SSE 数据超时时间（秒）",
+                en_US="SSE Data Timeout (seconds)",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="CC 执行任务时，若在此时间内未收到任何有效 data: 事件（keep-alive 不计），则主动终止 SSE 流并中止任务",
+                en_US="When CC is executing a task, if no valid data: event is received within this period (keep-alive excluded), the SSE stream will be terminated and the task aborted",
+            ),
+        ).model_dump(),
+    )
     MERGE_CC_AS_SELF: bool = Field(
         default=True,
         title="合并 CC 能力到主人设",
