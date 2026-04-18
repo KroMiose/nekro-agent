@@ -7,6 +7,9 @@ from typing import Any, List
 from nekro_agent.api.plugin import SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.models.db_kb_asset import DBKBAsset
+from nekro_agent.models.db_kb_asset_binding import DBKBAssetBinding
+from nekro_agent.models.db_kb_asset_chunk import DBKBAssetChunk
 from nekro_agent.models.db_kb_chunk import DBKBChunk
 from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.models.db_workspace import DBWorkspace
@@ -19,6 +22,12 @@ from nekro_agent.services.kb.document_service import (
     list_documents,
     read_normalized_content,
     read_source_content,
+)
+from nekro_agent.services.kb.library_service import (
+    get_asset,
+    read_asset_normalized_content,
+    read_asset_source_content,
+    resolve_kb_library_source_path,
 )
 from nekro_agent.services.kb.search_service import search_workspace_kb
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -88,38 +97,73 @@ def _format_document_catalog_line(document: DBKBDocument) -> str:
     return "- " + " | ".join(parts)
 
 
+def _format_asset_catalog_line(asset: DBKBAsset) -> str:
+    parts = [
+        f"[asset:{asset.id}] {_trim_prompt_text(asset.title, 60)}",
+        f"path={asset.source_path}",
+        f"format={asset.format}",
+        f"status={asset.sync_status}",
+    ]
+    if asset.category:
+        parts.append(f"category={_trim_prompt_text(asset.category, 24)}")
+    if isinstance(asset.tags, list) and asset.tags:
+        parts.append(f"tags={','.join(_trim_prompt_text(str(tag), 16) for tag in asset.tags[:4])}")
+    if asset.chunk_count > 0:
+        parts.append(f"chunks={asset.chunk_count}")
+    return "- " + " | ".join(parts)
+
+
 async def _build_kb_catalog_prompt(workspace_id: int) -> str:
     documents = await list_documents(workspace_id)
-    if not documents:
+
+    # 绑定到该工作区的全局知识库资产
+    bindings = await DBKBAssetBinding.filter(workspace_id=workspace_id).all()
+    bound_asset_ids = [b.asset_id for b in bindings]
+    bound_assets: list[DBKBAsset] = (
+        await DBKBAsset.filter(id__in=bound_asset_ids, is_enabled=True).order_by("source_path").all()
+        if bound_asset_ids else []
+    )
+    ready_assets = [a for a in bound_assets if a.sync_status == "ready"]
+
+    if not documents and not bound_assets:
         return "KB catalog: empty."
 
     status_counter = Counter(_document_prompt_status(document) for document in documents)
     ready_documents = [document for document in documents if document.is_enabled and _document_prompt_status(document) == "ready"]
     prompt_limit = max(1, int(kb_tools_config.PROMPT_CATALOG_LIMIT))
+    total_ready = len(ready_documents) + len(ready_assets)
+
+    # 文档和资产按 prompt_limit 合并截取
     shown_documents = ready_documents[:prompt_limit]
-    extra_ready = max(0, len(ready_documents) - len(shown_documents))
+    remaining = max(0, prompt_limit - len(shown_documents))
+    shown_assets = ready_assets[:remaining]
+    extra_ready = total_ready - len(shown_documents) - len(shown_assets)
 
     lines = [
         (
             "KB catalog summary: "
-            f"total={len(documents)}, searchable_ready={len(ready_documents)}, "
+            f"total_docs={len(documents)}, total_bound_assets={len(bound_assets)}, "
+            f"searchable_ready={total_ready}, "
             f"pending={status_counter.get('pending', 0)}, "
-            f"extracting={status_counter.get('extracting', 0)}, "
             f"indexing={status_counter.get('indexing', 0)}, "
             f"failed={status_counter.get('failed', 0)}."
         ),
     ]
 
-    if shown_documents:
-        lines.append("Searchable KB documents (metadata only, no content):")
-        lines.extend(_format_document_catalog_line(document) for document in shown_documents)
+    if shown_documents or shown_assets:
+        lines.append("Searchable KB entries (metadata only, no content):")
+        lines.extend(_format_document_catalog_line(doc) for doc in shown_documents)
+        lines.extend(_format_asset_catalog_line(asset) for asset in shown_assets)
         if extra_ready > 0:
-            lines.append(f"- ... {extra_ready} more ready documents not shown in prompt.")
+            lines.append(f"- ... {extra_ready} more ready entries not shown in prompt.")
     else:
-        lines.append("No ready searchable KB documents currently. If needed, check indexing status first.")
+        lines.append("No ready searchable KB entries currently. If needed, check indexing status first.")
 
     lines.append(
         "If the user request overlaps titles, paths, categories, or tags above, search KB first instead of waiting for an explicit KB mention."
+    )
+    lines.append(
+        "Note: entries with id like 'asset:N' are bound global assets; pass source_kind='asset' when calling chunk/fulltext tools."
     )
     return "\n".join(lines)
 
@@ -303,21 +347,55 @@ async def search_workspace_kb_tool(
 @plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
     "查看知识库文档详情",
-    description="按文档 ID 查看知识库文档的元数据、文件路径、原文内容和规范化全文预览。",
+    description="按文档 ID 查看知识库文档/资产的元数据和规范化全文预览。",
 )
 async def get_workspace_kb_document_tool(
     _ctx: AgentCtx,
     document_id: int,
+    source_kind: str = "document",
 ) -> str:
-    """Get knowledge base document metadata and content preview by document ID.
+    """Get knowledge base document/asset metadata and content preview by ID.
 
     Args:
-        document_id (int): Target KB document ID returned by KB search.
+        document_id (int): ID returned by KB search (document_id field).
+        source_kind (str): "document" for workspace docs, "asset" for bound global assets.
 
     Returns:
-        str: JSON string containing document metadata, file paths, and content preview.
+        str: JSON string containing metadata, file paths, and content preview.
     """
     workspace = await _require_bound_workspace(_ctx)
+    if source_kind == "asset":
+        asset = await get_asset(document_id)
+        if asset is None:
+            raise ValueError(f"未找到全局知识库资产 {document_id}")
+        source_content = read_asset_source_content(asset) if asset.format in {"markdown", "text", "html", "json", "yaml", "csv"} else ""
+        normalized_content = read_asset_normalized_content(asset)
+        source_preview, source_truncated = _trim_tool_text(source_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
+        normalized_preview, normalized_truncated = _trim_tool_text(normalized_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
+        payload = {
+            "document_id": asset.id,
+            "source_kind": "asset",
+            "title": asset.title,
+            "source_path": asset.source_path,
+            "format": asset.format,
+            "category": asset.category,
+            "tags": asset.tags if isinstance(asset.tags, list) else [],
+            "summary": asset.summary,
+            "status": asset.sync_status,
+            "chunk_count": asset.chunk_count,
+            "source_preview": source_preview,
+            "source_preview_truncated": source_truncated,
+            "source_total_chars": len(source_content),
+            "normalized_preview": normalized_preview,
+            "normalized_preview_truncated": normalized_truncated,
+            "normalized_total_chars": len(normalized_content),
+            "next_action_hint": (
+                "Use read_workspace_kb_chunk_context_tool (source_kind='asset') for hit-local reading; "
+                "use read_workspace_kb_fulltext_tool (source_kind='asset') for full text."
+            ),
+        }
+        return _dump_tool_payload(payload)
+
     document = await get_document(workspace.id, document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")
@@ -327,6 +405,7 @@ async def get_workspace_kb_document_tool(
     normalized_preview, normalized_truncated = _trim_tool_text(normalized_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
     payload = {
         "document": _build_document_status_payload(document),
+        "source_kind": "document",
         "source_preview": source_preview,
         "source_preview_truncated": source_truncated,
         "source_total_chars": len(source_content),
@@ -344,32 +423,58 @@ async def get_workspace_kb_document_tool(
 @plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
     "读取知识库全文",
-    description="读取知识库文档的规范化全文，适合在搜索命中后继续阅读完整内容。",
+    description="读取知识库文档或绑定全局资产的规范化全文，适合在搜索命中后继续阅读完整内容。",
 )
 async def read_workspace_kb_fulltext_tool(
     _ctx: AgentCtx,
     document_id: int,
+    source_kind: str = "document",
     max_chars: int = 0,
 ) -> str:
-    """Read the normalized full text of a KB document.
+    """Read the normalized full text of a KB document or bound global asset.
 
     Args:
-        document_id (int): Target KB document ID.
-        max_chars (int): Maximum number of characters to return. Use `0` for the plugin default.
+        document_id (int): Target document/asset ID from KB search results.
+        source_kind (str): "document" for workspace docs, "asset" for bound global assets.
+        max_chars (int): Maximum characters to return. Use `0` for the plugin default.
 
     Returns:
         str: JSON string containing normalized full text and stable file paths.
     """
     workspace = await _require_bound_workspace(_ctx)
+    config_max = int(kb_tools_config.DEFAULT_FULLTEXT_MAX_CHARS)
+    resolved_max_chars = min(max_chars if max_chars > 0 else config_max, _TOOL_FULLTEXT_HARD_CAP)
+
+    if source_kind == "asset":
+        asset = await get_asset(document_id)
+        if asset is None:
+            raise ValueError(f"未找到全局知识库资产 {document_id}")
+        content = read_asset_normalized_content(asset)
+        content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
+        payload = {
+            "document_id": asset.id,
+            "source_kind": "asset",
+            "title": asset.title,
+            "source_path": asset.source_path,
+            "content": content_preview,
+            "returned_chars": len(content_preview),
+            "total_chars": len(content),
+            "truncated": truncated,
+            "next_action_hint": (
+                "If this window is still incomplete, use read_workspace_kb_chunk_context_tool "
+                "(source_kind='asset') to read hit-local context."
+            ),
+        }
+        return _dump_tool_payload(payload)
+
     document = await get_document(workspace.id, document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")
-    config_max = int(kb_tools_config.DEFAULT_FULLTEXT_MAX_CHARS)
-    resolved_max_chars = min(max_chars if max_chars > 0 else config_max, _TOOL_FULLTEXT_HARD_CAP)
     content = read_normalized_content(document)
     content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
     payload = {
         "document_id": document.id,
+        "source_kind": "document",
         "title": document.title,
         "source_path": document.source_path,
         "content": content_preview,
@@ -392,6 +497,7 @@ async def read_workspace_kb_fulltext_tool(
 async def read_workspace_kb_chunk_context_tool(
     _ctx: AgentCtx,
     chunk_id: int,
+    source_kind: str = "document",
     window_chars: int = 280,
     window_start: int = -1,
 ) -> str:
@@ -399,29 +505,52 @@ async def read_workspace_kb_chunk_context_tool(
 
     Args:
         chunk_id (int): Target chunk ID returned by KB search.
-        window_chars (int): Size of the returned context window.
-        window_start (int): Optional absolute start offset for paging. Use `-1` to auto-center around the hit.
+        source_kind (str): "document" for workspace docs, "asset" for bound global assets.
+        window_chars (int): Size of the returned context window in characters.
+        window_start (int): Absolute start offset for paging. Use `-1` to auto-center around the hit.
 
     Returns:
-        str: JSON string containing chunk offsets, compact local context, paging cursors,
-        and an annotated excerpt where the hit chunk is wrapped by <<<HIT-START>>> / <<<HIT-END>>> markers
-        when the current window overlaps the hit.
+        str: JSON string with chunk offsets, annotated excerpt (hit wrapped by <<<HIT-START/END>>>),
+        and paging cursors prev_window_start / next_window_start.
     """
     workspace = await _require_bound_workspace(_ctx)
+    resolved_window_chars = max(80, min(int(window_chars), 1200))
+    resolved_window_start = None if int(window_start) < 0 else int(window_start)
+
+    if source_kind == "asset":
+        asset_chunk = await DBKBAssetChunk.get_or_none(id=chunk_id)
+        if asset_chunk is None:
+            raise ValueError(f"未找到全局知识库 chunk {chunk_id}")
+        asset = await get_asset(asset_chunk.asset_id)
+        if asset is None:
+            raise ValueError(f"未找到全局知识库资产 {asset_chunk.asset_id}")
+        normalized_content = read_asset_normalized_content(asset)
+        if not normalized_content.strip():
+            raise ValueError(f"全局知识库资产 {asset.id} 尚无可读取的规范化全文")
+        payload = _build_chunk_context_payload(
+            workspace_id=workspace.id,
+            document_id=asset.id,
+            title=asset.title,
+            source_path=asset.source_path,
+            normalized_text_path=asset.normalized_text_path,
+            chunk=asset_chunk,
+            normalized_content=normalized_content,
+            window_chars=resolved_window_chars,
+            window_start=resolved_window_start,
+        )
+        result = payload.model_dump()
+        result["source_kind"] = "asset"
+        return _dump_tool_payload(result)
+
     chunk = await DBKBChunk.get_or_none(id=chunk_id, workspace_id=workspace.id)
     if chunk is None:
         raise ValueError(f"未找到知识库 chunk {chunk_id}")
-
     document = await get_document(workspace.id, chunk.document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {chunk.document_id}")
-
     normalized_content = read_normalized_content(document)
     if not normalized_content.strip():
         raise ValueError(f"知识库文档 {document.id} 尚无可读取的规范化全文")
-
-    resolved_window_chars = max(80, min(int(window_chars), 1200))
-    resolved_window_start = None if int(window_start) < 0 else int(window_start)
     payload = _build_chunk_context_payload(
         workspace_id=workspace.id,
         document_id=document.id,
@@ -433,7 +562,9 @@ async def read_workspace_kb_chunk_context_tool(
         window_chars=resolved_window_chars,
         window_start=resolved_window_start,
     )
-    return _dump_tool_payload(payload.model_dump())
+    result = payload.model_dump()
+    result["source_kind"] = "document"
+    return _dump_tool_payload(result)
 
 
 @plugin.mount_sandbox_method(
