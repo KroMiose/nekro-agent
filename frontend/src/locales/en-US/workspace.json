@@ -1063,7 +1063,8 @@
       "disable": "Disable Search",
       "enabled": "Enabled",
       "disabled": "Disabled",
-      "save": "Save"
+      "save": "Save",
+      "edit": "Edit"
     },
     "batchStatus": {
       "waiting": "Waiting",
@@ -1154,7 +1155,8 @@
       "tags": "Tags",
       "tagsPlaceholder": "Separate tags with commas",
       "summary": "Summary",
-      "content": "Content"
+      "content": "Content",
+      "tagsHelper": "Separate multiple tags with commas"
     },
     "dialogs": {
       "createTitle": "Create Text Knowledge",
@@ -1166,7 +1168,8 @@
       "deleteTitle": "Confirm Delete",
       "removeTitle": "Confirm Remove",
       "deleteContent": "Delete knowledge document \"{{title}}\"? This action cannot be undone.",
-      "removeContent": "Remove knowledge file \"{{title}}\" from this workspace? The global source file will be kept."
+      "removeContent": "Remove knowledge file \"{{title}}\" from this workspace? The global source file will be kept.",
+      "editMetaTitle": "Edit Metadata"
     },
     "notifications": {
       "addSuccess": "Knowledge file added to the current workspace",
@@ -1240,7 +1243,9 @@
       "reindex": "Reindex",
       "downloadRaw": "Download Raw",
       "delete": "Delete File",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "save": "Save"
     },
     "batchStatus": {
       "waiting": "Waiting",
@@ -1326,7 +1331,8 @@
       "summary": "Summary",
       "content": "Content",
       "supportedFormats": "Supported upload formats: {{formats}}",
-      "bindWorkspaces": "Bind to Workspaces"
+      "bindWorkspaces": "Bind to Workspaces",
+      "tagsHelper": "Separate multiple tags with commas"
     },
     "dialogs": {
       "createTitle": "Create Global Text Knowledge",
@@ -1335,7 +1341,8 @@
       "bindTitle": "Bind Workspaces",
       "bindHint": "Choose the workspaces that should reuse this file. After binding, the workspaces can use it directly without re-uploading.",
       "deleteTitle": "Delete Global Knowledge File",
-      "deleteContent": "Delete file \"{{title}}\"? If it is still bound to workspaces, unbind it first."
+      "deleteContent": "Delete file \"{{title}}\"? If it is still bound to workspaces, unbind it first.",
+      "editMetaTitle": "Edit Metadata"
     },
     "notifications": {
       "createSuccess": "Text knowledge created and queued for indexing",

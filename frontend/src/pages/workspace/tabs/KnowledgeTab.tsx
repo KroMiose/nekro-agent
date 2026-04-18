@@ -30,6 +30,7 @@ import {
   ArrowDropDown as ArrowDropDownIcon,
   Delete as DeleteIcon,
   Download as DownloadIcon,
+  Edit as EditIcon,
   Link as LinkIcon,
   Refresh as RefreshIcon,
   RestartAlt as ReindexIcon,
@@ -225,6 +226,9 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const [addMenuAnchorEl, setAddMenuAnchorEl] = useState<HTMLElement | null>(null)
   const [reuseSearch, setReuseSearch] = useState('')
   const [reuseAssetIds, setReuseAssetIds] = useState<number[]>([])
+
+  const [editMetaOpen, setEditMetaOpen] = useState(false)
+  const [editMetaForm, setEditMetaForm] = useState({ title: '', category: '', tagsInput: '', summary: '' })
 
   const [refDialogOpen, setRefDialogOpen] = useState(false)
   const [refTargetSearch, setRefTargetSearch] = useState('')
@@ -524,6 +528,28 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       kbLibraryApi.updateAsset(assetId, { is_enabled: isEnabled }),
     onSuccess: async () => {
       await refreshAll()
+      notification.success(t('knowledge.notifications.updateSuccess'))
+    },
+    onError: (err: Error) => notification.error(t('knowledge.notifications.updateFailed', { message: err.message })),
+  })
+
+  const updateDocMetaMutation = useMutation({
+    mutationFn: ({ id, title, category, tags, summary }: { id: number; title: string; category: string; tags: string[]; summary: string }) =>
+      knowledgeBaseApi.updateDocument(workspace.id, id, { title, category, tags, summary }),
+    onSuccess: async () => {
+      await refreshAll()
+      setEditMetaOpen(false)
+      notification.success(t('knowledge.notifications.updateSuccess'))
+    },
+    onError: (err: Error) => notification.error(t('knowledge.notifications.updateFailed', { message: err.message })),
+  })
+
+  const updateAssetMetaMutation = useMutation({
+    mutationFn: ({ id, title, category, tags, summary }: { id: number; title: string; category: string; tags: string[]; summary: string }) =>
+      kbLibraryApi.updateAsset(id, { title, category, tags, summary }),
+    onSuccess: async () => {
+      await refreshAll()
+      setEditMetaOpen(false)
       notification.success(t('knowledge.notifications.updateSuccess'))
     },
     onError: (err: Error) => notification.error(t('knowledge.notifications.updateFailed', { message: err.message })),
@@ -1291,6 +1317,22 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                       <ActionButton tone="secondary" startIcon={<ReindexIcon />} onClick={() => reindexMutation.mutate(selectedDocumentMeta.id)} disabled={reindexMutation.isPending} sx={compactActionSx}>
                         {t('knowledge.actions.reindex')}
                       </ActionButton>
+                      <ActionButton
+                        tone="secondary"
+                        startIcon={<EditIcon />}
+                        sx={compactActionSx}
+                        onClick={() => {
+                          setEditMetaForm({
+                            title: selectedDocumentMeta.title,
+                            category: selectedDocumentMeta.category ?? '',
+                            tagsInput: (selectedDocumentMeta.tags ?? []).join(', '),
+                            summary: selectedDocumentMeta.summary ?? '',
+                          })
+                          setEditMetaOpen(true)
+                        }}
+                      >
+                        {t('knowledge.actions.edit')}
+                      </ActionButton>
                       <ActionButton tone="secondary" startIcon={<DownloadIcon />} onClick={handleDownloadRaw} sx={compactActionSx}>
                         {t('knowledge.actions.downloadRaw')}
                       </ActionButton>
@@ -1443,6 +1485,22 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                       sx={compactActionSx}
                     >
                       {t('knowledge.actions.reindex')}
+                    </ActionButton>
+                    <ActionButton
+                      tone="secondary"
+                      startIcon={<EditIcon />}
+                      sx={compactActionSx}
+                      onClick={() => {
+                        setEditMetaForm({
+                          title: selectedAssetMeta.title,
+                          category: selectedAssetMeta.category ?? '',
+                          tagsInput: (selectedAssetMeta.tags ?? []).join(', '),
+                          summary: selectedAssetMeta.summary ?? '',
+                        })
+                        setEditMetaOpen(true)
+                      }}
+                    >
+                      {t('knowledge.actions.edit')}
                     </ActionButton>
                     <ActionButton tone="secondary" startIcon={<DownloadIcon />} onClick={handleDownloadRaw} sx={compactActionSx}>
                       {t('knowledge.actions.downloadRaw')}
@@ -1965,6 +2023,72 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
             {selectedItem?.kind === 'asset'
               ? t('knowledge.actions.remove')
               : t('knowledge.actions.delete')}
+          </ActionButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* 编辑元数据对话框 */}
+      <Dialog
+        open={editMetaOpen}
+        onClose={() => !(updateDocMetaMutation.isPending || updateAssetMetaMutation.isPending) && setEditMetaOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        disableRestoreFocus
+      >
+        <DialogTitle>{t('knowledge.dialogs.editMetaTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label={t('knowledge.form.title')}
+              fullWidth
+              value={editMetaForm.title}
+              onChange={e => setEditMetaForm(prev => ({ ...prev, title: e.target.value }))}
+              autoFocus
+            />
+            <TextField
+              label={t('knowledge.form.category')}
+              fullWidth
+              value={editMetaForm.category}
+              onChange={e => setEditMetaForm(prev => ({ ...prev, category: e.target.value }))}
+            />
+            <TextField
+              label={t('knowledge.form.tags')}
+              fullWidth
+              value={editMetaForm.tagsInput}
+              onChange={e => setEditMetaForm(prev => ({ ...prev, tagsInput: e.target.value }))}
+              placeholder={t('knowledge.form.tagsPlaceholder')}
+              helperText={t('knowledge.form.tagsHelper')}
+            />
+            <TextField
+              label={t('knowledge.form.summary')}
+              fullWidth
+              multiline
+              minRows={3}
+              value={editMetaForm.summary}
+              onChange={e => setEditMetaForm(prev => ({ ...prev, summary: e.target.value }))}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton
+            onClick={() => setEditMetaOpen(false)}
+            disabled={updateDocMetaMutation.isPending || updateAssetMetaMutation.isPending}
+          >
+            {t('knowledge.actions.cancel')}
+          </ActionButton>
+          <ActionButton
+            tone="primary"
+            disabled={!editMetaForm.title.trim() || updateDocMetaMutation.isPending || updateAssetMetaMutation.isPending}
+            onClick={() => {
+              const tags = editMetaForm.tagsInput.split(',').map(s => s.trim()).filter(Boolean)
+              if (selectedItem?.kind === 'asset' && selectedAssetId != null) {
+                updateAssetMetaMutation.mutate({ id: selectedAssetId, title: editMetaForm.title.trim(), category: editMetaForm.category.trim(), tags, summary: editMetaForm.summary.trim() })
+              } else if (selectedDocumentId != null) {
+                updateDocMetaMutation.mutate({ id: selectedDocumentId, title: editMetaForm.title.trim(), category: editMetaForm.category.trim(), tags, summary: editMetaForm.summary.trim() })
+              }
+            }}
+          >
+            {t('knowledge.actions.save')}
           </ActionButton>
         </DialogActions>
       </Dialog>

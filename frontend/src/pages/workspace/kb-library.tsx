@@ -165,6 +165,8 @@ export default function KbLibraryPage() {
   const [bindOpen, setBindOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [assetToDelete, setAssetToDelete] = useState<{ id: number; title: string } | null>(null)
+  const [editMetaOpen, setEditMetaOpen] = useState(false)
+  const [editMetaForm, setEditMetaForm] = useState({ title: '', category: '', tagsInput: '', summary: '' })
   const [createForm, setCreateForm] = useState<KBCreateTextDocumentBody>({
     title: '',
     content: '',
@@ -321,6 +323,17 @@ export default function KbLibraryPage() {
       notification.success(t('kbLibrary.notifications.deleteSuccess'))
     },
     onError: (err: Error) => notification.error(t('kbLibrary.notifications.deleteFailed', { message: err.message })),
+  })
+
+  const updateMetaMutation = useMutation({
+    mutationFn: ({ id, title, category, tags, summary }: { id: number; title: string; category: string; tags: string[]; summary: string }) =>
+      kbLibraryApi.updateAsset(id, { title, category, tags, summary }),
+    onSuccess: async () => {
+      await refreshAll()
+      setEditMetaOpen(false)
+      notification.success(t('kbLibrary.notifications.updateSuccess'))
+    },
+    onError: (err: Error) => notification.error(t('kbLibrary.notifications.updateFailed', { message: err.message })),
   })
 
   const bindingsMutation = useMutation({
@@ -877,6 +890,23 @@ export default function KbLibraryPage() {
                       <ActionButton
                         size="small"
                         tone="secondary"
+                        startIcon={<EditMetaIcon />}
+                        sx={compactActionSx}
+                        onClick={() => {
+                          setEditMetaForm({
+                            title: detail.asset.title,
+                            category: detail.asset.category ?? '',
+                            tagsInput: (detail.asset.tags ?? []).join(', '),
+                            summary: detail.asset.summary ?? '',
+                          })
+                          setEditMetaOpen(true)
+                        }}
+                      >
+                        {t('kbLibrary.actions.edit')}
+                      </ActionButton>
+                      <ActionButton
+                        size="small"
+                        tone="secondary"
                         startIcon={<DownloadIcon />}
                         sx={compactActionSx}
                         onClick={() => void handleDownloadRaw(detail.asset)}
@@ -1078,6 +1108,66 @@ export default function KbLibraryPage() {
             disabled={createMutation.isPending || !createForm.title.trim() || !createForm.content.trim()}
           >
             {createMutation.isPending ? t('kbLibrary.actions.creating') : t('kbLibrary.actions.create')}
+          </ActionButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* 编辑元数据对话框 */}
+      <Dialog
+        open={editMetaOpen}
+        onClose={() => !updateMetaMutation.isPending && setEditMetaOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        disableRestoreFocus
+      >
+        <DialogTitle>{t('kbLibrary.dialogs.editMetaTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <TextField
+              label={t('kbLibrary.form.title')}
+              fullWidth
+              value={editMetaForm.title}
+              onChange={e => setEditMetaForm(prev => ({ ...prev, title: e.target.value }))}
+              autoFocus
+            />
+            <TextField
+              label={t('kbLibrary.form.category')}
+              fullWidth
+              value={editMetaForm.category}
+              onChange={e => setEditMetaForm(prev => ({ ...prev, category: e.target.value }))}
+            />
+            <TextField
+              label={t('kbLibrary.form.tags')}
+              fullWidth
+              value={editMetaForm.tagsInput}
+              onChange={e => setEditMetaForm(prev => ({ ...prev, tagsInput: e.target.value }))}
+              placeholder={t('kbLibrary.form.tagsPlaceholder')}
+              helperText={t('kbLibrary.form.tagsHelper')}
+            />
+            <TextField
+              label={t('kbLibrary.form.summary')}
+              fullWidth
+              multiline
+              minRows={3}
+              value={editMetaForm.summary}
+              onChange={e => setEditMetaForm(prev => ({ ...prev, summary: e.target.value }))}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton onClick={() => setEditMetaOpen(false)} disabled={updateMetaMutation.isPending}>
+            {t('kbLibrary.actions.cancel')}
+          </ActionButton>
+          <ActionButton
+            tone="primary"
+            disabled={!editMetaForm.title.trim() || updateMetaMutation.isPending}
+            onClick={() => {
+              if (!selectedAssetId) return
+              const tags = editMetaForm.tagsInput.split(',').map(s => s.trim()).filter(Boolean)
+              updateMetaMutation.mutate({ id: selectedAssetId, title: editMetaForm.title.trim(), category: editMetaForm.category.trim(), tags, summary: editMetaForm.summary.trim() })
+            }}
+          >
+            {t('kbLibrary.actions.save')}
           </ActionButton>
         </DialogActions>
       </Dialog>

@@ -1063,7 +1063,8 @@
       "disable": "禁用检索",
       "enabled": "启用",
       "disabled": "禁用",
-      "save": "保存"
+      "save": "保存",
+      "edit": "编辑"
     },
     "batchStatus": {
       "waiting": "等待中",
@@ -1154,7 +1155,8 @@
       "tags": "标签",
       "tagsPlaceholder": "多个标签用逗号分隔",
       "summary": "摘要",
-      "content": "正文内容"
+      "content": "正文内容",
+      "tagsHelper": "多个标签用逗号分隔"
     },
     "dialogs": {
       "createTitle": "新建文本知识",
@@ -1166,7 +1168,8 @@
       "deleteTitle": "确认删除",
       "removeTitle": "确认移除",
       "deleteContent": "确定要删除知识文档“{{title}}”吗？此操作不可恢复。",
-      "removeContent": "确定要将知识文件“{{title}}”从当前工作区移除吗？这不会删除全局源文件。"
+      "removeContent": "确定要将知识文件“{{title}}”从当前工作区移除吗？这不会删除全局源文件。",
+      "editMetaTitle": "编辑元数据"
     },
     "notifications": {
       "addSuccess": "知识文件已添加到当前工作区",
@@ -1240,7 +1243,9 @@
       "reindex": "重建索引",
       "downloadRaw": "下载原文件",
       "delete": "删除文件",
-      "cancel": "取消"
+      "cancel": "取消",
+      "edit": "编辑",
+      "save": "保存"
     },
     "batchStatus": {
       "waiting": "等待中",
@@ -1326,7 +1331,8 @@
       "summary": "摘要",
       "content": "正文内容",
       "supportedFormats": "支持上传的文件格式：{{formats}}",
-      "bindWorkspaces": "绑定到工作区"
+      "bindWorkspaces": "绑定到工作区",
+      "tagsHelper": "多个标签用逗号分隔"
     },
     "dialogs": {
       "createTitle": "新建全局文本知识",
@@ -1335,7 +1341,8 @@
       "bindTitle": "绑定工作区",
       "bindHint": "选择需要复用这份文件的工作区。绑定后，工作区即可直接使用该文件而无需再次上传。",
       "deleteTitle": "删除全局知识库文件",
-      "deleteContent": "确定要删除文件“{{title}}”吗？如果仍有工作区绑定，需要先解除绑定。"
+      "deleteContent": "确定要删除文件“{{title}}”吗？如果仍有工作区绑定，需要先解除绑定。",
+      "editMetaTitle": "编辑元数据"
     },
     "notifications": {
       "createSuccess": "文本知识已创建并进入索引流程",
