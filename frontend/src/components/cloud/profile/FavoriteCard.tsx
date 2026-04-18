@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Chip, IconButton, Tooltip } from '@mui/material'
+import { Chip, Tooltip } from '@mui/material'
 import { Extension as ExtensionIcon, Face as FaceIcon, Favorite as FavoriteIcon, OpenInNew as OpenInNewIcon, Download as DownloadIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { FavoriteItem } from '../../../services/api/cloud/favorites'
 import ActionButton from '../../common/ActionButton'
+import IconActionButton from '../../common/IconActionButton'
 import ProfileResourceCard from './ProfileResourceCard'
 
 interface FavoriteCardProps {
@@ -56,21 +57,16 @@ export default function FavoriteCard({ favorite, onRemove, onViewDetail, onDownl
             label={isPlugin ? t('cloud:profile.plugin') : t('cloud:profile.preset')}
             size="small"
             color={isPlugin ? 'primary' : 'secondary'}
-            sx={{ height: 24, fontSize: '0.75rem' }}
+            sx={{ height: 22, fontSize: '0.7rem' }}
           />
           {isObtained && (
             <Chip
               label={t('cloud:profile.obtained') || '已获取'}
               size="small"
               color="success"
-              sx={{ height: 24, fontSize: '0.75rem' }}
+              sx={{ height: 22, fontSize: '0.7rem' }}
             />
           )}
-          <Chip
-            label={`${t('cloud:profile.collectedAt')}: ${new Date(favorite.createdAt).toLocaleDateString()}`}
-            size="small"
-            sx={{ height: 24, fontSize: '0.75rem', bgcolor: 'action.selected' }}
-          />
         </>
       }
       actions={
@@ -94,9 +90,9 @@ export default function FavoriteCard({ favorite, onRemove, onViewDetail, onDownl
       }
       trailingAction={
         <Tooltip title={t('cloud:profile.removeFavorite')}>
-          <IconButton size="small" color="error" onClick={onRemove}>
-            <FavoriteIcon />
-          </IconButton>
+          <IconActionButton tone="danger" size="small" onClick={onRemove}>
+            <FavoriteIcon fontSize="small" />
+          </IconActionButton>
         </Tooltip>
       }
     />

@@ -4,20 +4,25 @@ import {
   Typography,
   Tab,
   Card,
+  CardContent,
   Grid,
   Avatar,
   Alert,
+  Chip,
   CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Divider,
   Button,
+  useTheme,
 } from '@mui/material'
 import {
   Person as PersonIcon,
   Extension as ExtensionIcon,
   Favorite as FavoriteIcon,
+  Face as FaceIcon,
 } from '@mui/icons-material'
 import { favoritesApi, FavoriteItem } from '../../services/api/cloud/favorites'
 import {
@@ -43,8 +48,8 @@ import PluginDetailDialog from '../../components/cloud/PluginDetailDialog'
 import PluginEditDialog from '../../components/cloud/PluginEditDialog'
 import PresetDetailDialog from '../../components/cloud/PresetDetailDialog'
 import { PageTabs } from '../../components/common/NekroTabs'
-import ProfileSection from '../../components/cloud/profile/ProfileSection'
 import CommunityApiKeyRequiredContent from '../../components/common/CommunityApiKeyRequiredContent'
+import StatCard from '../../components/common/StatCard'
 import { useCommunityUserStore } from '../../stores/communityUser'
 
 type TabValue = 'published' | 'favorites'
@@ -52,6 +57,7 @@ type PresetDetailSource = 'published' | 'favorites'
 
 export default function CloudProfile() {
   const navigate = useNavigate()
+  const theme = useTheme()
   const [activeTab, setActiveTab] = useState<TabValue>('published')
   const [favorites, setFavorites] = useState<FavoriteItem[]>([])
   const [userPlugins, setUserPlugins] = useState<UserPlugin[]>([])
@@ -83,8 +89,6 @@ export default function CloudProfile() {
     fetchUserProfile,
   } = useCommunityUserStore()
 
-  const pluginFavorites = favorites.filter(f => f.targetType === 'plugin')
-  const presetFavorites = favorites.filter(f => f.targetType === 'preset')
   const hasSelectedPluginModuleName = Boolean(selectedPlugin?.moduleName)
 
   const setFavoriteLocalState = useCallback((targetType: string, targetId: string, isLocal: boolean) => {
@@ -466,52 +470,82 @@ export default function CloudProfile() {
     }
   }
 
+  const publishedLoading = pluginsLoading || presetsLoading
+  const favoritesLoading = loading && favorites.length === 0
+  const contentLoading = activeTab === 'published' ? publishedLoading : favoritesLoading
+
   return (
     <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
-      {/* 用户信息卡片 */}
-      <Card
-        sx={{
-          ...CARD_VARIANTS.default.styles,
-          mb: 3,
-          p: { xs: 2.25, md: 2.75 },
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar
-            src={userProfile?.avatarUrl}
-            alt={userProfile?.username}
-            sx={{
-              width: 72,
-              height: 72,
-              bgcolor: 'primary.main',
-              fontSize: '2rem',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            {userProfile?.username?.[0]?.toUpperCase() || <PersonIcon />}
-          </Avatar>
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
-              {t('cloud:profile.title')}
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, mt: 0.2 }}>
-              {userProfile?.username || t('cloud:profile.loading')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
-              {activeTab === 'published'
-                ? t('cloud:profile.myPublished')
-                : t('cloud:profile.myFavorites')}
-            </Typography>
-          </Box>
-        </Box>
-      </Card>
+      {/* 头部统计栏 */}
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'stretch' }}>
+        <Card
+          sx={{
+            ...CARD_VARIANTS.default.styles,
+            flex: '1 1 0',
+            minWidth: 160,
+          }}
+        >
+          <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Avatar
+                src={userProfile?.avatarUrl}
+                alt={userProfile?.username}
+                sx={{
+                  width: 40,
+                  height: 40,
+                  bgcolor: 'primary.main',
+                  fontSize: '1.1rem',
+                  border: '2px solid',
+                  borderColor: 'divider',
+                  flexShrink: 0,
+                }}
+              >
+                {userProfile?.username?.[0]?.toUpperCase() || <PersonIcon />}
+              </Avatar>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                  {userProfile?.username || t('cloud:profile.loading')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.1 }}>
+                  {t('cloud:profile.title')}
+                </Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+        {communityAccessStatus === 'available' && (
+          <>
+            <StatCard
+              icon={<ExtensionIcon sx={{ fontSize: 20 }} />}
+              value={userPlugins.length}
+              label={t('cloud:profile.plugins')}
+              color={theme.palette.primary.main}
+              loading={pluginsLoading}
+            />
+            <StatCard
+              icon={<FaceIcon sx={{ fontSize: 20 }} />}
+              value={userPresets.length}
+              label={t('cloud:profile.presets')}
+              color={theme.palette.secondary.main}
+              loading={presetsLoading}
+            />
+            <StatCard
+              icon={<FavoriteIcon sx={{ fontSize: 20 }} />}
+              value={activeTab === 'favorites' && !loading ? favorites.length : '-'}
+              label={t('cloud:profile.myFavorites')}
+              color={theme.palette.error.main}
+              loading={activeTab === 'favorites' && loading && favorites.length === 0}
+            />
+          </>
+        )}
+      </Box>
 
-      {/* 标签页 */}
-      <Box sx={{ mb: 3 }}>
+      {/* Tab 栏 */}
+      <Card sx={{ ...CARD_VARIANTS.default.styles, mb: 3 }}>
         <PageTabs
           value={activeTab}
           onChange={handleTabChange}
+          sx={{ px: { xs: 0.5, md: 2 } }}
         >
           <Tab
             label={t('cloud:profile.myPublished')}
@@ -526,124 +560,187 @@ export default function CloudProfile() {
             iconPosition="start"
           />
         </PageTabs>
-      </Box>
+      </Card>
 
-      {/* 我的发布 */}
-      {activeTab === 'published' && (
-        <Box sx={{ display: 'grid', gap: 3 }}>
-          <ProfileSection title={t('cloud:profile.plugins')} count={userPlugins.length}>
-            {pluginsLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : userPlugins.length > 0 ? (
-              <Grid container spacing={3}>
-                {userPlugins.map(plugin => (
-                  <Grid item xs={12} sm={6} md={4} key={plugin.id}>
-                    <UserPluginCard
-                      plugin={plugin}
-                      onUnpublish={() => setPluginDelistDialog(plugin)}
-                      onEdit={() => openEditDialog(plugin)}
-                      t={t}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Alert severity="info">{t('cloud:profile.noPublishedPlugins')}</Alert>
-            )}
-          </ProfileSection>
-
-          <ProfileSection title={t('cloud:profile.presets')} count={userPresets.length}>
-            {presetsLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : userPresets.length > 0 ? (
-              <Grid container spacing={3}>
-                {userPresets.map(preset => (
-                  <Grid item xs={12} sm={6} md={4} key={preset.id}>
-                    <UserPresetCard
-                      preset={preset}
-                      onUnpublish={() => handleUnpublishPreset()}
-                      onViewDetail={() => openPresetDetail(preset)}
-                      onEdit={() => handleEditPreset(preset)}
-                      t={t}
-                    />
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Alert severity="info">{t('cloud:profile.noPublishedPresets')}</Alert>
-            )}
-          </ProfileSection>
-        </Box>
-      )}
-
-      {/* 我的收藏 */}
-      {activeTab === 'favorites' && (
-        <Box sx={{ display: 'grid', gap: 3 }}>
-          {error && (
-            <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
-            </Alert>
-          )}
-
-          {loading && favorites.length === 0 ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
+      {/* 内容区 — 统一加载覆盖层 */}
+      <Box position="relative" minHeight={contentLoading ? '200px' : 'auto'}>
+        {contentLoading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
+              backdropFilter: 'blur(2px)',
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                bgcolor: 'background.paper',
+                boxShadow: 2,
+                borderRadius: 2,
+                px: 3,
+                py: 1.5,
+              }}
+            >
+              <CircularProgress size={24} thickness={4} />
+              <Typography variant="body2" color="text.secondary">
+                {t('cloud:profile.loading')}
+              </Typography>
             </Box>
-          ) : favorites.length > 0 ? (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <ProfileSection title={t('cloud:profile.plugins')} count={pluginFavorites.length}>
-                  {pluginFavorites.length > 0 ? (
-                    <Grid container spacing={2}>
-                      {pluginFavorites.map(favorite => (
-                        <Grid item xs={12} key={favorite.id}>
-                          <FavoriteCard
-                            favorite={favorite}
-                            onRemove={() => handleRemoveFavorite(favorite)}
-                            onViewDetail={() => handleViewFavoriteDetail(favorite)}
-                            onDownload={() => handleDownloadClick(favorite)}
-                            t={t}
-                          />
-                        </Grid>
-                      ))}
-                    </Grid>
-                  ) : (
-                    <Alert severity="info">{t('cloud:profile.noPluginFavorites') || '暂无插件收藏'}</Alert>
-                  )}
-                </ProfileSection>
-              </Grid>
+          </Box>
+        )}
 
-              <Grid item xs={12} md={6}>
-                <ProfileSection title={t('cloud:profile.presets')} count={presetFavorites.length}>
-                  {presetFavorites.length > 0 ? (
-                    <Grid container spacing={2}>
-                      {presetFavorites.map(favorite => (
-                        <Grid item xs={12} key={favorite.id}>
-                          <FavoriteCard
-                            favorite={favorite}
-                            onRemove={() => handleRemoveFavorite(favorite)}
-                            onViewDetail={() => handleViewFavoriteDetail(favorite)}
-                            onDownload={() => handleDownloadClick(favorite)}
+        {/* 我的发布 */}
+        {activeTab === 'published' && !publishedLoading && (
+          <>
+            {(userPlugins.length > 0 || userPresets.length > 0) ? (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* 插件区 */}
+                {userPlugins.length > 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                      <ExtensionIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        {t('cloud:profile.plugins')}
+                      </Typography>
+                      <Chip
+                        label={userPlugins.length}
+                        size="small"
+                        color="primary"
+                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+                      />
+                    </Box>
+                    <Grid container spacing={3}>
+                      {userPlugins.map(plugin => (
+                        <Grid item xs={12} sm={6} md={4} key={`plugin-${plugin.id}`}>
+                          <UserPluginCard
+                            plugin={plugin}
+                            onUnpublish={() => setPluginDelistDialog(plugin)}
+                            onEdit={() => openEditDialog(plugin)}
                             t={t}
                           />
                         </Grid>
                       ))}
                     </Grid>
-                  ) : (
-                    <Alert severity="info">{t('cloud:profile.noPresetFavorites') || '暂无人设收藏'}</Alert>
-                  )}
-                </ProfileSection>
+                  </Box>
+                )}
+
+                {/* 分隔线 */}
+                {userPlugins.length > 0 && userPresets.length > 0 && (
+                  <Divider />
+                )}
+
+                {/* 人设区 */}
+                {userPresets.length > 0 && (
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                      <FaceIcon sx={{ fontSize: 20, color: 'secondary.main' }} />
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                        {t('cloud:profile.presets')}
+                      </Typography>
+                      <Chip
+                        label={userPresets.length}
+                        size="small"
+                        color="secondary"
+                        sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
+                      />
+                    </Box>
+                    <Grid container spacing={3}>
+                      {userPresets.map(preset => (
+                        <Grid item xs={12} sm={6} md={4} key={`preset-${preset.id}`}>
+                          <UserPresetCard
+                            preset={preset}
+                            onUnpublish={() => handleUnpublishPreset()}
+                            onViewDetail={() => openPresetDetail(preset)}
+                            onEdit={() => handleEditPreset(preset)}
+                            t={t}
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Box>
+                )}
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  py: 8,
+                  gap: 2,
+                  minHeight: 300,
+                  border: '1px dashed',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                }}
+              >
+                <ExtensionIcon sx={{ fontSize: 56, opacity: 0.2 }} />
+                <Typography variant="h6" color="text.secondary">
+                  {t('cloud:profile.noPublishedPlugins')}
+                </Typography>
+              </Box>
+            )}
+          </>
+        )}
+
+        {/* 我的收藏 */}
+        {activeTab === 'favorites' && (
+          <>
+            {error && (
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {error}
+              </Alert>
+            )}
+
+            {!favoritesLoading && favorites.length > 0 ? (
+              <Grid container spacing={3}>
+                {favorites.map(favorite => (
+                  <Grid item xs={12} sm={6} md={4} key={favorite.id}>
+                    <FavoriteCard
+                      favorite={favorite}
+                      onRemove={() => handleRemoveFavorite(favorite)}
+                      onViewDetail={() => handleViewFavoriteDetail(favorite)}
+                      onDownload={() => handleDownloadClick(favorite)}
+                      t={t}
+                    />
+                  </Grid>
+                ))}
               </Grid>
-            </Grid>
-          ) : (
-            <Alert severity="info">{t('cloud:profile.noFavorites')}</Alert>
-          )}
-        </Box>
-      )}
+            ) : (
+              !favoritesLoading && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    py: 8,
+                    gap: 2,
+                    minHeight: 300,
+                    border: '1px dashed',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                  }}
+                >
+                  <FavoriteIcon sx={{ fontSize: 56, opacity: 0.2 }} />
+                  <Typography variant="h6" color="text.secondary">{t('cloud:profile.noFavorites')}</Typography>
+                </Box>
+              )
+            )}
+          </>
+        )}
+      </Box>
 
       <PluginEditDialog
         open={!!editingPlugin}

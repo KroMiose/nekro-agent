@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Box, Divider, Typography } from '@mui/material'
+import { Box, Chip, Divider, Typography } from '@mui/material'
 import { CARD_VARIANTS } from '../../../theme/variants'
 
 interface ProfileSectionProps {
@@ -34,13 +34,25 @@ export default function ProfileSection({
           mb: 2,
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
             {title}
-            {typeof count === 'number' ? ` (${count})` : ''}
           </Typography>
+          {typeof count === 'number' && (
+            <Chip
+              label={count}
+              size="small"
+              sx={{
+                height: 22,
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                bgcolor: 'action.selected',
+                color: 'text.secondary',
+              }}
+            />
+          )}
           {description ? (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
               {description}
             </Typography>
           ) : null}

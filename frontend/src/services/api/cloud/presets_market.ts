@@ -29,6 +29,7 @@ export interface UserPreset {
   name: string
   title: string
   avatar?: string
+  favoriteCount?: number
 }
 
 export interface UserPresetListResponse {

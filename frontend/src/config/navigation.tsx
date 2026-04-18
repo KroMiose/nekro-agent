@@ -134,12 +134,6 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
     ],
   },
   {
-    path: '/logs',
-    text: t('menu.logs'),
-    translationKey: 'menu.logs',
-    icon: <TerminalIcon />,
-  },
-  {
     key: 'workspace',
     text: t('menu.workspace'),
     translationKey: 'menu.workspace',
@@ -181,6 +175,12 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'workspace',
       },
     ],
+  },
+  {
+    path: '/logs',
+    text: t('menu.logs'),
+    translationKey: 'menu.logs',
+    icon: <TerminalIcon />,
   },
   {
     path: '/sandbox-logs',

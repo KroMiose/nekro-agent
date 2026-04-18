@@ -44,6 +44,7 @@ class UserPresetItem(BaseModel):
     name: str
     title: str
     avatar: Optional[str] = None
+    favorite_count: Optional[int] = Field(None, alias="favoriteCount")
 
 
 class UserPresetListResponse(BaseModel):
@@ -166,6 +167,7 @@ async def get_user_presets(
             name=item.name,
             title=item.title,
             avatar=item.avatar,
+            favoriteCount=item.favorite_count,
         )
         for item in response.data.items
     ]

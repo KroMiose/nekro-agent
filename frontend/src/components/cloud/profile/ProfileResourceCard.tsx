@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Box, Card, CardContent, Typography } from '@mui/material'
 import { CARD_VARIANTS } from '../../../theme/variants'
+import { UI_STYLES } from '../../../theme/themeConfig'
 
 interface ProfileResourceCardProps {
   media: ReactNode
@@ -28,9 +29,13 @@ export default function ProfileResourceCard({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          transform: 'translateY(-2px)',
+        },
       }}
     >
-      <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1.5 }}>
+      <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, mb: 1.75 }}>
           <Box
             sx={{
@@ -109,8 +114,9 @@ export default function ProfileResourceCard({
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: 1.5,
-          p: 1.5,
-          backgroundColor: 'action.hover',
+          px: 1.5,
+          py: 1.25,
+          bgcolor: UI_STYLES.SELECTED,
           borderTop: '1px solid',
           borderColor: 'divider',
         }}
