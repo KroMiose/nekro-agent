@@ -1191,13 +1191,14 @@
       "searchPlaceholder": "搜索文档标题、分类、摘要...",
       "noCandidates": "没有可添加的文档。所有同类文档已被引用，或当前只有一篇文档。",
       "descriptionLabel": "引用说明（可选）",
-      "descriptionPlaceholder": "简要说明被引用文档补充了哪些内容，如"第三章详细展开了配置项说明"",
+      "descriptionPlaceholder": "简要说明被引用文档补充了哪些内容，例如：第三章详细展开了配置项说明",
       "addSuccess": "引用关系已添加",
       "addFailed": "添加引用失败：{{message}}",
       "removeSuccess": "引用关系已移除",
       "removeFailed": "移除引用失败：{{message}}",
       "updateSuccess": "引用说明已更新",
-      "updateFailed": "更新失败：{{message}}"
+      "updateFailed": "更新失败：{{message}}",
+      "autoDetected": "由系统从文档内容自动检测"
     }
   },
   "kbLibrary": {

@@ -1197,7 +1197,8 @@
       "removeSuccess": "Reference removed",
       "removeFailed": "Failed to remove reference: {{message}}",
       "updateSuccess": "Reference description updated",
-      "updateFailed": "Failed to update reference: {{message}}"
+      "updateFailed": "Failed to update reference: {{message}}",
+      "autoDetected": "Automatically detected from document content"
     }
   },
   "kbLibrary": {

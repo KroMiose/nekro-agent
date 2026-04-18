@@ -12,6 +12,7 @@ from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.services.kb.chunker import split_text_into_chunks
 from nekro_agent.services.kb.extractors import extract_source_file
 from nekro_agent.services.kb.qdrant_manager import kb_qdrant_manager
+from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
 from nekro_agent.services.memory.embedding_service import embed_batch, get_memory_embedding_dimension
 from nekro_agent.services.system_broadcast import KbIndexProgressEvent, publish_kb_index_progress
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -119,6 +120,7 @@ async def index_document(document: DBKBDocument) -> int:
         await _publish_index_progress(
             document, phase="ready", started_at=started_at, progress_percent=100, expires_in_ms=4000
         )
+        await detect_and_sync_document_references(document.workspace_id, document.id)
         return 0
 
     created_chunks: list[DBKBChunk] = []
@@ -198,6 +200,7 @@ async def index_document(document: DBKBDocument) -> int:
         processed_chunks=processed_chunks,
         expires_in_ms=4000,
     )
+    await detect_and_sync_document_references(document.workspace_id, document.id)
     return len(created_chunks)
 
 

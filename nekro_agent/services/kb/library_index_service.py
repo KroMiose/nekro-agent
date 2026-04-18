@@ -16,6 +16,7 @@ from nekro_agent.services.kb.library_service import (
     resolve_kb_library_normalized_path,
     resolve_kb_library_source_path,
 )
+from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
 from nekro_agent.services.memory.embedding_service import embed_batch, get_memory_embedding_dimension
 from nekro_agent.services.system_broadcast import KbLibraryIndexProgressEvent, publish_kb_library_index_progress
 
@@ -120,6 +121,7 @@ async def index_asset(asset: DBKBAsset) -> int:
         asset.last_error = None
         await asset.save(update_fields=["chunk_count", "sync_status", "last_indexed_at", "last_error", "update_time"])
         await _publish_index_progress(asset, phase="ready", started_at=started_at, progress_percent=100, expires_in_ms=4000)
+        await detect_and_sync_asset_references(asset.id)
         return 0
 
     created_chunks: list[DBKBAssetChunk] = []
@@ -198,6 +200,7 @@ async def index_asset(asset: DBKBAsset) -> int:
         processed_chunks=processed_chunks,
         expires_in_ms=4000,
     )
+    await detect_and_sync_asset_references(asset.id)
     return len(created_chunks)
 
 

@@ -9,6 +9,7 @@ class DBKBAssetReference(Model):
     source_asset_id = fields.IntField(index=True, description="发起引用的资产 ID")
     target_asset_id = fields.IntField(index=True, description="被引用的资产 ID")
     description = fields.CharField(max_length=500, default="", description="引用说明，描述被引用资产补充了哪些内容")
+    is_auto = fields.BooleanField(default=False, description="是否由系统自动检测生成")
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 

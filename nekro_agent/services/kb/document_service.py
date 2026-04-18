@@ -283,6 +283,7 @@ def _doc_to_reference_item(ref: DBKBDocumentReference, doc: DBKBDocument, is_sou
         format=doc.format,  # type: ignore[arg-type]
         summary=doc.summary,
         description=ref.description,
+        is_auto=ref.is_auto,
     )
 
 

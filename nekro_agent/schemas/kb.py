@@ -290,6 +290,7 @@ class KBReferenceItem(BaseModel):
     format: KBFormat
     summary: str = ""
     description: str = ""
+    is_auto: bool = False
 
 
 class KBDocumentReferences(BaseModel):

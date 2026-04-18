@@ -254,6 +254,7 @@ export interface KBReferenceItem {
   format: KBFormat
   summary: string
   description: string
+  is_auto: boolean
 }
 
 export interface KBDocumentReferences {

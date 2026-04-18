@@ -353,6 +353,7 @@ def _asset_to_reference_item(ref: DBKBAssetReference, asset: DBKBAsset) -> KBRef
         format=asset.format,  # type: ignore[arg-type]
         summary=asset.summary,
         description=ref.description,
+        is_auto=ref.is_auto,
     )
 
 
