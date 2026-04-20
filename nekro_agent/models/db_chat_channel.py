@@ -99,7 +99,7 @@ class DBChatChannel(Model):
     async def get_channel(cls, chat_key: str) -> "DBChatChannel":
         """获取聊天频道"""
         assert chat_key, "获取聊天频道失败，chat_key 为空"
-        channel = await cls.get_or_none(chat_key=chat_key)
+        channel = await cls.filter(chat_key=chat_key).first()
         if not channel:
             raise ValueError(f"聊天频道不存在: {chat_key}")
         return channel
