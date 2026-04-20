@@ -137,6 +137,16 @@ export interface ChatPluginDataResponse {
   plugin_names: Record<string, string>
 }
 
+export interface ChannelDeletePreview {
+  message_count: number
+  timer_job_count: number
+  plugin_data_count: number
+  mem_paragraph_count: number
+  mem_episode_count: number
+  upload_dir_exists: boolean
+  sandbox_dir_exists: boolean
+}
+
 export interface ChannelListStreamEvent {
   event_type: string
   chat_key: string
@@ -297,6 +307,16 @@ export const chatChannelApi = {
 
   deletePluginData: async (chatKey: string, dataId: number): Promise<ActionResponse> => {
     const response = await axios.delete<ActionResponse>(`/chat-channel/${chatKey}/plugin-data/${dataId}`)
+    return response.data
+  },
+
+  getDeletePreview: async (chatKey: string): Promise<ChannelDeletePreview> => {
+    const response = await axios.get<ChannelDeletePreview>(`/chat-channel/${encodeURIComponent(chatKey)}/delete-preview`)
+    return response.data
+  },
+
+  deleteChannel: async (chatKey: string): Promise<ActionResponse> => {
+    const response = await axios.delete<ActionResponse>(`/chat-channel/${encodeURIComponent(chatKey)}`)
     return response.data
   },
 

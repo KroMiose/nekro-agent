@@ -35,6 +35,7 @@ import BasicInfo from './detail-tabs/BasicInfo'
 import MessageHistory from './detail-tabs/MessageHistory'
 import OverrideSettings from './detail-tabs/OverrideSettings'
 import PluginData from './detail-tabs/PluginData'
+import DangerZone from './detail-tabs/DangerZone'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useMediaQuery } from '@mui/material'
 import { InlineTabs } from '../../../components/common/NekroTabs'
@@ -316,9 +317,18 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
         <Fade in={!isFetching || isRefreshing} timeout={150}>
           <Box className="h-full">
             {currentTab === 'basic-info' && (
-              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
-                {channel && <BasicInfo channel={channel} />}
-              </Card>
+              <Box sx={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Card sx={CARD_VARIANTS.default.styles}>
+                  {channel && <BasicInfo channel={channel} />}
+                </Card>
+                <Card sx={CARD_VARIANTS.default.styles}>
+                  <DangerZone
+                    chatKey={chatKey}
+                    channelName={channel?.channel_name ?? null}
+                    onDeleted={() => onBack?.()}
+                  />
+                </Card>
+              </Box>
             )}
             {currentTab === 'override-settings' && (
               <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
