@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useDeferredValue, useMemo, useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -14,12 +14,9 @@ import {
   List as ListIcon,
   Info as InfoIcon,
 } from '@mui/icons-material'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { chatChannelApi, type ChatChannelListResponse } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
-import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { CARD_VARIANTS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
 import SearchField from '../../components/common/SearchField'
@@ -31,15 +28,7 @@ import {
   isChatChannelDetailTab,
   type ChatChannelDetailTab,
 } from '../../router/routes'
-
-const DEFAULT_PAGE = 1
-const DEFAULT_PAGE_SIZE = 25
-
-const parsePositiveInt = (value: string | null, fallback: number) => {
-  if (!value) return fallback
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
-}
+import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
 
 export default function ChatChannelPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -48,20 +37,46 @@ export default function ChatChannelPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('chat-channel')
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { chatKey, tab } = useParams<{ chatKey: string; tab: string }>()
   const [searchParams] = useSearchParams()
   const selectedChatKey = chatKey ?? null
   const selectedTab = isChatChannelDetailTab(tab) ? tab : null
-  const search = searchParams.get('search') ?? ''
-  const chatType = searchParams.get('chat_type') ?? ''
-  const legacyIsActive = searchParams.get('is_active')
-  const status = searchParams.get('status') ?? (
-    legacyIsActive === 'true' ? 'active' : legacyIsActive === 'false' ? 'disabled' : ''
-  )
-  const page = parsePositiveInt(searchParams.get('page'), DEFAULT_PAGE)
-  const pageSize = parsePositiveInt(searchParams.get('page_size'), DEFAULT_PAGE_SIZE)
+
+  // 本地搜索 / 筛选状态（从 sessionStorage 恢复，保证路由重挂载后不丢失）
+  const [search, setSearch] = useState(() => sessionStorage.getItem('chatChannel.search') ?? '')
+  const [chatType, setChatType] = useState(() => sessionStorage.getItem('chatChannel.chatType') ?? '')
+  const [status, setStatus] = useState(() => sessionStorage.getItem('chatChannel.status') ?? '')
+
+  useEffect(() => { sessionStorage.setItem('chatChannel.search', search) }, [search])
+  useEffect(() => { sessionStorage.setItem('chatChannel.chatType', chatType) }, [chatType])
+  useEffect(() => { sessionStorage.setItem('chatChannel.status', status) }, [status])
+
+  // 使用全局频道目录
+  const { channels, isLoading } = useChannelDirectoryContext()
+
+  // 延迟搜索值，避免每次按键都触发全量过滤
+  const deferredSearch = useDeferredValue(search)
+
+  // 前端过滤
+  const filteredChannels = useMemo(() => {
+    let result = channels
+    if (deferredSearch) {
+      const lower = deferredSearch.toLowerCase()
+      result = result.filter(
+        ch =>
+          ch.chat_key.toLowerCase().includes(lower) ||
+          (ch.channel_name ?? '').toLowerCase().includes(lower),
+      )
+    }
+    if (chatType) {
+      result = result.filter(ch => ch.chat_type === chatType)
+    }
+    if (status) {
+      result = result.filter(ch => ch.status === status)
+    }
+    return result
+  }, [channels, deferredSearch, chatType, status])
 
   useEffect(() => {
     const legacyChatKey = searchParams.get('chat_key')
@@ -85,138 +100,14 @@ export default function ChatChannelPage() {
   const buildChannelUrl = (
     nextChatKey?: string | null,
     nextTab?: ChatChannelDetailTab | null,
-    overrides?: Record<string, string | null>,
   ) => {
-    const nextParams = new URLSearchParams(searchParams)
-    if (overrides) {
-      Object.entries(overrides).forEach(([key, value]) => {
-        if (value === null || value === '') {
-          nextParams.delete(key)
-        } else {
-          nextParams.set(key, value)
-        }
-      })
-    }
-    const query = nextParams.toString()
     const basePath = chatChannelPath(nextChatKey, nextChatKey ? (nextTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB) : null)
-    return query ? `${basePath}?${query}` : basePath
-  }
-
-  // 查询聊天列表
-  const { data: channelList, isLoading } = useQuery({
-    queryKey: ['chat-channels', search, chatType, status, page, pageSize],
-    queryFn: () =>
-      chatChannelApi.getList({
-        page,
-        page_size: pageSize,
-        search: search || undefined,
-        chat_type: chatType || undefined,
-        status: status === '' ? undefined : status as 'active' | 'observe' | 'disabled',
-      }),
-    staleTime: 30_000,
-  })
-
-  // 实时频道列表更新订阅 (SSE)
-  useEffect(() => {
-    const handleChannelUpdate = (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null; status?: string | null }) => {
-      const { event_type, chat_key } = event
-
-      // 更新频道列表缓存
-      queryClient.setQueryData<ChatChannelListResponse | undefined>(['chat-channels', search, chatType, status, page, pageSize], (oldData) => {
-        if (!oldData?.items) return oldData
-
-        const newItems = [...oldData.items]
-        const idx = newItems.findIndex((ch) => ch.chat_key === chat_key)
-
-        if (event_type === 'deleted' && idx >= 0) {
-          // 删除频道
-          newItems.splice(idx, 1)
-        } else if (event_type === 'created' && idx < 0) {
-          // 新建频道（添加到列表顶部）
-          newItems.unshift({
-            id: 0,
-            chat_key,
-            channel_name: event.channel_name ?? null,
-            is_active: event.is_active ?? true,
-            status: (event.status as 'active' | 'observe' | 'disabled') ?? 'active',
-            chat_type: '',
-            message_count: 0,
-            create_time: new Date().toISOString(),
-            update_time: new Date().toISOString(),
-            last_message_time: null,
-          })
-        } else if ((event_type === 'updated' || event_type === 'activated' || event_type === 'deactivated')) {
-          if (idx >= 0) {
-            // 从原位置移除，创建新对象（保持不可变性）
-            const channel = { ...newItems[idx] }
-            newItems.splice(idx, 1)
-
-            if (event.channel_name != null) {
-              channel.channel_name = event.channel_name
-            }
-            if (event.is_active != null) {
-              channel.is_active = event.is_active
-            }
-            if (event.status != null) {
-              channel.status = event.status as 'active' | 'observe' | 'disabled'
-            }
-            channel.update_time = new Date().toISOString()
-            channel.last_message_time = new Date().toISOString()
-
-            // 移到列表顶部（最新活动的频道）
-            newItems.unshift(channel)
-          }
-        }
-
-        return { ...oldData, items: newItems }
-      })
-    }
-
-    // 订阅频道列表更新
-    const cleanup = chatChannelApi.streamChannels(handleChannelUpdate, (error) => {
-      console.error('Channel stream error:', error)
-    })
-
-    return () => cleanup?.()
-  }, [queryClient, search, chatType, status, page, pageSize])
-
-  // 处理搜索
-  const handleSearch = (value: string) => {
-    navigate(buildChannelUrl(selectedChatKey, selectedTab, { search: value, page: String(DEFAULT_PAGE) }), {
-      replace: true,
-    })
-  }
-
-  // 处理清除搜索
-  const handleClearSearch = () => {
-    navigate(buildChannelUrl(selectedChatKey, selectedTab, { search: null, page: String(DEFAULT_PAGE) }), {
-      replace: true,
-    })
-  }
-
-  // 处理类型筛选
-  const handleChatTypeChange = (value: string) => {
-    navigate(
-      buildChannelUrl(selectedChatKey, selectedTab, { chat_type: value, page: String(DEFAULT_PAGE) }),
-      { replace: true }
-    )
+    return basePath
   }
 
   const handleDetailTabChange = (nextTab: ChatChannelDetailTab) => {
     if (!selectedChatKey) return
     navigate(buildChannelUrl(selectedChatKey, nextTab))
-  }
-
-  // 处理状态筛选
-  const handleStatusChange = (value: string) => {
-    navigate(
-      buildChannelUrl(selectedChatKey, selectedTab, {
-        status: value,
-        is_active: null,
-        page: String(DEFAULT_PAGE),
-      }),
-      { replace: true }
-    )
   }
 
   // 处理选择聊天
@@ -243,8 +134,8 @@ export default function ChatChannelPage() {
             size={isSmall ? 'small' : 'medium'}
             placeholder={t('search.placeholder')}
             value={search}
-            onChange={handleSearch}
-            onClear={handleClearSearch}
+            onChange={setSearch}
+            onClear={() => setSearch('')}
           />
 
           {/* 筛选选项 */}
@@ -252,7 +143,7 @@ export default function ChatChannelPage() {
             <FilterSelect
               label={t('filters.type')}
               value={chatType}
-              onChange={handleChatTypeChange}
+              onChange={setChatType}
               options={[
                 { value: '', label: t('filters.all') },
                 { value: 'group', label: t('filters.group') },
@@ -262,7 +153,7 @@ export default function ChatChannelPage() {
             <FilterSelect
               label={t('filters.status')}
               value={status}
-              onChange={handleStatusChange}
+              onChange={setStatus}
               options={[
                 { value: '', label: t('filters.all') },
                 { value: 'active', label: t('filters.active') },
@@ -279,39 +170,12 @@ export default function ChatChannelPage() {
       {/* 聊天列表 */}
       <Box className="flex-1 overflow-auto">
         <ChatChannelList
-          channels={channelList?.items || []}
+          channels={filteredChannels}
           selectedChatKey={selectedChatKey}
           onSelectChannel={handleSelectChannel}
           isLoading={isLoading}
         />
       </Box>
-
-      {/* 分页器 */}
-      {channelList && channelList.items.length > 0 && (
-        <TablePaginationStyled
-          component="div"
-          count={channelList.total}
-          page={page - 1}
-          rowsPerPage={pageSize}
-          onPageChange={(_: React.MouseEvent<HTMLButtonElement> | null, newPage: number) =>
-            navigate(buildChannelUrl(selectedChatKey, selectedTab, { page: String(newPage + 1) }), { replace: true })
-          }
-          onRowsPerPageChange={(
-            event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-          ) => {
-            navigate(
-              buildChannelUrl(selectedChatKey, selectedTab, {
-                page_size: event.target.value,
-                page: String(DEFAULT_PAGE),
-              }),
-              { replace: true }
-            )
-          }}
-          loading={isLoading}
-          showFirstLastPageButtons={false}
-          rowsPerPageOptions={[10, 25]}
-        />
-      )}
     </>
   )
 
