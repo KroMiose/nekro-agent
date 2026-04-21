@@ -8,9 +8,11 @@
   4. 标题直接提及（≥4 字，避免误判常见短词）
 
 范围策略：
-  - 同分组（category 相同）内互相检测。
-  - 文件无分组（category 为空）时，与所有同样无分组的文件互相检测。
-  - 新文件索引完成后，额外反向扫描同组内已有文件，建立"其他文件 → 新文件"的引用。
+  - 仅在“同一主分类树”范围内检测引用。
+  - 例如 `产品/手册/` 与 `产品/接口/` 可互相引用，`产品/` 也可与它们互相引用。
+  - 不同主分类树之间不会互相引用，例如 `产品/` 不会引用 `运营/`。
+  - 文件无分组（category 为空）时，仅与同样无分组的文件互相检测。
+  - 新文件索引完成后，额外反向扫描同范围内已有文件，建立"其他文件 → 新文件"的引用。
 """
 from __future__ import annotations
 
@@ -32,6 +34,22 @@ _MD_LINK_RE = re.compile(r'\[([^\]]*)\]\(([^)]+)\)')
 
 def _stem(filename: str) -> str:
     return Path(filename).stem
+
+
+def _normalize_category(category: str | None) -> str:
+    parts = [part.strip() for part in (category or "").replace("\\", "/").split("/") if part.strip()]
+    return f"{'/'.join(parts)}/" if parts else ""
+
+
+def _get_category_scope_key(category: str | None) -> str:
+    normalized = _normalize_category(category)
+    if not normalized:
+        return ""
+    return f"{normalized.split('/', 1)[0]}/"
+
+
+def _is_category_in_scope(candidate_category: str | None, source_category: str | None) -> bool:
+    return _get_category_scope_key(candidate_category) == _get_category_scope_key(source_category)
 
 
 def _detect_mentions(text: str, target_title: str, target_filename: str) -> str | None:
@@ -73,12 +91,11 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
     if source_doc is None:
         return 0
 
-    # 同分组过滤
-    same_group_filter = {"workspace_id": workspace_id, "is_enabled": True}
-    if source_doc.category:
-        same_group_filter["category"] = source_doc.category
-
-    peers = await DBKBDocument.filter(**same_group_filter).exclude(id=document_id).all()
+    peers = [
+        peer
+        for peer in await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).exclude(id=document_id).all()
+        if _is_category_in_scope(peer.category, source_doc.category)
+    ]
     if not peers:
         return 0
 
@@ -165,11 +182,11 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
     if source_asset is None:
         return 0
 
-    same_group_filter = {"is_enabled": True}
-    if source_asset.category:
-        same_group_filter["category"] = source_asset.category
-
-    peers = await DBKBAsset.filter(**same_group_filter).exclude(id=asset_id).all()
+    peers = [
+        peer
+        for peer in await DBKBAsset.filter(is_enabled=True).exclude(id=asset_id).all()
+        if _is_category_in_scope(peer.category, source_asset.category)
+    ]
     if not peers:
         return 0
 
@@ -236,6 +253,7 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
 async def detect_workspace_references(workspace_id: int) -> int:
     """对工作区所有 ready 文档重跑一遍出向检测，返回总建立的引用数。"""
     docs = await DBKBDocument.filter(workspace_id=workspace_id, sync_status="ready").all()
+    enabled_docs = await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).all()
     total = 0
     for doc in docs:
         # 全量重建时只做出向，避免 N² 重复写入
@@ -247,10 +265,11 @@ async def detect_workspace_references(workspace_id: int) -> int:
             source_document_id=doc.id,
             is_auto=True,
         ).delete()
-        same_group_filter = {"workspace_id": workspace_id, "is_enabled": True}
-        if doc.category:
-            same_group_filter["category"] = doc.category
-        peers = await DBKBDocument.filter(**same_group_filter).exclude(id=doc.id).all()
+        peers = [
+            peer
+            for peer in enabled_docs
+            if peer.id != doc.id and _is_category_in_scope(peer.category, doc.category)
+        ]
         existing_manual_out = set(
             await DBKBDocumentReference.filter(
                 workspace_id=workspace_id,
