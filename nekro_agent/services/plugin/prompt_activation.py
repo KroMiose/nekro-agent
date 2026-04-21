@@ -58,7 +58,10 @@ def is_sleep_effective(plugin: NekroPlugin) -> bool:
         return False
     if strategy == "allow_sleep":
         return plugin_supports_sleep(plugin)
-    return plugin.allow_sleep is True
+    # auto 模式：兼容老插件（allow_sleep 为 None 时回退到 sleep_brief 检查）
+    if plugin.allow_sleep is not None:
+        return plugin.allow_sleep is True
+    return plugin_supports_sleep(plugin)
 
 
 async def get_activation_state(chat_key: str) -> PluginActivationState:
