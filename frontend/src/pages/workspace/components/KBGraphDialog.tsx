@@ -43,6 +43,7 @@ interface HierarchyEdge {
 interface RefEdge {
   key: string
   path: string
+  strokeWidth: number
 }
 
 interface ReferenceRouteCandidate {
@@ -52,6 +53,12 @@ interface ReferenceRouteCandidate {
   corridorKey: string
   minY: number
   maxY: number
+}
+
+interface ReferenceLaneAssignment {
+  laneIndex: number
+  laneCount: number
+  laneX: number
 }
 
 export interface KBGraphReferenceEdge {
@@ -229,7 +236,7 @@ function buildReferenceEdges(
     })
     .filter((candidate): candidate is ReferenceRouteCandidate => candidate !== null)
 
-  const laneAssignments = new Map<string, { laneIndex: number; laneCount: number; laneX: number }>()
+  const laneAssignments = new Map<string, ReferenceLaneAssignment>()
   const corridorGroups = new Map<string, ReferenceRouteCandidate[]>()
 
   candidates.forEach(candidate => {
@@ -270,73 +277,226 @@ function buildReferenceEdges(
     })
   })
 
-  const portGroups = new Map<string, Array<{ edgeKey: string; role: 'from' | 'to'; anchorY: number }>>()
-  const registerPortGroup = (
+  const routeMeta = new Map<string, {
+    candidate: ReferenceRouteCandidate
+    laneX: number
+    sourceSide: 'left' | 'right'
+    targetSide: 'left' | 'right'
+  }>()
+
+  const sourcePortGroups = new Map<string, Array<{ edgeKey: string; anchorY: number }>>()
+  const registerSourcePortGroup = (
     nodeId: string,
     side: 'left' | 'right',
     edgeKey: string,
-    role: 'from' | 'to',
     anchorY: number,
   ) => {
     const groupKey = `${nodeId}:${side}`
-    const current = portGroups.get(groupKey)
+    const current = sourcePortGroups.get(groupKey)
     if (current) {
-      current.push({ edgeKey, role, anchorY })
+      current.push({ edgeKey, anchorY })
       return
     }
-    portGroups.set(groupKey, [{ edgeKey, role, anchorY }])
+    sourcePortGroups.set(groupKey, [{ edgeKey, anchorY }])
   }
+
+  const targetPortGroups = new Map<string, Array<{ edgeKey: string; anchorY: number }>>()
+  const registerTargetPortGroup = (
+    nodeId: string,
+    side: 'left' | 'right',
+    edgeKey: string,
+    anchorY: number,
+  ) => {
+    const groupKey = `${nodeId}:${side}`
+    const current = targetPortGroups.get(groupKey)
+    if (current) {
+      current.push({ edgeKey, anchorY })
+      return
+    }
+    targetPortGroups.set(groupKey, [{ edgeKey, anchorY }])
+  }
+
+  const sourceMergeGroups = new Map<string, Array<{ edgeKey: string; laneX: number; node: LayoutNode; side: 'left' | 'right' }>>()
+  const targetMergeGroups = new Map<string, Array<{ edgeKey: string; laneX: number; node: LayoutNode; side: 'left' | 'right' }>>()
 
   candidates.forEach(candidate => {
     const lane = laneAssignments.get(candidate.key)
     if (!lane) return
-    const fromSide: 'left' | 'right' = lane.laneX >= candidate.from.x ? 'right' : 'left'
-    const toSide: 'left' | 'right' = lane.laneX >= candidate.to.x ? 'right' : 'left'
-    registerPortGroup(candidate.from.id, fromSide, candidate.key, 'from', candidate.to.y)
-    registerPortGroup(candidate.to.id, toSide, candidate.key, 'to', candidate.from.y)
+    const sourceSide: 'left' | 'right' = lane.laneX >= candidate.from.x ? 'right' : 'left'
+    const targetSide: 'left' | 'right' = lane.laneX >= candidate.to.x ? 'right' : 'left'
+
+    routeMeta.set(candidate.key, {
+      candidate,
+      laneX: lane.laneX,
+      sourceSide,
+      targetSide,
+    })
+
+    registerSourcePortGroup(
+      candidate.from.id,
+      sourceSide,
+      candidate.key,
+      candidate.to.y,
+    )
+    registerTargetPortGroup(
+      candidate.to.id,
+      targetSide,
+      candidate.key,
+      candidate.from.y,
+    )
+
+    const sourceGroupKey = `${candidate.from.id}:${sourceSide}`
+    const currentSourceGroup = sourceMergeGroups.get(sourceGroupKey)
+    const sourceMember = { edgeKey: candidate.key, laneX: lane.laneX, node: candidate.from, side: sourceSide }
+    if (currentSourceGroup) currentSourceGroup.push(sourceMember)
+    else sourceMergeGroups.set(sourceGroupKey, [sourceMember])
+
+    const targetGroupKey = `${candidate.to.id}:${targetSide}`
+    const currentTargetGroup = targetMergeGroups.get(targetGroupKey)
+    const targetMember = { edgeKey: candidate.key, laneX: lane.laneX, node: candidate.to, side: targetSide }
+    if (currentTargetGroup) currentTargetGroup.push(targetMember)
+    else targetMergeGroups.set(targetGroupKey, [targetMember])
   })
 
-  const portOffsets = new Map<string, { fromOffset: number; toOffset: number }>()
-  portGroups.forEach(group => {
+  const sourcePortOffsets = new Map<string, number>()
+  sourcePortGroups.forEach(group => {
     const sorted = [...group].sort((left, right) => {
       if (left.anchorY !== right.anchorY) return left.anchorY - right.anchorY
       return left.edgeKey.localeCompare(right.edgeKey)
     })
     sorted.forEach((item, index) => {
-      const offset = buildReferencePortOffset(index, sorted.length)
-      const current = portOffsets.get(item.edgeKey) ?? { fromOffset: 0, toOffset: 0 }
-      if (item.role === 'from') {
-        current.fromOffset = offset
-      } else {
-        current.toOffset = offset
-      }
-      portOffsets.set(item.edgeKey, current)
+      sourcePortOffsets.set(item.edgeKey, buildReferencePortOffset(index, sorted.length))
     })
   })
 
-  return candidates.map(candidate => {
-    const lane = laneAssignments.get(candidate.key)
-    const ports = portOffsets.get(candidate.key) ?? { fromOffset: 0, toOffset: 0 }
-    if (!lane) {
-      return {
-        key: candidate.key,
-        path: '',
-      }
+  const targetPortOffsets = new Map<string, number>()
+  targetPortGroups.forEach(group => {
+    const sorted = [...group].sort((left, right) => {
+      if (left.anchorY !== right.anchorY) return left.anchorY - right.anchorY
+      return left.edgeKey.localeCompare(right.edgeKey)
+    })
+    sorted.forEach((item, index) => {
+      targetPortOffsets.set(item.edgeKey, buildReferencePortOffset(index, sorted.length))
+    })
+  })
+
+  const edges: RefEdge[] = []
+
+  const sourceMergeXByEdge = new Map<string, number>()
+  sourceMergeGroups.forEach(group => {
+    if (group.length <= 1) return
+    const first = group[0]
+    const mergeX = first.side === 'right'
+      ? Math.min(...group.map(item => item.laneX))
+      : Math.max(...group.map(item => item.laneX))
+    const portX = first.side === 'right'
+      ? first.node.x + DOC_R + 5
+      : first.node.x - DOC_R - 5
+    const branchYs = group.map(item => item.node.y + (sourcePortOffsets.get(item.edgeKey) ?? 0))
+    const trunkMinY = Math.min(first.node.y, ...branchYs)
+    const trunkMaxY = Math.max(first.node.y, ...branchYs)
+
+    const connectorPath = buildPolylinePath([
+      { x: portX, y: first.node.y },
+      { x: mergeX, y: first.node.y },
+    ])
+    if (connectorPath && portX !== mergeX) {
+      edges.push({
+        key: `source-merge-connector:${first.node.id}:${first.side}`,
+        path: connectorPath,
+        strokeWidth: 1.3,
+      })
     }
 
-    const fromPortX = lane.laneX >= candidate.from.x ? candidate.from.x + DOC_R + 5 : candidate.from.x - DOC_R - 5
-    const toPortX = lane.laneX >= candidate.to.x ? candidate.to.x + DOC_R + 5 : candidate.to.x - DOC_R - 5
-
-    return {
-      key: candidate.key,
-      path: buildPolylinePath([
-        { x: fromPortX, y: candidate.from.y + ports.fromOffset },
-        { x: lane.laneX, y: candidate.from.y + ports.fromOffset },
-        { x: lane.laneX, y: candidate.to.y + ports.toOffset },
-        { x: toPortX, y: candidate.to.y + ports.toOffset },
-      ]),
+    const trunkPath = buildPolylinePath([
+      { x: mergeX, y: trunkMinY },
+      { x: mergeX, y: trunkMaxY },
+    ])
+    if (trunkPath && trunkMinY !== trunkMaxY) {
+      edges.push({
+        key: `source-merge-trunk:${first.node.id}:${first.side}`,
+        path: trunkPath,
+        strokeWidth: 1.3,
+      })
     }
-  }).filter(edge => edge.path)
+
+    group.forEach(item => {
+      sourceMergeXByEdge.set(item.edgeKey, mergeX)
+    })
+  })
+
+  const targetMergeXByEdge = new Map<string, number>()
+  targetMergeGroups.forEach(group => {
+    if (group.length <= 1) return
+    const first = group[0]
+    const mergeX = first.side === 'right'
+      ? Math.min(...group.map(item => item.laneX))
+      : Math.max(...group.map(item => item.laneX))
+    const portX = first.side === 'right'
+      ? first.node.x + DOC_R + 5
+      : first.node.x - DOC_R - 5
+    const branchYs = group.map(item => item.node.y + (targetPortOffsets.get(item.edgeKey) ?? 0))
+    const trunkMinY = Math.min(first.node.y, ...branchYs)
+    const trunkMaxY = Math.max(first.node.y, ...branchYs)
+
+    const connectorPath = buildPolylinePath([
+      { x: mergeX, y: first.node.y },
+      { x: portX, y: first.node.y },
+    ])
+    if (connectorPath && portX !== mergeX) {
+      edges.push({
+        key: `target-merge-connector:${first.node.id}:${first.side}`,
+        path: connectorPath,
+        strokeWidth: 1.3,
+      })
+    }
+
+    const trunkPath = buildPolylinePath([
+      { x: mergeX, y: trunkMinY },
+      { x: mergeX, y: trunkMaxY },
+    ])
+    if (trunkPath && trunkMinY !== trunkMaxY) {
+      edges.push({
+        key: `target-merge-trunk:${first.node.id}:${first.side}`,
+        path: trunkPath,
+        strokeWidth: 1.3,
+      })
+    }
+
+    group.forEach(item => {
+      targetMergeXByEdge.set(item.edgeKey, mergeX)
+    })
+  })
+
+  routeMeta.forEach(route => {
+    const fromOffset = sourcePortOffsets.get(route.candidate.key) ?? 0
+    const toOffset = targetPortOffsets.get(route.candidate.key) ?? 0
+    const fromPortX = route.sourceSide === 'right'
+      ? route.candidate.from.x + DOC_R + 5
+      : route.candidate.from.x - DOC_R - 5
+    const toPortX = route.targetSide === 'right'
+      ? route.candidate.to.x + DOC_R + 5
+      : route.candidate.to.x - DOC_R - 5
+    const startX = sourceMergeXByEdge.get(route.candidate.key) ?? fromPortX
+    const endX = targetMergeXByEdge.get(route.candidate.key) ?? toPortX
+
+    const path = buildPolylinePath([
+      { x: startX, y: route.candidate.from.y + fromOffset },
+      { x: route.laneX, y: route.candidate.from.y + fromOffset },
+      { x: route.laneX, y: route.candidate.to.y + toOffset },
+      { x: endX, y: route.candidate.to.y + toOffset },
+    ])
+    if (!path) {
+      return
+    }
+    edges.push({
+      key: route.candidate.key,
+      path,
+      strokeWidth: 1.2,
+    })
+  })
+
+  return edges.filter(edge => edge.path)
 }
 
 function estimateSvgTextWidth(text: string, fontSize: number): number {
@@ -943,7 +1103,7 @@ export default function KBGraphDialog({
                 d={edge.path}
                 fill="none"
                 stroke={alpha(theme.palette.primary.main, 0.45)}
-                strokeWidth={1.2}
+                strokeWidth={edge.strokeWidth}
                 strokeDasharray="5,3"
                 strokeLinejoin="round"
                 strokeLinecap="round"

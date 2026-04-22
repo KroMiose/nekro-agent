@@ -11,6 +11,19 @@ const CENTER_H = 46
 const ROW_H = 54
 const PADDING_V = 28
 
+function buildPolylinePath(points: Array<{ x: number; y: number }>): string {
+  const normalized = points.filter((point, index) => {
+    if (index === 0) return true
+    const prev = points[index - 1]
+    return prev.x !== point.x || prev.y !== point.y
+  })
+  if (normalized.length === 0) return ''
+  return normalized.reduce(
+    (path, point, index) => path + `${index === 0 ? 'M' : ' L'} ${point.x},${point.y}`,
+    '',
+  )
+}
+
 function useContainerWidth(ref: React.RefObject<HTMLDivElement | null>): number {
   const [width, setWidth] = useState(400)
   useEffect(() => {
@@ -80,6 +93,202 @@ export default function ReferenceGraph({
 
   const inColorFaded = alpha(inColor, 0.55)
   const outColorFaded = alpha(outColor, 0.55)
+  const incomingEntries = referencedBy.map((ref, i) => ({
+    ref,
+    y: getNodeY(leftCount, i) + NODE_H / 2,
+  }))
+  const outgoingEntries = referencesTo.map((ref, i) => ({
+    ref,
+    y: getNodeY(rightCount, i) + NODE_H / 2,
+  }))
+
+  const renderIncomingGroup = useCallback((
+    entries: Array<{ ref: KBReferenceItem; y: number }>,
+    joinX: number,
+    stroke: string,
+    markerEnd: string,
+    strokeWidth: number,
+    strokeOpacity: number,
+    strokeDasharray?: string,
+  ) => {
+    const x1 = leftX + NODE_W
+    const x2 = centerX
+
+    if (entries.length === 0) return []
+    if (entries.length === 1) {
+      const only = entries[0]
+      const cx = (x1 + x2) / 2
+      return [
+        <path
+          key={`incoming-single-${only.ref.ref_id}`}
+          d={`M${x1},${only.y} C${cx},${only.y} ${cx},${centerY} ${x2},${centerY}`}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={strokeDasharray}
+          markerEnd={markerEnd}
+        />,
+      ]
+    }
+
+    const ys = entries.map(item => item.y)
+    const minY = Math.min(...ys)
+    const maxY = Math.max(...ys)
+    const elements: JSX.Element[] = []
+
+    const connectorPath = buildPolylinePath([
+      { x: joinX, y: centerY },
+      { x: x2, y: centerY },
+    ])
+    if (connectorPath && joinX !== x2) {
+      elements.push(
+        <path
+          key={`incoming-connector-${joinX}`}
+          d={connectorPath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={strokeDasharray}
+          markerEnd={markerEnd}
+        />,
+      )
+    }
+
+    const trunkPath = buildPolylinePath([
+      { x: joinX, y: minY },
+      { x: joinX, y: maxY },
+    ])
+    if (trunkPath && minY !== maxY) {
+      elements.push(
+        <path
+          key={`incoming-trunk-${joinX}`}
+          d={trunkPath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={strokeDasharray}
+        />,
+      )
+    }
+
+    entries.forEach(({ ref, y }) => {
+      const branchPath = buildPolylinePath([
+        { x: x1, y },
+        { x: joinX, y },
+      ])
+      if (!branchPath || x1 === joinX) return
+      elements.push(
+        <path
+          key={`incoming-branch-${ref.ref_id}`}
+          d={branchPath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={strokeDasharray}
+        />,
+      )
+    })
+
+    return elements
+  }, [centerX, centerY, leftX])
+
+  const renderOutgoingGroup = useCallback((
+    entries: Array<{ ref: KBReferenceItem; y: number }>,
+    joinX: number,
+    stroke: string,
+    markerEnd: string,
+    strokeWidth: number,
+    strokeOpacity: number,
+    strokeDasharray?: string,
+  ) => {
+    const x1 = centerX + CENTER_W
+    const x2 = rightX
+
+    if (entries.length === 0) return []
+    if (entries.length === 1) {
+      const only = entries[0]
+      const cx = (x1 + x2) / 2
+      return [
+        <path
+          key={`outgoing-single-${only.ref.ref_id}`}
+          d={`M${x1},${centerY} C${cx},${centerY} ${cx},${only.y} ${x2},${only.y}`}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={strokeDasharray}
+          markerEnd={markerEnd}
+        />,
+      ]
+    }
+
+    const ys = entries.map(item => item.y)
+    const minY = Math.min(...ys)
+    const maxY = Math.max(...ys)
+    const elements: JSX.Element[] = []
+
+    const connectorPath = buildPolylinePath([
+      { x: x1, y: centerY },
+      { x: joinX, y: centerY },
+    ])
+    if (connectorPath && x1 !== joinX) {
+      elements.push(
+        <path
+          key={`outgoing-connector-${joinX}`}
+          d={connectorPath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={strokeDasharray}
+        />,
+      )
+    }
+
+    const trunkPath = buildPolylinePath([
+      { x: joinX, y: minY },
+      { x: joinX, y: maxY },
+    ])
+    if (trunkPath && minY !== maxY) {
+      elements.push(
+        <path
+          key={`outgoing-trunk-${joinX}`}
+          d={trunkPath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={strokeDasharray}
+        />,
+      )
+    }
+
+    entries.forEach(({ ref, y }) => {
+      const branchPath = buildPolylinePath([
+        { x: joinX, y },
+        { x: x2, y },
+      ])
+      if (!branchPath || joinX === x2) return
+      elements.push(
+        <path
+          key={`outgoing-branch-${ref.ref_id}`}
+          d={branchPath}
+          fill="none"
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          strokeOpacity={strokeOpacity}
+          strokeDasharray={strokeDasharray}
+          markerEnd={markerEnd}
+        />,
+      )
+    })
+
+    return elements
+  }, [centerX, centerY, rightX])
 
   return (
     <Box
@@ -114,44 +323,42 @@ export default function ReferenceGraph({
         </defs>
 
         {/* referenced_by: left node → center node */}
-        {referencedBy.map((ref, i) => {
-          const ny = getNodeY(leftCount, i) + NODE_H / 2
-          const x1 = leftX + NODE_W
-          const x2 = centerX
-          const cx = (x1 + x2) / 2
-          return (
-            <path
-              key={ref.ref_id}
-              d={`M${x1},${ny} C${cx},${ny} ${cx},${centerY} ${x2},${centerY}`}
-              fill="none"
-              stroke={ref.is_auto ? inColorFaded : inColor}
-              strokeWidth={ref.is_auto ? 1.2 : 1.7}
-              strokeOpacity={ref.is_auto ? 0.5 : 0.7}
-              strokeDasharray={ref.is_auto ? '5,4' : undefined}
-              markerEnd={ref.is_auto ? 'url(#rg-arrow-in-auto)' : 'url(#rg-arrow-in)'}
-            />
-          )
-        })}
+        {renderIncomingGroup(
+          incomingEntries.filter(item => !item.ref.is_auto),
+          centerX - 30,
+          inColor,
+          'url(#rg-arrow-in)',
+          1.7,
+          0.7,
+        )}
+        {renderIncomingGroup(
+          incomingEntries.filter(item => item.ref.is_auto),
+          centerX - 46,
+          inColorFaded,
+          'url(#rg-arrow-in-auto)',
+          1.2,
+          0.5,
+          '5,4',
+        )}
 
         {/* references_to: center node → right node */}
-        {referencesTo.map((ref, i) => {
-          const ny = getNodeY(rightCount, i) + NODE_H / 2
-          const x1 = centerX + CENTER_W
-          const x2 = rightX
-          const cx = (x1 + x2) / 2
-          return (
-            <path
-              key={ref.ref_id}
-              d={`M${x1},${centerY} C${cx},${centerY} ${cx},${ny} ${x2},${ny}`}
-              fill="none"
-              stroke={ref.is_auto ? outColorFaded : outColor}
-              strokeWidth={ref.is_auto ? 1.2 : 1.7}
-              strokeOpacity={ref.is_auto ? 0.5 : 0.7}
-              strokeDasharray={ref.is_auto ? '5,4' : undefined}
-              markerEnd={ref.is_auto ? 'url(#rg-arrow-out-auto)' : 'url(#rg-arrow-out)'}
-            />
-          )
-        })}
+        {renderOutgoingGroup(
+          outgoingEntries.filter(item => !item.ref.is_auto),
+          centerX + CENTER_W + 30,
+          outColor,
+          'url(#rg-arrow-out)',
+          1.7,
+          0.7,
+        )}
+        {renderOutgoingGroup(
+          outgoingEntries.filter(item => item.ref.is_auto),
+          centerX + CENTER_W + 46,
+          outColorFaded,
+          'url(#rg-arrow-out-auto)',
+          1.2,
+          0.5,
+          '5,4',
+        )}
       </svg>
 
       {/* Center node */}
