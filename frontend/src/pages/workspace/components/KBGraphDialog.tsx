@@ -41,7 +41,17 @@ interface HierarchyEdge {
 }
 
 interface RefEdge {
+  key: string
   path: string
+}
+
+interface ReferenceRouteCandidate {
+  key: string
+  from: LayoutNode
+  to: LayoutNode
+  corridorKey: string
+  minY: number
+  maxY: number
 }
 
 export interface KBGraphReferenceEdge {
@@ -152,16 +162,181 @@ function buildPolylinePath(points: Array<{ x: number; y: number }>): string {
   )
 }
 
-function computeReferenceLaneX(from: LayoutNode, to: LayoutNode, index: number): number {
-  const laneJitter = ((index % 3) - 1) * 10
+function getReferenceCorridorKey(from: LayoutNode, to: LayoutNode): string {
+  const leftX = Math.min(from.x, to.x)
+  const rightX = Math.max(from.x, to.x)
+  if (Math.abs(leftX - rightX) < 1) {
+    return `same:${leftX}`
+  }
+  return `between:${leftX}:${rightX}`
+}
+
+function computeReferenceLaneX(
+  from: LayoutNode,
+  to: LayoutNode,
+  laneIndex: number,
+  laneCount: number,
+): number {
   if (Math.abs(from.x - to.x) < 1) {
-    return from.x - (DOC_R + 36 + (index % 4) * 8)
+    return from.x - (DOC_R + 34 + laneIndex * 14)
   }
 
   const minX = Math.min(from.x, to.x)
   const maxX = Math.max(from.x, to.x)
-  const midX = (minX + maxX) / 2 + laneJitter
-  return Math.max(minX + DOC_R + 24, Math.min(maxX - DOC_R - 24, midX))
+  const laneStart = minX + DOC_R + 24
+  const laneEnd = maxX - DOC_R - 24
+  if (laneCount <= 1 || laneEnd <= laneStart) {
+    return (laneStart + laneEnd) / 2
+  }
+
+  return laneStart + ((laneIndex + 1) / (laneCount + 1)) * (laneEnd - laneStart)
+}
+
+function buildReferencePortOffset(index: number, total: number): number {
+  if (total <= 1) return 0
+  const step = Math.min(3.2, 10 / Math.max(total - 1, 1))
+  return (index - (total - 1) / 2) * step
+}
+
+function buildReferenceEdges(
+  references: KBGraphReferenceEdge[],
+  nodeMap: Map<string, LayoutNode>,
+  hiddenNodeIds: Set<string>,
+): RefEdge[] {
+  const resolveNodeForRef = (id: number, kind?: EntryKind) => {
+    if (kind != null) {
+      return nodeMap.get(`${kind}::${id}`)
+    }
+    return nodeMap.get(`document::${id}`) ?? nodeMap.get(`asset::${id}`)
+  }
+
+  const candidates: ReferenceRouteCandidate[] = references
+    .map((ref, index) => {
+      const from = resolveNodeForRef(ref.fromId, ref.fromKind)
+      const to = resolveNodeForRef(ref.toId, ref.toKind)
+      if (!from || !to) return null
+      if (!isCategoryInScope(to.category, from.category)) return null
+      if (hiddenNodeIds.has(from.id) || hiddenNodeIds.has(to.id)) return null
+
+      return {
+        key: `${ref.fromKind ?? 'unknown'}:${ref.fromId}->${ref.toKind ?? 'unknown'}:${ref.toId}:${index}`,
+        from,
+        to,
+        corridorKey: getReferenceCorridorKey(from, to),
+        minY: Math.min(from.y, to.y),
+        maxY: Math.max(from.y, to.y),
+      }
+    })
+    .filter((candidate): candidate is ReferenceRouteCandidate => candidate !== null)
+
+  const laneAssignments = new Map<string, { laneIndex: number; laneCount: number; laneX: number }>()
+  const corridorGroups = new Map<string, ReferenceRouteCandidate[]>()
+
+  candidates.forEach(candidate => {
+    const current = corridorGroups.get(candidate.corridorKey)
+    if (current) {
+      current.push(candidate)
+      return
+    }
+    corridorGroups.set(candidate.corridorKey, [candidate])
+  })
+
+  corridorGroups.forEach(group => {
+    const sorted = [...group].sort((left, right) => {
+      if (left.minY !== right.minY) return left.minY - right.minY
+      if (left.maxY !== right.maxY) return left.maxY - right.maxY
+      return left.key.localeCompare(right.key)
+    })
+
+    const laneMaxY: number[] = []
+    const resolved = sorted.map(candidate => {
+      let laneIndex = laneMaxY.findIndex(maxY => candidate.minY > maxY + 12)
+      if (laneIndex === -1) {
+        laneIndex = laneMaxY.length
+        laneMaxY.push(candidate.maxY)
+      } else {
+        laneMaxY[laneIndex] = candidate.maxY
+      }
+      return { candidate, laneIndex }
+    })
+
+    const laneCount = Math.max(laneMaxY.length, 1)
+    resolved.forEach(({ candidate, laneIndex }) => {
+      laneAssignments.set(candidate.key, {
+        laneIndex,
+        laneCount,
+        laneX: computeReferenceLaneX(candidate.from, candidate.to, laneIndex, laneCount),
+      })
+    })
+  })
+
+  const portGroups = new Map<string, Array<{ edgeKey: string; role: 'from' | 'to'; anchorY: number }>>()
+  const registerPortGroup = (
+    nodeId: string,
+    side: 'left' | 'right',
+    edgeKey: string,
+    role: 'from' | 'to',
+    anchorY: number,
+  ) => {
+    const groupKey = `${nodeId}:${side}`
+    const current = portGroups.get(groupKey)
+    if (current) {
+      current.push({ edgeKey, role, anchorY })
+      return
+    }
+    portGroups.set(groupKey, [{ edgeKey, role, anchorY }])
+  }
+
+  candidates.forEach(candidate => {
+    const lane = laneAssignments.get(candidate.key)
+    if (!lane) return
+    const fromSide: 'left' | 'right' = lane.laneX >= candidate.from.x ? 'right' : 'left'
+    const toSide: 'left' | 'right' = lane.laneX >= candidate.to.x ? 'right' : 'left'
+    registerPortGroup(candidate.from.id, fromSide, candidate.key, 'from', candidate.to.y)
+    registerPortGroup(candidate.to.id, toSide, candidate.key, 'to', candidate.from.y)
+  })
+
+  const portOffsets = new Map<string, { fromOffset: number; toOffset: number }>()
+  portGroups.forEach(group => {
+    const sorted = [...group].sort((left, right) => {
+      if (left.anchorY !== right.anchorY) return left.anchorY - right.anchorY
+      return left.edgeKey.localeCompare(right.edgeKey)
+    })
+    sorted.forEach((item, index) => {
+      const offset = buildReferencePortOffset(index, sorted.length)
+      const current = portOffsets.get(item.edgeKey) ?? { fromOffset: 0, toOffset: 0 }
+      if (item.role === 'from') {
+        current.fromOffset = offset
+      } else {
+        current.toOffset = offset
+      }
+      portOffsets.set(item.edgeKey, current)
+    })
+  })
+
+  return candidates.map(candidate => {
+    const lane = laneAssignments.get(candidate.key)
+    const ports = portOffsets.get(candidate.key) ?? { fromOffset: 0, toOffset: 0 }
+    if (!lane) {
+      return {
+        key: candidate.key,
+        path: '',
+      }
+    }
+
+    const fromPortX = lane.laneX >= candidate.from.x ? candidate.from.x + DOC_R + 5 : candidate.from.x - DOC_R - 5
+    const toPortX = lane.laneX >= candidate.to.x ? candidate.to.x + DOC_R + 5 : candidate.to.x - DOC_R - 5
+
+    return {
+      key: candidate.key,
+      path: buildPolylinePath([
+        { x: fromPortX, y: candidate.from.y + ports.fromOffset },
+        { x: lane.laneX, y: candidate.from.y + ports.fromOffset },
+        { x: lane.laneX, y: candidate.to.y + ports.toOffset },
+        { x: toPortX, y: candidate.to.y + ports.toOffset },
+      ]),
+    }
+  }).filter(edge => edge.path)
 }
 
 function estimateSvgTextWidth(text: string, fontSize: number): number {
@@ -493,37 +668,10 @@ export default function KBGraphDialog({
   }, [layout.nodes, collapsedCategories])
 
   // Reference edges: only within the source category subtree, and hidden together with collapsed descendants.
-  const refEdges = useMemo((): RefEdge[] => {
-    const resolveNodeForRef = (id: number, kind?: EntryKind) => {
-      if (kind != null) {
-        return nodeMap.get(`${kind}::${id}`)
-      }
-      return nodeMap.get(`document::${id}`) ?? nodeMap.get(`asset::${id}`)
-    }
-
-    return references
-      .map((ref, index) => {
-        const from = resolveNodeForRef(ref.fromId, ref.fromKind)
-        const to = resolveNodeForRef(ref.toId, ref.toKind)
-        if (!from || !to) return null
-        if (!isCategoryInScope(to.category, from.category)) return null
-        if (hiddenNodeIds.has(from.id) || hiddenNodeIds.has(to.id)) return null
-
-        const laneX = computeReferenceLaneX(from, to, index)
-        const fromPortX = laneX >= from.x ? from.x + DOC_R + 5 : from.x - DOC_R - 5
-        const toPortX = laneX >= to.x ? to.x + DOC_R + 5 : to.x - DOC_R - 5
-
-        return {
-          path: buildPolylinePath([
-            { x: fromPortX, y: from.y },
-            { x: laneX, y: from.y },
-            { x: laneX, y: to.y },
-            { x: toPortX, y: to.y },
-          ]),
-        }
-      })
-      .filter((e): e is RefEdge => e !== null)
-  }, [references, nodeMap, hiddenNodeIds])
+  const refEdges = useMemo(
+    () => buildReferenceEdges(references, nodeMap, hiddenNodeIds),
+    [references, nodeMap, hiddenNodeIds],
+  )
 
   const visibleHierarchyEdges = useMemo(
     () =>
@@ -791,7 +939,7 @@ export default function KBGraphDialog({
             {/* Layer 2: reference edges (dashed curves) */}
             {refEdges.map((edge, i) => (
               <path
-                key={`ref-${i}`}
+                key={edge.key || `ref-${i}`}
                 d={edge.path}
                 fill="none"
                 stroke={alpha(theme.palette.primary.main, 0.45)}
