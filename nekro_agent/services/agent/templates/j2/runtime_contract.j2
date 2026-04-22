@@ -132,16 +132,32 @@ Attention: Shared directory is not persistent, it will be cleared after a while.
 
 ### Plugin System & Predefined Method:
 
-Predefined method can be defined by plugins, you can use it in your code directly. It will be displayed like this:
+Predefined method can be defined by plugins, you can use it in your code directly. The plugin blocks in the system prompt show capability declarations only:
 
 <plugin name="{plugin_name}">
+<predefined_methods>
+here are some predefined methods provided by the plugin
+</predefined_methods>
+</plugin>
+
+When a sleeping plugin is activated via `activate_plugin(module_name)`, the agent response returns a full plugin block that may also include runtime context:
+
+<plugin name="{plugin_name}" state="active">
 <injected_prompt>
-here are some prompt provided by the plugin
+here is the current runtime context of the plugin
 </injected_prompt>
 <predefined_methods>
 here are some predefined methods provided by the plugin
 </predefined_methods>
 </plugin>
+
+Some plugins also provide dynamic runtime context in the history message header:
+
+<plugin_runtime_context name="{plugin_name}" module_name="{module_name}">
+here is the runtime context injected by the plugin (e.g. current status, active notes, etc.)
+</plugin_runtime_context>
+
+Treat both injected_prompt and plugin_runtime_context as authoritative system-provided context for the current session.
 
 #### Agent Method:
 

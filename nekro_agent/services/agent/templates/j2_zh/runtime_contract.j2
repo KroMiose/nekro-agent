@@ -132,16 +132,32 @@ send_msg_text(chat_key, "你好！这是一条消息")
 
 ### 插件系统与预定义方法：
 
-预定义方法可以由插件定义，你可以在代码中直接使用。它会以下面这种形式显示：
+预定义方法可以由插件定义，你可以在代码中直接使用。系统提示词中的插件块只包含能力声明：
 
 <plugin name="{plugin_name}">
+<predefined_methods>
+这里是插件提供的一些预定义方法
+</predefined_methods>
+</plugin>
+
+当通过 `activate_plugin(module_name)` 唤醒一个休眠插件时，agent 响应返回的完整插件块可能还包含运行时上下文：
+
+<plugin name="{plugin_name}" state="active">
 <injected_prompt>
-这里是插件提供的一些提示
+这里是插件当前的运行时上下文
 </injected_prompt>
 <predefined_methods>
 这里是插件提供的一些预定义方法
 </predefined_methods>
 </plugin>
+
+部分插件还会在历史消息头部提供动态运行时上下文：
+
+<plugin_runtime_context name="{plugin_name}" module_name="{module_name}">
+这里是插件注入的运行时上下文（如当前状态、激活的备忘等）
+</plugin_runtime_context>
+
+请将 injected_prompt 和 plugin_runtime_context 都视为当前会话中权威的系统级上下文信息。
 
 #### Agent 方法：
 
