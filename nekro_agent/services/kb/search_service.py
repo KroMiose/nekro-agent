@@ -631,6 +631,7 @@ async def search_workspace_kb(
     tags: list[str] | None = None,
 ) -> KBSearchResponse:
     tokens = _tokenize_query(query)
+    bound_asset_id_set: set[int] = set()
     documents = await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).all()
     documents = [
         document
@@ -643,6 +644,7 @@ async def search_workspace_kb(
             for asset_id in await DBKBAssetBinding.filter(workspace_id=workspace_id).values_list("asset_id", flat=True)
         }
     )
+    bound_asset_id_set = set(bound_asset_ids)
     assets: list[DBKBAsset] = []
     if bound_asset_ids:
         assets = await DBKBAsset.filter(id__in=bound_asset_ids, is_enabled=True).all()
@@ -850,7 +852,11 @@ async def search_workspace_kb(
     if hit_doc_ids:
         doc_ref_map = await get_referenced_document_ids(workspace_id, hit_doc_ids)
     if hit_asset_ids:
-        asset_ref_map = await get_referenced_asset_ids(hit_asset_ids)
+        raw_asset_ref_map = await get_referenced_asset_ids(hit_asset_ids)
+        asset_ref_map = {
+            asset_id: [ref_id for ref_id in refs if ref_id in bound_asset_id_set]
+            for asset_id, refs in raw_asset_ref_map.items()
+        }
 
     for doc_hit in document_hits:
         if doc_hit.source_kind == "document":

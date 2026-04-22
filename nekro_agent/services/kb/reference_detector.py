@@ -91,6 +91,20 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
     if source_doc is None:
         return 0
 
+    await DBKBDocumentReference.filter(
+        workspace_id=workspace_id,
+        source_document_id=document_id,
+        is_auto=True,
+    ).delete()
+    await DBKBDocumentReference.filter(
+        workspace_id=workspace_id,
+        target_document_id=document_id,
+        is_auto=True,
+    ).delete()
+
+    if not source_doc.is_enabled:
+        return 0
+
     peers = [
         peer
         for peer in await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).exclude(id=document_id).all()
@@ -104,12 +118,6 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
     # ── 出向检测：source_doc 引用了哪些 peer ──────────────────────────────
     source_text = read_normalized_content(source_doc)
     if source_text.strip():
-        await DBKBDocumentReference.filter(
-            workspace_id=workspace_id,
-            source_document_id=document_id,
-            is_auto=True,
-        ).delete()
-
         existing_manual_out = set(
             await DBKBDocumentReference.filter(
                 workspace_id=workspace_id,
@@ -135,12 +143,6 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
 
     # ── 入向检测：哪些 peer 引用了 source_doc ────────────────────────────
     # 仅更新已存在 peer 中对本文档的自动引用，避免全量重跑 peer 自己的全部引用
-    await DBKBDocumentReference.filter(
-        workspace_id=workspace_id,
-        target_document_id=document_id,
-        is_auto=True,
-    ).delete()
-
     existing_manual_in = set(
         await DBKBDocumentReference.filter(
             workspace_id=workspace_id,
@@ -182,6 +184,12 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
     if source_asset is None:
         return 0
 
+    await DBKBAssetReference.filter(source_asset_id=asset_id, is_auto=True).delete()
+    await DBKBAssetReference.filter(target_asset_id=asset_id, is_auto=True).delete()
+
+    if not source_asset.is_enabled:
+        return 0
+
     peers = [
         peer
         for peer in await DBKBAsset.filter(is_enabled=True).exclude(id=asset_id).all()
@@ -195,8 +203,6 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
     # ── 出向检测 ──────────────────────────────────────────────────────────
     source_text = read_asset_normalized_content(source_asset)
     if source_text.strip():
-        await DBKBAssetReference.filter(source_asset_id=asset_id, is_auto=True).delete()
-
         existing_manual_out = set(
             await DBKBAssetReference.filter(
                 source_asset_id=asset_id,
@@ -219,8 +225,6 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
                 logger.debug(f"自动引用（出）：资产 {asset_id}→{target.id} [{description}]")
 
     # ── 入向检测 ──────────────────────────────────────────────────────────
-    await DBKBAssetReference.filter(target_asset_id=asset_id, is_auto=True).delete()
-
     existing_manual_in = set(
         await DBKBAssetReference.filter(
             target_asset_id=asset_id,
@@ -257,14 +261,16 @@ async def detect_workspace_references(workspace_id: int) -> int:
     total = 0
     for doc in docs:
         # 全量重建时只做出向，避免 N² 重复写入
-        source_text = read_normalized_content(doc)
-        if not source_text.strip():
-            continue
         await DBKBDocumentReference.filter(
             workspace_id=workspace_id,
             source_document_id=doc.id,
             is_auto=True,
         ).delete()
+        if not doc.is_enabled:
+            continue
+        source_text = read_normalized_content(doc)
+        if not source_text.strip():
+            continue
         peers = [
             peer
             for peer in enabled_docs

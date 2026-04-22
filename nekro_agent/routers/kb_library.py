@@ -51,6 +51,7 @@ from nekro_agent.services.kb.library_service import (
     update_asset_bindings,
     update_asset_metadata,
 )
+from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -197,8 +198,11 @@ async def update_kb_library_asset(
     )
 
     metadata_changed = body.category is not None or body.tags is not None or body.is_enabled is not None
+    reference_changed = body.title is not None or body.category is not None or body.is_enabled is not None
     if metadata_changed:
         await sync_asset_index_metadata(updated)
+    if reference_changed:
+        await detect_and_sync_asset_references(asset_id)
 
     refreshed = await _get_asset_or_404(asset_id)
     source_content = read_asset_source_content(refreshed) if refreshed.format in TEXT_LIBRARY_FORMATS else None
@@ -393,6 +397,7 @@ async def update_kb_library_asset_reference(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBAssetReferences:
     await _get_asset_or_404(asset_id)
+    await _get_asset_or_404(target_id)
     try:
         await add_asset_reference(
             source_asset_id=asset_id,

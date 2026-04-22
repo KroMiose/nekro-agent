@@ -49,6 +49,16 @@ async def _require_bound_workspace(_ctx: AgentCtx) -> DBWorkspace:
     return workspace
 
 
+async def _require_bound_asset(workspace_id: int, asset_id: int) -> DBKBAsset:
+    asset = await get_asset(asset_id)
+    if asset is None:
+        raise ValueError(f"未找到全局知识库资产 {asset_id}")
+    is_bound = await DBKBAssetBinding.filter(workspace_id=workspace_id, asset_id=asset_id).exists()
+    if not is_bound:
+        raise ValueError(f"当前工作区未绑定全局知识库资产 {asset_id}")
+    return asset
+
+
 def _document_prompt_status(document: DBKBDocument) -> str:
     if document.extract_status == "failed" or document.sync_status == "failed":
         return "failed"
@@ -365,9 +375,7 @@ async def get_workspace_kb_document_tool(
     """
     workspace = await _require_bound_workspace(_ctx)
     if source_kind == "asset":
-        asset = await get_asset(document_id)
-        if asset is None:
-            raise ValueError(f"未找到全局知识库资产 {document_id}")
+        asset = await _require_bound_asset(workspace.id, document_id)
         source_content = read_asset_source_content(asset) if asset.format in {"markdown", "text", "html", "json", "yaml", "csv"} else ""
         normalized_content = read_asset_normalized_content(asset)
         source_preview, source_truncated = _trim_tool_text(source_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
@@ -446,9 +454,7 @@ async def read_workspace_kb_fulltext_tool(
     resolved_max_chars = min(max_chars if max_chars > 0 else config_max, _TOOL_FULLTEXT_HARD_CAP)
 
     if source_kind == "asset":
-        asset = await get_asset(document_id)
-        if asset is None:
-            raise ValueError(f"未找到全局知识库资产 {document_id}")
+        asset = await _require_bound_asset(workspace.id, document_id)
         content = read_asset_normalized_content(asset)
         content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
         payload = {
@@ -521,9 +527,7 @@ async def read_workspace_kb_chunk_context_tool(
         asset_chunk = await DBKBAssetChunk.get_or_none(id=chunk_id)
         if asset_chunk is None:
             raise ValueError(f"未找到全局知识库 chunk {chunk_id}")
-        asset = await get_asset(asset_chunk.asset_id)
-        if asset is None:
-            raise ValueError(f"未找到全局知识库资产 {asset_chunk.asset_id}")
+        asset = await _require_bound_asset(workspace.id, asset_chunk.asset_id)
         normalized_content = read_asset_normalized_content(asset)
         if not normalized_content.strip():
             raise ValueError(f"全局知识库资产 {asset.id} 尚无可读取的规范化全文")

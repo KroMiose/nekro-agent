@@ -49,6 +49,7 @@ from nekro_agent.services.kb.index_service import (
     schedule_rebuild_document,
     sync_document_index_metadata,
 )
+from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
 from nekro_agent.services.kb.search_service import search_workspace_kb
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
@@ -279,11 +280,15 @@ async def update_workspace_kb_document(
     source_path_changed = body.source_path is not None and bool(body.source_path.strip())
     content_changed = body.content is not None
     metadata_changed = body.category is not None or body.tags is not None or body.is_enabled is not None
+    reference_changed = body.title is not None or body.category is not None or body.is_enabled is not None
 
     if content_changed or source_path_changed:
         await schedule_rebuild_document(updated)
-    elif metadata_changed:
-        await sync_document_index_metadata(updated)
+    else:
+        if metadata_changed:
+            await sync_document_index_metadata(updated)
+        if reference_changed:
+            await detect_and_sync_document_references(workspace_id, document_id)
 
     refreshed = await _get_document_or_404(workspace_id, document_id)
     return KBDocumentDetailResponse(
@@ -463,6 +468,7 @@ async def update_document_reference_route(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBDocumentReferences:
     await _get_document_or_404(workspace_id, document_id)
+    await _get_document_or_404(workspace_id, target_id)
     try:
         await add_document_reference(
             workspace_id=workspace_id,

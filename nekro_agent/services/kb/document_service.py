@@ -146,7 +146,7 @@ async def create_text_document(
     target.parent.mkdir(parents=True, exist_ok=True)
     encoded = content.encode("utf-8")
     target.write_bytes(encoded)
-    detected_format, suffix, mime_type = detect_format_and_mime(final_file_name)
+    detected_format, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
     return await DBKBDocument.create(
         workspace_id=workspace_id,
         source_path=final_source_path,
