@@ -194,7 +194,7 @@ async def index_asset(asset: DBKBAsset) -> int:
         processed_chunks=processed_chunks,
     )
     await kb_library_qdrant_manager.batch_upsert(points)
-    asset.chunk_count = len(created_chunks)
+    asset.chunk_count = len(points)
     asset.sync_status = "ready"
     asset.last_indexed_at = datetime.now(timezone.utc)
     asset.last_error = None
@@ -249,8 +249,8 @@ async def _run_rebuild_asset_task(asset_id: int) -> None:
                     return
                 try:
                     await rebuild_asset(asset)
-                except Exception as e:
-                    logger.warning(f"后台全局知识库索引任务失败: asset_id={asset_id}, error={e}")
+                except Exception:
+                    pass  # rebuild_asset 内部已记录日志
                 if asset_id not in _pending_rebuilds:
                     return
                 logger.info(f"全局知识库资产收到新的重建请求，继续重跑索引: asset_id={asset_id}")

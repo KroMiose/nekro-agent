@@ -196,7 +196,7 @@ async def index_document(document: DBKBDocument) -> int:
         processed_chunks=processed_chunks,
     )
     await kb_qdrant_manager.batch_upsert(points)
-    document.chunk_count = len(created_chunks)
+    document.chunk_count = len(points)
     document.sync_status = "ready"
     document.last_indexed_at = datetime.now(timezone.utc)
     document.last_error = None
@@ -251,8 +251,8 @@ async def _run_rebuild_document_task(document_id: int) -> None:
                     return
                 try:
                     await rebuild_document(document)
-                except Exception as e:
-                    logger.warning(f"后台知识库索引任务失败: document_id={document_id}, error={e}")
+                except Exception:
+                    pass  # rebuild_document 内部已记录日志
                 if document_id not in _pending_rebuilds:
                     return
                 logger.info(f"知识库文档收到新的重建请求，继续重跑索引: document_id={document_id}")

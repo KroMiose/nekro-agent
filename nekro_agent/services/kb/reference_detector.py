@@ -5,7 +5,7 @@
   1. Markdown 链接：[文字](filename) 精确匹配目标文件名
   2. 中文书名号：《目标标题》 精确匹配
   3. 裸文件名（含扩展名）出现在正文
-  4. 标题直接提及（≥4 字，避免误判常见短词）
+  4. 标题直接提及（≥6 字，避免误判常见短词）
 
 范围策略：
   - 仅在"同一主分类树"范围内检测引用。
@@ -72,8 +72,8 @@ def _detect_mentions(text: str, target_title: str, target_filename: str) -> str 
     if len(target_filename) >= 6 and target_filename in text:
         return f"提及文件 {target_filename}"
 
-    # 4. 标题直接提及（>=4 字避免误判短词）
-    if len(target_title) >= 4 and target_title in text:
+    # 4. 标题直接提及（>=6 字避免误判常见短词）
+    if len(target_title) >= 6 and target_title in text:
         return f'提及"{target_title}"'
 
     return None

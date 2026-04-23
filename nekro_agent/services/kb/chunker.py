@@ -185,6 +185,7 @@ def split_text_into_chunks(text: str) -> list[ChunkDraft]:
             heading_stack.append(title)
             current_heading = " > ".join(heading_stack)
             current_start = cursor
+            current_lines.append(line)
         else:
             if not current_lines:
                 current_start = cursor
