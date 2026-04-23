@@ -465,14 +465,14 @@ async def add_document_reference(
     if source_document_id == target_document_id:
         raise ValueError("不能引用自身")
     ref, _ = await DBKBDocumentReference.get_or_create(
+        workspace_id=workspace_id,
         source_document_id=source_document_id,
         target_document_id=target_document_id,
-        defaults={"workspace_id": workspace_id, "description": description},
+        defaults={"description": description},
     )
-    if ref.description != description or ref.workspace_id != workspace_id:
+    if ref.description != description:
         ref.description = description
-        ref.workspace_id = workspace_id
-        await ref.save(update_fields=["description", "workspace_id", "update_time"])
+        await ref.save(update_fields=["description", "update_time"])
     return ref
 
 

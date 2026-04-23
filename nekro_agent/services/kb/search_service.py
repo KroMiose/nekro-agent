@@ -1008,26 +1008,22 @@ async def search_workspace_kb(
         for item in document_hits
         if item.source_kind == "document"
     ][: min(3, len(document_hits))]
-    has_asset_hits = any(item.source_kind == "asset" for item in document_hits)
-    next_action_hint = (
-        (
-            "优先阅读命中的条目详情与局部预览；"
-            "若命中 source_kind=document，可继续用 chunk 上下文工具读取附近内容；"
-            "若命中 source_kind=asset，请直接查看该全局知识条目的详情或全文；"
-            + ("reference_expanded_items 中包含命中文档所引用的补充文档片段，如命中内容不完整可参考；" if has_references else "")
-            + "如果当前结果明显不相关，再改写 query 重新搜索。"
-            if has_asset_hits
-            else (
-                "优先对命中的 chunk_id 调用 read_workspace_kb_chunk_context_tool 读取命中附近上下文；"
-                "如果第一段局部上下文仍不足，可继续使用返回的 next_window_start 或 prev_window_start 翻页；"
-                + ("reference_expanded_items 中包含命中文档所引用的补充文档片段，若主命中信息不完整可优先查阅；" if has_references else "")
-                + "只有局部上下文仍不足时，再阅读 suggested_document_ids 中前 1 到 2 篇文档的全文；"
-                "如果当前结果明显不相关，再改写 query 重新搜索。"
+    if not document_hits:
+        next_action_hint = "当前未命中文档，可尝试缩短 query、改用明确关键词，或换一个更具体的文档主题再搜索。"
+    else:
+        hints: list[str] = [
+            "优先对命中的 chunk_id 调用 read_workspace_kb_chunk_context_tool 读取命中附近上下文；",
+            "如果第一段局部上下文仍不足，可继续使用返回的 next_window_start 或 prev_window_start 翻页；",
+        ]
+        if has_references:
+            hints.append(
+                "reference_expanded_items 中包含命中文档所引用的补充文档片段，若主命中信息不完整可优先查阅；"
             )
+        hints.append(
+            "只有局部上下文仍不足时，再阅读 suggested_document_ids 中前 1 到 2 篇文档的全文；"
         )
-        if document_hits
-        else "当前未命中文档，可尝试缩短 query、改用明确关键词，或换一个更具体的文档主题再搜索。"
-    )
+        hints.append("如果当前结果明显不相关，再改写 query 重新搜索。")
+        next_action_hint = "".join(hints)
 
     return KBSearchResponse(
         workspace_id=workspace_id,

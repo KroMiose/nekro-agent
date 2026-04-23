@@ -196,7 +196,7 @@ async def index_document(document: DBKBDocument) -> int:
         processed_chunks=processed_chunks,
     )
     await kb_qdrant_manager.batch_upsert(points)
-    document.chunk_count = len(points)
+    document.chunk_count = len(created_chunks)
     document.sync_status = "ready"
     document.last_indexed_at = datetime.now(timezone.utc)
     document.last_error = None
@@ -265,10 +265,11 @@ async def _run_rebuild_document_task(document_id: int) -> None:
 
 
 async def schedule_rebuild_document(document: DBKBDocument) -> bool:
+    """将文档提交到后台索引队列。返回 True 表示新建了任务，False 表示已有任务在跑（追加到 pending）。"""
     existing = _index_tasks.get(document.id)
     if existing is not None and not existing.done():
         _pending_rebuilds.add(document.id)
-        return True
+        return False
 
     started_at = int(time.time() * 1000)
     await _publish_index_progress(
@@ -298,14 +299,14 @@ async def cancel_rebuild_document(document_id: int) -> bool:
 async def rebuild_workspace_documents(workspace_id: int) -> tuple[int, int]:
     """将工作区所有文档提交到后台索引队列。返回 (已调度数, 已跳过数)。"""
     documents = await DBKBDocument.filter(workspace_id=workspace_id).all()
-    scheduled = 0
-    skipped = 0
+    new_tasks = 0
+    merged = 0
     for document in documents:
         if await schedule_rebuild_document(document):
-            scheduled += 1
+            new_tasks += 1
         else:
-            skipped += 1
-    return scheduled, skipped
+            merged += 1
+    return new_tasks + merged, 0
 
 
 async def delete_document_files(document: DBKBDocument) -> None:

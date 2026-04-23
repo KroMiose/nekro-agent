@@ -194,7 +194,7 @@ async def index_asset(asset: DBKBAsset) -> int:
         processed_chunks=processed_chunks,
     )
     await kb_library_qdrant_manager.batch_upsert(points)
-    asset.chunk_count = len(points)
+    asset.chunk_count = len(created_chunks)
     asset.sync_status = "ready"
     asset.last_indexed_at = datetime.now(timezone.utc)
     asset.last_error = None

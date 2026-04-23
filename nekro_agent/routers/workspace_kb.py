@@ -101,16 +101,18 @@ def _build_tree_nodes(paths: list[tuple[int, str]]) -> list[KBTreeNode]:
         for index, part in enumerate(parts):
             rel_parts.append(part)
             is_last = index == len(parts) - 1
-            current.setdefault(
-                part,
-                {
+            if part not in current:
+                current[part] = {
                     "name": part,
                     "path": "/".join(rel_parts),
                     "type": "file" if is_last else "dir",
                     "document_id": document_id if is_last else None,
                     "children": {},
-                },
-            )
+                }
+            else:
+                # 已有节点：如果当前层不是最后一层，说明该节点需要作为目录使用
+                if not is_last and current[part]["type"] == "file":
+                    current[part]["type"] = "dir"
             current = current[part]["children"]
 
     def _convert(tree: dict[str, dict]) -> list[KBTreeNode]:
