@@ -5,6 +5,8 @@ import hashlib
 from datetime import datetime, timezone
 from typing import Any
 
+from tortoise.backends.base.client import BaseDBAsyncClient
+
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_kb_asset_chunk import DBKBAssetChunk
@@ -25,6 +27,7 @@ logger = get_sub_logger("kb.library_index")
 PREVIEW_MAX_CHARS = 360
 INDEX_BATCH_SIZE = 10
 _index_tasks: dict[int, Any] = {}
+_pending_rebuilds: set[int] = set()
 
 
 def _hash_text(text: str) -> str:
@@ -227,13 +230,22 @@ async def rebuild_asset(asset: DBKBAsset) -> int:
 async def _run_rebuild_asset_task(asset_id: int) -> None:
     task = _index_tasks.get(asset_id)
     try:
-        asset = await DBKBAsset.get_or_none(id=asset_id)
-        if asset is None:
-            return
-        await rebuild_asset(asset)
+        while True:
+            _pending_rebuilds.discard(asset_id)
+            asset = await DBKBAsset.get_or_none(id=asset_id)
+            if asset is None:
+                return
+            try:
+                await rebuild_asset(asset)
+            except Exception as e:
+                logger.warning(f"后台全局知识库索引任务失败: asset_id={asset_id}, error={e}")
+            if asset_id not in _pending_rebuilds:
+                return
+            logger.info(f"全局知识库资产收到新的重建请求，继续重跑索引: asset_id={asset_id}")
     except Exception as e:
         logger.warning(f"后台全局知识库索引任务失败: asset_id={asset_id}, error={e}")
     finally:
+        _pending_rebuilds.discard(asset_id)
         if _index_tasks.get(asset_id) is task:
             _index_tasks.pop(asset_id, None)
 
@@ -241,7 +253,8 @@ async def _run_rebuild_asset_task(asset_id: int) -> None:
 async def schedule_rebuild_asset(asset: DBKBAsset) -> bool:
     existing = _index_tasks.get(asset.id)
     if existing is not None and not existing.done():
-        return False
+        _pending_rebuilds.add(asset.id)
+        return True
     await _publish_index_progress(
         asset,
         phase="queued",
@@ -269,6 +282,29 @@ async def delete_asset_index(asset: DBKBAsset) -> None:
     if chunks:
         await kb_library_qdrant_manager.delete_chunk_points([chunk.id for chunk in chunks])
         await DBKBAssetChunk.filter(asset_id=asset.id).delete()
+
+
+async def list_asset_chunk_ids(asset_id: int) -> list[int]:
+    chunk_ids = await DBKBAssetChunk.filter(asset_id=asset_id).values_list("id", flat=True)
+    return [int(chunk_id) for chunk_id in chunk_ids]
+
+
+async def delete_asset_chunk_rows(
+    asset_id: int,
+    *,
+    using_db: BaseDBAsyncClient | None = None,
+) -> int:
+    queryset = DBKBAssetChunk.filter(asset_id=asset_id)
+    if using_db is not None:
+        queryset = queryset.using_db(using_db)
+    return await queryset.delete()
+
+
+async def delete_asset_vector_points(chunk_ids: list[int]) -> int:
+    if not chunk_ids:
+        return 0
+    await kb_library_qdrant_manager.delete_chunk_points(chunk_ids)
+    return len(chunk_ids)
 
 
 async def sync_asset_index_metadata(asset: DBKBAsset) -> int:

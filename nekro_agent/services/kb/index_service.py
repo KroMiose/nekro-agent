@@ -6,6 +6,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
+from tortoise.backends.base.client import BaseDBAsyncClient
+
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_chunk import DBKBChunk
 from nekro_agent.models.db_kb_document import DBKBDocument
@@ -22,6 +24,7 @@ logger = get_sub_logger("kb.index")
 PREVIEW_MAX_CHARS = 360
 _INDEX_BATCH_SIZE = 10
 _index_tasks: dict[int, Any] = {}
+_pending_rebuilds: set[int] = set()
 
 
 def _hash_text(text: str) -> str:
@@ -227,13 +230,22 @@ async def rebuild_document(document: DBKBDocument) -> int:
 async def _run_rebuild_document_task(document_id: int) -> None:
     task = _index_tasks.get(document_id)
     try:
-        document = await DBKBDocument.get_or_none(id=document_id)
-        if document is None:
-            return
-        await rebuild_document(document)
+        while True:
+            _pending_rebuilds.discard(document_id)
+            document = await DBKBDocument.get_or_none(id=document_id)
+            if document is None:
+                return
+            try:
+                await rebuild_document(document)
+            except Exception as e:
+                logger.warning(f"后台知识库索引任务失败: document_id={document_id}, error={e}")
+            if document_id not in _pending_rebuilds:
+                return
+            logger.info(f"知识库文档收到新的重建请求，继续重跑索引: document_id={document_id}")
     except Exception as e:
         logger.warning(f"后台知识库索引任务失败: document_id={document_id}, error={e}")
     finally:
+        _pending_rebuilds.discard(document_id)
         if _index_tasks.get(document_id) is task:
             _index_tasks.pop(document_id, None)
 
@@ -241,7 +253,8 @@ async def _run_rebuild_document_task(document_id: int) -> None:
 async def schedule_rebuild_document(document: DBKBDocument) -> bool:
     existing = _index_tasks.get(document.id)
     if existing is not None and not existing.done():
-        return False
+        _pending_rebuilds.add(document.id)
+        return True
 
     started_at = int(time.time() * 1000)
     await _publish_index_progress(
@@ -286,6 +299,29 @@ async def delete_document_index(document: DBKBDocument) -> None:
     if chunks:
         await kb_qdrant_manager.delete_chunk_points([chunk.id for chunk in chunks])
         await DBKBChunk.filter(document_id=document.id).delete()
+
+
+async def list_document_chunk_ids(document_id: int) -> list[int]:
+    chunk_ids = await DBKBChunk.filter(document_id=document_id).values_list("id", flat=True)
+    return [int(chunk_id) for chunk_id in chunk_ids]
+
+
+async def delete_document_chunk_rows(
+    document_id: int,
+    *,
+    using_db: BaseDBAsyncClient | None = None,
+) -> int:
+    queryset = DBKBChunk.filter(document_id=document_id)
+    if using_db is not None:
+        queryset = queryset.using_db(using_db)
+    return await queryset.delete()
+
+
+async def delete_document_vector_points(chunk_ids: list[int]) -> int:
+    if not chunk_ids:
+        return 0
+    await kb_qdrant_manager.delete_chunk_points(chunk_ids)
+    return len(chunk_ids)
 
 
 async def sync_document_index_metadata(document: DBKBDocument) -> int:

@@ -183,9 +183,9 @@ class KBSearchDocument(BaseModel):
     headings: list[str] = Field(default_factory=list)
     best_match_excerpt: str = ""
     snippets: list[KBSearchSnippet] = Field(default_factory=list)
-    referenced_document_ids: list[int] = Field(
+    referenced_sources: list["KBReferencedSource"] = Field(
         default_factory=list,
-        description="该文档引用的其他文档/资产 ID，可据此进一步获取补充内容",
+        description="该条目引用的其他文档/资产，可据此进一步获取补充内容",
     )
 
 
@@ -215,8 +215,16 @@ class KBSourceFileResponse(BaseModel):
     document_id: int
     title: str
     source_path: str
-    source_workspace_path: str
+    source_workspace_path: Optional[str] = None
     sandbox_file_path: Optional[str] = None
+
+
+class KBReferencedSource(BaseModel):
+    source_kind: KBSearchSourceKind
+    document_id: int
+
+
+KBSearchDocument.model_rebuild()
 
 
 class KBAssetBoundWorkspace(BaseModel):

@@ -22,6 +22,7 @@ from nekro_agent.services.kb.document_service import (
     detect_format_and_mime,
     normalize_tags,
     safe_source_path,
+    write_bytes_exclusive,
 )
 
 logger = get_sub_logger("kb.library")
@@ -204,31 +205,34 @@ async def create_asset_from_upload(
 
     target = resolve_kb_library_source_path(final_source_path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        raise ValueError(f"知识库资产路径已存在: {final_source_path}")
-    target.write_bytes(content)
+    write_bytes_exclusive(target, content, logical_path=final_source_path)
     detected_format, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
-    asset = await DBKBAsset.create(
-        source_path=final_source_path,
-        normalized_text_path="",
-        file_name=Path(final_source_path).name,
-        file_ext=suffix,
-        mime_type=mime_type,
-        title=(title or Path(final_source_path).stem).strip(),
-        category=category.strip(),
-        tags=normalize_tags(tags),
-        summary=summary.strip(),
-        source_type=source_type,
-        format=detected_format,
-        is_enabled=is_enabled,
-        extract_status="pending",
-        sync_status="pending",
-        content_hash=content_hash,
-        normalized_text_hash="",
-        chunk_count=0,
-        file_size=len(content),
-    )
-    return asset, False
+    try:
+        asset = await DBKBAsset.create(
+            source_path=final_source_path,
+            normalized_text_path="",
+            file_name=Path(final_source_path).name,
+            file_ext=suffix,
+            mime_type=mime_type,
+            title=(title or Path(final_source_path).stem).strip(),
+            category=category.strip(),
+            tags=normalize_tags(tags),
+            summary=summary.strip(),
+            source_type=source_type,
+            format=detected_format,
+            is_enabled=is_enabled,
+            extract_status="pending",
+            sync_status="pending",
+            content_hash=content_hash,
+            normalized_text_hash="",
+            chunk_count=0,
+            file_size=len(content),
+        )
+        return asset, False
+    except Exception:
+        if target.exists():
+            target.unlink()
+        raise
 
 
 async def create_text_asset(
@@ -255,31 +259,34 @@ async def create_text_asset(
 
     target = resolve_kb_library_source_path(final_source_path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    if target.exists():
-        raise ValueError(f"知识库资产路径已存在: {final_source_path}")
-    target.write_bytes(encoded)
+    write_bytes_exclusive(target, encoded, logical_path=final_source_path)
     detected_format, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
-    asset = await DBKBAsset.create(
-        source_path=final_source_path,
-        normalized_text_path="",
-        file_name=Path(final_source_path).name,
-        file_ext=suffix,
-        mime_type=mime_type,
-        title=title.strip(),
-        category=category.strip(),
-        tags=normalize_tags(tags),
-        summary=summary.strip(),
-        source_type=source_type,
-        format=detected_format,
-        is_enabled=is_enabled,
-        extract_status="pending",
-        sync_status="pending",
-        content_hash=content_hash,
-        normalized_text_hash="",
-        chunk_count=0,
-        file_size=len(encoded),
-    )
-    return asset, False
+    try:
+        asset = await DBKBAsset.create(
+            source_path=final_source_path,
+            normalized_text_path="",
+            file_name=Path(final_source_path).name,
+            file_ext=suffix,
+            mime_type=mime_type,
+            title=title.strip(),
+            category=category.strip(),
+            tags=normalize_tags(tags),
+            summary=summary.strip(),
+            source_type=source_type,
+            format=detected_format,
+            is_enabled=is_enabled,
+            extract_status="pending",
+            sync_status="pending",
+            content_hash=content_hash,
+            normalized_text_hash="",
+            chunk_count=0,
+            file_size=len(encoded),
+        )
+        return asset, False
+    except Exception:
+        if target.exists():
+            target.unlink()
+        raise
 
 
 async def update_asset_metadata(

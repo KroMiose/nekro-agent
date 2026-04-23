@@ -5,7 +5,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
+from tortoise.transactions import in_transaction
 
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.models.db_workspace import DBWorkspace
@@ -25,9 +27,11 @@ from nekro_agent.schemas.kb import (
     KBUpdateReferenceBody,
 )
 from nekro_agent.services.kb.library_index_service import (
+    delete_asset_chunk_rows,
     delete_asset_files,
-    delete_asset_index,
+    delete_asset_vector_points,
     ensure_kb_library_collection,
+    list_asset_chunk_ids,
     schedule_rebuild_asset,
     sync_asset_index_metadata,
 )
@@ -56,6 +60,7 @@ from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
 router = APIRouter(prefix="/kb-library", tags=["Knowledge Base Library"])
+logger = get_sub_logger("kb.library_router")
 
 ALLOWED_KB_LIBRARY_EXTENSIONS = {
     ".md",
@@ -131,6 +136,8 @@ async def create_kb_library_asset(
             summary=body.summary,
             is_enabled=body.is_enabled,
         )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"全局知识库路径 '{e}'") from e
     except IntegrityError as e:
         raise ConflictError(resource=f"全局知识库路径 '{body.source_path or body.file_name}'") from e
     except ValueError as e:
@@ -169,6 +176,8 @@ async def upload_kb_library_asset(
             summary=summary,
             is_enabled=is_enabled,
         )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"全局知识库路径 '{e}'") from e
     except IntegrityError as e:
         raise ConflictError(resource=f"全局知识库路径 '{source_path or file_name}'") from e
     except ValueError as e:
@@ -221,16 +230,35 @@ async def delete_kb_library_asset(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBActionResponse:
     from nekro_agent.models.db_kb_asset_reference import DBKBAssetReference
+
     asset = await _get_asset_or_404(asset_id)
     bound_workspaces = await list_asset_bound_workspaces(asset.id)
     if bound_workspaces:
         raise ConflictError(resource=f"全局知识库文件 {asset.id} 仍被 {len(bound_workspaces)} 个工作区绑定")
-    await delete_asset_index(asset)
-    await delete_asset_files(asset)
-    await DBKBAssetReference.filter(source_asset_id=asset_id).delete()
-    await DBKBAssetReference.filter(target_asset_id=asset_id).delete()
-    await asset.delete()
-    return KBActionResponse(ok=True)
+    chunk_ids = await list_asset_chunk_ids(asset.id)
+
+    async with in_transaction() as db:
+        await DBKBAssetReference.filter(source_asset_id=asset_id).using_db(db).delete()
+        await DBKBAssetReference.filter(target_asset_id=asset_id).using_db(db).delete()
+        await delete_asset_chunk_rows(asset.id, using_db=db)
+        await asset.delete(using_db=db)
+
+    cleanup_warnings: list[str] = []
+    try:
+        await delete_asset_vector_points(chunk_ids)
+    except Exception as e:
+        logger.warning(f"删除全局知识库向量索引失败: asset_id={asset_id}, error={e}")
+        cleanup_warnings.append("vector_index")
+    try:
+        await delete_asset_files(asset)
+    except Exception as e:
+        logger.warning(f"删除全局知识库文件失败: asset_id={asset_id}, error={e}")
+        cleanup_warnings.append("files")
+
+    return KBActionResponse(
+        ok=True,
+        message="资产记录已删除，但部分外部资源清理失败" if cleanup_warnings else None,
+    )
 
 
 @router.post("/assets/{asset_id}/reindex", summary="重建全局知识库文件索引", response_model=KBActionResponse)

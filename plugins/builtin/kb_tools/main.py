@@ -574,21 +574,39 @@ async def read_workspace_kb_chunk_context_tool(
 @plugin.mount_sandbox_method(
     SandboxMethodType.TOOL,
     "获取知识库源文件",
-    description="将知识库源文件转成 AI 可继续发送或处理的沙盒文件路径，同时返回稳定逻辑路径。",
+    description="将知识库文档或绑定全局资产的源文件转成 AI 可继续发送或处理的沙盒文件路径，同时返回稳定逻辑路径。",
 )
 async def get_workspace_kb_source_file_tool(
     _ctx: AgentCtx,
     document_id: int,
+    source_kind: str = "document",
 ) -> str:
-    """Forward a KB source file into the agent-accessible sandbox path.
+    """Forward a KB source file or bound global asset file into the agent-accessible sandbox path.
 
     Args:
-        document_id (int): Target KB document ID.
+        document_id (int): Target KB document/asset ID.
+        source_kind (str): "document" for workspace docs, "asset" for bound global assets.
 
     Returns:
         str: JSON string containing logical source path and agent-accessible sandbox file path.
     """
     workspace = await _require_bound_workspace(_ctx)
+    if source_kind == "asset":
+        asset = await _require_bound_asset(workspace.id, document_id)
+        source_file = resolve_kb_library_source_path(asset.source_path)
+        if not source_file.exists():
+            raise ValueError(f"全局知识库源文件不存在: {asset.source_path}")
+
+        sandbox_file_path = await _ctx.fs.mixed_forward_file(source_file, file_name=asset.file_name)
+        payload = KBSourceFileResponse(
+            document_id=asset.id,
+            title=asset.title,
+            source_path=asset.source_path,
+            source_workspace_path=None,
+            sandbox_file_path=sandbox_file_path,
+        )
+        return _dump_tool_payload(payload.model_dump())
+
     document = await get_document(workspace.id, document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")

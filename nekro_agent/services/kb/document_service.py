@@ -70,6 +70,14 @@ def compute_sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def write_bytes_exclusive(target: Path, content: bytes, *, logical_path: str) -> None:
+    try:
+        with target.open("xb") as file:
+            file.write(content)
+    except FileExistsError as e:
+        raise FileExistsError(logical_path) from e
+
+
 def document_to_list_item(document: DBKBDocument) -> KBDocumentListItem:
     return KBDocumentListItem(
         id=document.id,
@@ -145,29 +153,34 @@ async def create_text_document(
     target = WorkspaceService.resolve_kb_source_path(workspace_id, final_source_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     encoded = content.encode("utf-8")
-    target.write_bytes(encoded)
+    write_bytes_exclusive(target, encoded, logical_path=final_source_path)
     detected_format, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
-    return await DBKBDocument.create(
-        workspace_id=workspace_id,
-        source_path=final_source_path,
-        normalized_text_path="",
-        file_name=Path(final_source_path).name,
-        file_ext=suffix,
-        mime_type=mime_type,
-        title=title.strip(),
-        category=category.strip(),
-        tags=normalize_tags(tags),
-        summary=summary.strip(),
-        source_type=source_type,
-        format=detected_format,
-        is_enabled=is_enabled,
-        extract_status="pending",
-        sync_status="pending",
-        content_hash=compute_sha256(encoded),
-        normalized_text_hash="",
-        chunk_count=0,
-        file_size=len(encoded),
-    )
+    try:
+        return await DBKBDocument.create(
+            workspace_id=workspace_id,
+            source_path=final_source_path,
+            normalized_text_path="",
+            file_name=Path(final_source_path).name,
+            file_ext=suffix,
+            mime_type=mime_type,
+            title=title.strip(),
+            category=category.strip(),
+            tags=normalize_tags(tags),
+            summary=summary.strip(),
+            source_type=source_type,
+            format=detected_format,
+            is_enabled=is_enabled,
+            extract_status="pending",
+            sync_status="pending",
+            content_hash=compute_sha256(encoded),
+            normalized_text_hash="",
+            chunk_count=0,
+            file_size=len(encoded),
+        )
+    except Exception:
+        if target.exists():
+            target.unlink()
+        raise
 
 
 async def create_file_document(
@@ -188,29 +201,34 @@ async def create_file_document(
     target = WorkspaceService.resolve_kb_source_path(workspace_id, final_source_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     content = await upload_file.read()
-    target.write_bytes(content)
+    write_bytes_exclusive(target, content, logical_path=final_source_path)
     detected_format, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
-    return await DBKBDocument.create(
-        workspace_id=workspace_id,
-        source_path=final_source_path,
-        normalized_text_path="",
-        file_name=Path(final_source_path).name,
-        file_ext=suffix,
-        mime_type=mime_type,
-        title=(title or Path(final_source_path).stem).strip(),
-        category=category.strip(),
-        tags=normalize_tags(tags),
-        summary=summary.strip(),
-        source_type=source_type,
-        format=detected_format,
-        is_enabled=is_enabled,
-        extract_status="pending",
-        sync_status="pending",
-        content_hash=compute_sha256(content),
-        normalized_text_hash="",
-        chunk_count=0,
-        file_size=len(content),
-    )
+    try:
+        return await DBKBDocument.create(
+            workspace_id=workspace_id,
+            source_path=final_source_path,
+            normalized_text_path="",
+            file_name=Path(final_source_path).name,
+            file_ext=suffix,
+            mime_type=mime_type,
+            title=(title or Path(final_source_path).stem).strip(),
+            category=category.strip(),
+            tags=normalize_tags(tags),
+            summary=summary.strip(),
+            source_type=source_type,
+            format=detected_format,
+            is_enabled=is_enabled,
+            extract_status="pending",
+            sync_status="pending",
+            content_hash=compute_sha256(content),
+            normalized_text_hash="",
+            chunk_count=0,
+            file_size=len(content),
+        )
+    except Exception:
+        if target.exists():
+            target.unlink()
+        raise
 
 
 async def update_document_metadata(
@@ -225,6 +243,20 @@ async def update_document_metadata(
     content: str | None = None,
 ) -> DBKBDocument:
     update_fields: list[str] = []
+    old_source_path = document.source_path
+    old_file_name = document.file_name
+    old_file_ext = document.file_ext
+    old_mime_type = document.mime_type
+    old_content_hash = document.content_hash
+    old_file_size = document.file_size
+    old_extract_status = document.extract_status
+    old_sync_status = document.sync_status
+    current_path = WorkspaceService.resolve_kb_source_path(document.workspace_id, document.source_path)
+    target_path = current_path
+    original_bytes: bytes | None = None
+    remove_target_on_failure = False
+    moved_paths: tuple[Path, Path] | None = None
+
     if title is not None:
         document.title = title.strip()
         update_fields.append("title")
@@ -240,32 +272,69 @@ async def update_document_metadata(
     if is_enabled is not None:
         document.is_enabled = is_enabled
         update_fields.append("is_enabled")
-    if source_path is not None and source_path.strip():
-        new_rel_path = safe_source_path(source_path)
-        old_path = WorkspaceService.resolve_kb_source_path(document.workspace_id, document.source_path)
-        new_path = WorkspaceService.resolve_kb_source_path(document.workspace_id, new_rel_path)
-        new_path.parent.mkdir(parents=True, exist_ok=True)
-        if old_path.exists() and old_path != new_path:
-            old_path.rename(new_path)
-        document.source_path = new_rel_path
-        document.file_name = new_path.name
-        _, suffix, mime_type = detect_format_and_mime(document.file_name)
-        document.file_ext = suffix
-        document.mime_type = mime_type
-        update_fields.extend(["source_path", "file_name", "file_ext", "mime_type"])
-    if content is not None:
-        if document.format not in TEXT_FORMATS:
-            raise ValueError("仅文本类知识文档允许直接更新正文内容")
-        target = WorkspaceService.resolve_kb_source_path(document.workspace_id, document.source_path)
-        encoded = content.encode("utf-8")
-        target.write_bytes(encoded)
-        document.content_hash = compute_sha256(encoded)
-        document.file_size = len(encoded)
-        document.extract_status = "pending"
-        document.sync_status = "pending"
-        update_fields.extend(["content_hash", "file_size", "extract_status", "sync_status"])
-    if update_fields:
-        await document.save(update_fields=[*sorted(set(update_fields)), "update_time"])
+    try:
+        if source_path is not None and source_path.strip():
+            new_rel_path = safe_source_path(source_path)
+            if new_rel_path != document.source_path:
+                conflict_exists = await DBKBDocument.filter(
+                    workspace_id=document.workspace_id,
+                    source_path=new_rel_path,
+                ).exclude(id=document.id).exists()
+                if conflict_exists:
+                    raise FileExistsError(new_rel_path)
+
+                new_path = WorkspaceService.resolve_kb_source_path(document.workspace_id, new_rel_path)
+                new_path.parent.mkdir(parents=True, exist_ok=True)
+                if new_path.exists():
+                    raise FileExistsError(new_rel_path)
+                if current_path.exists():
+                    current_path.rename(new_path)
+                    moved_paths = (current_path, new_path)
+                target_path = new_path
+                document.source_path = new_rel_path
+                document.file_name = new_path.name
+                _, suffix, mime_type = detect_format_and_mime(document.file_name)
+                document.file_ext = suffix
+                document.mime_type = mime_type
+                update_fields.extend(["source_path", "file_name", "file_ext", "mime_type"])
+
+        if content is not None:
+            if document.format not in TEXT_FORMATS:
+                raise ValueError("仅文本类知识文档允许直接更新正文内容")
+            encoded = content.encode("utf-8")
+            if target_path.exists():
+                original_bytes = target_path.read_bytes()
+            else:
+                remove_target_on_failure = True
+            target_path.write_bytes(encoded)
+            document.content_hash = compute_sha256(encoded)
+            document.file_size = len(encoded)
+            document.extract_status = "pending"
+            document.sync_status = "pending"
+            update_fields.extend(["content_hash", "file_size", "extract_status", "sync_status"])
+
+        if update_fields:
+            await document.save(update_fields=[*sorted(set(update_fields)), "update_time"])
+    except Exception:
+        document.source_path = old_source_path
+        document.file_name = old_file_name
+        document.file_ext = old_file_ext
+        document.mime_type = old_mime_type
+        document.content_hash = old_content_hash
+        document.file_size = old_file_size
+        document.extract_status = old_extract_status
+        document.sync_status = old_sync_status
+
+        if content is not None:
+            if original_bytes is not None:
+                target_path.write_bytes(original_bytes)
+            elif remove_target_on_failure and target_path.exists():
+                target_path.unlink()
+        if moved_paths is not None:
+            old_path, new_path = moved_paths
+            if new_path.exists() and not old_path.exists():
+                new_path.rename(old_path)
+        raise
     return document
 
 

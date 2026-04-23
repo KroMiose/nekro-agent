@@ -11,6 +11,7 @@ from nekro_agent.models.db_kb_asset_chunk import DBKBAssetChunk
 from nekro_agent.models.db_kb_chunk import DBKBChunk
 from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.schemas.kb import (
+    KBReferencedSource,
     KBSearchDocument,
     KBSearchItem,
     KBSearchResponse,
@@ -617,7 +618,7 @@ def _build_document(bucket: _DocumentBucket, max_chunks_per_document: int) -> KB
         headings=headings,
         best_match_excerpt="\n".join(excerpt_parts),
         snippets=snippets,
-        # referenced_document_ids 由调用方在异步查询后填充
+        # referenced_sources 由调用方在异步查询后填充
     )
 
 
@@ -843,7 +844,7 @@ async def search_workspace_kb(
         if len(flat_items) >= limit * max_chunks_per_document:
             break
 
-    # 引用展开：查询命中文档/资产的引用关系，填充 referenced_document_ids 并抓取补充 chunks
+    # 引用展开：查询命中文档/资产的引用关系，填充 referenced_sources 并抓取补充 chunks
     hit_doc_ids = [item.document_id for item in document_hits if item.source_kind == "document"]
     hit_asset_ids = [item.document_id for item in document_hits if item.source_kind == "asset"]
 
@@ -860,9 +861,15 @@ async def search_workspace_kb(
 
     for doc_hit in document_hits:
         if doc_hit.source_kind == "document":
-            doc_hit.referenced_document_ids = doc_ref_map.get(doc_hit.document_id, [])
+            doc_hit.referenced_sources = [
+                KBReferencedSource(source_kind="document", document_id=ref_id)
+                for ref_id in doc_ref_map.get(doc_hit.document_id, [])
+            ]
         else:
-            doc_hit.referenced_document_ids = asset_ref_map.get(doc_hit.document_id, [])
+            doc_hit.referenced_sources = [
+                KBReferencedSource(source_kind="asset", document_id=ref_id)
+                for ref_id in asset_ref_map.get(doc_hit.document_id, [])
+            ]
 
     # 收集所有被引用但尚未出现在主结果中的文档/资产 ID
     already_in_results: set[tuple[_SourceKind, int]] = allowed_entry_keys.copy()

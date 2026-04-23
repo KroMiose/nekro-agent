@@ -231,7 +231,10 @@ export interface KBSearchDocument {
   headings: string[]
   best_match_excerpt: string
   snippets: KBSearchSnippet[]
-  referenced_document_ids: number[]
+  referenced_sources: Array<{
+    source_kind: KBSearchSourceKind
+    document_id: number
+  }>
 }
 
 export interface KBSearchResponse {

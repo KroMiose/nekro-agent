@@ -5,7 +5,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import FileResponse
 from tortoise.exceptions import IntegrityError
+from tortoise.transactions import in_transaction
 
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.models.db_workspace import DBWorkspace
@@ -42,9 +44,11 @@ from nekro_agent.services.kb.document_service import (
     update_document_metadata,
 )
 from nekro_agent.services.kb.index_service import (
+    delete_document_chunk_rows,
     delete_document_files,
-    delete_document_index,
+    delete_document_vector_points,
     ensure_kb_collection,
+    list_document_chunk_ids,
     rebuild_workspace_documents,
     schedule_rebuild_document,
     sync_document_index_metadata,
@@ -56,6 +60,7 @@ from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 router = APIRouter(prefix="/workspaces", tags=["Workspace Knowledge Base"])
+logger = get_sub_logger("kb.workspace_router")
 
 ALLOWED_KB_EXTENSIONS = {".md", ".txt", ".html", ".htm", ".json", ".yaml", ".yml", ".csv", ".xlsx", ".pdf", ".docx"}
 
@@ -191,6 +196,8 @@ async def create_workspace_kb_document(
             summary=body.summary,
             is_enabled=body.is_enabled,
         )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"知识库路径 '{e}'") from e
     except IntegrityError as e:
         raise ConflictError(resource=f"知识库路径 '{body.source_path or body.file_name}'") from e
     except ValueError as e:
@@ -234,6 +241,8 @@ async def upload_workspace_kb_file(
             summary=summary,
             is_enabled=is_enabled,
         )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"知识库路径 '{e}'") from e
     except IntegrityError as e:
         raise ConflictError(resource=f"知识库路径 '{source_path or file_name}'") from e
     except ValueError as e:
@@ -261,6 +270,7 @@ async def update_workspace_kb_document(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBDocumentDetailResponse:
     document = await _get_document_or_404(workspace_id, document_id)
+    original_source_path = document.source_path
     try:
         updated = await update_document_metadata(
             document,
@@ -272,12 +282,14 @@ async def update_workspace_kb_document(
             source_path=body.source_path,
             content=body.content,
         )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"知识库路径 '{e}'") from e
     except IntegrityError as e:
         raise ConflictError(resource=f"知识库路径 '{body.source_path}'") from e
     except ValueError as e:
         raise ValidationError(reason=str(e)) from e
 
-    source_path_changed = body.source_path is not None and bool(body.source_path.strip())
+    source_path_changed = body.source_path is not None and bool(body.source_path.strip()) and updated.source_path != original_source_path
     content_changed = body.content is not None
     metadata_changed = body.category is not None or body.tags is not None or body.is_enabled is not None
     reference_changed = body.title is not None or body.category is not None or body.is_enabled is not None
@@ -308,13 +320,32 @@ async def delete_workspace_kb_document(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBActionResponse:
     from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
+
     document = await _get_document_or_404(workspace_id, document_id)
-    await delete_document_index(document)
-    await delete_document_files(document)
-    await DBKBDocumentReference.filter(source_document_id=document_id).delete()
-    await DBKBDocumentReference.filter(target_document_id=document_id).delete()
-    await document.delete()
-    return KBActionResponse(ok=True)
+    chunk_ids = await list_document_chunk_ids(document.id)
+
+    async with in_transaction() as db:
+        await DBKBDocumentReference.filter(source_document_id=document_id).using_db(db).delete()
+        await DBKBDocumentReference.filter(target_document_id=document_id).using_db(db).delete()
+        await delete_document_chunk_rows(document.id, using_db=db)
+        await document.delete(using_db=db)
+
+    cleanup_warnings: list[str] = []
+    try:
+        await delete_document_vector_points(chunk_ids)
+    except Exception as e:
+        logger.warning(f"删除知识库文档向量索引失败: document_id={document_id}, error={e}")
+        cleanup_warnings.append("vector_index")
+    try:
+        await delete_document_files(document)
+    except Exception as e:
+        logger.warning(f"删除知识库文档文件失败: document_id={document_id}, error={e}")
+        cleanup_warnings.append("files")
+
+    return KBActionResponse(
+        ok=True,
+        message="文档记录已删除，但部分外部资源清理失败" if cleanup_warnings else None,
+    )
 
 
 @router.get("/{workspace_id}/kb/documents/{document_id}/raw", summary="下载知识库原始文件")
