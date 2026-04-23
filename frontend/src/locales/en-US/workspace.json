@@ -1195,7 +1195,7 @@
     },
     "notifications": {
       "addSuccess": "Knowledge file added to the current workspace",
-      "addReusedSuccess": "Reused an existing knowledge file and added it to the current workspace",
+      "addReusedSuccess": "Identical content detected. This upload was skipped; the existing knowledge file was reused and added to the current workspace. The title, category, tags, and summary you entered did not overwrite the original asset.",
       "createSuccess": "Knowledge document created",
       "createFailed": "Create failed: {{message}}",
       "uploadSuccess": "Knowledge file uploaded",
@@ -1401,10 +1401,10 @@
     },
     "notifications": {
       "createSuccess": "Text knowledge created and queued for indexing",
-      "createReused": "Identical content detected, reused the existing global knowledge file",
+      "createReused": "Identical content detected. This create request was skipped and the existing global knowledge file was reused. The title, category, tags, summary, and enabled state you entered did not overwrite the original asset.",
       "createFailed": "Create failed: {{message}}",
       "uploadSuccess": "File uploaded and queued for indexing",
-      "uploadReused": "Identical file content detected, reused the existing file",
+      "uploadReused": "Identical file content detected. This upload was skipped and the existing global knowledge file was reused. The title, category, tags, summary, and enabled state you entered did not overwrite the original asset.",
       "uploadFailed": "Upload failed: {{message}}",
       "reindexSuccess": "File reindex queued",
       "reindexFailed": "Reindex failed: {{message}}",

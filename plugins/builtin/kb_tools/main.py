@@ -67,6 +67,14 @@ def _document_prompt_status(document: DBKBDocument) -> str:
     return document.sync_status
 
 
+def _asset_prompt_status(asset: DBKBAsset) -> str:
+    if asset.extract_status == "failed" or asset.sync_status == "failed":
+        return "failed"
+    if asset.extract_status != "ready":
+        return asset.extract_status
+    return asset.sync_status
+
+
 def _trim_prompt_text(value: str, limit: int) -> str:
     """压缩空白后截断，保留最后一个完整词，超出时附省略号。"""
     compact = " ".join(value.strip().split())
@@ -112,7 +120,7 @@ def _format_asset_catalog_line(asset: DBKBAsset) -> str:
         f"[asset:{asset.id}] {_trim_prompt_text(asset.title, 60)}",
         f"path={asset.source_path}",
         f"format={asset.format}",
-        f"status={asset.sync_status}",
+        f"status={_asset_prompt_status(asset)}",
     ]
     if asset.category:
         parts.append(f"category={_trim_prompt_text(asset.category, 24)}")
@@ -209,7 +217,9 @@ def _build_chunk_context_payload(
     document_id: int,
     title: str,
     source_path: str,
+    source_workspace_path: str | None,
     normalized_text_path: str | None,
+    normalized_workspace_path: str | None,
     chunk: DBKBChunk,
     normalized_content: str,
     window_chars: int,
@@ -243,12 +253,9 @@ def _build_chunk_context_payload(
         chunk_id=chunk.id,
         title=title,
         source_path=source_path,
-        source_workspace_path=WorkspaceService.get_kb_source_workspace_path(source_path),
+        source_workspace_path=source_workspace_path,
         normalized_text_path=normalized_text_path,
-        normalized_workspace_path=(
-            WorkspaceService.get_kb_normalized_workspace_path(normalized_text_path)
-            if normalized_text_path else None
-        ),
+        normalized_workspace_path=normalized_workspace_path,
         heading_path=chunk.heading_path,
         chunk_char_start=chunk_start,
         chunk_char_end=chunk_end,
@@ -324,12 +331,11 @@ async def search_workspace_kb_tool(
         "query": result.query,
         "document_total": result.document_total,
         "suggested_document_ids": result.suggested_document_ids,
-        "next_action_hint": (
-            "先读命中 chunk 的局部上下文；不够再翻页；仍不足再读全文；结果不相关再换 query。"
-        ),
+        "next_action_hint": result.next_action_hint,
         "documents": [
             {
                 "document_id": item.document_id,
+                "source_kind": item.source_kind,
                 "title": item.title,
                 "source_path": item.source_path,
                 "format": item.format,
@@ -349,6 +355,17 @@ async def search_workspace_kb_tool(
                 ),
             }
             for item in result.documents
+        ],
+        "reference_expanded_items": [
+            {
+                "document_id": item.document_id,
+                "source_kind": item.source_kind,
+                "chunk_id": item.chunk_id,
+                "title": item.title,
+                "source_path": item.source_path,
+                "content_preview": _trim_prompt_text(item.content_preview, _TOOL_SEARCH_SNIPPET_MAX_CHARS),
+            }
+            for item in result.reference_expanded_items
         ],
     }
     return _dump_tool_payload(payload)
@@ -377,7 +394,8 @@ async def get_workspace_kb_document_tool(
     if source_kind == "asset":
         asset = await _require_bound_asset(workspace.id, document_id)
         source_content = read_asset_source_content(asset) if asset.format in {"markdown", "text", "html", "json", "yaml", "csv"} else ""
-        normalized_content = read_asset_normalized_content(asset)
+        asset_status = _asset_prompt_status(asset)
+        normalized_content = read_asset_normalized_content(asset) if asset_status == "ready" else ""
         source_preview, source_truncated = _trim_tool_text(source_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
         normalized_preview, normalized_truncated = _trim_tool_text(normalized_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
         payload = {
@@ -389,7 +407,7 @@ async def get_workspace_kb_document_tool(
             "category": asset.category,
             "tags": asset.tags if isinstance(asset.tags, list) else [],
             "summary": asset.summary,
-            "status": asset.sync_status,
+            "status": asset_status,
             "chunk_count": asset.chunk_count,
             "source_preview": source_preview,
             "source_preview_truncated": source_truncated,
@@ -408,7 +426,8 @@ async def get_workspace_kb_document_tool(
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")
     source_content = read_source_content(document) if document.format in {"markdown", "text", "html", "json", "yaml", "csv"} else ""
-    normalized_content = read_normalized_content(document)
+    document_status = _document_prompt_status(document)
+    normalized_content = read_normalized_content(document) if document_status == "ready" else ""
     source_preview, source_truncated = _trim_tool_text(source_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
     normalized_preview, normalized_truncated = _trim_tool_text(normalized_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
     payload = {
@@ -455,6 +474,8 @@ async def read_workspace_kb_fulltext_tool(
 
     if source_kind == "asset":
         asset = await _require_bound_asset(workspace.id, document_id)
+        if _asset_prompt_status(asset) != "ready":
+            raise ValueError(f"全局知识库资产 {asset.id} 的规范化全文尚未就绪")
         content = read_asset_normalized_content(asset)
         content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
         payload = {
@@ -476,6 +497,8 @@ async def read_workspace_kb_fulltext_tool(
     document = await get_document(workspace.id, document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")
+    if _document_prompt_status(document) != "ready":
+        raise ValueError(f"知识库文档 {document.id} 的规范化全文尚未就绪")
     content = read_normalized_content(document)
     content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
     payload = {
@@ -528,6 +551,8 @@ async def read_workspace_kb_chunk_context_tool(
         if asset_chunk is None:
             raise ValueError(f"未找到全局知识库 chunk {chunk_id}")
         asset = await _require_bound_asset(workspace.id, asset_chunk.asset_id)
+        if _asset_prompt_status(asset) != "ready":
+            raise ValueError(f"全局知识库资产 {asset.id} 的规范化全文尚未就绪")
         normalized_content = read_asset_normalized_content(asset)
         if not normalized_content.strip():
             raise ValueError(f"全局知识库资产 {asset.id} 尚无可读取的规范化全文")
@@ -536,7 +561,9 @@ async def read_workspace_kb_chunk_context_tool(
             document_id=asset.id,
             title=asset.title,
             source_path=asset.source_path,
+            source_workspace_path=None,
             normalized_text_path=asset.normalized_text_path,
+            normalized_workspace_path=None,
             chunk=asset_chunk,
             normalized_content=normalized_content,
             window_chars=resolved_window_chars,
@@ -552,6 +579,8 @@ async def read_workspace_kb_chunk_context_tool(
     document = await get_document(workspace.id, chunk.document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {chunk.document_id}")
+    if _document_prompt_status(document) != "ready":
+        raise ValueError(f"知识库文档 {document.id} 的规范化全文尚未就绪")
     normalized_content = read_normalized_content(document)
     if not normalized_content.strip():
         raise ValueError(f"知识库文档 {document.id} 尚无可读取的规范化全文")
@@ -560,7 +589,12 @@ async def read_workspace_kb_chunk_context_tool(
         document_id=document.id,
         title=document.title,
         source_path=document.source_path,
+        source_workspace_path=WorkspaceService.get_kb_source_workspace_path(document.source_path),
         normalized_text_path=document.normalized_text_path,
+        normalized_workspace_path=(
+            WorkspaceService.get_kb_normalized_workspace_path(document.normalized_text_path)
+            if document.normalized_text_path else None
+        ),
         chunk=chunk,
         normalized_content=normalized_content,
         window_chars=resolved_window_chars,

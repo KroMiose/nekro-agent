@@ -44,6 +44,7 @@ from nekro_agent.services.kb.document_service import (
     update_document_metadata,
 )
 from nekro_agent.services.kb.index_service import (
+    cancel_rebuild_document,
     delete_document_chunk_rows,
     delete_document_files,
     delete_document_vector_points,
@@ -63,6 +64,10 @@ router = APIRouter(prefix="/workspaces", tags=["Workspace Knowledge Base"])
 logger = get_sub_logger("kb.workspace_router")
 
 ALLOWED_KB_EXTENSIONS = {".md", ".txt", ".html", ".htm", ".json", ".yaml", ".yml", ".csv", ".xlsx", ".pdf", ".docx"}
+
+
+def _is_document_index_ready(document: DBKBDocument) -> bool:
+    return bool(document.extract_status == "ready" and document.sync_status == "ready")
 
 
 async def _get_workspace_or_404(workspace_id: int) -> DBWorkspace:
@@ -164,11 +169,11 @@ async def get_workspace_kb_document(
         if document.format in {"markdown", "text", "html", "json", "yaml", "csv"}
         else None
     )
-    normalized_content = read_normalized_content(document) or None
+    normalized_content = read_normalized_content(document) if _is_document_index_ready(document) else ""
     return KBDocumentDetailResponse(
         document=document_to_list_item(document),
         source_content=source_content,
-        normalized_content=normalized_content,
+        normalized_content=normalized_content or None,
     )
 
 
@@ -208,7 +213,7 @@ async def create_workspace_kb_document(
     return KBDocumentDetailResponse(
         document=document_to_list_item(refreshed),
         source_content=read_source_content(refreshed),
-        normalized_content=read_normalized_content(refreshed) or None,
+        normalized_content=None,
     )
 
 
@@ -255,7 +260,7 @@ async def upload_workspace_kb_file(
         source_content=read_source_content(refreshed)
         if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
         else None,
-        normalized_content=read_normalized_content(refreshed) or None,
+        normalized_content=None,
     )
 
 
@@ -308,7 +313,7 @@ async def update_workspace_kb_document(
         source_content=read_source_content(refreshed)
         if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
         else None,
-        normalized_content=read_normalized_content(refreshed) or None,
+        normalized_content=read_normalized_content(refreshed) if _is_document_index_ready(refreshed) else None,
     )
 
 
@@ -322,6 +327,7 @@ async def delete_workspace_kb_document(
     from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
 
     document = await _get_document_or_404(workspace_id, document_id)
+    await cancel_rebuild_document(document.id)
     chunk_ids = await list_document_chunk_ids(document.id)
 
     async with in_transaction() as db:
@@ -375,6 +381,8 @@ async def get_workspace_kb_fulltext(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBFullTextResponse:
     document = await _get_document_or_404(workspace_id, document_id)
+    if not _is_document_index_ready(document):
+        raise ValidationError(reason="知识库规范化全文尚未就绪，请等待索引完成后再读取")
     content = read_normalized_content(document)
     truncated = len(content) > max_chars
     if truncated:

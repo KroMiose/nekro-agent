@@ -27,6 +27,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateReferenceBody,
 )
 from nekro_agent.services.kb.library_index_service import (
+    cancel_rebuild_asset,
     delete_asset_chunk_rows,
     delete_asset_files,
     delete_asset_vector_points,
@@ -77,6 +78,10 @@ ALLOWED_KB_LIBRARY_EXTENSIONS = {
 }
 
 
+def _is_asset_index_ready(asset: DBKBAsset) -> bool:
+    return bool(asset.extract_status == "ready" and asset.sync_status == "ready")
+
+
 async def _get_asset_or_404(asset_id: int) -> DBKBAsset:
     asset = await get_asset(asset_id)
     if asset is None:
@@ -107,11 +112,11 @@ async def get_kb_library_asset(
 ) -> KBAssetDetailResponse:
     asset = await _get_asset_or_404(asset_id)
     source_content = read_asset_source_content(asset) if asset.format in TEXT_LIBRARY_FORMATS else None
-    normalized_content = read_asset_normalized_content(asset) or None
+    normalized_content = read_asset_normalized_content(asset) if _is_asset_index_ready(asset) else ""
     return KBAssetDetailResponse(
         asset=await asset_to_list_item(asset),
         source_content=source_content,
-        normalized_content=normalized_content,
+        normalized_content=normalized_content or None,
     )
 
 
@@ -215,7 +220,7 @@ async def update_kb_library_asset(
 
     refreshed = await _get_asset_or_404(asset_id)
     source_content = read_asset_source_content(refreshed) if refreshed.format in TEXT_LIBRARY_FORMATS else None
-    normalized_content = read_asset_normalized_content(refreshed) or None
+    normalized_content = read_asset_normalized_content(refreshed) if _is_asset_index_ready(refreshed) else None
     return KBAssetDetailResponse(
         asset=await asset_to_list_item(refreshed),
         source_content=source_content,
@@ -232,6 +237,7 @@ async def delete_kb_library_asset(
     from nekro_agent.models.db_kb_asset_reference import DBKBAssetReference
 
     asset = await _get_asset_or_404(asset_id)
+    await cancel_rebuild_asset(asset.id)
     bound_workspaces = await list_asset_bound_workspaces(asset.id)
     if bound_workspaces:
         raise ConflictError(resource=f"全局知识库文件 {asset.id} 仍被 {len(bound_workspaces)} 个工作区绑定")
@@ -294,6 +300,8 @@ async def get_kb_library_fulltext(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBFullTextResponse:
     asset = await _get_asset_or_404(asset_id)
+    if not _is_asset_index_ready(asset):
+        raise ValidationError(reason="全局知识库规范化全文尚未就绪，请等待索引完成后再读取")
     content = read_asset_normalized_content(asset)
     truncated = len(content) > max_chars
     if truncated:

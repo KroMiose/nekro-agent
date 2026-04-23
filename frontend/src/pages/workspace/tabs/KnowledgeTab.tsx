@@ -499,11 +499,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         is_enabled: true,
       })
       setCreateTagsInput('')
-      notification.success(
-        data.reused_existing
-          ? t('knowledge.notifications.addReusedSuccess')
-          : t('knowledge.notifications.addSuccess')
-      )
+      if (data.reused_existing) {
+        notification.warning(t('knowledge.notifications.addReusedSuccess'), { duration: 6000 })
+      } else {
+        notification.success(t('knowledge.notifications.addSuccess'))
+      }
     },
     onError: (err: Error) => notification.error(t('knowledge.notifications.createFailed', { message: err.message })),
   })
@@ -525,11 +525,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       setUploadTagsInput('')
       setUploadEnabled(true)
       setUploadProgress(0)
-      notification.success(
-        data.reused_existing
-          ? t('knowledge.notifications.addReusedSuccess')
-          : t('knowledge.notifications.addSuccess')
-      )
+      if (data.reused_existing) {
+        notification.warning(t('knowledge.notifications.addReusedSuccess'), { duration: 6000 })
+      } else {
+        notification.success(t('knowledge.notifications.addSuccess'))
+      }
     },
     onError: (err: Error) => {
       setUploadProgress(0)

@@ -397,11 +397,11 @@ export default function KbLibraryPage() {
         is_enabled: true,
       })
       setCreateTagsInput('')
-      notification.success(
-        data.reused_existing
-          ? t('kbLibrary.notifications.createReused')
-          : t('kbLibrary.notifications.createSuccess')
-      )
+      if (data.reused_existing) {
+        notification.warning(t('kbLibrary.notifications.createReused'), { duration: 6000 })
+      } else {
+        notification.success(t('kbLibrary.notifications.createSuccess'))
+      }
     },
     onError: (err: Error) => notification.error(t('kbLibrary.notifications.createFailed', { message: err.message })),
   })
@@ -419,11 +419,11 @@ export default function KbLibraryPage() {
       setUploadSummary('')
       setUploadTagsInput('')
       setUploadProgress(0)
-      notification.success(
-        data.reused_existing
-          ? t('kbLibrary.notifications.uploadReused')
-          : t('kbLibrary.notifications.uploadSuccess')
-      )
+      if (data.reused_existing) {
+        notification.warning(t('kbLibrary.notifications.uploadReused'), { duration: 6000 })
+      } else {
+        notification.success(t('kbLibrary.notifications.uploadSuccess'))
+      }
     },
     onError: (err: Error) => {
       setUploadProgress(0)

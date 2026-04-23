@@ -1195,7 +1195,7 @@
     },
     "notifications": {
       "addSuccess": "知识文件已添加到当前工作区",
-      "addReusedSuccess": "已复用现有知识文件并添加到当前工作区",
+      "addReusedSuccess": "检测到相同内容，本次上传已跳过；已复用现有知识文件并添加到当前工作区，本次填写的标题、分类、标签与摘要不会覆盖原资产",
       "createSuccess": "知识文档已创建",
       "createFailed": "创建失败：{{message}}",
       "uploadSuccess": "知识文件已上传",
@@ -1401,10 +1401,10 @@
     },
     "notifications": {
       "createSuccess": "文本知识已创建并进入索引流程",
-      "createReused": "检测到相同内容，已复用现有全局知识文件",
+      "createReused": "检测到相同内容，本次创建已跳过；已复用现有全局知识文件，本次填写的标题、分类、标签、摘要与启用状态不会覆盖原资产",
       "createFailed": "创建失败：{{message}}",
       "uploadSuccess": "文件已上传并进入索引流程",
-      "uploadReused": "检测到相同文件内容，已复用现有文件",
+      "uploadReused": "检测到相同文件内容，本次上传已跳过；已复用现有全局知识文件，本次填写的标题、分类、标签、摘要与启用状态不会覆盖原资产",
       "uploadFailed": "上传失败：{{message}}",
       "reindexSuccess": "文件索引已进入重建流程",
       "reindexFailed": "重建失败：{{message}}",

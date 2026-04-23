@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_kb_asset_binding import DBKBAssetBinding
 from nekro_agent.models.db_kb_asset_chunk import DBKBAssetChunk
@@ -30,6 +31,7 @@ from nekro_agent.services.kb.qdrant_manager import kb_qdrant_manager
 from nekro_agent.services.memory.embedding_service import embed_text
 from nekro_agent.services.workspace.manager import WorkspaceService
 
+logger = get_sub_logger("kb.search")
 PREVIEW_MAX_CHARS = 360
 KEYWORD_DOC_CANDIDATE_FACTOR = 6
 KEYWORD_HIT_FACTOR = 4
@@ -96,6 +98,10 @@ def _source_matches_filters(source: DBKBDocument | DBKBAsset, *, category: str, 
         if not set(tag.strip() for tag in tags if tag.strip()).issubset(source_tags):
             return False
     return True
+
+
+def _source_is_search_ready(source: DBKBDocument | DBKBAsset) -> bool:
+    return bool(source.is_enabled and source.extract_status == "ready" and source.sync_status == "ready")
 
 
 def _read_normalized_cached(document: DBKBDocument, normalized_cache: dict[int, str]) -> str:
@@ -633,11 +639,16 @@ async def search_workspace_kb(
 ) -> KBSearchResponse:
     tokens = _tokenize_query(query)
     bound_asset_id_set: set[int] = set()
-    documents = await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).all()
+    documents = await DBKBDocument.filter(
+        workspace_id=workspace_id,
+        is_enabled=True,
+        extract_status="ready",
+        sync_status="ready",
+    ).all()
     documents = [
         document
         for document in documents
-        if _source_matches_filters(document, category=category, tags=tags)
+        if _source_is_search_ready(document) and _source_matches_filters(document, category=category, tags=tags)
     ]
     bound_asset_ids = sorted(
         {
@@ -648,11 +659,16 @@ async def search_workspace_kb(
     bound_asset_id_set = set(bound_asset_ids)
     assets: list[DBKBAsset] = []
     if bound_asset_ids:
-        assets = await DBKBAsset.filter(id__in=bound_asset_ids, is_enabled=True).all()
+        assets = await DBKBAsset.filter(
+            id__in=bound_asset_ids,
+            is_enabled=True,
+            extract_status="ready",
+            sync_status="ready",
+        ).all()
         assets = [
             asset
             for asset in assets
-            if _source_matches_filters(asset, category=category, tags=tags)
+            if _source_is_search_ready(asset) and _source_matches_filters(asset, category=category, tags=tags)
         ]
 
     if not documents and not assets:
@@ -667,65 +683,70 @@ async def search_workspace_kb(
             next_action_hint="当前未命中文档，可尝试缩短 query、改用明确关键词，或换一个更具体的文档主题再搜索。",
         )
 
-    query_vector = await embed_text(query)
+    query_vector: list[float] | None = None
+    try:
+        query_vector = await embed_text(query)
+    except Exception as e:
+        logger.warning(f"知识库 embedding 检索失败，回退关键词检索: workspace_id={workspace_id}, error={e}")
     vector_hits: list[_ScoredHit] = []
     keyword_hits: list[_ScoredHit] = []
 
     if documents:
         document_map = {document.id: document for document in documents}
-        grouped_results = await kb_qdrant_manager.search_grouped(
-            query_vector=query_vector,
-            workspace_id=workspace_id,
-            limit=max(limit * 3, limit),
-            group_size=max(max_chunks_per_document * 3, 4),
-            category=category,
-            tags=tags,
-            score_threshold=0.48 if tokens else 0.42,
-        )
-
-        raw_results = [hit for group in grouped_results for hit in group["hits"]]
-        chunk_ids = [int(item["id"]) for item in raw_results]
-        chunks = await DBKBChunk.filter(id__in=chunk_ids, workspace_id=workspace_id).all()
-        chunk_map = {chunk.id: chunk for chunk in chunks}
         normalized_cache: dict[int, str] = {}
-
-        for result in raw_results:
-            chunk_id = int(result["id"])
-            chunk = chunk_map.get(chunk_id)
-            if chunk is None:
-                continue
-
-            payload = result["payload"] if isinstance(result["payload"], dict) else {}
-            payload_document_id = payload.get("document_id")
-            document_id = int(payload_document_id) if isinstance(payload_document_id, int) else chunk.document_id
-            document = document_map.get(document_id)
-            if document is None:
-                continue
-
-            heading_path = _payload_text(payload, "heading_path") or chunk.heading_path
-            content_preview = _payload_text(payload, "content_preview") or _extract_preview_from_document(
-                document=document,
-                chunk=chunk,
-                normalized_cache=normalized_cache,
+        if query_vector is not None:
+            grouped_results = await kb_qdrant_manager.search_grouped(
+                query_vector=query_vector,
+                workspace_id=workspace_id,
+                limit=max(limit * 3, limit),
+                group_size=max(max_chunks_per_document * 3, 4),
+                category=category,
+                tags=tags,
+                score_threshold=0.48 if tokens else 0.42,
             )
-            score = _apply_metadata_bonus(
-                query=query,
-                tokens=tokens,
-                heading_path=heading_path,
-                content_preview=content_preview,
-                source=document,
-                base_score=float(result["score"]),
-            )
-            vector_hits.append(
-                _ScoredHit(
-                    source_kind="document",
+
+            raw_results = [hit for group in grouped_results for hit in group["hits"]]
+            chunk_ids = [int(item["id"]) for item in raw_results]
+            chunks = await DBKBChunk.filter(id__in=chunk_ids, workspace_id=workspace_id).all()
+            chunk_map = {chunk.id: chunk for chunk in chunks}
+
+            for result in raw_results:
+                chunk_id = int(result["id"])
+                chunk = chunk_map.get(chunk_id)
+                if chunk is None:
+                    continue
+
+                payload = result["payload"] if isinstance(result["payload"], dict) else {}
+                payload_document_id = payload.get("document_id")
+                document_id = int(payload_document_id) if isinstance(payload_document_id, int) else chunk.document_id
+                document = document_map.get(document_id)
+                if document is None:
+                    continue
+
+                heading_path = _payload_text(payload, "heading_path") or chunk.heading_path
+                content_preview = _payload_text(payload, "content_preview") or _extract_preview_from_document(
+                    document=document,
                     chunk=chunk,
-                    source=document,
+                    normalized_cache=normalized_cache,
+                )
+                score = _apply_metadata_bonus(
+                    query=query,
+                    tokens=tokens,
                     heading_path=heading_path,
                     content_preview=content_preview,
-                    score=min(score, FUSED_SCORE_CAP),
+                    source=document,
+                    base_score=float(result["score"]),
                 )
-            )
+                vector_hits.append(
+                    _ScoredHit(
+                        source_kind="document",
+                        chunk=chunk,
+                        source=document,
+                        heading_path=heading_path,
+                        content_preview=content_preview,
+                        score=min(score, FUSED_SCORE_CAP),
+                    )
+                )
 
         keyword_hits.extend(
             await _collect_keyword_hits(
@@ -742,59 +763,60 @@ async def search_workspace_kb(
     if assets:
         asset_ids = [asset.id for asset in assets]
         asset_map = {asset.id: asset for asset in assets}
-        grouped_asset_results = await kb_library_qdrant_manager.search_grouped(
-            query_vector=query_vector,
-            asset_ids=asset_ids,
-            limit=max(limit * 3, limit),
-            group_size=max(max_chunks_per_document * 3, 4),
-            category=category,
-            tags=tags,
-            score_threshold=0.48 if tokens else 0.42,
-        )
-
-        raw_asset_results = [hit for group in grouped_asset_results for hit in group["hits"]]
-        asset_chunk_ids = [int(item["id"]) for item in raw_asset_results]
-        asset_chunks = await DBKBAssetChunk.filter(id__in=asset_chunk_ids).all()
-        asset_chunk_map = {chunk.id: chunk for chunk in asset_chunks}
         asset_normalized_cache: dict[int, str] = {}
-
-        for result in raw_asset_results:
-            chunk_id = int(result["id"])
-            chunk = asset_chunk_map.get(chunk_id)
-            if chunk is None:
-                continue
-
-            payload = result["payload"] if isinstance(result["payload"], dict) else {}
-            payload_asset_id = payload.get("asset_id")
-            asset_id = int(payload_asset_id) if isinstance(payload_asset_id, int) else chunk.asset_id
-            asset = asset_map.get(asset_id)
-            if asset is None:
-                continue
-
-            heading_path = _payload_text(payload, "heading_path") or chunk.heading_path
-            content_preview = _payload_text(payload, "content_preview") or _extract_preview_from_asset(
-                asset=asset,
-                chunk=chunk,
-                normalized_cache=asset_normalized_cache,
+        if query_vector is not None:
+            grouped_asset_results = await kb_library_qdrant_manager.search_grouped(
+                query_vector=query_vector,
+                asset_ids=asset_ids,
+                limit=max(limit * 3, limit),
+                group_size=max(max_chunks_per_document * 3, 4),
+                category=category,
+                tags=tags,
+                score_threshold=0.48 if tokens else 0.42,
             )
-            score = _apply_metadata_bonus(
-                query=query,
-                tokens=tokens,
-                heading_path=heading_path,
-                content_preview=content_preview,
-                source=asset,
-                base_score=float(result["score"]),
-            )
-            vector_hits.append(
-                _ScoredHit(
-                    source_kind="asset",
+
+            raw_asset_results = [hit for group in grouped_asset_results for hit in group["hits"]]
+            asset_chunk_ids = [int(item["id"]) for item in raw_asset_results]
+            asset_chunks = await DBKBAssetChunk.filter(id__in=asset_chunk_ids).all()
+            asset_chunk_map = {chunk.id: chunk for chunk in asset_chunks}
+
+            for result in raw_asset_results:
+                chunk_id = int(result["id"])
+                chunk = asset_chunk_map.get(chunk_id)
+                if chunk is None:
+                    continue
+
+                payload = result["payload"] if isinstance(result["payload"], dict) else {}
+                payload_asset_id = payload.get("asset_id")
+                asset_id = int(payload_asset_id) if isinstance(payload_asset_id, int) else chunk.asset_id
+                asset = asset_map.get(asset_id)
+                if asset is None:
+                    continue
+
+                heading_path = _payload_text(payload, "heading_path") or chunk.heading_path
+                content_preview = _payload_text(payload, "content_preview") or _extract_preview_from_asset(
+                    asset=asset,
                     chunk=chunk,
-                    source=asset,
+                    normalized_cache=asset_normalized_cache,
+                )
+                score = _apply_metadata_bonus(
+                    query=query,
+                    tokens=tokens,
                     heading_path=heading_path,
                     content_preview=content_preview,
-                    score=min(score, FUSED_SCORE_CAP),
+                    source=asset,
+                    base_score=float(result["score"]),
                 )
-            )
+                vector_hits.append(
+                    _ScoredHit(
+                        source_kind="asset",
+                        chunk=chunk,
+                        source=asset,
+                        heading_path=heading_path,
+                        content_preview=content_preview,
+                        score=min(score, FUSED_SCORE_CAP),
+                    )
+                )
 
         keyword_hits.extend(
             await _collect_keyword_asset_hits(
@@ -894,7 +916,11 @@ async def search_workspace_kb(
 
     if ref_doc_ids_to_expand:
         ref_docs = await DBKBDocument.filter(
-            id__in=ref_doc_ids_to_expand, workspace_id=workspace_id, is_enabled=True
+            id__in=ref_doc_ids_to_expand,
+            workspace_id=workspace_id,
+            is_enabled=True,
+            extract_status="ready",
+            sync_status="ready",
         ).all()
         ref_doc_map = {doc.id: doc for doc in ref_docs}
         ref_normalized_cache: dict[int, str] = {}
@@ -932,7 +958,12 @@ async def search_workspace_kb(
                 )
 
     if ref_asset_ids_to_expand:
-        ref_assets = await DBKBAsset.filter(id__in=ref_asset_ids_to_expand, is_enabled=True).all()
+        ref_assets = await DBKBAsset.filter(
+            id__in=ref_asset_ids_to_expand,
+            is_enabled=True,
+            extract_status="ready",
+            sync_status="ready",
+        ).all()
         ref_asset_obj_map = {a.id: a for a in ref_assets}
         ref_asset_normalized_cache: dict[int, str] = {}
         for asset_id in ref_asset_ids_to_expand:

@@ -114,7 +114,7 @@ class KBChunkContextResponse(BaseModel):
     chunk_id: int
     title: str
     source_path: str
-    source_workspace_path: str
+    source_workspace_path: Optional[str] = None
     normalized_text_path: Optional[str] = None
     normalized_workspace_path: Optional[str] = None
     heading_path: str = ""

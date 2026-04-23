@@ -269,6 +269,18 @@ async def schedule_rebuild_document(document: DBKBDocument) -> bool:
     return True
 
 
+async def cancel_rebuild_document(document_id: int) -> bool:
+    existing = _index_tasks.get(document_id)
+    if existing is None or existing.done():
+        return False
+    existing.cancel()
+    try:
+        await existing
+    except asyncio.CancelledError:
+        pass
+    return True
+
+
 async def rebuild_workspace_documents(workspace_id: int) -> tuple[int, int]:
     """将工作区所有文档提交到后台索引队列。返回 (已调度数, 已跳过数)。"""
     documents = await DBKBDocument.filter(workspace_id=workspace_id).all()

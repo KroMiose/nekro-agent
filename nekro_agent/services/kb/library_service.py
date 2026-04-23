@@ -20,6 +20,7 @@ from nekro_agent.services.kb.document_service import (
     build_default_file_name,
     compute_sha256,
     detect_format_and_mime,
+    normalize_source_path_for_format,
     normalize_tags,
     safe_source_path,
     write_bytes_exclusive,
@@ -31,7 +32,7 @@ _KB_LIBRARY_ROOT = Path(OsEnv.DATA_DIR) / "kb_library"
 _KB_LIBRARY_FILES_ROOT = _KB_LIBRARY_ROOT / "files"
 _KB_LIBRARY_NORMALIZED_ROOT = _KB_LIBRARY_ROOT / ".normalized"
 
-TEXT_LIBRARY_FORMATS = {"markdown", "text", "html", "json", "yaml", "csv", "xlsx"}
+TEXT_LIBRARY_FORMATS = {"markdown", "text", "html", "json", "yaml", "csv"}
 
 
 def ensure_kb_library_dirs() -> None:
@@ -250,7 +251,7 @@ async def create_text_asset(
 ) -> tuple[DBKBAsset, bool]:
     ensure_kb_library_dirs()
     final_file_name = file_name or build_default_file_name(title, ".md" if format == "markdown" else ".txt")
-    final_source_path = safe_source_path(source_path or final_file_name)
+    final_source_path = normalize_source_path_for_format(source_path or final_file_name, format=format)
     encoded = content.encode("utf-8")
     content_hash = compute_sha256(encoded)
     existing = await DBKBAsset.get_or_none(content_hash=content_hash)
@@ -260,7 +261,7 @@ async def create_text_asset(
     target = resolve_kb_library_source_path(final_source_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     write_bytes_exclusive(target, encoded, logical_path=final_source_path)
-    detected_format, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
+    _, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
     try:
         asset = await DBKBAsset.create(
             source_path=final_source_path,
@@ -273,7 +274,7 @@ async def create_text_asset(
             tags=normalize_tags(tags),
             summary=summary.strip(),
             source_type=source_type,
-            format=detected_format,
+            format=format,
             is_enabled=is_enabled,
             extract_status="pending",
             sync_status="pending",

@@ -267,6 +267,18 @@ async def schedule_rebuild_asset(asset: DBKBAsset) -> bool:
     return True
 
 
+async def cancel_rebuild_asset(asset_id: int) -> bool:
+    existing = _index_tasks.get(asset_id)
+    if existing is None or existing.done():
+        return False
+    existing.cancel()
+    try:
+        await existing
+    except asyncio.CancelledError:
+        pass
+    return True
+
+
 async def delete_asset_files(asset: DBKBAsset) -> None:
     source_file = resolve_kb_library_source_path(asset.source_path)
     if source_file.exists():

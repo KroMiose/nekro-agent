@@ -15,6 +15,28 @@ from nekro_agent.schemas.kb import KBDocumentListItem, KBDocumentReferences, KBR
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 TEXT_FORMATS = {"markdown", "text", "html", "json", "yaml", "csv"}
+FORMAT_DEFAULT_SUFFIX = {
+    "markdown": ".md",
+    "text": ".txt",
+    "html": ".html",
+    "json": ".json",
+    "yaml": ".yaml",
+    "csv": ".csv",
+    "xlsx": ".xlsx",
+    "pdf": ".pdf",
+    "docx": ".docx",
+}
+FORMAT_ALLOWED_SUFFIXES = {
+    "markdown": {".md"},
+    "text": {".txt"},
+    "html": {".html", ".htm"},
+    "json": {".json"},
+    "yaml": {".yaml", ".yml"},
+    "csv": {".csv"},
+    "xlsx": {".xlsx"},
+    "pdf": {".pdf"},
+    "docx": {".docx"},
+}
 
 
 def normalize_tags(tags: Iterable[str]) -> list[str]:
@@ -64,6 +86,26 @@ def detect_format_and_mime(file_name: str) -> tuple[str, str, str]:
     detected_format = format_map.get(suffix, "text")
     mime_type = mimetypes.guess_type(file_name)[0] or "application/octet-stream"
     return detected_format, suffix or ".txt", mime_type
+
+
+def normalize_source_path_for_format(path: str, *, format: str) -> str:
+    normalized = safe_source_path(path)
+    path_obj = Path(normalized)
+    suffix = path_obj.suffix.lower()
+    allowed_suffixes = FORMAT_ALLOWED_SUFFIXES.get(format)
+    default_suffix = FORMAT_DEFAULT_SUFFIX.get(format)
+    if allowed_suffixes is None or default_suffix is None:
+        raise ValueError(f"不支持的知识库文档格式: {format}")
+
+    if not suffix:
+        parent = path_obj.parent.as_posix()
+        file_name = f"{path_obj.name}{default_suffix}"
+        return file_name if parent == "." else f"{parent}/{file_name}"
+
+    if suffix not in allowed_suffixes:
+        allowed_text = ", ".join(sorted(allowed_suffixes))
+        raise ValueError(f"{format} 格式知识库路径扩展名必须为: {allowed_text}")
+    return normalized
 
 
 def compute_sha256(content: bytes) -> str:
@@ -149,12 +191,12 @@ async def create_text_document(
 ) -> DBKBDocument:
     WorkspaceService.ensure_kb_dirs(workspace_id)
     final_file_name = file_name or build_default_file_name(title, ".md" if format == "markdown" else ".txt")
-    final_source_path = safe_source_path(source_path or final_file_name)
+    final_source_path = normalize_source_path_for_format(source_path or final_file_name, format=format)
     target = WorkspaceService.resolve_kb_source_path(workspace_id, final_source_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     encoded = content.encode("utf-8")
     write_bytes_exclusive(target, encoded, logical_path=final_source_path)
-    detected_format, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
+    _, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
     try:
         return await DBKBDocument.create(
             workspace_id=workspace_id,
@@ -168,7 +210,7 @@ async def create_text_document(
             tags=normalize_tags(tags),
             summary=summary.strip(),
             source_type=source_type,
-            format=detected_format,
+            format=format,
             is_enabled=is_enabled,
             extract_status="pending",
             sync_status="pending",
@@ -274,7 +316,7 @@ async def update_document_metadata(
         update_fields.append("is_enabled")
     try:
         if source_path is not None and source_path.strip():
-            new_rel_path = safe_source_path(source_path)
+            new_rel_path = normalize_source_path_for_format(source_path, format=document.format)
             if new_rel_path != document.source_path:
                 conflict_exists = await DBKBDocument.filter(
                     workspace_id=document.workspace_id,
