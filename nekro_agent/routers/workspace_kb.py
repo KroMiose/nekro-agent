@@ -237,6 +237,13 @@ async def upload_workspace_kb_file(
         raise ValidationError(reason=f"暂不支持的知识库文件类型: {file_name or 'unknown'}")
     if file.size is not None and file.size > KB_MAX_UPLOAD_SIZE:
         raise ValidationError(reason=f"文件大小超出限制（最大 {KB_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+    # 当 Content-Length 缺失时 file.size 为 None，读取后在 service 层无二次检查，
+    # 此处先读取内容做大小校验（SpooledTemporaryFile seek 回起点后 service 层可正常重读）
+    if file.size is None:
+        content_bytes = await file.read()
+        if len(content_bytes) > KB_MAX_UPLOAD_SIZE:
+            raise ValidationError(reason=f"文件大小超出限制（最大 {KB_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+        await file.seek(0)
     await ensure_kb_collection()
     try:
         document = await create_file_document(

@@ -154,7 +154,7 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
 
     peers = [
         peer
-        for peer in await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).exclude(id=document_id).all()
+        for peer in await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True, sync_status="ready").exclude(id=document_id).all()
         if _is_category_in_scope(peer.category, source_doc.category)
     ]
     if not peers:
@@ -238,7 +238,7 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
 
     peers = [
         peer
-        for peer in await DBKBAsset.filter(is_enabled=True).exclude(id=asset_id).all()
+        for peer in await DBKBAsset.filter(is_enabled=True, sync_status="ready").exclude(id=asset_id).all()
         if _is_category_in_scope(peer.category, source_asset.category)
     ]
     if not peers:
@@ -303,7 +303,7 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
 async def detect_workspace_references(workspace_id: int) -> int:
     """对工作区所有 ready 文档重跑一遍出向检测，返回总建立的引用数。"""
     docs = await DBKBDocument.filter(workspace_id=workspace_id, sync_status="ready").all()
-    enabled_docs = await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).all()
+    enabled_docs = await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True, sync_status="ready").all()
     total = 0
     for doc in docs:
         await DBKBDocumentReference.filter(

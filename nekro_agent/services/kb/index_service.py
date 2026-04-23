@@ -23,6 +23,8 @@ logger = get_sub_logger("kb.index")
 
 PREVIEW_MAX_CHARS = 360
 _INDEX_BATCH_SIZE = 10
+_INDEX_CONCURRENCY = 3
+_index_semaphore = asyncio.Semaphore(_INDEX_CONCURRENCY)
 _index_tasks: dict[int, Any] = {}
 _pending_rebuilds: set[int] = set()
 
@@ -87,12 +89,12 @@ async def index_document(document: DBKBDocument) -> int:
     await _publish_index_progress(document, phase="extracting", started_at=started_at, progress_percent=5)
 
     source_file = WorkspaceService.resolve_kb_source_path(document.workspace_id, document.source_path)
-    extracted = extract_source_file(source_file, document.file_name)
+    extracted = await asyncio.to_thread(extract_source_file, source_file, document.file_name)
     normalized_text = extracted.text.strip()
     normalized_rel_path = document.normalized_text_path or f"{document.id}.md"
     normalized_file = WorkspaceService.resolve_kb_normalized_path(document.workspace_id, normalized_rel_path)
     normalized_file.parent.mkdir(parents=True, exist_ok=True)
-    normalized_file.write_text(normalized_text, encoding="utf-8")
+    await asyncio.to_thread(normalized_file.write_text, normalized_text, "utf-8")
 
     document.normalized_text_path = normalized_rel_path
     document.normalized_text_hash = _hash_text(normalized_text)
@@ -210,6 +212,12 @@ async def index_document(document: DBKBDocument) -> int:
 async def rebuild_document(document: DBKBDocument) -> int:
     try:
         return await index_document(document)
+    except asyncio.CancelledError:
+        document.extract_status = "pending"
+        document.sync_status = "pending"
+        document.last_error = "任务被取消"
+        await document.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
+        raise
     except Exception as e:
         logger.warning(f"知识库文档索引失败: workspace={document.workspace_id}, document_id={document.id}, error={e}")
         document.extract_status = "failed"
@@ -230,18 +238,19 @@ async def rebuild_document(document: DBKBDocument) -> int:
 async def _run_rebuild_document_task(document_id: int) -> None:
     task = _index_tasks.get(document_id)
     try:
-        while True:
-            _pending_rebuilds.discard(document_id)
-            document = await DBKBDocument.get_or_none(id=document_id)
-            if document is None:
-                return
-            try:
-                await rebuild_document(document)
-            except Exception as e:
-                logger.warning(f"后台知识库索引任务失败: document_id={document_id}, error={e}")
-            if document_id not in _pending_rebuilds:
-                return
-            logger.info(f"知识库文档收到新的重建请求，继续重跑索引: document_id={document_id}")
+        async with _index_semaphore:
+            while True:
+                _pending_rebuilds.discard(document_id)
+                document = await DBKBDocument.get_or_none(id=document_id)
+                if document is None:
+                    return
+                try:
+                    await rebuild_document(document)
+                except Exception as e:
+                    logger.warning(f"后台知识库索引任务失败: document_id={document_id}, error={e}")
+                if document_id not in _pending_rebuilds:
+                    return
+                logger.info(f"知识库文档收到新的重建请求，继续重跑索引: document_id={document_id}")
     except Exception as e:
         logger.warning(f"后台知识库索引任务失败: document_id={document_id}, error={e}")
     finally:

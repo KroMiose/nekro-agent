@@ -26,6 +26,8 @@ logger = get_sub_logger("kb.library_index")
 
 PREVIEW_MAX_CHARS = 360
 INDEX_BATCH_SIZE = 10
+_INDEX_CONCURRENCY = 3
+_index_semaphore = asyncio.Semaphore(_INDEX_CONCURRENCY)
 _index_tasks: dict[int, Any] = {}
 _pending_rebuilds: set[int] = set()
 
@@ -89,12 +91,12 @@ async def index_asset(asset: DBKBAsset) -> int:
     await _publish_index_progress(asset, phase="extracting", started_at=started_at, progress_percent=5)
 
     source_file = resolve_kb_library_source_path(asset.source_path)
-    extracted = extract_source_file(source_file, asset.file_name)
+    extracted = await asyncio.to_thread(extract_source_file, source_file, asset.file_name)
     normalized_text = extracted.text.strip()
     normalized_rel_path = asset.normalized_text_path or f"{asset.id}.md"
     normalized_file = resolve_kb_library_normalized_path(normalized_rel_path)
     normalized_file.parent.mkdir(parents=True, exist_ok=True)
-    normalized_file.write_text(normalized_text, encoding="utf-8")
+    await asyncio.to_thread(normalized_file.write_text, normalized_text, "utf-8")
 
     asset.normalized_text_path = normalized_rel_path
     asset.normalized_text_hash = _hash_text(normalized_text)
@@ -210,6 +212,12 @@ async def index_asset(asset: DBKBAsset) -> int:
 async def rebuild_asset(asset: DBKBAsset) -> int:
     try:
         return await index_asset(asset)
+    except asyncio.CancelledError:
+        asset.extract_status = "pending"
+        asset.sync_status = "pending"
+        asset.last_error = "任务被取消"
+        await asset.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
+        raise
     except Exception as e:
         logger.warning(f"全局知识库资产索引失败: asset_id={asset.id}, error={e}")
         asset.extract_status = "failed"
@@ -230,18 +238,19 @@ async def rebuild_asset(asset: DBKBAsset) -> int:
 async def _run_rebuild_asset_task(asset_id: int) -> None:
     task = _index_tasks.get(asset_id)
     try:
-        while True:
-            _pending_rebuilds.discard(asset_id)
-            asset = await DBKBAsset.get_or_none(id=asset_id)
-            if asset is None:
-                return
-            try:
-                await rebuild_asset(asset)
-            except Exception as e:
-                logger.warning(f"后台全局知识库索引任务失败: asset_id={asset_id}, error={e}")
-            if asset_id not in _pending_rebuilds:
-                return
-            logger.info(f"全局知识库资产收到新的重建请求，继续重跑索引: asset_id={asset_id}")
+        async with _index_semaphore:
+            while True:
+                _pending_rebuilds.discard(asset_id)
+                asset = await DBKBAsset.get_or_none(id=asset_id)
+                if asset is None:
+                    return
+                try:
+                    await rebuild_asset(asset)
+                except Exception as e:
+                    logger.warning(f"后台全局知识库索引任务失败: asset_id={asset_id}, error={e}")
+                if asset_id not in _pending_rebuilds:
+                    return
+                logger.info(f"全局知识库资产收到新的重建请求，继续重跑索引: asset_id={asset_id}")
     except Exception as e:
         logger.warning(f"后台全局知识库索引任务失败: asset_id={asset_id}, error={e}")
     finally:

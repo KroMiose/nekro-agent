@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -108,10 +109,10 @@ def _source_is_search_ready(source: DBKBDocument | DBKBAsset) -> bool:
     return bool(source.is_enabled and source.extract_status == "ready" and source.sync_status == "ready")
 
 
-def _read_normalized_cached(document: DBKBDocument, normalized_cache: dict[int, str]) -> str:
+async def _read_normalized_cached(document: DBKBDocument, normalized_cache: dict[int, str]) -> str:
     normalized_content = normalized_cache.get(document.id)
     if normalized_content is None:
-        normalized_content = read_normalized_content(document)
+        normalized_content = await asyncio.to_thread(read_normalized_content, document)
         normalized_cache[document.id] = normalized_content
     return normalized_content
 
@@ -120,9 +121,8 @@ def _extract_chunk_text(
     *,
     document: DBKBDocument,
     chunk: DBKBChunk,
-    normalized_cache: dict[int, str],
+    normalized_content: str,
 ) -> str:
-    normalized_content = _read_normalized_cached(document, normalized_cache)
     if not normalized_content:
         return ""
     start = max(0, min(len(normalized_content), int(chunk.char_start)))
@@ -134,13 +134,12 @@ def _extract_preview_from_document(
     *,
     document: DBKBDocument,
     chunk: DBKBChunk,
-    normalized_cache: dict[int, str],
+    normalized_content: str,
 ) -> str:
-    excerpt = _extract_chunk_text(document=document, chunk=chunk, normalized_cache=normalized_cache)
+    excerpt = _extract_chunk_text(document=document, chunk=chunk, normalized_content=normalized_content)
     if excerpt:
         return _preview_text(excerpt)
 
-    normalized_content = _read_normalized_cached(document, normalized_cache)
     if not normalized_content:
         return ""
 
@@ -368,8 +367,9 @@ async def _collect_keyword_hits(
             continue
 
         document_hits: list[_ScoredHit] = []
+        normalized_content = await _read_normalized_cached(document, normalized_cache)
         for chunk in document_chunks:
-            chunk_text = _extract_chunk_text(document=document, chunk=chunk, normalized_cache=normalized_cache)
+            chunk_text = _extract_chunk_text(document=document, chunk=chunk, normalized_content=normalized_content)
             if not chunk_text:
                 continue
 
@@ -405,7 +405,7 @@ async def _collect_keyword_hits(
                     content_preview=_extract_preview_from_document(
                         document=document,
                         chunk=fallback_chunk,
-                        normalized_cache=normalized_cache,
+                        normalized_content=normalized_content,
                     ),
                     score=min(document_score * 0.85, FUSED_SCORE_CAP),
                 )
@@ -417,10 +417,10 @@ async def _collect_keyword_hits(
     return hits[:chunk_limit]
 
 
-def _read_asset_normalized_cached(asset: DBKBAsset, normalized_cache: dict[int, str]) -> str:
+async def _read_asset_normalized_cached(asset: DBKBAsset, normalized_cache: dict[int, str]) -> str:
     normalized_content = normalized_cache.get(asset.id)
     if normalized_content is None:
-        normalized_content = read_asset_normalized_content(asset)
+        normalized_content = await asyncio.to_thread(read_asset_normalized_content, asset)
         normalized_cache[asset.id] = normalized_content
     return normalized_content
 
@@ -429,9 +429,8 @@ def _extract_chunk_text_from_asset(
     *,
     asset: DBKBAsset,
     chunk: DBKBAssetChunk,
-    normalized_cache: dict[int, str],
+    normalized_content: str,
 ) -> str:
-    normalized_content = _read_asset_normalized_cached(asset, normalized_cache)
     if not normalized_content:
         return ""
     start = max(0, min(len(normalized_content), int(chunk.char_start)))
@@ -443,13 +442,12 @@ def _extract_preview_from_asset(
     *,
     asset: DBKBAsset,
     chunk: DBKBAssetChunk,
-    normalized_cache: dict[int, str],
+    normalized_content: str,
 ) -> str:
-    excerpt = _extract_chunk_text_from_asset(asset=asset, chunk=chunk, normalized_cache=normalized_cache)
+    excerpt = _extract_chunk_text_from_asset(asset=asset, chunk=chunk, normalized_content=normalized_content)
     if excerpt:
         return _preview_text(excerpt)
 
-    normalized_content = _read_asset_normalized_cached(asset, normalized_cache)
     if not normalized_content:
         return ""
 
@@ -501,8 +499,9 @@ async def _collect_keyword_asset_hits(
             continue
 
         asset_hits: list[_ScoredHit] = []
+        normalized_content = await _read_asset_normalized_cached(asset, normalized_cache)
         for chunk in asset_chunks:
-            chunk_text = _extract_chunk_text_from_asset(asset=asset, chunk=chunk, normalized_cache=normalized_cache)
+            chunk_text = _extract_chunk_text_from_asset(asset=asset, chunk=chunk, normalized_content=normalized_content)
             if not chunk_text:
                 continue
 
@@ -538,7 +537,7 @@ async def _collect_keyword_asset_hits(
                     content_preview=_extract_preview_from_asset(
                         asset=asset,
                         chunk=fallback_chunk,
-                        normalized_cache=normalized_cache,
+                        normalized_content=normalized_content,
                     ),
                     score=min(asset_score * 0.85, FUSED_SCORE_CAP),
                 )
@@ -728,10 +727,11 @@ async def search_workspace_kb(
                     continue
 
                 heading_path = _payload_text(payload, "heading_path") or chunk.heading_path
+                nc = await _read_normalized_cached(document, normalized_cache)
                 content_preview = _payload_text(payload, "content_preview") or _extract_preview_from_document(
                     document=document,
                     chunk=chunk,
-                    normalized_cache=normalized_cache,
+                    normalized_content=nc,
                 )
                 score = _apply_metadata_bonus(
                     query=query,
@@ -798,10 +798,11 @@ async def search_workspace_kb(
                     continue
 
                 heading_path = _payload_text(payload, "heading_path") or chunk.heading_path
+                anc = await _read_asset_normalized_cached(asset, asset_normalized_cache)
                 content_preview = _payload_text(payload, "content_preview") or _extract_preview_from_asset(
                     asset=asset,
                     chunk=chunk,
-                    normalized_cache=asset_normalized_cache,
+                    normalized_content=anc,
                 )
                 score = _apply_metadata_bonus(
                     query=query,
@@ -933,9 +934,10 @@ async def search_workspace_kb(
             if doc is None:
                 continue
             chunks = await DBKBChunk.filter(document_id=doc_id).order_by("chunk_index").limit(2).all()
+            ref_nc = await _read_normalized_cached(doc, ref_normalized_cache)
             for chunk in chunks:
                 preview = _extract_preview_from_document(
-                    document=doc, chunk=chunk, normalized_cache=ref_normalized_cache
+                    document=doc, chunk=chunk, normalized_content=ref_nc
                 )
                 reference_expanded_items.append(
                     KBSearchItem(
@@ -975,9 +977,10 @@ async def search_workspace_kb(
             if asset is None:
                 continue
             chunks = await DBKBAssetChunk.filter(asset_id=asset_id).order_by("chunk_index").limit(2).all()
+            ref_anc = await _read_asset_normalized_cached(asset, ref_asset_normalized_cache)
             for chunk in chunks:
                 preview = _extract_preview_from_asset(
-                    asset=asset, chunk=chunk, normalized_cache=ref_asset_normalized_cache
+                    asset=asset, chunk=chunk, normalized_content=ref_anc
                 )
                 reference_expanded_items.append(
                     KBSearchItem(

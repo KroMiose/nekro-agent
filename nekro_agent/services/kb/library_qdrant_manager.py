@@ -268,7 +268,10 @@ class KBLibraryQdrantManager:
                 elif "with_vectors" in parameters:
                     kwargs["with_vectors"] = False
                 grouped = await method(**kwargs)
-                return self._normalize_groups(grouped)
+                normalized_groups = self._normalize_groups(grouped)
+                if normalized_groups:
+                    return normalized_groups
+                logger.debug(f"全局知识库 grouped search 返回空结果，尝试回退: method={method_name}")
             except Exception as e:
                 logger.warning(f"全局知识库 grouped search 调用失败，回退普通检索: method={method_name}, error={e}")
 

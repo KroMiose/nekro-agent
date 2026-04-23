@@ -172,6 +172,11 @@ async def upload_kb_library_asset(
         raise ValidationError(reason=f"暂不支持的全局知识库文件类型: {file_name or 'unknown'}")
     if file.size is not None and file.size > KB_LIBRARY_MAX_UPLOAD_SIZE:
         raise ValidationError(reason=f"文件大小超出限制（最大 {KB_LIBRARY_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+    if file.size is None:
+        content_bytes = await file.read()
+        if len(content_bytes) > KB_LIBRARY_MAX_UPLOAD_SIZE:
+            raise ValidationError(reason=f"文件大小超出限制（最大 {KB_LIBRARY_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+        await file.seek(0)
     await ensure_kb_library_collection()
     parsed_tags = [item.strip() for item in tags.split(",") if item.strip()]
     try:
