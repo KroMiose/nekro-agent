@@ -17,9 +17,10 @@ _HTML_BLOCK_MAP = [
 def extract_html(file_path: Path) -> ExtractedKBText:
     raw = file_path.read_text(encoding="utf-8", errors="replace")
     text = raw
-    for pattern, replacement in _HTML_BLOCK_MAP:
-        text = pattern.sub(replacement, text)
+    # 先移除 script/style 块，避免其内容被后续规则误转换
     text = re.sub(r"<script[^>]*>.*?</script>", "", text, flags=re.IGNORECASE | re.DOTALL)
     text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.IGNORECASE | re.DOTALL)
+    for pattern, replacement in _HTML_BLOCK_MAP:
+        text = pattern.sub(replacement, text)
     text = re.sub(r"<[^>]+>", "", text)
     return ExtractedKBText(text=clean_text(text))
