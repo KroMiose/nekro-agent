@@ -201,7 +201,7 @@ async def create_text_document(
         return await DBKBDocument.create(
             workspace_id=workspace_id,
             source_path=final_source_path,
-            normalized_text_path="",
+            normalized_text_path=None,
             file_name=Path(final_source_path).name,
             file_ext=suffix,
             mime_type=mime_type,
@@ -249,7 +249,7 @@ async def create_file_document(
         return await DBKBDocument.create(
             workspace_id=workspace_id,
             source_path=final_source_path,
-            normalized_text_path="",
+            normalized_text_path=None,
             file_name=Path(final_source_path).name,
             file_ext=suffix,
             mime_type=mime_type,

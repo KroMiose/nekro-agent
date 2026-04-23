@@ -132,8 +132,9 @@ class KBQdrantManager:
                 info = await client.get_collection(self.collection_name)
                 current_size = info.config.params.vectors.size
                 if current_size != dimension:
-                    logger.warning(
-                        f"知识库 Collection 向量维度不匹配，需要重建索引: current={current_size}, expected={dimension}",
+                    logger.error(
+                        f"知识库 Collection 向量维度不匹配（当前={current_size}，期望={dimension}），"
+                        f"向量检索结果可能无效，请切换回原 embedding 模型或重建全部知识库索引",
                     )
             except Exception as e:
                 logger.debug(f"读取知识库 Collection 信息失败: {e}")
@@ -258,9 +259,7 @@ class KBQdrantManager:
                 elif "with_vectors" in parameters:
                     kwargs["with_vectors"] = False
                 grouped = await method(**kwargs)
-                normalized_groups = self._normalize_groups(grouped)
-                if normalized_groups:
-                    return normalized_groups
+                return self._normalize_groups(grouped)
             except Exception as e:
                 logger.warning(f"知识库 grouped search 调用失败，回退普通检索: method={method_name}, error={e}")
 

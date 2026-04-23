@@ -113,24 +113,7 @@ class KBLibraryQdrantManager:
                 )
         return qdrant_models.Filter(must=must_conditions)
 
-    async def ensure_collection(self, dimension: int) -> bool:
-        client = await get_qdrant_client()
-        if client is None:
-            logger.warning("Qdrant 客户端不可用，跳过 KB Library Collection 初始化")
-            return False
-
-        collections = await client.get_collections()
-        existing_names = [collection.name for collection in collections.collections]
-        if self.collection_name in existing_names:
-            return False
-
-        await client.create_collection(
-            collection_name=self.collection_name,
-            vectors_config=qdrant_models.VectorParams(
-                size=dimension,
-                distance=qdrant_models.Distance.COSINE,
-            ),
-        )
+    async def _ensure_payload_indexes(self, client: Any) -> None:
         for field_name, field_schema in (
             ("asset_id", qdrant_models.PayloadSchemaType.INTEGER),
             ("category", qdrant_models.PayloadSchemaType.KEYWORD),
@@ -145,6 +128,37 @@ class KBLibraryQdrantManager:
                 )
             except Exception as e:
                 logger.debug(f"知识库资产 payload index 跳过: field={field_name}, error={e}")
+
+    async def ensure_collection(self, dimension: int) -> bool:
+        client = await get_qdrant_client()
+        if client is None:
+            logger.warning("Qdrant 客户端不可用，跳过 KB Library Collection 初始化")
+            return False
+
+        collections = await client.get_collections()
+        existing_names = [collection.name for collection in collections.collections]
+        if self.collection_name in existing_names:
+            try:
+                info = await client.get_collection(self.collection_name)
+                current_size = info.config.params.vectors.size
+                if current_size != dimension:
+                    logger.error(
+                        f"全局知识库 Collection 向量维度不匹配（当前={current_size}，期望={dimension}），"
+                        f"向量检索结果可能无效，请切换回原 embedding 模型或重建全部知识库索引",
+                    )
+            except Exception as e:
+                logger.debug(f"读取全局知识库 Collection 信息失败: {e}")
+            await self._ensure_payload_indexes(client)
+            return False
+
+        await client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=qdrant_models.VectorParams(
+                size=dimension,
+                distance=qdrant_models.Distance.COSINE,
+            ),
+        )
+        await self._ensure_payload_indexes(client)
         logger.info(f"全局知识库 Collection 创建成功: {self.collection_name}")
         return True
 
@@ -254,9 +268,7 @@ class KBLibraryQdrantManager:
                 elif "with_vectors" in parameters:
                     kwargs["with_vectors"] = False
                 grouped = await method(**kwargs)
-                normalized_groups = self._normalize_groups(grouped)
-                if normalized_groups:
-                    return normalized_groups
+                return self._normalize_groups(grouped)
             except Exception as e:
                 logger.warning(f"全局知识库 grouped search 调用失败，回退普通检索: method={method_name}, error={e}")
 

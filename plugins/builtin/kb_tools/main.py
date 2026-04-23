@@ -203,7 +203,7 @@ def _build_document_status_payload(document: DBKBDocument) -> dict[str, Any]:
     }
 
 
-def _resolve_chunk_span(normalized_content: str, chunk: DBKBChunk) -> tuple[int, int]:
+def _resolve_chunk_span(normalized_content: str, chunk: DBKBChunk | DBKBAssetChunk) -> tuple[int, int]:
     start = max(0, min(len(normalized_content), int(chunk.char_start)))
     end = max(start, min(len(normalized_content), int(chunk.char_end)))
     if start < end:
@@ -220,7 +220,7 @@ def _build_chunk_context_payload(
     source_workspace_path: str | None,
     normalized_text_path: str | None,
     normalized_workspace_path: str | None,
-    chunk: DBKBChunk,
+    chunk: DBKBChunk | DBKBAssetChunk,
     normalized_content: str,
     window_chars: int,
     window_start: int | None = None,
@@ -305,6 +305,7 @@ async def search_workspace_kb_tool(
     limit: int = 0,
     max_chunks_per_document: int = 3,
     category: str = "",
+    tags: str = "",
 ) -> str:
     """Search the current workspace knowledge base.
 
@@ -313,6 +314,7 @@ async def search_workspace_kb_tool(
         limit (int): Maximum number of results to return. Use `0` for the plugin default.
         max_chunks_per_document (int): Maximum number of matched chunks from the same document.
         category (str): Optional category filter.
+        tags (str): Optional comma-separated tag filter. Only documents matching ALL given tags are returned.
 
     Returns:
         str: JSON string containing grouped document hits, snippets, suggested document IDs,
@@ -320,12 +322,14 @@ async def search_workspace_kb_tool(
     """
     workspace = await _require_bound_workspace(_ctx)
     resolved_limit = limit if limit > 0 else int(kb_tools_config.DEFAULT_SEARCH_LIMIT)
+    parsed_tags = [t.strip() for t in tags.split(",") if t.strip()] if tags.strip() else []
     result = await search_workspace_kb(
         workspace_id=workspace.id,
         query=query,
         limit=resolved_limit,
         max_chunks_per_document=max_chunks_per_document,
         category=category,
+        tags=parsed_tags or None,
     )
     payload = {
         "query": result.query,

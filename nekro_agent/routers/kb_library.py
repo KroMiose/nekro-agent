@@ -76,6 +76,7 @@ ALLOWED_KB_LIBRARY_EXTENSIONS = {
     ".pdf",
     ".docx",
 }
+KB_LIBRARY_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 def _is_asset_index_ready(asset: DBKBAsset) -> bool:
@@ -169,6 +170,8 @@ async def upload_kb_library_asset(
     file_name = file.filename or ""
     if Path(file_name).suffix.lower() not in ALLOWED_KB_LIBRARY_EXTENSIONS:
         raise ValidationError(reason=f"暂不支持的全局知识库文件类型: {file_name or 'unknown'}")
+    if file.size is not None and file.size > KB_LIBRARY_MAX_UPLOAD_SIZE:
+        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_LIBRARY_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
     await ensure_kb_library_collection()
     parsed_tags = [item.strip() for item in tags.split(",") if item.strip()]
     try:

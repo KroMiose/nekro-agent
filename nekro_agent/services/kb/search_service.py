@@ -62,7 +62,11 @@ class _DocumentBucket:
 
 def _tokenize_query(query: str) -> list[str]:
     lowered = query.lower().strip()
-    tokens = re.findall(r"[a-z0-9_./-]+|[\u4e00-\u9fff]{2,}", lowered)
+    tokens = re.findall(
+        r"[a-z0-9_./-]+"
+        r"|[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff\u3040-\u309f\u30a0-\u30ff\uac00-\ud7af]+",
+        lowered,
+    )
     seen: set[str] = set()
     result: list[str] = []
     for token in tokens:

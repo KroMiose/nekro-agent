@@ -64,6 +64,7 @@ router = APIRouter(prefix="/workspaces", tags=["Workspace Knowledge Base"])
 logger = get_sub_logger("kb.workspace_router")
 
 ALLOWED_KB_EXTENSIONS = {".md", ".txt", ".html", ".htm", ".json", ".yaml", ".yml", ".csv", ".xlsx", ".pdf", ".docx"}
+KB_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 def _is_document_index_ready(document: DBKBDocument) -> bool:
@@ -234,6 +235,8 @@ async def upload_workspace_kb_file(
     file_name = file.filename or ""
     if Path(file_name).suffix.lower() not in ALLOWED_KB_EXTENSIONS:
         raise ValidationError(reason=f"暂不支持的知识库文件类型: {file_name or 'unknown'}")
+    if file.size is not None and file.size > KB_MAX_UPLOAD_SIZE:
+        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
     await ensure_kb_collection()
     try:
         document = await create_file_document(
@@ -429,7 +432,7 @@ async def reindex_workspace_kb(
     await _get_workspace_or_404(workspace_id)
     await ensure_kb_collection()
     scheduled, skipped = await rebuild_workspace_documents(workspace_id)
-    return KBReindexResponse(ok=True, total=scheduled + skipped, success=scheduled, failed=skipped)
+    return KBReindexResponse(ok=True, total=scheduled + skipped, success=scheduled, failed=0)
 
 
 @router.post("/{workspace_id}/kb/search", summary="搜索工作区知识库", response_model=KBSearchResponse)

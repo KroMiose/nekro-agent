@@ -8,7 +8,7 @@
   4. 标题直接提及（≥4 字，避免误判常见短词）
 
 范围策略：
-  - 仅在“同一主分类树”范围内检测引用。
+  - 仅在"同一主分类树"范围内检测引用。
   - 例如 `产品/手册/` 与 `产品/接口/` 可互相引用，`产品/` 也可与它们互相引用。
   - 不同主分类树之间不会互相引用，例如 `产品/` 不会引用 `运营/`。
   - 文件无分组（category 为空）时，仅与同样无分组的文件互相检测。
@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import asyncio
 import re
 from pathlib import Path
 
@@ -78,6 +79,52 @@ def _detect_mentions(text: str, target_title: str, target_filename: str) -> str 
     return None
 
 
+async def _read_normalized_content_async(document: DBKBDocument) -> str:
+    return await asyncio.to_thread(read_normalized_content, document)
+
+
+async def _read_asset_normalized_content_async(asset: DBKBAsset) -> str:
+    return await asyncio.to_thread(read_asset_normalized_content, asset)
+
+
+async def _safe_create_document_reference(
+    *,
+    workspace_id: int,
+    source_document_id: int,
+    target_document_id: int,
+    description: str,
+) -> bool:
+    """安全创建文档引用，使用 get_or_create 避免并发冲突。"""
+    _, created = await DBKBDocumentReference.get_or_create(
+        source_document_id=source_document_id,
+        target_document_id=target_document_id,
+        defaults={
+            "workspace_id": workspace_id,
+            "description": description,
+            "is_auto": True,
+        },
+    )
+    return created
+
+
+async def _safe_create_asset_reference(
+    *,
+    source_asset_id: int,
+    target_asset_id: int,
+    description: str,
+) -> bool:
+    """安全创建资产引用，使用 get_or_create 避免并发冲突。"""
+    _, created = await DBKBAssetReference.get_or_create(
+        source_asset_id=source_asset_id,
+        target_asset_id=target_asset_id,
+        defaults={
+            "description": description,
+            "is_auto": True,
+        },
+    )
+    return created
+
+
 async def detect_and_sync_document_references(workspace_id: int, document_id: int) -> int:
     """
     扫描指定文档，检测它对同一工作区同分组内其他文档的引用（出向），并同步到数据库。
@@ -116,7 +163,7 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
     total_created = 0
 
     # ── 出向检测：source_doc 引用了哪些 peer ──────────────────────────────
-    source_text = read_normalized_content(source_doc)
+    source_text = await _read_normalized_content_async(source_doc)
     if source_text.strip():
         existing_manual_out = set(
             await DBKBDocumentReference.filter(
@@ -131,18 +178,17 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
                 continue
             description = _detect_mentions(source_text, target.title, target.file_name)
             if description is not None:
-                await DBKBDocumentReference.create(
+                created = await _safe_create_document_reference(
                     workspace_id=workspace_id,
                     source_document_id=document_id,
                     target_document_id=target.id,
                     description=description,
-                    is_auto=True,
                 )
-                total_created += 1
-                logger.debug(f"自动引用（出）：{document_id}→{target.id} [{description}]")
+                if created:
+                    total_created += 1
+                    logger.debug(f"自动引用（出）：{document_id}→{target.id} [{description}]")
 
     # ── 入向检测：哪些 peer 引用了 source_doc ────────────────────────────
-    # 仅更新已存在 peer 中对本文档的自动引用，避免全量重跑 peer 自己的全部引用
     existing_manual_in = set(
         await DBKBDocumentReference.filter(
             workspace_id=workspace_id,
@@ -154,20 +200,20 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
     for peer in peers:
         if peer.id in existing_manual_in:
             continue
-        peer_text = read_normalized_content(peer)
+        peer_text = await _read_normalized_content_async(peer)
         if not peer_text.strip():
             continue
         description = _detect_mentions(peer_text, source_doc.title, source_doc.file_name)
         if description is not None:
-            await DBKBDocumentReference.create(
+            created = await _safe_create_document_reference(
                 workspace_id=workspace_id,
                 source_document_id=peer.id,
                 target_document_id=document_id,
                 description=description,
-                is_auto=True,
             )
-            total_created += 1
-            logger.debug(f"自动引用（入）：{peer.id}→{document_id} [{description}]")
+            if created:
+                total_created += 1
+                logger.debug(f"自动引用（入）：{peer.id}→{document_id} [{description}]")
 
     if total_created:
         logger.info(f"文档 {document_id}（{source_doc.title}）检测完成，共建立 {total_created} 条引用")
@@ -201,7 +247,7 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
     total_created = 0
 
     # ── 出向检测 ──────────────────────────────────────────────────────────
-    source_text = read_asset_normalized_content(source_asset)
+    source_text = await _read_asset_normalized_content_async(source_asset)
     if source_text.strip():
         existing_manual_out = set(
             await DBKBAssetReference.filter(
@@ -215,14 +261,14 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
                 continue
             description = _detect_mentions(source_text, target.title, target.file_name)
             if description is not None:
-                await DBKBAssetReference.create(
+                created = await _safe_create_asset_reference(
                     source_asset_id=asset_id,
                     target_asset_id=target.id,
                     description=description,
-                    is_auto=True,
                 )
-                total_created += 1
-                logger.debug(f"自动引用（出）：资产 {asset_id}→{target.id} [{description}]")
+                if created:
+                    total_created += 1
+                    logger.debug(f"自动引用（出）：资产 {asset_id}→{target.id} [{description}]")
 
     # ── 入向检测 ──────────────────────────────────────────────────────────
     existing_manual_in = set(
@@ -235,19 +281,19 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
     for peer in peers:
         if peer.id in existing_manual_in:
             continue
-        peer_text = read_asset_normalized_content(peer)
+        peer_text = await _read_asset_normalized_content_async(peer)
         if not peer_text.strip():
             continue
         description = _detect_mentions(peer_text, source_asset.title, source_asset.file_name)
         if description is not None:
-            await DBKBAssetReference.create(
+            created = await _safe_create_asset_reference(
                 source_asset_id=peer.id,
                 target_asset_id=asset_id,
                 description=description,
-                is_auto=True,
             )
-            total_created += 1
-            logger.debug(f"自动引用（入）：资产 {peer.id}→{asset_id} [{description}]")
+            if created:
+                total_created += 1
+                logger.debug(f"自动引用（入）：资产 {peer.id}→{asset_id} [{description}]")
 
     if total_created:
         logger.info(f"资产 {asset_id}（{source_asset.title}）检测完成，共建立 {total_created} 条引用")
@@ -260,7 +306,6 @@ async def detect_workspace_references(workspace_id: int) -> int:
     enabled_docs = await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).all()
     total = 0
     for doc in docs:
-        # 全量重建时只做出向，避免 N² 重复写入
         await DBKBDocumentReference.filter(
             workspace_id=workspace_id,
             source_document_id=doc.id,
@@ -268,7 +313,7 @@ async def detect_workspace_references(workspace_id: int) -> int:
         ).delete()
         if not doc.is_enabled:
             continue
-        source_text = read_normalized_content(doc)
+        source_text = await _read_normalized_content_async(doc)
         if not source_text.strip():
             continue
         peers = [
@@ -288,12 +333,12 @@ async def detect_workspace_references(workspace_id: int) -> int:
                 continue
             description = _detect_mentions(source_text, target.title, target.file_name)
             if description is not None:
-                await DBKBDocumentReference.create(
+                created = await _safe_create_document_reference(
                     workspace_id=workspace_id,
                     source_document_id=doc.id,
                     target_document_id=target.id,
                     description=description,
-                    is_auto=True,
                 )
-                total += 1
+                if created:
+                    total += 1
     return total
