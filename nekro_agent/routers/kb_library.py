@@ -48,8 +48,8 @@ from nekro_agent.services.kb.library_service import (
     get_asset_references,
     list_asset_bound_workspaces,
     list_assets,
-    read_asset_normalized_content,
-    read_asset_source_content,
+    read_asset_normalized_content_async,
+    read_asset_source_content_async,
     remove_asset_reference,
     resolve_kb_library_source_path,
     unbind_asset_workspace,
@@ -112,8 +112,8 @@ async def get_kb_library_asset(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBAssetDetailResponse:
     asset = await _get_asset_or_404(asset_id)
-    source_content = read_asset_source_content(asset) if asset.format in TEXT_LIBRARY_FORMATS else None
-    normalized_content = read_asset_normalized_content(asset) if _is_asset_index_ready(asset) else ""
+    source_content = await read_asset_source_content_async(asset) if asset.format in TEXT_LIBRARY_FORMATS else None
+    normalized_content = await read_asset_normalized_content_async(asset) if _is_asset_index_ready(asset) else ""
     return KBAssetDetailResponse(
         asset=await asset_to_list_item(asset),
         source_content=source_content,
@@ -227,8 +227,8 @@ async def update_kb_library_asset(
         await detect_and_sync_asset_references(asset_id)
 
     refreshed = await _get_asset_or_404(asset_id)
-    source_content = read_asset_source_content(refreshed) if refreshed.format in TEXT_LIBRARY_FORMATS else None
-    normalized_content = read_asset_normalized_content(refreshed) if _is_asset_index_ready(refreshed) else None
+    source_content = await read_asset_source_content_async(refreshed) if refreshed.format in TEXT_LIBRARY_FORMATS else None
+    normalized_content = await read_asset_normalized_content_async(refreshed) if _is_asset_index_ready(refreshed) else None
     return KBAssetDetailResponse(
         asset=await asset_to_list_item(refreshed),
         source_content=source_content,
@@ -310,7 +310,7 @@ async def get_kb_library_fulltext(
     asset = await _get_asset_or_404(asset_id)
     if not _is_asset_index_ready(asset):
         raise ValidationError(reason="全局知识库规范化全文尚未就绪，请等待索引完成后再读取")
-    content = read_asset_normalized_content(asset)
+    content = await read_asset_normalized_content_async(asset)
     truncated = len(content) > max_chars
     if truncated:
         content = content[:max_chars]

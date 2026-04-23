@@ -128,10 +128,9 @@ async def index_document(document: DBKBDocument) -> int:
         await detect_and_sync_document_references(document.workspace_id, document.id)
         return 0
 
-    created_chunks: list[DBKBChunk] = []
-    for index, draft in enumerate(drafts):
-        created_chunks.append(
-            await DBKBChunk.create(
+    await DBKBChunk.bulk_create(
+        [
+            DBKBChunk(
                 workspace_id=document.workspace_id,
                 document_id=document.id,
                 chunk_index=index,
@@ -140,7 +139,13 @@ async def index_document(document: DBKBDocument) -> int:
                 char_end=draft.char_end,
                 token_count=_estimate_tokens(draft.content),
             )
-        )
+            for index, draft in enumerate(drafts)
+        ],
+        batch_size=_INDEX_BATCH_SIZE,
+    )
+    created_chunks = await DBKBChunk.filter(document_id=document.id, workspace_id=document.workspace_id).order_by(
+        "chunk_index"
+    ).all()
     await _publish_index_progress(
         document,
         phase="embedding",

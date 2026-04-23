@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import mimetypes
 import re
@@ -9,10 +10,13 @@ from typing import Iterable
 
 from fastapi import UploadFile
 
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
 from nekro_agent.schemas.kb import KBDocumentListItem, KBDocumentReferences, KBReferenceItem
 from nekro_agent.services.workspace.manager import WorkspaceService
+
+logger = get_sub_logger("kb.document")
 
 TEXT_FORMATS = {"markdown", "text", "html", "json", "yaml", "csv"}
 FORMAT_DEFAULT_SUFFIX = {
@@ -166,6 +170,10 @@ def read_source_content(document: DBKBDocument) -> str:
     return source_path.read_text(encoding="utf-8", errors="replace")
 
 
+async def read_source_content_async(document: DBKBDocument) -> str:
+    return await asyncio.to_thread(read_source_content, document)
+
+
 def read_normalized_content(document: DBKBDocument) -> str:
     if not document.normalized_text_path:
         return ""
@@ -173,6 +181,10 @@ def read_normalized_content(document: DBKBDocument) -> str:
     if not normalized_path.exists():
         return ""
     return normalized_path.read_text(encoding="utf-8", errors="replace")
+
+
+async def read_normalized_content_async(document: DBKBDocument) -> str:
+    return await asyncio.to_thread(read_normalized_content, document)
 
 
 async def create_text_document(
@@ -369,13 +381,31 @@ async def update_document_metadata(
 
         if content is not None:
             if original_bytes is not None:
-                target_path.write_bytes(original_bytes)
+                try:
+                    target_path.write_bytes(original_bytes)
+                except Exception as rollback_error:
+                    logger.warning(
+                        "回滚知识库文档内容失败: "
+                        f"document_id={document.id}, target_path={target_path}, action=restore_content, error={rollback_error}"
+                    )
             elif remove_target_on_failure and target_path.exists():
-                target_path.unlink()
+                try:
+                    target_path.unlink()
+                except Exception as rollback_error:
+                    logger.warning(
+                        "回滚知识库文档内容失败: "
+                        f"document_id={document.id}, target_path={target_path}, action=cleanup_new_file, error={rollback_error}"
+                    )
         if moved_paths is not None:
             old_path, new_path = moved_paths
             if new_path.exists() and not old_path.exists():
-                new_path.rename(old_path)
+                try:
+                    new_path.rename(old_path)
+                except Exception as rollback_error:
+                    logger.warning(
+                        "回滚知识库文档重命名失败: "
+                        f"document_id={document.id}, old_path={old_path}, new_path={new_path}, error={rollback_error}"
+                    )
         raise
     return document
 

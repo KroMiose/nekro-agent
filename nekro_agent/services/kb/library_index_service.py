@@ -129,10 +129,9 @@ async def index_asset(asset: DBKBAsset) -> int:
         await detect_and_sync_asset_references(asset.id)
         return 0
 
-    created_chunks: list[DBKBAssetChunk] = []
-    for index, draft in enumerate(drafts):
-        created_chunks.append(
-            await DBKBAssetChunk.create(
+    await DBKBAssetChunk.bulk_create(
+        [
+            DBKBAssetChunk(
                 asset_id=asset.id,
                 chunk_index=index,
                 heading_path=draft.heading_path,
@@ -140,7 +139,11 @@ async def index_asset(asset: DBKBAsset) -> int:
                 char_end=draft.char_end,
                 token_count=_estimate_tokens(draft.content),
             )
-        )
+            for index, draft in enumerate(drafts)
+        ],
+        batch_size=INDEX_BATCH_SIZE,
+    )
+    created_chunks = await DBKBAssetChunk.filter(asset_id=asset.id).order_by("chunk_index").all()
     await _publish_index_progress(
         asset,
         phase="embedding",

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from fastapi import UploadFile
@@ -175,6 +176,10 @@ def read_asset_source_content(asset: DBKBAsset) -> str:
     return source_path.read_text(encoding="utf-8", errors="replace")
 
 
+async def read_asset_source_content_async(asset: DBKBAsset) -> str:
+    return await asyncio.to_thread(read_asset_source_content, asset)
+
+
 def read_asset_normalized_content(asset: DBKBAsset) -> str:
     if not asset.normalized_text_path:
         return ""
@@ -182,6 +187,10 @@ def read_asset_normalized_content(asset: DBKBAsset) -> str:
     if not normalized_path.exists():
         return ""
     return normalized_path.read_text(encoding="utf-8", errors="replace")
+
+
+async def read_asset_normalized_content_async(asset: DBKBAsset) -> str:
+    return await asyncio.to_thread(read_asset_normalized_content, asset)
 
 
 async def create_asset_from_upload(

@@ -38,8 +38,8 @@ from nekro_agent.services.kb.document_service import (
     get_document_references,
     list_documents,
     normalize_tags,
-    read_normalized_content,
-    read_source_content,
+    read_normalized_content_async,
+    read_source_content_async,
     remove_document_reference,
     update_document_metadata,
 )
@@ -166,11 +166,11 @@ async def get_workspace_kb_document(
 ) -> KBDocumentDetailResponse:
     document = await _get_document_or_404(workspace_id, document_id)
     source_content = (
-        read_source_content(document)
+        await read_source_content_async(document)
         if document.format in {"markdown", "text", "html", "json", "yaml", "csv"}
         else None
     )
-    normalized_content = read_normalized_content(document) if _is_document_index_ready(document) else ""
+    normalized_content = await read_normalized_content_async(document) if _is_document_index_ready(document) else ""
     return KBDocumentDetailResponse(
         document=document_to_list_item(document),
         source_content=source_content,
@@ -213,7 +213,7 @@ async def create_workspace_kb_document(
     await schedule_rebuild_document(refreshed)
     return KBDocumentDetailResponse(
         document=document_to_list_item(refreshed),
-        source_content=read_source_content(refreshed),
+        source_content=await read_source_content_async(refreshed),
         normalized_content=None,
     )
 
@@ -267,7 +267,7 @@ async def upload_workspace_kb_file(
     await schedule_rebuild_document(refreshed)
     return KBDocumentDetailResponse(
         document=document_to_list_item(refreshed),
-        source_content=read_source_content(refreshed)
+        source_content=await read_source_content_async(refreshed)
         if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
         else None,
         normalized_content=None,
@@ -320,10 +320,10 @@ async def update_workspace_kb_document(
     refreshed = await _get_document_or_404(workspace_id, document_id)
     return KBDocumentDetailResponse(
         document=document_to_list_item(refreshed),
-        source_content=read_source_content(refreshed)
+        source_content=await read_source_content_async(refreshed)
         if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
         else None,
-        normalized_content=read_normalized_content(refreshed) if _is_document_index_ready(refreshed) else None,
+        normalized_content=await read_normalized_content_async(refreshed) if _is_document_index_ready(refreshed) else None,
     )
 
 
@@ -393,7 +393,7 @@ async def get_workspace_kb_fulltext(
     document = await _get_document_or_404(workspace_id, document_id)
     if not _is_document_index_ready(document):
         raise ValidationError(reason="知识库规范化全文尚未就绪，请等待索引完成后再读取")
-    content = read_normalized_content(document)
+    content = await read_normalized_content_async(document)
     truncated = len(content) > max_chars
     if truncated:
         content = content[:max_chars]

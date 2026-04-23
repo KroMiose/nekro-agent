@@ -20,13 +20,13 @@ from nekro_agent.schemas.kb import (
 from nekro_agent.services.kb.document_service import (
     get_document,
     list_documents,
-    read_normalized_content,
-    read_source_content,
+    read_normalized_content_async,
+    read_source_content_async,
 )
 from nekro_agent.services.kb.library_service import (
     get_asset,
-    read_asset_normalized_content,
-    read_asset_source_content,
+    read_asset_normalized_content_async,
+    read_asset_source_content_async,
     resolve_kb_library_source_path,
 )
 from nekro_agent.services.kb.search_service import search_workspace_kb
@@ -397,9 +397,13 @@ async def get_workspace_kb_document_tool(
     workspace = await _require_bound_workspace(_ctx)
     if source_kind == "asset":
         asset = await _require_bound_asset(workspace.id, document_id)
-        source_content = read_asset_source_content(asset) if asset.format in {"markdown", "text", "html", "json", "yaml", "csv"} else ""
+        source_content = (
+            await read_asset_source_content_async(asset)
+            if asset.format in {"markdown", "text", "html", "json", "yaml", "csv"}
+            else ""
+        )
         asset_status = _asset_prompt_status(asset)
-        normalized_content = read_asset_normalized_content(asset) if asset_status == "ready" else ""
+        normalized_content = await read_asset_normalized_content_async(asset) if asset_status == "ready" else ""
         source_preview, source_truncated = _trim_tool_text(source_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
         normalized_preview, normalized_truncated = _trim_tool_text(normalized_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
         payload = {
@@ -429,9 +433,13 @@ async def get_workspace_kb_document_tool(
     document = await get_document(workspace.id, document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")
-    source_content = read_source_content(document) if document.format in {"markdown", "text", "html", "json", "yaml", "csv"} else ""
+    source_content = (
+        await read_source_content_async(document)
+        if document.format in {"markdown", "text", "html", "json", "yaml", "csv"}
+        else ""
+    )
     document_status = _document_prompt_status(document)
-    normalized_content = read_normalized_content(document) if document_status == "ready" else ""
+    normalized_content = await read_normalized_content_async(document) if document_status == "ready" else ""
     source_preview, source_truncated = _trim_tool_text(source_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
     normalized_preview, normalized_truncated = _trim_tool_text(normalized_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
     payload = {
@@ -480,7 +488,7 @@ async def read_workspace_kb_fulltext_tool(
         asset = await _require_bound_asset(workspace.id, document_id)
         if _asset_prompt_status(asset) != "ready":
             raise ValueError(f"全局知识库资产 {asset.id} 的规范化全文尚未就绪")
-        content = read_asset_normalized_content(asset)
+        content = await read_asset_normalized_content_async(asset)
         content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
         payload = {
             "document_id": asset.id,
@@ -503,7 +511,7 @@ async def read_workspace_kb_fulltext_tool(
         raise ValueError(f"未找到知识库文档 {document_id}")
     if _document_prompt_status(document) != "ready":
         raise ValueError(f"知识库文档 {document.id} 的规范化全文尚未就绪")
-    content = read_normalized_content(document)
+    content = await read_normalized_content_async(document)
     content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
     payload = {
         "document_id": document.id,
@@ -557,7 +565,7 @@ async def read_workspace_kb_chunk_context_tool(
         asset = await _require_bound_asset(workspace.id, asset_chunk.asset_id)
         if _asset_prompt_status(asset) != "ready":
             raise ValueError(f"全局知识库资产 {asset.id} 的规范化全文尚未就绪")
-        normalized_content = read_asset_normalized_content(asset)
+        normalized_content = await read_asset_normalized_content_async(asset)
         if not normalized_content.strip():
             raise ValueError(f"全局知识库资产 {asset.id} 尚无可读取的规范化全文")
         payload = _build_chunk_context_payload(
@@ -585,7 +593,7 @@ async def read_workspace_kb_chunk_context_tool(
         raise ValueError(f"未找到知识库文档 {chunk.document_id}")
     if _document_prompt_status(document) != "ready":
         raise ValueError(f"知识库文档 {document.id} 的规范化全文尚未就绪")
-    normalized_content = read_normalized_content(document)
+    normalized_content = await read_normalized_content_async(document)
     if not normalized_content.strip():
         raise ValueError(f"知识库文档 {document.id} 尚无可读取的规范化全文")
     payload = _build_chunk_context_payload(
