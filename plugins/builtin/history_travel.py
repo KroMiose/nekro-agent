@@ -128,7 +128,7 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
         >>> find_history_travel(_ck, ["晚餐", "-鱼"]) # Find messages containing "晚餐" but NOT "鱼"
         "Stop and wait for the result..."
     """
-    db_chat_channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    db_chat_channel = await DBChatChannel.filter(chat_key=chat_key).first()
     if not db_chat_channel:
         raise ValueError("未找到聊天频道")
 
@@ -289,7 +289,7 @@ async def find_history_travel_range(
     if prev_count + next_count > config.MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE:
         raise ValueError("查询范围过大")
 
-    db_chat_channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    db_chat_channel = await DBChatChannel.filter(chat_key=chat_key).first()
     if not db_chat_channel:
         raise ValueError("未找到聊天频道")
 

@@ -58,7 +58,9 @@ def is_sleep_effective(plugin: NekroPlugin) -> bool:
         return False
     if strategy == "allow_sleep":
         return plugin_supports_sleep(plugin)
-    return plugin.allow_sleep is True
+    # auto 策略：必须明确声明 allow_sleep=True 且提供 sleep_brief，缺一不可
+    # 老插件未声明 allow_sleep（为 None）一律视为不可休眠，采用保守策略
+    return plugin.allow_sleep is True and plugin_supports_sleep(plugin)
 
 
 async def get_activation_state(chat_key: str) -> PluginActivationState:
@@ -196,7 +198,6 @@ async def build_prompt_disclosure_view(plugins: List[NekroPlugin], ctx: AgentCtx
                         if rounds_snapshot.get(plugin.module_name, 0) == 1
                         else ""
                     ),
-                    plugin_injected_prompt=await plugin.render_inject_prompt(ctx),
                     plugin_method_prompt=await plugin.render_sandbox_methods_prompt(ctx),
                 ),
             )
@@ -208,7 +209,6 @@ async def build_prompt_disclosure_view(plugins: List[NekroPlugin], ctx: AgentCtx
                 plugin_name=plugin.name,
                 module_name=plugin.module_name,
                 state="always_awake",
-                plugin_injected_prompt=await plugin.render_inject_prompt(ctx),
                 plugin_method_prompt=await plugin.render_sandbox_methods_prompt(ctx),
             ),
         )

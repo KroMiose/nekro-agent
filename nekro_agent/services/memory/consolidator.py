@@ -86,7 +86,7 @@ class EpisodicConsolidator:
 
     async def _load_channel(self, chat_key: str) -> DBChatChannel | None:
         """加载聊天频道对象。"""
-        return await DBChatChannel.get_or_none(chat_key=chat_key)
+        return await DBChatChannel.filter(chat_key=chat_key).first()
 
     def _read_memory_state(self, channel: DBChatChannel) -> dict[str, Any]:
         """从频道 data 中读取记忆状态。"""

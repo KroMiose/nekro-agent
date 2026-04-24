@@ -500,8 +500,20 @@ async def render_history_data(
     # 反转列表顺序并确保不超过最大长度
     recent_chat_messages = recent_chat_messages[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH :]
 
+    # 预先构建包含 plugin_injected_prompt 的基础消息，无论是否有历史记录都需要保留注入提示词
+    base_message: OpenAIChatMessage = OpenAIChatMessage.from_template(
+        "user",
+        HistoryPrompt(
+            plugin_injected_prompt=plugin_injected_prompt,
+            chat_key=chat_key,
+            current_time=time.strftime("%Y-%m-%d %H:%M:%S %Z %A", time.localtime()),
+            lunar_time=Lunar.fromDate(datetime.datetime.now()).toString(),
+        ),
+        env,
+    )
+
     if not recent_chat_messages:
-        return OpenAIChatMessage.from_text("user", "[Not new message revived yet]")
+        return base_message.extend(OpenAIChatMessage.from_text("user", "[Not new message revived yet]"))
 
     # 提取并构造图片片段
     image_segments: List[ChatMessageSegmentImage] = []
@@ -559,16 +571,7 @@ async def render_history_data(
             else:
                 logger.warning(f"图片路径无效: {seg}")
 
-    openai_chat_message: OpenAIChatMessage = OpenAIChatMessage.from_template(
-        "user",
-        HistoryPrompt(
-            plugin_injected_prompt=plugin_injected_prompt,
-            chat_key=chat_key,
-            current_time=time.strftime("%Y-%m-%d %H:%M:%S %Z %A", time.localtime()),
-            lunar_time=Lunar.fromDate(datetime.datetime.now()).toString(),
-        ),
-        env,
-    )
+    openai_chat_message: OpenAIChatMessage = base_message
 
     logger.debug(f"已加载到 {len(img_seg_pairs)} 张图片")
     img_seg_pairs = img_seg_pairs[::-1]  # 反转得到正确排序的 描述-图片 对

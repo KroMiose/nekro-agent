@@ -49,7 +49,17 @@ async def plugin_activation_prompt(_ctx: AgentCtx) -> str:
 
 def _get_sleepable_plugin(module_name: str) -> NekroPlugin | None:
     target = plugin_collector.get_plugin_by_module_name(module_name)
-    if not target or not target.is_enabled or not is_sleep_effective(target):
+    if not target or not target.is_enabled:
+        return None
+    if not is_sleep_effective(target):
+        return None
+    return target
+
+
+def _get_existing_plugin(module_name: str) -> NekroPlugin | None:
+    """查找插件（不要求可休眠），用于区分"不存在/禁用"与"不可休眠"两种情况。"""
+    target = plugin_collector.get_plugin_by_module_name(module_name)
+    if not target or not target.is_enabled:
         return None
     return target
 
@@ -68,7 +78,13 @@ async def activate_plugin(_ctx: AgentCtx, module_name: str, rounds: int = 5) -> 
     """
     target = _get_sleepable_plugin(module_name)
     if not target:
-        return f"Plugin `{module_name}` is missing, disabled, or not managed by activation scheduling."
+        existing = _get_existing_plugin(module_name)
+        if existing:
+            return (
+                f"Plugin `{module_name}` is always visible and does not need activation. "
+                "You can use its predefined methods directly."
+            )
+        return f"Plugin `{module_name}` is missing or disabled."
 
     state = await get_activation_state(_ctx.chat_key)
     current_rounds = max(0, state.module_rounds.get(module_name, 0))
@@ -102,7 +118,13 @@ async def extend_plugin_activation(_ctx: AgentCtx, module_name: str, rounds: int
     """
     target = _get_sleepable_plugin(module_name)
     if not target:
-        return f"Plugin `{module_name}` is missing, disabled, or not managed by activation scheduling."
+        existing = _get_existing_plugin(module_name)
+        if existing:
+            return (
+                f"Plugin `{module_name}` is always visible and does not need to be extended. "
+                "You can use its predefined methods directly."
+            )
+        return f"Plugin `{module_name}` is missing or disabled."
 
     final_rounds = await extend_module_for_chat(_ctx.chat_key, module_name, rounds)
     return f"Plugin `{module_name}` visibility extended. {final_rounds} runs remain."
