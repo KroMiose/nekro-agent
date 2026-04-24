@@ -6,6 +6,10 @@ import {
   Card,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Stack,
   TextField,
@@ -274,6 +278,7 @@ function normalizeParamSchema(schema?: Record<string, unknown>): ParamSchemaItem
 export default function CommandCenterPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'))
+  const isPhone = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
   const queryClient = useQueryClient()
   const { t, i18n } = useTranslation('settings')
@@ -292,6 +297,7 @@ export default function CommandCenterPage() {
   const [searchInput, setSearchInput] = useState(urlSearch)
   const deferredSearchInput = useDeferredValue(searchInput)
   const [commandLine, setCommandLine] = useState('')
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false)
   const executePanelRef = useRef<HTMLDivElement | null>(null)
   const invalidateCommandQueries = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['command-center', 'commands'] })
@@ -421,6 +427,12 @@ export default function CommandCenterPage() {
   useEffect(() => {
     setCommandLine(selectedCommandName || '')
   }, [selectedCommandName])
+
+  useEffect(() => {
+    if (!isPhone) {
+      setDetailDialogOpen(false)
+    }
+  }, [isPhone])
 
   useEffect(() => {
     if (focus !== 'execute' || !executePanelRef.current) {
@@ -578,40 +590,55 @@ export default function CommandCenterPage() {
     executeMutation.mutate(parsedExecution)
   }
 
+  const handleCommandSelect = (commandName: string) => {
+    updateParams({ command: commandName })
+  }
+
+  const handleCommandDetailOpen = (commandName: string) => {
+    updateParams({ command: commandName })
+    if (isPhone) {
+      setDetailDialogOpen(true)
+    }
+  }
+
   return (
     <Box
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden',
-        p: 2,
-        gap: 2,
+        overflow: { xs: 'auto', lg: 'hidden' },
+        p: { xs: 1.5, md: 2 },
+        gap: { xs: 1.5, md: 2 },
+        minWidth: 0,
       }}
     >
       <Box
         sx={{
-          flex: 1,
-          minHeight: 0,
+          flex: { xs: '0 0 auto', lg: 1 },
+          minHeight: { xs: 'auto', lg: 0 },
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : 'minmax(320px, 420px) minmax(0, 1fr)',
-          gap: 2,
+          gap: { xs: 1.5, md: 2 },
+          minWidth: 0,
         }}
       >
         <Card
           sx={{
             ...CARD_VARIANTS.default.styles,
-            minHeight: 0,
+            minHeight: { xs: 'auto', lg: 0 },
+            maxHeight: { xs: '72vh', lg: 'none' },
             display: 'flex',
-          flexDirection: 'column',
-        }}
-      >
-          <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
+            flexDirection: 'column',
+            minWidth: 0,
+          }}
+        >
+          <Box sx={{ px: { xs: 1.5, md: 2 }, pt: { xs: 1.5, md: 2 }, pb: 1.5 }}>
             <Stack spacing={1.5}>
               <Stack
-                direction="row"
+                direction={{ xs: 'column', sm: 'row' }}
                 spacing={1}
-                alignItems="center"
+                alignItems={{ xs: 'stretch', sm: 'center' }}
                 justifyContent="space-between"
                 sx={{ minWidth: 0 }}
               >
@@ -635,7 +662,11 @@ export default function CommandCenterPage() {
                     {t('commands.center.catalogTitle', '命令目录')}
                   </Typography>
                 </Stack>
-                <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ flexShrink: 0, textAlign: { xs: 'left', sm: 'right' } }}
+                >
                   {t('commands.total', '共 {{count}} 个命令', { count: filteredCommands.length })}
                 </Typography>
               </Stack>
@@ -696,7 +727,7 @@ export default function CommandCenterPage() {
               />
             </Stack>
           </Box>
-          <Box sx={{ px: 2, pb: 2 }}>
+          <Box sx={{ px: { xs: 1.5, md: 2 }, pb: { xs: 1.5, md: 2 } }}>
             <Stack spacing={1.25}>
               <SearchField
                 size="small"
@@ -728,7 +759,7 @@ export default function CommandCenterPage() {
             </Stack>
           </Box>
           <Divider />
-          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: 1.25, py: 1.25 }}>
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', px: { xs: 1, md: 1.25 }, py: { xs: 1, md: 1.25 } }}>
             {commandsLoading ? (
               <Stack alignItems="center" justifyContent="center" sx={{ py: 6 }}>
                 <CircularProgress size={28} />
@@ -751,7 +782,8 @@ export default function CommandCenterPage() {
                     lang={i18n.language}
                     selected={cmd.name === selectedCommandName}
                     scope={scope}
-                    onClick={() => updateParams({ command: cmd.name })}
+                    onClick={() => handleCommandSelect(cmd.name)}
+                    onOpenDetail={() => handleCommandDetailOpen(cmd.name)}
                     t={t}
                   />
                 ))}
@@ -765,7 +797,7 @@ export default function CommandCenterPage() {
             sx={{
               ...CARD_VARIANTS.default.styles,
               p: 2,
-              display: 'flex',
+              display: { xs: 'none', sm: 'flex' },
               flexDirection: 'column',
               gap: 2,
             }}
@@ -1112,6 +1144,163 @@ export default function CommandCenterPage() {
           </Card>
         </Box>
       </Box>
+
+      <Dialog
+        open={isPhone && detailDialogOpen && Boolean(selectedCommand)}
+        onClose={() => setDetailDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            m: 2,
+            width: 'calc(100% - 32px)',
+            maxHeight: 'calc(100% - 32px)',
+            borderRadius: 2,
+          },
+        }}
+      >
+        <DialogTitle sx={{ px: 2, py: 1.5 }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {t('commands.center.detailTitle', '命令详情')}
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ px: 2, pb: 2 }}>
+          {selectedCommand ? (
+            <Stack spacing={2}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontWeight: 700, fontFamily: 'monospace', mb: 0.75, wordBreak: 'break-word' }}
+                >
+                  {selectedCommand.name}
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 600, wordBreak: 'break-word' }}>
+                  {getCommandDescription(selectedCommand, i18n.language)}
+                </Typography>
+              </Box>
+
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Chip
+                  size="small"
+                  color={getEffectiveStateColor(selectedCommand, scope)}
+                  label={getEffectiveStateLabel(selectedCommand, scope, t)}
+                />
+                {scope === 'channel' && selectedCommand.has_channel_override && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    color="warning"
+                    label={t('commands.state.channelOverride', '频道覆盖')}
+                  />
+                )}
+              </Stack>
+
+              <DetailRow
+                label={t('commands.detail.usage', '用法')}
+                value={getCommandUsage(selectedCommand, i18n.language) || '-'}
+                monospace
+              />
+              <DetailRow
+                label={t('commands.detail.aliases', '别名')}
+                value={selectedCommand.aliases.length > 0 ? selectedCommand.aliases.join(', ') : '-'}
+                monospace
+              />
+              <DetailRow
+                label={t('commands.detail.category', '分类')}
+                value={getCommandCategory(selectedCommand, i18n.language)}
+              />
+              <DetailRow
+                label={t('commands.detail.source', '来源')}
+                value={getSourceDetailLabel(selectedCommand, t)}
+              />
+              <DetailRow
+                label={t('commands.detail.params', '参数')}
+                value=""
+                content={
+                  <CommandParamsView
+                    items={selectedCommandParams}
+                    emptyText={t('commands.detail.noParams', '此命令没有额外参数说明')}
+                    t={t}
+                  />
+                }
+              />
+              <DetailRow
+                label={t('commands.detail.permission', '生效权限')}
+                value=""
+                content={
+                  <Stack spacing={0.75}>
+                    <FilterSelect
+                      label=""
+                      value={selectedCommand.permission}
+                      options={permissionEditorOptions}
+                      onChange={value => {
+                        if (!value || value === selectedCommand.permission) {
+                          return
+                        }
+                        setPermissionMutation.mutate({
+                          name: selectedCommand.name,
+                          permission: value,
+                        })
+                      }}
+                      disabled={setPermissionMutation.isPending || resetPermissionMutation.isPending}
+                    />
+                    <ActionButton
+                      tone="secondary"
+                      onClick={() => resetPermissionMutation.mutate(selectedCommand.name)}
+                      disabled={!selectedCommand.has_permission_override || resetPermissionMutation.isPending}
+                      sx={{ width: '100%' }}
+                    >
+                      {scope === 'system'
+                        ? t('commands.actions.resetPermissionDefault', '恢复默认权限')
+                        : t('commands.actions.resetPermissionInherited', '恢复继承权限')}
+                    </ActionButton>
+                    <Typography variant="caption" color="text.secondary">
+                      {getPermissionOverrideDescription(selectedCommand, scope, t)}
+                    </Typography>
+                  </Stack>
+                }
+              />
+
+              <Stack spacing={1.25}>
+                <ActionButton
+                  tone={selectedCommand.enabled ? 'secondary' : 'primary'}
+                  onClick={() =>
+                    toggleMutation.mutate({
+                      name: selectedCommand.name,
+                      enabled: !selectedCommand.enabled,
+                    })
+                  }
+                  disabled={toggleMutation.isPending}
+                  sx={{ width: '100%' }}
+                >
+                  {selectedCommand.enabled
+                    ? t('commands.actions.disable', '禁用命令')
+                    : t('commands.actions.enable', '启用命令')}
+                </ActionButton>
+                {scope === 'channel' && (
+                  <ActionButton
+                    tone="ghost"
+                    onClick={() => resetMutation.mutate(selectedCommand.name)}
+                    disabled={!selectedCommand.has_channel_override || resetMutation.isPending}
+                    sx={{ width: '100%' }}
+                  >
+                    {t('commands.actions.reset', '重置为默认')}
+                  </ActionButton>
+                )}
+              </Stack>
+            </Stack>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ px: 2, pb: 2, pt: 0 }}>
+          <ActionButton
+            tone="secondary"
+            onClick={() => setDetailDialogOpen(false)}
+            sx={{ width: '100%' }}
+          >
+            {t('commands.actions.back', '返回')}
+          </ActionButton>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
@@ -1122,6 +1311,7 @@ function CommandListItem({
   selected,
   scope,
   onClick,
+  onOpenDetail,
   t,
 }: {
   cmd: CommandState
@@ -1129,6 +1319,7 @@ function CommandListItem({
   selected: boolean
   scope: ManageScope
   onClick: () => void
+  onOpenDetail: () => void
   t: TFunction<'settings'>
 }) {
   const theme = useTheme()
@@ -1161,13 +1352,45 @@ function CommandListItem({
     >
       <Stack spacing={1}>
         <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
+          <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace', minWidth: 0, wordBreak: 'break-all' }}>
             {cmd.name}
           </Typography>
-          <ArrowOutwardIcon
-            fontSize="inherit"
-            sx={{ color: selected ? 'primary.main' : 'text.disabled', fontSize: 16 }}
-          />
+          <Tooltip title={t('commands.actions.viewDetail', '查看详情')}>
+            <Box
+              component="button"
+              type="button"
+              onClick={event => {
+                event.stopPropagation()
+                onOpenDetail()
+              }}
+              onKeyDown={event => {
+                event.stopPropagation()
+              }}
+              sx={{
+                width: 30,
+                height: 30,
+                p: 0,
+                border: '1px solid',
+                borderColor: selected ? 'primary.main' : 'divider',
+                borderRadius: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: selected ? 'primary.main' : 'text.secondary',
+                backgroundColor: selected ? alpha(theme.palette.primary.main, 0.08) : 'background.paper',
+                cursor: 'pointer',
+                flexShrink: 0,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                },
+              }}
+            >
+              <ArrowOutwardIcon fontSize="inherit" sx={{ fontSize: 16 }} />
+            </Box>
+          </Tooltip>
         </Stack>
         <Typography variant="body2" color="text.secondary">
           {getCommandDescription(cmd, lang)}
