@@ -128,19 +128,24 @@ function getCategoryBranchKey(category: string): string {
   return segments[0] ?? ''
 }
 
-function getCategoryScopeKey(category: string): string {
-  const normalized = normalizeCategoryPath(category)
-  if (!normalized) return ''
-  return `${splitCategoryPath(normalized)[0] ?? ''}/`
-}
-
 function isCategoryInScope(candidateCategory: string, sourceCategory: string): boolean {
-  return getCategoryScopeKey(candidateCategory) === getCategoryScopeKey(sourceCategory)
+  const normalizedCandidate = normalizeCategoryPath(candidateCategory)
+  const normalizedSource = normalizeCategoryPath(sourceCategory)
+  if (!normalizedSource) {
+    return normalizedCandidate === ''
+  }
+  return normalizedCandidate === normalizedSource || normalizedCandidate.startsWith(normalizedSource)
 }
 
 function isCategoryHidden(category: string, collapsedCategories: Set<string>): boolean {
+  const normalizedCategory = normalizeCategoryPath(category)
   for (const collapsed of collapsedCategories) {
-    if (collapsed && isCategoryInScope(category, collapsed) && category !== collapsed) {
+    const normalizedCollapsed = normalizeCategoryPath(collapsed)
+    if (
+      normalizedCollapsed &&
+      isCategoryInScope(normalizedCategory, normalizedCollapsed) &&
+      normalizedCategory !== normalizedCollapsed
+    ) {
       return true
     }
   }
@@ -148,8 +153,9 @@ function isCategoryHidden(category: string, collapsedCategories: Set<string>): b
 }
 
 function isEntryHidden(category: string, collapsedCategories: Set<string>): boolean {
+  const normalizedCategory = normalizeCategoryPath(category)
   for (const collapsed of collapsedCategories) {
-    if (isCategoryInScope(category, collapsed)) {
+    if (isCategoryInScope(normalizedCategory, collapsed)) {
       return true
     }
   }
@@ -567,6 +573,19 @@ interface CategoryLayoutInfo {
   color: string
 }
 
+function getVisibleSlotCount(node: CategoryTreeNode, collapsedCategories: Set<string>): number {
+  if (collapsedCategories.has(node.path)) {
+    return 1
+  }
+
+  const childSlotCount = node.children.reduce(
+    (sum, child) => sum + getVisibleSlotCount(child, collapsedCategories),
+    0,
+  )
+  const entrySlotCount = node.entries.length
+  return Math.max(1, childSlotCount + entrySlotCount)
+}
+
 function buildCategoryForest(entries: CategoryEntry[]): CategoryTreeNode[] {
   const nodeMap = new Map<string, CategoryTreeNode>()
   const roots: CategoryTreeNode[] = []
@@ -632,6 +651,7 @@ function computeLayout(
   assets: KBAssetListItem[],
   progressMap: Map<number, KbIndexProgressInfo>,
   isDark: boolean,
+  collapsedCategories: Set<string>,
 ): { nodes: LayoutNode[]; edges: HierarchyEdge[] } {
   const nodes: LayoutNode[] = []
   const edges: HierarchyEdge[] = []
@@ -676,44 +696,58 @@ function computeLayout(
   if (roots.length === 0) return { nodes, edges }
 
   const totalHeight =
-    roots.reduce((sum, root) => sum + root.subtreeCount * ENTRY_SPACING, 0) + (roots.length - 1) * ROOT_GAP
+    roots.reduce((sum, root) => sum + getVisibleSlotCount(root, collapsedCategories) * ENTRY_SPACING, 0) +
+    (roots.length - 1) * ROOT_GAP
   let cursorY = -totalHeight / 2 + ENTRY_SPACING / 2
 
   const layoutCategory = (node: CategoryTreeNode): CategoryLayoutInfo => {
     const nodeId = `category::${node.path || '__uncategorized__'}`
     const nodeX = node.depth * CATEGORY_LEVEL_X
     const branchColor = categoryColor(getCategoryBranchKey(node.path), isDark)
-    const childInfos = node.children.map(child => layoutCategory(child))
-    const entryInfos = node.entries.map(entry => {
-      const entryY = cursorY
-      cursorY += ENTRY_SPACING
-      const entryId = `${entry.kind}::${entry.id}`
-      nodes.push({
-        id: entryId,
-        kind: entry.kind,
-        entryKind: entry.kind,
-        numericId: entry.id,
-        label: entry.title,
-        category: entry.category,
-        status: entry.status,
-        isEnabled: entry.isEnabled,
-        x: (node.depth + 1) * CATEGORY_LEVEL_X,
-        y: entryY,
-      })
-      return {
-        nodeId: entryId,
-        centerY: entryY,
-        minY: entryY,
-        maxY: entryY,
-        x: (node.depth + 1) * CATEGORY_LEVEL_X,
-        color: branchColor,
-      }
-    })
+    const isCollapsed = collapsedCategories.has(node.path)
+    const childInfos = isCollapsed ? [] : node.children.map(child => layoutCategory(child))
+    const entryInfos = isCollapsed
+      ? []
+      : node.entries.map(entry => {
+          const entryY = cursorY
+          cursorY += ENTRY_SPACING
+          const entryId = `${entry.kind}::${entry.id}`
+          nodes.push({
+            id: entryId,
+            kind: entry.kind,
+            entryKind: entry.kind,
+            numericId: entry.id,
+            label: entry.title,
+            category: entry.category,
+            status: entry.status,
+            isEnabled: entry.isEnabled,
+            x: (node.depth + 1) * CATEGORY_LEVEL_X,
+            y: entryY,
+          })
+          return {
+            nodeId: entryId,
+            centerY: entryY,
+            minY: entryY,
+            maxY: entryY,
+            x: (node.depth + 1) * CATEGORY_LEVEL_X,
+            color: branchColor,
+          }
+        })
 
     const allChildInfos = [...childInfos, ...entryInfos]
-    const minY = Math.min(...allChildInfos.map(item => item.minY))
-    const maxY = Math.max(...allChildInfos.map(item => item.maxY))
-    const centerY = (minY + maxY) / 2
+    let minY: number
+    let maxY: number
+    let centerY: number
+    if (allChildInfos.length === 0) {
+      centerY = cursorY
+      minY = centerY
+      maxY = centerY
+      cursorY += ENTRY_SPACING
+    } else {
+      minY = Math.min(...allChildInfos.map(item => item.minY))
+      maxY = Math.max(...allChildInfos.map(item => item.maxY))
+      centerY = (minY + maxY) / 2
+    }
 
     nodes.push({
       id: nodeId,
@@ -787,6 +821,7 @@ export default function KBGraphDialog({
   const containerRef = useRef<HTMLDivElement>(null)
   const panRef = useRef<{ startX: number; startY: number; tx: number; ty: number } | null>(null)
   const isPanningRef = useRef(false)
+  const lastPanEndedAtRef = useRef(0)
 
   const [size, setSize] = useState({ w: 600, h: 400 })
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
@@ -805,8 +840,8 @@ export default function KBGraphDialog({
   }, [])
 
   const layout = useMemo(
-    () => computeLayout(documents, boundGlobalAssets, progressByDocumentId, isDark),
-    [documents, boundGlobalAssets, progressByDocumentId, isDark],
+    () => computeLayout(documents, boundGlobalAssets, progressByDocumentId, isDark, collapsedCategories),
+    [documents, boundGlobalAssets, progressByDocumentId, isDark, collapsedCategories],
   )
 
   // Build node position map for reference edge lookup
@@ -938,17 +973,28 @@ export default function KBGraphDialog({
     setTransform(prev => ({ ...prev, x: pan.tx + dx, y: pan.ty + dy }))
   }, [])
 
-  const handleMouseUp = useCallback(() => { panRef.current = null }, [])
+  const handleMouseUp = useCallback(() => {
+    if (isPanningRef.current) {
+      lastPanEndedAtRef.current = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    }
+    panRef.current = null
+    isPanningRef.current = false
+  }, [])
+
+  const shouldIgnoreClickAfterPan = useCallback(() => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    return now - lastPanEndedAtRef.current < 120
+  }, [])
 
   const handleNodeClick = useCallback(
     (e: React.MouseEvent, node: LayoutNode) => {
       e.stopPropagation()
-      if (isPanningRef.current) return
+      if (isPanningRef.current || shouldIgnoreClickAfterPan()) return
       if (node.entryKind !== null) {
         onOpenDocument(node.entryKind, node.numericId)
       }
     },
-    [onOpenDocument],
+    [onOpenDocument, shouldIgnoreClickAfterPan],
   )
 
   const toggleCategoryCollapse = useCallback((category: string) => {
@@ -964,10 +1010,10 @@ export default function KBGraphDialog({
     (e: React.MouseEvent, category: string) => {
       e.stopPropagation()
       e.preventDefault()
-      if (isPanningRef.current) return
+      if (isPanningRef.current || shouldIgnoreClickAfterPan()) return
       toggleCategoryCollapse(category)
     },
-    [toggleCategoryCollapse],
+    [toggleCategoryCollapse, shouldIgnoreClickAfterPan],
   )
 
   const catColorMap = useMemo(() => {
