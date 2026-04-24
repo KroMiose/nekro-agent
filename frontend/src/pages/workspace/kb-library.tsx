@@ -1,4 +1,4 @@
-import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ChangeEvent, MouseEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -16,11 +16,12 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  Menu,
+  MenuItem,
   ToggleButton,
   ToggleButtonGroup,
   InputLabel,
   LinearProgress,
-  MenuItem,
   OutlinedInput,
   Paper,
   Select,
@@ -32,6 +33,7 @@ import {
 } from '@mui/material'
 import {
   Add as AddIcon,
+  ArrowDropDown as ArrowDropDownIcon,
   AccountTree as GroupedViewIcon,
   AutoAwesome as LibraryIcon,
   CheckCircleOutline as CheckCircleIcon,
@@ -52,7 +54,6 @@ import {
   Tune as EditMetaIcon,
   Description as AssetIcon,
   ShareOutlined as BindingsIcon,
-  ViewList as ViewListIcon,
 } from '@mui/icons-material'
 import { alpha, type SxProps, type Theme } from '@mui/material/styles'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -222,9 +223,10 @@ export default function KbLibraryPage() {
   const [batchPanelVisible, setBatchPanelVisible] = useState(false)
   const [expandedBatchItemId, setExpandedBatchItemId] = useState<string | null>(null)
   const [batchFromFolder, setBatchFromFolder] = useState(false)
-  const [listView, setListView] = useState<'flat' | 'grouped' | 'graph'>('grouped')
+  const [listView, setListView] = useState<'grouped' | 'graph'>('grouped')
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(new Set())
+  const [addMenuAnchorEl, setAddMenuAnchorEl] = useState<HTMLElement | null>(null)
 
   const assetsQuery = useQuery({
     queryKey: ['kb-library-assets'],
@@ -620,6 +622,31 @@ export default function KbLibraryPage() {
     })
   }
 
+  const handleAddMenuOpen = (event: MouseEvent<HTMLButtonElement>) => {
+    setAddMenuAnchorEl(event.currentTarget)
+  }
+
+  const handleAddMenuClose = () => {
+    setAddMenuAnchorEl(null)
+  }
+
+  const handleOpenCreateDialog = () => {
+    handleAddMenuClose()
+    setCreateOpen(true)
+  }
+
+  const handleOpenUploadDialog = () => {
+    handleAddMenuClose()
+    setUploadOpen(true)
+  }
+
+  const handleOpenBatchUploadDialog = () => {
+    handleAddMenuClose()
+    setBatchQueue([])
+    setBatchFromFolder(false)
+    setBatchUploadOpen(true)
+  }
+
   const handleBatchFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
     event.target.value = ''
@@ -862,6 +889,8 @@ export default function KbLibraryPage() {
     setSearch('')
     setStatusFilter('all')
   }
+
+  const addMenuOpen = Boolean(addMenuAnchorEl)
 
   const compactActionSx = {
     minHeight: 32,
@@ -1150,12 +1179,6 @@ export default function KbLibraryPage() {
                   <RefreshIcon fontSize="small" />
                 </IconActionButton>
               </Tooltip>
-              <ActionButton size="small" tone="secondary" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
-                {t('kbLibrary.actions.createText')}
-              </ActionButton>
-              <ActionButton size="small" tone="secondary" startIcon={<FileUploadIcon />} onClick={() => { setBatchQueue([]); setBatchFromFolder(false); setBatchUploadOpen(true) }}>
-                {t('kbLibrary.actions.batchUpload')}
-              </ActionButton>
               <KBBatchActionsButton
                 label={t('kbLibrary.actions.batchActions', { count: selectedAssetIdList.length })}
                 disabled={selectedAssetIdList.length === 0 || batchActionPending}
@@ -1174,9 +1197,26 @@ export default function KbLibraryPage() {
                   },
                 ]}
               />
-              <ActionButton size="small" tone="primary" startIcon={<FileUploadIcon />} onClick={() => setUploadOpen(true)}>
-                {t('kbLibrary.actions.upload')}
+              <ActionButton
+                size="small"
+                tone="primary"
+                startIcon={<AddIcon />}
+                endIcon={<ArrowDropDownIcon />}
+                onClick={handleAddMenuOpen}
+              >
+                {t('kbLibrary.actions.addFile')}
               </ActionButton>
+              <Menu
+                anchorEl={addMenuAnchorEl}
+                open={addMenuOpen}
+                onClose={handleAddMenuClose}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              >
+                <MenuItem onClick={handleOpenUploadDialog}>{t('kbLibrary.actions.upload')}</MenuItem>
+                <MenuItem onClick={handleOpenBatchUploadDialog}>{t('kbLibrary.actions.batchUpload')}</MenuItem>
+                <MenuItem onClick={handleOpenCreateDialog}>{t('kbLibrary.actions.createText')}</MenuItem>
+              </Menu>
             </Box>
           </Box>
         </Card>
@@ -1213,17 +1253,6 @@ export default function KbLibraryPage() {
               </Box>
               {!hasListFilter && (
                 <Stack direction="row" spacing={0.25}>
-                  <Tooltip title={t('knowledge.list.viewFlat')}>
-                    <span>
-                      <IconActionButton
-                        size="small"
-                        onClick={() => setListView('flat')}
-                        sx={{ color: listView === 'flat' ? 'primary.main' : 'text.secondary' }}
-                      >
-                        <ViewListIcon sx={{ fontSize: 18 }} />
-                      </IconActionButton>
-                    </span>
-                  </Tooltip>
                   <Tooltip title={t('knowledge.list.viewGrouped')}>
                     <span>
                       <IconActionButton
@@ -1265,9 +1294,7 @@ export default function KbLibraryPage() {
             ) : (
               <Box sx={UNIFIED_TABLE_STYLES.tableViewport}>
                 <List sx={{ py: 0 }}>
-                  {hasListFilter || listView === 'flat'
-                    ? filteredAssets.map(renderAssetRow)
-                    : categorizedAssets.flatMap(renderCategoryNode)}
+                  {categorizedAssets.flatMap(renderCategoryNode)}
                 </List>
               </Box>
             )}
@@ -1542,26 +1569,19 @@ export default function KbLibraryPage() {
             </Stack>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
-                label={t('kbLibrary.form.sourcePath')}
-                fullWidth
-                value={createForm.source_path}
-                onChange={event => setCreateForm(prev => ({ ...prev, source_path: event.target.value }))}
-                placeholder={t('kbLibrary.form.sourcePathPlaceholder')}
-              />
-              <TextField
                 label={t('kbLibrary.form.fileName')}
                 fullWidth
                 value={createForm.file_name}
                 onChange={event => setCreateForm(prev => ({ ...prev, file_name: event.target.value }))}
               />
-            </Stack>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
                 label={t('kbLibrary.form.category')}
                 fullWidth
                 value={createForm.category}
                 onChange={event => setCreateForm(prev => ({ ...prev, category: event.target.value }))}
               />
+            </Stack>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
                 label={t('kbLibrary.form.tags')}
                 fullWidth

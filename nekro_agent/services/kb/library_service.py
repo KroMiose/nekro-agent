@@ -18,10 +18,9 @@ from nekro_agent.schemas.kb import (
     KBReferenceItem,
 )
 from nekro_agent.services.kb.document_service import (
-    build_default_file_name,
+    build_text_source_path,
     compute_sha256,
     detect_format_and_mime,
-    normalize_source_path_for_format,
     normalize_tags,
     safe_source_path,
     write_bytes_exclusive,
@@ -259,8 +258,13 @@ async def create_text_asset(
     source_type: str = "manual",
 ) -> tuple[DBKBAsset, bool]:
     ensure_kb_library_dirs()
-    final_file_name = file_name or build_default_file_name(title, ".md" if format == "markdown" else ".txt")
-    final_source_path = normalize_source_path_for_format(source_path or final_file_name, format=format)
+    final_source_path = build_text_source_path(
+        source_path=source_path,
+        file_name=file_name,
+        title=title,
+        format=format,
+        category=category,
+    )
     encoded = content.encode("utf-8")
     content_hash = compute_sha256(encoded)
     existing = await DBKBAsset.get_or_none(content_hash=content_hash)

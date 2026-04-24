@@ -112,6 +112,37 @@ def normalize_source_path_for_format(path: str, *, format: str) -> str:
     return normalized
 
 
+def normalize_category_path_for_storage(category: str) -> str:
+    normalized = category.strip().replace("\\", "/").strip("/")
+    normalized = re.sub(r"/{2,}", "/", normalized)
+    if not normalized:
+        return ""
+    if any(part in {"..", "."} for part in normalized.split("/")):
+        raise ValueError(f"非法知识库分类路径: {category}")
+    return normalized
+
+
+def build_text_source_path(
+    *,
+    source_path: str,
+    file_name: str,
+    title: str,
+    format: str,
+    category: str,
+) -> str:
+    default_file_name = build_default_file_name(title, ".md" if format == "markdown" else ".txt")
+    final_file_name = Path(file_name.strip()).name if file_name.strip() else default_file_name
+    normalized_file_name = normalize_source_path_for_format(final_file_name, format=format)
+
+    if source_path.strip():
+        return normalize_source_path_for_format(source_path, format=format)
+
+    normalized_category = normalize_category_path_for_storage(category)
+    if normalized_category:
+        return normalize_source_path_for_format(f"{normalized_category}/{normalized_file_name}", format=format)
+    return normalized_file_name
+
+
 def compute_sha256(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
@@ -202,8 +233,13 @@ async def create_text_document(
     source_type: str = "manual",
 ) -> DBKBDocument:
     WorkspaceService.ensure_kb_dirs(workspace_id)
-    final_file_name = file_name or build_default_file_name(title, ".md" if format == "markdown" else ".txt")
-    final_source_path = normalize_source_path_for_format(source_path or final_file_name, format=format)
+    final_source_path = build_text_source_path(
+        source_path=source_path,
+        file_name=file_name,
+        title=title,
+        format=format,
+        category=category,
+    )
     target = WorkspaceService.resolve_kb_source_path(workspace_id, final_source_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     encoded = content.encode("utf-8")

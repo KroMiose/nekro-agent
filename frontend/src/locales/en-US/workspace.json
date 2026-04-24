@@ -1278,6 +1278,7 @@
     "title": "Knowledge Library",
     "description": "Manage reusable knowledge files in one place. Import once, bind to multiple workspaces on demand, and avoid repeated uploads and repeated indexing costs.",
     "actions": {
+      "addFile": "Add Knowledge File",
       "refresh": "Refresh",
       "createText": "New Text Doc",
       "create": "Create",

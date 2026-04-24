@@ -19,7 +19,7 @@ class KBTagUpdate(BaseModel):
 class KBCreateTextDocumentBody(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
     content: str = Field(..., min_length=1)
-    source_path: str = Field(default="", description="相对 kb/files 的目标路径，可为空")
+    source_path: str = Field(default="", description="可选目标相对路径；未提供时按分类自动生成")
     file_name: str = Field(default="", description="可选文件名，未提供时按 title 生成")
     format: Literal["markdown", "text"] = "markdown"
     category: str = Field(default="", max_length=64)

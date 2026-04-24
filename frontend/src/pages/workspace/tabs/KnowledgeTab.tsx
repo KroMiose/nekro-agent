@@ -43,7 +43,6 @@ import {
   Clear as ClearIcon,
   CheckCircleOutline as CheckCircleIcon,
   ErrorOutline as ErrorOutlineIcon,
-  ViewList as ViewListIcon,
   AccountTree as GroupedViewIcon,
   Hub as GraphViewIcon,
   ExpandMore as ExpandMoreIcon,
@@ -251,7 +250,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [bulkDeleteSelectedOpen, setBulkDeleteSelectedOpen] = useState(false)
   const [reuseOpen, setReuseOpen] = useState(false)
-  const [listView, setListView] = useState<'flat' | 'grouped' | 'graph'>('graph')
+  const [listView, setListView] = useState<'grouped' | 'graph'>('graph')
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [selectedEntryKeys, setSelectedEntryKeys] = useState<Set<string>>(new Set())
   const [addMenuAnchorEl, setAddMenuAnchorEl] = useState<HTMLElement | null>(null)
@@ -690,20 +689,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       notification.success(t('knowledge.notifications.reindexSuccess'))
     },
     onError: (err: Error) => notification.error(t('knowledge.notifications.reindexFailed', { message: err.message })),
-  })
-
-  const reindexAllMutation = useMutation({
-    mutationFn: () => knowledgeBaseApi.reindexAll(workspace.id),
-    onSuccess: async data => {
-      await refreshAll()
-      notification.success(
-        t('knowledge.notifications.reindexAllSuccess', {
-          success: data.success,
-          failed: data.failed,
-        })
-      )
-    },
-    onError: (err: Error) => notification.error(t('knowledge.notifications.reindexAllFailed', { message: err.message })),
   })
 
   const toggleEnabledMutation = useMutation({
@@ -1733,15 +1718,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 <RefreshIcon fontSize="small" />
               </IconActionButton>
             </Tooltip>
-            <ActionButton
-              size="small"
-              tone="secondary"
-              startIcon={<ReindexIcon />}
-              onClick={() => reindexAllMutation.mutate()}
-              disabled={reindexAllMutation.isPending}
-            >
-              {t('knowledge.actions.reindexAll')}
-            </ActionButton>
             <KBBatchActionsButton
               label={t('knowledge.actions.batchActions', { count: selectedEntryCount })}
               disabled={
@@ -1852,17 +1828,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
             </Box>
             {!hasSearchResult && (
               <Stack direction="row" spacing={0.25}>
-                <Tooltip title={t('knowledge.list.viewFlat')}>
-                  <span>
-                    <IconActionButton
-                      size="small"
-                      onClick={() => setListView('flat')}
-                      sx={{ color: listView === 'flat' ? 'primary.main' : 'text.secondary' }}
-                    >
-                      <ViewListIcon sx={{ fontSize: 18 }} />
-                    </IconActionButton>
-                  </span>
-                </Tooltip>
                 <Tooltip title={t('knowledge.list.viewGrouped')}>
                   <span>
                     <IconActionButton
@@ -1969,9 +1934,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                         </ListItemButton>
                       )
                     })
-                  : listView === 'grouped'
-                    ? categorizedEntries.flatMap(renderCategoryNode)
-                    : defaultListEntries.map(renderKBEntry)}
+                  : categorizedEntries.flatMap(renderCategoryNode)}
               </List>
             </Box>
           ) : (
@@ -2359,26 +2322,19 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
             </Stack>
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
-                label={t('knowledge.form.sourcePath')}
-                fullWidth
-                value={createForm.source_path}
-                onChange={event => setCreateForm(prev => ({ ...prev, source_path: event.target.value }))}
-                placeholder={t('knowledge.form.sourcePathPlaceholder')}
-              />
-              <TextField
                 label={t('knowledge.form.fileName')}
                 fullWidth
                 value={createForm.file_name}
                 onChange={event => setCreateForm(prev => ({ ...prev, file_name: event.target.value }))}
               />
-            </Stack>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
                 label={t('knowledge.form.category')}
                 fullWidth
                 value={createForm.category}
                 onChange={event => setCreateForm(prev => ({ ...prev, category: event.target.value }))}
               />
+            </Stack>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
                 label={t('knowledge.form.tags')}
                 fullWidth
