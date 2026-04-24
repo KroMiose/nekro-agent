@@ -410,9 +410,15 @@ async def add_asset_reference(
         target_asset_id=target_asset_id,
         defaults={"description": description},
     )
+    update_fields: list[str] = []
+    if ref.is_auto:
+        ref.is_auto = False
+        update_fields.append("is_auto")
     if ref.description != description:
         ref.description = description
-        await ref.save(update_fields=["description", "update_time"])
+        update_fields.append("description")
+    if update_fields:
+        await ref.save(update_fields=[*update_fields, "update_time"])
     return ref
 
 

@@ -130,8 +130,7 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
     扫描指定文档，检测它对同一工作区同分组内其他文档的引用（出向），并同步到数据库。
     同时反向扫描同组内其他文档，建立它们对本文档的引用（入向）。
 
-    - 出向自动引用（source=document_id）在每次调用时先清空重建
-    - 入向自动引用采用增量 upsert，不删除已有的入向引用（避免并发索引时误删）
+    - 每次调用时，先清空所有与本文档相连的自动引用（出向 + 入向），再完整重建
     - 手动引用（is_auto=False）不受影响
     - 返回本次新建的引用总数
     """
@@ -139,10 +138,14 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
     if source_doc is None:
         return 0
 
-    # 仅清除出向自动引用（source_document_id=document_id），不清除入向
     await DBKBDocumentReference.filter(
         workspace_id=workspace_id,
         source_document_id=document_id,
+        is_auto=True,
+    ).delete()
+    await DBKBDocumentReference.filter(
+        workspace_id=workspace_id,
+        target_document_id=document_id,
         is_auto=True,
     ).delete()
 
@@ -186,7 +189,6 @@ async def detect_and_sync_document_references(workspace_id: int, document_id: in
                     logger.debug(f"自动引用（出）：{document_id}→{target.id} [{description}]")
 
     # ── 入向检测：哪些 peer 引用了 source_doc ────────────────────────────
-    # 使用增量 upsert（get_or_create），不预先删除已有入向引用，避免并发索引时丢失引用
     existing_manual_in = set(
         await DBKBDocumentReference.filter(
             workspace_id=workspace_id,
@@ -222,14 +224,17 @@ async def detect_and_sync_asset_references(asset_id: int) -> int:
     """
     扫描指定全局资产，检测它对同分组内其他资产的引用（出向），
     同时反向扫描同组内其他资产，建立它们对本资产的引用（入向）。
+
+    - 每次调用时，先清空所有与本资产相连的自动引用（出向 + 入向），再完整重建
+    - 手动引用（is_auto=False）不受影响
     返回本次新建的引用总数。
     """
     source_asset = await DBKBAsset.get_or_none(id=asset_id)
     if source_asset is None:
         return 0
 
-    # 仅清除出向自动引用，不清除入向（避免并发索引时误删）
     await DBKBAssetReference.filter(source_asset_id=asset_id, is_auto=True).delete()
+    await DBKBAssetReference.filter(target_asset_id=asset_id, is_auto=True).delete()
 
     if not source_asset.is_enabled:
         return 0
