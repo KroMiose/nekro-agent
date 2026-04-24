@@ -45,7 +45,7 @@ import {
   HelpOutline as HelpOutlineIcon,
   RestartAlt as RestartIcon,
 } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
+import { unstable_usePrompt as usePrompt, useBeforeUnload, useNavigate } from 'react-router-dom'
 import { UNIFIED_TABLE_STYLES, CHIP_VARIANTS } from '../../theme/variants'
 import ActionButton from './ActionButton'
 import IconActionButton from './IconActionButton'
@@ -941,6 +941,38 @@ export default function ConfigTable({
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
+  const hasUnsavedChanges = dirtyKeys.size > 0
+
+  useBeforeUnload(
+    useCallback((event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) {
+        return
+      }
+      event.preventDefault()
+      event.returnValue = ''
+    }, [hasUnsavedChanges])
+  )
+
+  usePrompt({
+    when: useCallback(
+      ({ currentLocation, nextLocation }) => {
+        if (!hasUnsavedChanges) {
+          return false
+        }
+
+        if (currentLocation.pathname !== nextLocation.pathname) {
+          return true
+        }
+
+        const currentCategory = new URLSearchParams(currentLocation.search).get('category')
+        const nextCategory = new URLSearchParams(nextLocation.search).get('category')
+
+        return currentCategory !== nextCategory
+      },
+      [hasUnsavedChanges]
+    ),
+    message: t('configTable.unsavedChangesConfirm'),
+  })
 
   useEffect(() => {
     if (!onSearchChange) {
@@ -1647,7 +1679,7 @@ export default function ConfigTable({
                 size="small"
                 onClick={() => handleSaveAllChanges(false)}
                 startIcon={<SaveIcon />}
-                disabled={dirtyKeys.size === 0}
+                disabled={!hasUnsavedChanges}
               >
                 {t('configTable.saveChanges')}
               </Button>

@@ -233,6 +233,7 @@
     "restarting": "Restarting...",
     "resetConfirmTitle": "Confirm Reset Config",
     "resetConfirmContent": "Resetting config will lose all unsaved changes. Continue?",
+    "unsavedChangesConfirm": "You have unsaved configuration changes. Leave this page anyway?",
     "saveWarningTitle": "Save Warning",
     "saveWarningContent": "The following required fields are empty. Continue saving?",
     "saveWarningContentSimple": "Continue saving?",

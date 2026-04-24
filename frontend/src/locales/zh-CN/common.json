@@ -234,6 +234,7 @@
     "restarting": "重启中...",
     "resetConfirmTitle": "确认重置配置",
     "resetConfirmContent": "重置配置将丢失所有未保存的修改，是否继续？",
+    "unsavedChangesConfirm": "当前配置尚未保存，确定要离开当前页面吗？",
     "saveWarningTitle": "保存警告",
     "saveWarningContent": "以下必填项未填写，是否仍要继续保存？",
     "saveWarningContentSimple": "是否仍要继续保存？",
