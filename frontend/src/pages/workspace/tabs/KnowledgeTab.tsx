@@ -478,14 +478,10 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   }, [queryClient, workspace.id, selectedDocumentId, selectedAssetId])
 
   const createMutation = useMutation({
-    mutationFn: async (body: KBCreateTextDocumentBody) => {
-      const data = await kbLibraryApi.createText(body)
-      await kbLibraryApi.bindWorkspace(data.asset.id, workspace.id)
-      return data
-    },
+    mutationFn: (body: KBCreateTextDocumentBody) => knowledgeBaseApi.createText(workspace.id, body),
     onSuccess: async data => {
       await refreshAll()
-      setSelectedItem({ kind: 'asset', id: data.asset.id })
+      setSelectedItem({ kind: 'document', id: data.document.id })
       setCreateOpen(false)
       setCreateForm({
         title: '',
@@ -499,24 +495,17 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         is_enabled: true,
       })
       setCreateTagsInput('')
-      if (data.reused_existing) {
-        notification.warning(t('knowledge.notifications.addReusedSuccess'), { duration: 6000 })
-      } else {
-        notification.success(t('knowledge.notifications.addSuccess'))
-      }
+      notification.success(t('knowledge.notifications.addSuccess'))
     },
     onError: (err: Error) => notification.error(t('knowledge.notifications.createFailed', { message: err.message })),
   })
 
   const uploadMutation = useMutation({
-    mutationFn: async (payload: KBUploadFilePayload) => {
-      const data = await kbLibraryApi.uploadFile(payload, percent => setUploadProgress(percent))
-      await kbLibraryApi.bindWorkspace(data.asset.id, workspace.id)
-      return data
-    },
+    mutationFn: (payload: KBUploadFilePayload) =>
+      knowledgeBaseApi.uploadFile(workspace.id, payload, percent => setUploadProgress(percent)),
     onSuccess: async data => {
       await refreshAll()
-      setSelectedItem({ kind: 'asset', id: data.asset.id })
+      setSelectedItem({ kind: 'document', id: data.document.id })
       setUploadOpen(false)
       setUploadFile(null)
       setUploadTitle('')
@@ -525,11 +514,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       setUploadTagsInput('')
       setUploadEnabled(true)
       setUploadProgress(0)
-      if (data.reused_existing) {
-        notification.warning(t('knowledge.notifications.addReusedSuccess'), { duration: 6000 })
-      } else {
-        notification.success(t('knowledge.notifications.addSuccess'))
-      }
+      notification.success(t('knowledge.notifications.addSuccess'))
     },
     onError: (err: Error) => {
       setUploadProgress(0)
@@ -1029,7 +1014,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     setBatchCancelRequested(true)
   }, [])
 
-  const startBatchUpload = useCallback(async (items: BatchQueueItem[], target: 'library' | 'workspace') => {
+  const startBatchUpload = useCallback(async (items: BatchQueueItem[]) => {
     if (batchProcessingRef.current) return
     const overflow = findCategoryLengthOverflow(items)
     if (overflow) {
@@ -1057,56 +1042,29 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         if (!batchQueueRef.current.some(queueItem => queueItem.id === item.id && queueItem.status === 'waiting')) continue
         setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', uploadProgress: 0 } : i))
         try {
-          if (target === 'workspace') {
-            const data = await knowledgeBaseApi.uploadFile(
-              workspace.id,
-              {
-                file: item.file,
-                title: item.title || item.file.name.replace(/\.[^.]+$/, ''),
-                source_path: item.source_path || '',
-                category: item.category,
-                tags: normalizeTagsInput(item.tags),
-                summary: item.summary,
-                is_enabled: true,
-              },
-              pct => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, uploadProgress: pct } : i)),
-            )
-            if (batchRunVersionRef.current !== runVersion) break
-            uploadedAny = true
-            setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'indexing', documentId: data.document.id } : i))
-            const deadline = Date.now() + 300_000
-            while (Date.now() < deadline) {
-              if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
-              await new Promise(r => setTimeout(r, 1500))
-              if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
-              const detail = await knowledgeBaseApi.getDocument(workspace.id, data.document.id)
-              if (detail.document.sync_status === 'ready' || detail.document.sync_status === 'failed') break
-            }
-          } else {
-            const data = await kbLibraryApi.uploadFile(
-              {
-                file: item.file,
-                title: item.title || item.file.name.replace(/\.[^.]+$/, ''),
-                source_path: item.source_path || '',
-                category: item.category,
-                tags: normalizeTagsInput(item.tags),
-                summary: item.summary,
-                is_enabled: true,
-              },
-              pct => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, uploadProgress: pct } : i)),
-            )
-            if (batchRunVersionRef.current !== runVersion) break
-            uploadedAny = true
-            await kbLibraryApi.bindWorkspace(data.asset.id, workspace.id)
-            setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'indexing', assetId: data.asset.id } : i))
-            const deadline = Date.now() + 300_000
-            while (Date.now() < deadline) {
-              if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
-              await new Promise(r => setTimeout(r, 1500))
-              if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
-              const detail = await kbLibraryApi.getAsset(data.asset.id)
-              if (detail.asset.sync_status === 'ready' || detail.asset.sync_status === 'failed') break
-            }
+          const data = await knowledgeBaseApi.uploadFile(
+            workspace.id,
+            {
+              file: item.file,
+              title: item.title || item.file.name.replace(/\.[^.]+$/, ''),
+              source_path: item.source_path || '',
+              category: item.category,
+              tags: normalizeTagsInput(item.tags),
+              summary: item.summary,
+              is_enabled: true,
+            },
+            pct => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, uploadProgress: pct } : i)),
+          )
+          if (batchRunVersionRef.current !== runVersion) break
+          uploadedAny = true
+          setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'indexing', documentId: data.document.id } : i))
+          const deadline = Date.now() + 300_000
+          while (Date.now() < deadline) {
+            if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
+            await new Promise(r => setTimeout(r, 1500))
+            if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
+            const detail = await knowledgeBaseApi.getDocument(workspace.id, data.document.id)
+            if (detail.document.sync_status === 'ready' || detail.document.sync_status === 'failed') break
           }
           if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
           setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'done' } : i))
@@ -1131,7 +1089,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           setExpandedBatchItemId(null)
           setBatchQueue(prev => prev.filter(item => item.status !== 'waiting'))
         }
-        if (uploadedAny && target === 'workspace') {
+        if (uploadedAny) {
           setListView('grouped')
           setCollapsedCategories(new Set())
         }
@@ -2640,7 +2598,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           {batchQueue.length > 0 && batchQueue.some(i => i.status === 'waiting') && (
             <ActionButton
               tone="primary"
-              onClick={() => startBatchUpload(batchQueue.filter(i => i.status === 'waiting'), batchTarget)}
+              onClick={() => startBatchUpload(batchQueue.filter(i => i.status === 'waiting'))}
             >
               {t('knowledge.actions.startUpload', { count: batchQueue.filter(i => i.status === 'waiting').length })}
             </ActionButton>
