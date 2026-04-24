@@ -9,7 +9,6 @@ import {
   Alert,
   CircularProgress,
   useTheme,
-  useMediaQuery,
   Badge,
 } from '@mui/material'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
@@ -35,7 +34,6 @@ export default function AdapterLayout() {
   const location = useLocation()
   const { adapterKey } = useParams<{ adapterKey: string }>()
   const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const { t } = useTranslation('adapter')
   const [headerExpanded, setHeaderExpanded] = useState(true)
 
@@ -285,18 +283,29 @@ export default function AdapterLayout() {
       </Card>
 
       {/* 导航标签 - 紧凑版本 */}
-      <Card sx={CARD_VARIANTS.default.styles}>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, overflow: 'hidden' }}>
         <PageTabs
           value={getActiveTab()}
           onChange={handleTabChange}
-          variant={isMobile ? 'fullWidth' : 'standard'}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           indicatorColor="primary"
           textColor="primary"
           sx={{
             px: { xs: 0.5, md: 2 },
+            minWidth: 0,
+            '& .MuiTabs-scroller': {
+              overflowX: 'auto !important',
+            },
+            '& .MuiTabs-flexContainer': {
+              width: 'max-content',
+            },
             '& .MuiTab-root': {
               minHeight: { xs: 48, md: 52 },
+              minWidth: { xs: 92, md: 120 },
               py: { xs: 1, md: 1.5 },
+              px: { xs: 1.25, md: 2 },
             },
           }}
         >

@@ -126,7 +126,7 @@ export default function ChatChannelPage() {
   // 渲染聊天列表组件
   const renderChannelList = () => (
     <>
-      <Box className="p-2 flex-shrink-0">
+      <Box sx={{ p: { xs: 1.25, sm: 1.5 }, flexShrink: 0, bgcolor: 'background.paper' }}>
         <Stack spacing={1.5}>
           {/* 搜索框 */}
           <SearchField
@@ -168,7 +168,7 @@ export default function ChatChannelPage() {
       <Divider />
 
       {/* 聊天列表 */}
-      <Box className="flex-1 overflow-auto">
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', bgcolor: 'background.paper' }}>
         <ChatChannelList
           channels={filteredChannels}
           selectedChatKey={selectedChatKey}
@@ -261,15 +261,20 @@ export default function ChatChannelPage() {
             anchor="left"
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
+            ModalProps={{
+              keepMounted: true,
+            }}
             PaperProps={{
               sx: {
-                width: isSmall ? '85%' : '320px',
-                maxWidth: '100%',
-                backgroundColor: 'transparent',
-                backdropFilter: 'blur(20px)',
+                width: isSmall ? 'min(88vw, 360px)' : '360px',
+                maxWidth: '100vw',
+                backgroundColor: 'background.paper',
+                backgroundImage: 'none',
                 borderRight: `1px solid ${theme.palette.divider}`,
                 display: 'flex',
                 flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: theme.shadows[12],
               },
             }}
           >
@@ -277,19 +282,21 @@ export default function ChatChannelPage() {
           </Drawer>
 
           {/* 浮动按钮 - 打开聊天列表 */}
-          <Fab
-            color="primary"
-            size={isSmall ? 'medium' : 'large'}
-            onClick={() => setDrawerOpen(true)}
-            sx={{
-              position: 'fixed',
-              bottom: 16,
-              right: 16,
-              zIndex: 1099,
-            }}
-          >
-            <ListIcon />
-          </Fab>
+          {!drawerOpen && (
+            <Fab
+              color="primary"
+              size={isSmall ? 'medium' : 'large'}
+              onClick={() => setDrawerOpen(true)}
+              sx={{
+                position: 'fixed',
+                bottom: 16,
+                right: 16,
+                zIndex: theme.zIndex.drawer - 1,
+              }}
+            >
+              <ListIcon />
+            </Fab>
+          )}
         </>
       ) : (
         // 桌面端布局

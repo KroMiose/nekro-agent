@@ -21,6 +21,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from '@mui/material'
 import { alpha, useTheme, type Theme } from '@mui/material/styles'
 import {
@@ -573,11 +574,13 @@ function StatChip({ label, color }: { label: string; color: string }) {
 
 export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail }) {
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('workspace')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const notification = useNotification()
   const memorySystemDisabled = !workspace.memory_system_enabled
+  const mobileOverlayTop = memorySystemDisabled ? 260 : 178
   const [viewMode, setViewMode] = useState<AtlasViewMode>('episode')
   const clusterMeta = useMemo(() => getClusterMeta(viewMode), [viewMode])
 
@@ -1027,7 +1030,10 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
 
   const applySceneTransform = () => {
     if (!sceneRef.current) return
-    sceneRef.current.style.transform = `translate(${panRef.current.x}px, ${panRef.current.y}px) scale(${zoomRef.current})`
+    const pixelRatio = window.devicePixelRatio || 1
+    const alignedX = Math.round(panRef.current.x * pixelRatio) / pixelRatio
+    const alignedY = Math.round(panRef.current.y * pixelRatio) / pixelRatio
+    sceneRef.current.style.transform = `translate(${alignedX}px, ${alignedY}px) scale(${zoomRef.current})`
   }
 
   const commitViewport = () => {
@@ -1089,8 +1095,8 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
     <Box
       sx={{
         position: 'relative',
-        minHeight: 'calc(100vh - 210px)',
-        borderRadius: 3,
+        minHeight: { xs: 'calc(100vh - 150px)', sm: 'calc(100vh - 210px)' },
+        borderRadius: { xs: 2, sm: 3 },
         overflow: 'hidden',
         border: '1px solid',
         borderColor: alpha(theme.palette.primary.main, 0.12),
@@ -1109,17 +1115,18 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
         }}
       />
 
-      <Box sx={{ position: 'relative', height: '100%', minHeight: 'calc(100vh - 210px)' }}>
+      <Box sx={{ position: 'relative', height: '100%', minHeight: { xs: 'calc(100vh - 150px)', sm: 'calc(100vh - 210px)' } }}>
         <Stack
           direction="row"
           spacing={1}
           sx={{
             position: 'absolute',
-            top: 16,
-            left: 16,
+            top: { xs: 10, sm: 16 },
+            left: { xs: 10, sm: 16 },
+            right: { xs: 10, sm: 'auto' },
             zIndex: 5,
             flexWrap: 'wrap',
-            maxWidth: 'min(72vw, 720px)',
+            maxWidth: { xs: 'none', sm: 'min(72vw, 720px)' },
           }}
         >
           <ActionButton
@@ -1147,11 +1154,12 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           <Card
             sx={{
               position: 'absolute',
-              top: memorySystemDisabled ? 152 : 68,
-              left: 16,
+              top: { xs: mobileOverlayTop, sm: memorySystemDisabled ? 152 : 68 },
+              left: { xs: 10, sm: 16 },
+              right: { xs: 10, sm: 'auto' },
               zIndex: 5,
-              minWidth: 300,
-              maxWidth: 420,
+              minWidth: { xs: 0, sm: 300 },
+              maxWidth: { xs: 'none', sm: 420 },
               borderRadius: 2.5,
               border: '1px solid',
               borderColor:
@@ -1276,9 +1284,9 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
             severity="warning"
             sx={{
               position: 'absolute',
-              top: 80,
-              left: 16,
-              right: { xs: 16, lg: 360 },
+              top: { xs: 124, sm: 80 },
+              left: { xs: 10, sm: 16 },
+              right: { xs: 10, lg: 360 },
               zIndex: 5,
               maxWidth: { xs: 'none', lg: 680 },
               alignItems: 'flex-start',
@@ -1364,11 +1372,12 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           alignItems="center"
           sx={{
             position: 'absolute',
-            top: 16,
-            right: 16,
+            top: { xs: 58, sm: 16 },
+            left: { xs: 10, sm: 'auto' },
+            right: { xs: 10, sm: 16 },
             zIndex: 5,
             flexWrap: 'wrap',
-            justifyContent: 'flex-end',
+            justifyContent: { xs: 'flex-start', sm: 'flex-end' },
             rowGap: 0.75,
             columnGap: 0.9,
             maxWidth: { xs: 'calc(100% - 32px)', md: 520 },
@@ -1415,7 +1424,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
             value={viewMode}
             onChange={event => setViewMode(event.target.value as AtlasViewMode)}
             sx={{
-              minWidth: 92,
+              minWidth: { xs: 104, sm: 92 },
               bgcolor: alpha(theme.palette.background.paper, 0.72),
               backdropFilter: 'blur(12px)',
             }}
@@ -1428,7 +1437,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
             value={informationDensity}
             onChange={event => setInformationDensity(event.target.value as InformationDensity)}
             sx={{
-              minWidth: 92,
+              minWidth: { xs: 112, sm: 92 },
               bgcolor: alpha(theme.palette.background.paper, 0.72),
               backdropFilter: 'blur(12px)',
             }}
@@ -1463,7 +1472,14 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -28, opacity: 0 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              style={{ position: 'absolute', left: 16, top: 74, bottom: 16, width: 320, zIndex: 6 }}
+              style={{
+                position: 'absolute',
+                left: isMobile ? 10 : 16,
+                top: isMobile ? mobileOverlayTop : 74,
+                bottom: isMobile ? 10 : 16,
+                width: isMobile ? 'calc(100% - 20px)' : 320,
+                zIndex: 6,
+              }}
             >
               <Card sx={{ ...CARD_VARIANTS.glassmorphism.styles, height: '100%' }}>
                 <CardContent sx={{ p: 1.25, display: 'flex', flexDirection: 'column', gap: 1.1, height: '100%', '&:last-child': { pb: 1.25 } }}>
@@ -1592,6 +1608,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           sx={{
             position: 'absolute',
             inset: 0,
+            top: { xs: `${mobileOverlayTop}px`, sm: 0 },
             overflow: 'hidden',
             overscrollBehavior: 'contain',
             overscrollBehaviorX: 'contain',
@@ -1624,7 +1641,6 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
                 inset: 0,
                 transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                 transformOrigin: 'center center',
-                willChange: 'transform',
               }}
             >
               <Box
@@ -1836,6 +1852,8 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
                               ? `0 6px 16px ${alpha(node.glow, 0.12)}`
                               : `0 3px 10px ${alpha(node.glow, isEpisode ? 0.1 : 0.05)}`,
                           transition: 'transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease, opacity 0.14s ease',
+                          WebkitFontSmoothing: 'antialiased',
+                          MozOsxFontSmoothing: 'grayscale',
                           '&:hover': {
                             transform: `translate(-50%, -50%) scale(${visualScale}) translateY(-2px)`,
                             boxShadow: `0 8px 18px ${alpha(node.glow, isEpisode ? 0.18 : 0.12)}`,
@@ -1912,8 +1930,8 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           sx={{
             ...CARD_VARIANTS.glassmorphism.styles,
             position: 'absolute',
-            left: 16,
-            top: 74,
+            left: { xs: 10, sm: 16 },
+            top: { xs: `${mobileOverlayTop}px`, sm: 74 },
             zIndex: 4,
             width: browserOpen ? 0 : 'fit-content',
             minWidth: browserOpen ? 0 : 0,
@@ -1955,8 +1973,9 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           spacing={0.8}
           sx={{
             position: 'absolute',
-            left: 16,
-            bottom: 16,
+            left: { xs: 10, sm: 16 },
+            right: { xs: 10, sm: 'auto' },
+            bottom: { xs: 10, sm: 16 },
             zIndex: 4,
             flexWrap: 'wrap',
           }}
@@ -1974,7 +1993,14 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 28, opacity: 0 }}
               transition={{ duration: 0.22, ease: 'easeOut' }}
-              style={{ position: 'absolute', top: 74, right: 16, bottom: 16, width: 360, zIndex: 7 }}
+              style={{
+                position: 'absolute',
+                top: isMobile ? mobileOverlayTop : 74,
+                right: isMobile ? 10 : 16,
+                bottom: isMobile ? 10 : 16,
+                width: isMobile ? 'calc(100% - 20px)' : 360,
+                zIndex: 7,
+              }}
             >
               <Card sx={{ ...CARD_VARIANTS.glassmorphism.styles, height: '100%' }}>
                 <CardContent sx={{ p: 1.25, display: 'flex', flexDirection: 'column', gap: 1.1, height: '100%', '&:last-child': { pb: 1.25 } }}>

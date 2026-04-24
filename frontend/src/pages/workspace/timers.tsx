@@ -502,7 +502,7 @@ export default function WorkspaceTimersPage() {
     <Box
       sx={{
         ...UNIFIED_TABLE_STYLES.tableLayoutContainer,
-        p: 3,
+        p: { xs: 1.5, sm: 2, md: 3 },
         height: 'calc(100vh - 64px)',
       }}
     >
@@ -511,11 +511,20 @@ export default function WorkspaceTimersPage() {
           flexShrink: 0,
           display: 'grid',
           gap: 2,
-          mb: 3,
+          mb: { xs: 1.5, md: 3 },
           gridTemplateColumns: {
-            xs: '1fr',
+            xs: 'repeat(2, minmax(0, 1fr))',
             sm: 'repeat(2, minmax(0, 1fr))',
             lg: 'repeat(5, minmax(0, 1fr))',
+          },
+          '& .MuiCard-root': {
+            minWidth: { xs: 0, sm: 140 },
+          },
+          '& .MuiCardContent-root': {
+            p: { xs: 1.25, sm: 2 },
+            '&:last-child': {
+              pb: { xs: 1.25, sm: 2 },
+            },
           },
         }}
       >
@@ -595,11 +604,11 @@ export default function WorkspaceTimersPage() {
         </Alert>
       )}
 
-      <Box sx={{ mb: 2, flexShrink: 0 }}>
+      <Box sx={{ mb: { xs: 1.25, md: 2 }, flexShrink: 0 }}>
         <Stack
-          direction={isMobile ? 'column' : 'row'}
+          direction="row"
           spacing={1.25}
-          alignItems={isMobile ? 'stretch' : 'center'}
+          alignItems="center"
           flexWrap="wrap"
           useFlexGap
         >
@@ -609,6 +618,22 @@ export default function WorkspaceTimersPage() {
           onClear={() => setSearch('')}
           placeholder={t('timers.filters.searchPlaceholder')}
           actionLabel="搜索"
+          sx={{
+            width: { xs: '100%', md: 'max-content' },
+            flex: { xs: '1 1 100%', md: '0 0 auto' },
+            gap: { xs: 0.75, sm: 0 },
+            '& > :first-of-type': {
+              width: { xs: 'auto', sm: 'max-content' },
+              flex: { xs: '1 1 0', sm: '0 0 auto' },
+            },
+            '& > :last-child': {
+              width: { xs: 'auto', sm: 'max-content' },
+            },
+            '& button': {
+              width: { xs: 'auto !important', sm: 'auto !important' },
+              minWidth: { xs: 82, sm: 88 },
+            },
+          }}
         />
         <TextField
           select
@@ -619,7 +644,7 @@ export default function WorkspaceTimersPage() {
             const value = event.target.value
             setWorkspaceId(value === '' ? '' : Number(value))
           }}
-          sx={{ minWidth: 170 }}
+          sx={{ minWidth: { xs: 0, md: 170 }, width: { xs: '100%', md: 'auto' }, flex: { xs: '1 1 100%', md: '0 0 auto' } }}
         >
           <MenuItem value="">{t('timers.filters.allWorkspaces')}</MenuItem>
           {(workspacesQuery.data ?? []).map(workspace => (
@@ -634,7 +659,7 @@ export default function WorkspaceTimersPage() {
           label={t('timers.filters.type')}
           value={taskType}
           onChange={event => setTaskType((event.target.value || '') as TimerTaskType | '')}
-          sx={{ minWidth: 130 }}
+          sx={{ minWidth: { xs: 0, md: 130 }, width: { xs: 'calc(50% - 5px)', md: 'auto' }, flex: { xs: '1 1 calc(50% - 5px)', md: '0 0 auto' } }}
         >
           <MenuItem value="">{t('timers.filters.allTypes')}</MenuItem>
           <MenuItem value="one_shot">{t('timers.types.oneShot')}</MenuItem>
@@ -646,7 +671,7 @@ export default function WorkspaceTimersPage() {
           label={t('timers.filters.status')}
           value={status}
           onChange={event => setStatus((event.target.value || '') as TimerTaskStatus | '')}
-          sx={{ minWidth: 130 }}
+          sx={{ minWidth: { xs: 0, md: 130 }, width: { xs: 'calc(50% - 5px)', md: 'auto' }, flex: { xs: '1 1 calc(50% - 5px)', md: '0 0 auto' } }}
         >
           <MenuItem value="">{t('timers.filters.allStatuses')}</MenuItem>
           <MenuItem value="active">{t('timers.status.active')}</MenuItem>
@@ -659,7 +684,7 @@ export default function WorkspaceTimersPage() {
           label={t('timers.filters.timeRange')}
           value={timeRange}
           onChange={event => setTimeRange(event.target.value as TimerTimeRange)}
-          sx={{ minWidth: 140 }}
+          sx={{ minWidth: { xs: 0, md: 140 }, width: { xs: 'calc(50% - 5px)', md: 'auto' }, flex: { xs: '1 1 calc(50% - 5px)', md: '0 0 auto' } }}
         >
           <MenuItem value="all">{t('timers.timeRange.all')}</MenuItem>
           <MenuItem value="today">{t('timers.timeRange.today')}</MenuItem>
@@ -673,7 +698,7 @@ export default function WorkspaceTimersPage() {
           label={t('timers.filters.sortBy')}
           value={sortBy}
           onChange={event => setSortBy(event.target.value as TimerSortBy)}
-          sx={{ minWidth: 150 }}
+          sx={{ minWidth: { xs: 0, md: 150 }, width: { xs: 'calc(50% - 5px)', md: 'auto' }, flex: { xs: '1 1 calc(50% - 5px)', md: '0 0 auto' } }}
         >
           <MenuItem value="next_run_asc">{t('timers.sort.nextRun')}</MenuItem>
           <MenuItem value="recent_update">{t('timers.sort.recentUpdate')}</MenuItem>
@@ -681,7 +706,7 @@ export default function WorkspaceTimersPage() {
           <MenuItem value="error_first">{t('timers.sort.errorFirst')}</MenuItem>
         </TextField>
         <Box sx={{ flexGrow: 1 }} />
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ width: { xs: 'auto', md: 'auto' }, flex: { xs: '1 1 auto', md: '0 0 auto' } }}>
           <ActionButton
             tone={quickFilter === 'errors' ? 'primary' : 'secondary'}
             startIcon={<ErrorOutlineIcon />}
@@ -717,6 +742,156 @@ export default function WorkspaceTimersPage() {
           position: 'relative',
         }}
       >
+        {isMobile ? (
+          <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 1, ...UNIFIED_TABLE_STYLES.tableViewport }}>
+            {listQuery.isLoading ? (
+              <Box sx={{ p: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  {t('timers.loading')}
+                </Typography>
+              </Box>
+            ) : pagedItems.length === 0 ? (
+              <Box sx={{ py: 4, px: 2, textAlign: 'center' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                  {items.length === 0 && activeFiltersCount === 0 && quickFilter === 'all'
+                    ? t('timers.empty.title')
+                    : t('timers.empty.filteredTitle')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {items.length === 0 && activeFiltersCount === 0 && quickFilter === 'all'
+                    ? t('timers.empty.description')
+                    : t('timers.empty.filteredDescription')}
+                </Typography>
+              </Box>
+            ) : (
+              <Stack spacing={1.25}>
+                {pagedItems.map(task => {
+                  const rule = formatTaskRule(task, t)
+                  const statusColor = getStatusColor(theme, task.status)
+                  const typeColor = getTypeColor(theme, task.task_type)
+                  const hasIssue = task.last_error || task.consecutive_failures > 0 || task.status === 'error'
+                  return (
+                    <Paper
+                      key={`${task.task_type}:${task.id}`}
+                      variant="outlined"
+                      sx={{
+                        p: 1.25,
+                        borderRadius: 2,
+                        bgcolor: alpha(theme.palette.background.paper, 0.82),
+                      }}
+                    >
+                      <Stack spacing={1}>
+                        <Stack direction="row" spacing={0.75} alignItems="flex-start">
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>
+                              {task.title || t('timers.misc.untitled')}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              ID: {task.id}
+                            </Typography>
+                          </Box>
+                          <Stack direction="row" spacing={0.5} flexWrap="wrap" justifyContent="flex-end">
+                            <Chip
+                              label={task.task_type === 'recurring' ? t('timers.types.recurring') : t('timers.types.oneShot')}
+                              size="small"
+                              sx={CHIP_VARIANTS.getCustomColorChip(typeColor, true)}
+                            />
+                            <Chip
+                              label={t(`timers.status.${task.status}`)}
+                              size="small"
+                              sx={CHIP_VARIANTS.getCustomColorChip(statusColor, true)}
+                            />
+                          </Stack>
+                        </Stack>
+
+                        <Box
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: 'auto minmax(0, 1fr)',
+                            gap: 0.75,
+                            alignItems: 'start',
+                          }}
+                        >
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            {t('timers.table.workspace')}
+                          </Typography>
+                          <Typography variant="body2" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                            {task.workspace_name || t('timers.misc.unlinkedWorkspace')}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            {t('timers.table.channel')}
+                          </Typography>
+                          <Typography variant="body2" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+                            {task.channel_name || t('timers.misc.unknownChannel')}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            {t('timers.table.rule')}
+                          </Typography>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                              {rule.primary}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {rule.secondary}
+                            </Typography>
+                          </Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                            {t('timers.table.nextRun')}
+                          </Typography>
+                          <Typography variant="body2">{formatDateTime(task.next_run_at || task.trigger_at)}</Typography>
+                        </Box>
+
+                        {hasIssue && (
+                          <Alert severity="error" sx={{ py: 0 }}>
+                            {task.last_error || t('timers.misc.failureCount', { count: task.consecutive_failures })}
+                          </Alert>
+                        )}
+
+                        <Stack direction="row" spacing={0.5} justifyContent="flex-end" flexWrap="wrap">
+                          <ActionButton size="small" tone="secondary" startIcon={<VisibilityOutlinedIcon />} onClick={() => setSelectedTask(task)}>
+                            {t('timers.actions.view')}
+                          </ActionButton>
+                          <IconActionButton
+                            size="small"
+                            disabled={!task.actionable || runNowMutation.isPending}
+                            onClick={() => runNowMutation.mutate({ taskType: task.task_type, taskId: task.id })}
+                          >
+                            <FlashOnIcon fontSize="small" />
+                          </IconActionButton>
+                          {task.task_type === 'recurring' && (
+                            <IconActionButton
+                              size="small"
+                              disabled={!task.actionable || pauseMutation.isPending || resumeMutation.isPending}
+                              onClick={() => {
+                                if (task.status === 'paused') {
+                                  resumeMutation.mutate(task.id)
+                                } else {
+                                  pauseMutation.mutate(task.id)
+                                }
+                              }}
+                            >
+                              {task.status === 'paused'
+                                ? <PlayArrowIcon fontSize="small" />
+                                : <PauseCircleOutlineIcon fontSize="small" />}
+                            </IconActionButton>
+                          )}
+                          <IconActionButton
+                            size="small"
+                            tone="danger"
+                            disabled={!task.actionable || deleteMutation.isPending}
+                            onClick={() => setConfirmDeleteTask(task)}
+                          >
+                            <DeleteOutlineIcon fontSize="small" />
+                          </IconActionButton>
+                        </Stack>
+                      </Stack>
+                    </Paper>
+                  )
+                })}
+              </Stack>
+            )}
+          </Box>
+        ) : (
         <TableContainer sx={UNIFIED_TABLE_STYLES.tableViewport}>
           <Table stickyHeader>
             <TableHead>
@@ -921,6 +1096,7 @@ export default function WorkspaceTimersPage() {
             </TableBody>
           </Table>
         </TableContainer>
+        )}
         <TablePaginationStyled
           component="div"
           count={items.length}

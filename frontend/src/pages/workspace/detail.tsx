@@ -222,17 +222,29 @@ export default function WorkspaceDetailPage() {
       />
 
       {/* Tab 导航 */}
-      <Box sx={{ px: 2, pt: 1.5, flexShrink: 0 }}>
-        <Card sx={CARD_VARIANTS.default.styles}>
+      <Box sx={{ px: { xs: 1, sm: 2 }, pt: { xs: 1, sm: 1.5 }, flexShrink: 0 }}>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, overflow: 'hidden' }}>
           <PageTabs
             value={activeTab}
             onChange={(_, val: number) => navigateToTab(WORKSPACE_DETAIL_TABS[val])}
             indicatorColor="primary"
             textColor="primary"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
             sx={{
-              px: 2,
+              px: { xs: 0.5, sm: 2 },
+              minWidth: 0,
+              '& .MuiTabs-scroller': {
+                overflowX: 'auto !important',
+              },
+              '& .MuiTabs-flexContainer': {
+                width: 'max-content',
+              },
               '& .MuiTab-root': {
                 minHeight: 48,
+                minWidth: { xs: 88, sm: 110 },
+                px: { xs: 1.5, sm: 2 },
               },
             }}
           >

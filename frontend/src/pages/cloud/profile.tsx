@@ -17,6 +17,7 @@ import {
   Divider,
   Button,
   useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import {
   Person as PersonIcon,
@@ -58,6 +59,7 @@ type PresetDetailSource = 'published' | 'favorites'
 export default function CloudProfile() {
   const navigate = useNavigate()
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [activeTab, setActiveTab] = useState<TabValue>('published')
   const [favorites, setFavorites] = useState<FavoriteItem[]>([])
   const [userPlugins, setUserPlugins] = useState<UserPlugin[]>([])
@@ -175,7 +177,7 @@ export default function CloudProfile() {
 
   if (userProfileLoading && communityAccessStatus === 'unknown') {
     return (
-      <Box sx={{ p: 3, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ p: { xs: 2, md: 3 }, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress />
       </Box>
     )
@@ -183,7 +185,7 @@ export default function CloudProfile() {
 
   if (communityAccessStatus === 'missing_api_key') {
     return (
-      <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+      <Box sx={{ p: { xs: 2, md: 3 }, height: '100%', overflow: 'auto' }}>
         <Card
           sx={{
             ...CARD_VARIANTS.default.styles,
@@ -200,7 +202,7 @@ export default function CloudProfile() {
 
   if (communityAccessStatus === 'error' && !userProfile) {
     return (
-      <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+      <Box sx={{ p: { xs: 2, md: 3 }, height: '100%', overflow: 'auto' }}>
         <Alert severity="error">{t('cloud:profile.fetchFailed')}</Alert>
       </Box>
     )
@@ -475,14 +477,26 @@ export default function CloudProfile() {
   const contentLoading = activeTab === 'published' ? publishedLoading : favoritesLoading
 
   return (
-    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 }, height: '100%', overflow: 'auto', minWidth: 0 }}>
       {/* 头部统计栏 */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'stretch' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, minmax(0, 1fr))',
+            lg: 'minmax(220px, 1.4fr) repeat(3, minmax(160px, 1fr))',
+          },
+          gap: { xs: 1.5, md: 2 },
+          mb: { xs: 2, md: 3 },
+          alignItems: 'stretch',
+          minWidth: 0,
+        }}
+      >
         <Card
           sx={{
             ...CARD_VARIANTS.default.styles,
-            flex: '1 1 0',
-            minWidth: 160,
+            minWidth: 0,
           }}
         >
           <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
@@ -503,7 +517,16 @@ export default function CloudProfile() {
                 {userProfile?.username?.[0]?.toUpperCase() || <PersonIcon />}
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
                   {userProfile?.username || t('cloud:profile.loading')}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.1 }}>
@@ -541,11 +564,28 @@ export default function CloudProfile() {
       </Box>
 
       {/* Tab 栏 */}
-      <Card sx={{ ...CARD_VARIANTS.default.styles, mb: 3 }}>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, mb: { xs: 2, md: 3 }, overflow: 'hidden' }}>
         <PageTabs
           value={activeTab}
           onChange={handleTabChange}
-          sx={{ px: { xs: 0.5, md: 2 } }}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+          sx={{
+            px: { xs: 0.5, md: 2 },
+            minWidth: 0,
+            '& .MuiTabs-scroller': {
+              overflowX: 'auto !important',
+            },
+            '& .MuiTabs-flexContainer': {
+              width: 'max-content',
+            },
+            '& .MuiTab-root': {
+              minHeight: { xs: 48, md: 52 },
+              minWidth: { xs: 116, sm: 140 },
+              px: { xs: 1.25, sm: 2 },
+            },
+          }}
         >
           <Tab
             label={t('cloud:profile.myPublished')}
@@ -603,7 +643,7 @@ export default function CloudProfile() {
         {activeTab === 'published' && !publishedLoading && (
           <>
             {(userPlugins.length > 0 || userPresets.length > 0) ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2.5, md: 3 } }}>
                 {/* 插件区 */}
                 {userPlugins.length > 0 && (
                   <Box>
@@ -619,7 +659,7 @@ export default function CloudProfile() {
                         sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                       />
                     </Box>
-                    <Grid container spacing={3}>
+                    <Grid container spacing={{ xs: 2, md: 3 }}>
                       {userPlugins.map(plugin => (
                         <Grid item xs={12} sm={6} md={4} key={`plugin-${plugin.id}`}>
                           <UserPluginCard
@@ -654,7 +694,7 @@ export default function CloudProfile() {
                         sx={{ height: 22, fontSize: '0.75rem', fontWeight: 600 }}
                       />
                     </Box>
-                    <Grid container spacing={3}>
+                    <Grid container spacing={{ xs: 2, md: 3 }}>
                       {userPresets.map(preset => (
                         <Grid item xs={12} sm={6} md={4} key={`preset-${preset.id}`}>
                           <UserPresetCard
@@ -677,9 +717,9 @@ export default function CloudProfile() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  py: 8,
+                  py: { xs: 6, md: 8 },
                   gap: 2,
-                  minHeight: 300,
+                  minHeight: { xs: 220, md: 300 },
                   border: '1px dashed',
                   borderColor: 'divider',
                   borderRadius: 2,
@@ -704,7 +744,7 @@ export default function CloudProfile() {
             )}
 
             {!favoritesLoading && favorites.length > 0 ? (
-              <Grid container spacing={3}>
+              <Grid container spacing={{ xs: 2, md: 3 }}>
                 {favorites.map(favorite => (
                   <Grid item xs={12} sm={6} md={4} key={favorite.id}>
                     <FavoriteCard
@@ -725,9 +765,9 @@ export default function CloudProfile() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    py: 8,
+                    py: { xs: 6, md: 8 },
                     gap: 2,
-                    minHeight: 300,
+                    minHeight: { xs: 220, md: 300 },
                     border: '1px dashed',
                     borderColor: 'divider',
                     borderRadius: 2,
@@ -755,6 +795,7 @@ export default function CloudProfile() {
         onClose={() => !pluginDelistLoading && setPluginDelistDialog(null)}
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
       >
         <DialogTitle>{t('cloud:pluginsMarket.delist')}</DialogTitle>
         <DialogContent>
@@ -842,6 +883,7 @@ export default function CloudProfile() {
         onClose={() => !downloading && setConfirmDialog({ open: false, favorite: null })}
         maxWidth="sm"
         fullWidth
+        fullScreen={isMobile}
       >
         <DialogTitle>
           {(confirmDialog.favorite?.targetType === 'plugin' || confirmDialog.favorite?.targetType === 'preset') &&

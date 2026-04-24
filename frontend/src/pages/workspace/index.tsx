@@ -216,7 +216,7 @@ function WorkspaceCard({
 
       <CardContent sx={{ flexGrow: 1, p: 2, pb: 1.5 }}>
         {/* 第一行：名称 + 状态点 + ID */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, pl: batchMode ? 3.5 : 0 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, pl: batchMode ? 3.5 : 0, minWidth: 0 }}>
           <Box
             sx={{
               width: 7,
@@ -235,6 +235,7 @@ function WorkspaceCard({
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              overflowWrap: 'anywhere',
               flexGrow: 1,
               minWidth: 0,
             }}
@@ -344,9 +345,9 @@ function WorkspaceCard({
           )}
 
           {/* Skill/MCP + 创建时间（同行，两端对齐） */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, minWidth: 0 }}>
             <Tooltip title={`${ws.skill_count} Skills / ${ws.mcp_count} MCP`} placement="top-start">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.4, minWidth: 0 }}>
                 <ExtensionIcon sx={{ fontSize: 13, color: ws.skill_count > 0 || ws.mcp_count > 0 ? 'text.secondary' : 'text.disabled' }} />
                 <Typography
                   variant="caption"
@@ -533,50 +534,54 @@ export default function WorkspaceListPage() {
     <Box
       sx={{
         p: 3,
+        px: { xs: 1.5, sm: 2, md: 3 },
+        py: { xs: 1.5, sm: 2, md: 3 },
         height: '100%',
         overflow: 'auto',
         ...SCROLLBAR_VARIANTS.thin.styles,
         // 底部留出批量操作栏的空间
-        pb: batchMode && selectedIds.size > 0 ? '80px' : 3,
+        pb: batchMode && selectedIds.size > 0 ? { xs: '180px', sm: '112px', md: '80px' } : { xs: 1.5, sm: 2, md: 3 },
         transition: 'padding-bottom 0.25s ease',
       }}
     >
       {/* ── 概览区 + 创建按钮 ── */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, alignItems: 'stretch' }}>
-        <StatCard
-          icon={<WorkspacesIcon sx={{ fontSize: 22 }} />}
-          value={totalCount}
-          label={t('list.statCards.total')}
-          color={theme.palette.primary.main}
-          loading={isLoading}
-        />
-        <StatCard
-          icon={<CheckCircleIcon sx={{ fontSize: 22 }} />}
-          value={activeCount}
-          label={t('list.statCards.active')}
-          color={theme.palette.success.main}
-          loading={isLoading}
-        />
-        <StatCard
-          icon={<RemoveCircleIcon sx={{ fontSize: 22 }} />}
-          value={stoppedCount}
-          label={t('list.statCards.stopped')}
-          color={theme.palette.text.secondary as string}
-          loading={isLoading}
-        />
-        <StatCard
-          icon={<ErrorOutlineIcon sx={{ fontSize: 22 }} />}
-          value={failedCount}
-          label={t('list.statCards.failed')}
-          color={theme.palette.error.main}
-          loading={isLoading}
-        />
-        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'stretch' }}>
+      <Box sx={{ display: 'flex', gap: { xs: 1.25, sm: 2 }, mb: { xs: 2, md: 3 }, alignItems: 'stretch', flexDirection: { xs: 'column', lg: 'row' } }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, sm: 2 }, flex: 1, minWidth: 0 }}>
+          <StatCard
+            icon={<WorkspacesIcon sx={{ fontSize: 22 }} />}
+            value={totalCount}
+            label={t('list.statCards.total')}
+            color={theme.palette.primary.main}
+            loading={isLoading}
+          />
+          <StatCard
+            icon={<CheckCircleIcon sx={{ fontSize: 22 }} />}
+            value={activeCount}
+            label={t('list.statCards.active')}
+            color={theme.palette.success.main}
+            loading={isLoading}
+          />
+          <StatCard
+            icon={<RemoveCircleIcon sx={{ fontSize: 22 }} />}
+            value={stoppedCount}
+            label={t('list.statCards.stopped')}
+            color={theme.palette.text.secondary as string}
+            loading={isLoading}
+          />
+          <StatCard
+            icon={<ErrorOutlineIcon sx={{ fontSize: 22 }} />}
+            value={failedCount}
+            label={t('list.statCards.failed')}
+            color={theme.palette.error.main}
+            loading={isLoading}
+          />
+        </Box>
+        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'stretch', width: { xs: '100%', lg: 'auto' } }}>
           <ActionButton
             tone="primary"
             startIcon={<AddIcon />}
             onClick={() => setCreateOpen(true)}
-            sx={{ px: 3, whiteSpace: 'nowrap' }}
+            sx={{ px: 3, whiteSpace: 'nowrap', width: { xs: '100%', lg: 'auto' } }}
           >
             {t('list.createBtn')}
           </ActionButton>
@@ -592,7 +597,7 @@ export default function WorkspaceListPage() {
 
       {/* Section 分隔标签 */}
       {!isLoading && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 }, mb: 2, flexWrap: 'wrap' }}>
           <Typography
             variant="caption"
             color="text.secondary"
@@ -600,7 +605,7 @@ export default function WorkspaceListPage() {
           >
             {t('list.sectionTitle')}
           </Typography>
-          <Box sx={{ flex: 1, height: 1, bgcolor: 'divider' }} />
+          <Box sx={{ flex: { xs: '1 1 80px', sm: 1 }, height: 1, bgcolor: 'divider' }} />
           {workspaces.length > 0 && (
             <>
               <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
@@ -697,17 +702,20 @@ export default function WorkspaceListPage() {
           elevation={12}
           sx={{
             position: 'fixed',
-            bottom: 20,
+            bottom: { xs: 12, sm: 20 },
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 1200,
-            px: 2,
+            width: { xs: 'calc(100vw - 24px)', sm: 'auto' },
+            maxWidth: 'calc(100vw - 24px)',
+            px: { xs: 1, sm: 2 },
             py: 1,
-            borderRadius: 3,
-            display: 'inline-flex',
+            borderRadius: { xs: 2, sm: 3 },
+            display: 'flex',
             alignItems: 'center',
+            justifyContent: { xs: 'center', sm: 'flex-start' },
             gap: 0.5,
-            whiteSpace: 'nowrap',
+            flexWrap: 'wrap',
             boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.2)}, 0 2px 8px ${alpha(theme.palette.common.black, 0.1)}`,
             backdropFilter: 'blur(12px)',
             bgcolor: alpha(theme.palette.background.paper, 0.97),
@@ -719,7 +727,7 @@ export default function WorkspaceListPage() {
             {t('list.batchBar.selected', { count: selectedIds.size })}
           </Typography>
 
-          <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0 }} />
+          <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0, display: { xs: 'none', sm: 'block' } }} />
 
           {/* 操作按钮组 */}
           <ActionButton
@@ -773,7 +781,7 @@ export default function WorkspaceListPage() {
             {t('list.batchBar.resetSession')}
           </ActionButton>
 
-          <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0 }} />
+          <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0, display: { xs: 'none', sm: 'block' } }} />
 
           <ActionButton
             tone="ghost"
@@ -786,7 +794,7 @@ export default function WorkspaceListPage() {
             {t('list.batchBar.setPreset')}
           </ActionButton>
 
-          <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0 }} />
+          <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0, display: { xs: 'none', sm: 'block' } }} />
 
           {/* 关闭按钮 */}
           <Tooltip title={t('list.batchBar.cancel')}>
@@ -807,7 +815,7 @@ export default function WorkspaceListPage() {
         <DialogTitle>{t('createDialog.title')}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', flexDirection: { xs: 'column', sm: 'row' } }}>
               <TextField
                 label={t('createDialog.nameLabel')}
                 required
@@ -821,7 +829,7 @@ export default function WorkspaceListPage() {
                 <IconActionButton
                   onClick={() => setNameGenOpen(true)}
                   disabled={createMutation.isPending}
-                  sx={{ mt: 1 }}
+                  sx={{ mt: { xs: 0, sm: 1 }, alignSelf: { xs: 'flex-end', sm: 'flex-start' } }}
                 >
                   <CasinoIcon />
                 </IconActionButton>
