@@ -1116,17 +1116,14 @@ export default function ConfigTable({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's' && !e.isComposing) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault()
-        if (!hasUnsavedChanges) {
-          return
-        }
         handleSaveAllChanges(false)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleSaveAllChanges, hasUnsavedChanges])
+  }, [handleSaveAllChanges])
 
   const handleReloadConfig = async () => {
     try {

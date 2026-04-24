@@ -147,10 +147,10 @@ function ResourceFieldEditor({
         <Card
           key={`${field.field_key || 'field'}-${index}`}
           variant="outlined"
-          draggable
-          onDragStart={() => setDragIndex(index)}
+          data-resource-field-card="true"
           onDragOver={event => event.preventDefault()}
           onDrop={() => handleDrop(index)}
+          onDragEnd={() => setDragIndex(null)}
           sx={{
             borderColor: dragIndex === index ? 'primary.main' : 'divider',
             backgroundColor: dragIndex === index ? alpha('#1976d2', 0.04) : 'background.paper',
@@ -159,7 +159,27 @@ function ResourceFieldEditor({
           <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
             <Stack spacing={1.25}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', cursor: 'grab' }}>
+                <Box
+                  draggable
+                  onDragStart={event => {
+                    event.stopPropagation()
+                    event.dataTransfer.effectAllowed = 'move'
+                    const card = event.currentTarget.closest('[data-resource-field-card="true"]')
+                    if (card instanceof HTMLElement) {
+                      const rect = card.getBoundingClientRect()
+                      event.dataTransfer.setDragImage(card, event.clientX - rect.left, event.clientY - rect.top)
+                    }
+                    setDragIndex(index)
+                  }}
+                  onDragEnd={() => setDragIndex(null)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    color: 'text.secondary',
+                    cursor: 'grab',
+                    '&:active': { cursor: 'grabbing' },
+                  }}
+                >
                   <DragIcon fontSize="small" />
                 </Box>
                 <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
