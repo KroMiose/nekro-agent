@@ -157,12 +157,14 @@ async def index_document(document: DBKBDocument) -> int:
 
     points: list[tuple[int, list[float], dict[str, object]]] = []
     processed_chunks = 0
+    failed_embeddings = 0
     for batch_start in range(0, len(created_chunks), _INDEX_BATCH_SIZE):
         db_batch = created_chunks[batch_start : batch_start + _INDEX_BATCH_SIZE]
         draft_batch = drafts[batch_start : batch_start + _INDEX_BATCH_SIZE]
         embeddings = await embed_batch([draft.content for draft in draft_batch])
         for db_chunk, draft, embedding in zip(db_batch, draft_batch, embeddings, strict=False):
             if embedding is None:
+                failed_embeddings += 1
                 processed_chunks += 1
                 continue
             db_chunk.embedding_ref = str(db_chunk.id)
@@ -186,6 +188,9 @@ async def index_document(document: DBKBDocument) -> int:
             total_chunks=len(created_chunks),
             processed_chunks=processed_chunks,
         )
+
+    if failed_embeddings:
+        raise RuntimeError(f"知识库向量化失败：共 {failed_embeddings}/{len(created_chunks)} 个 chunk 未能生成 embedding")
 
     await _publish_index_progress(
         document,

@@ -141,12 +141,13 @@ async def _build_kb_catalog_prompt(workspace_id: int) -> str:
         await DBKBAsset.filter(id__in=bound_asset_ids, is_enabled=True).order_by("source_path").all()
         if bound_asset_ids else []
     )
-    ready_assets = [a for a in bound_assets if a.sync_status == "ready"]
+    ready_assets = [asset for asset in bound_assets if _asset_prompt_status(asset) == "ready"]
 
     if not documents and not bound_assets:
         return "KB catalog: empty."
 
     status_counter = Counter(_document_prompt_status(document) for document in documents)
+    status_counter.update(_asset_prompt_status(asset) for asset in bound_assets)
     ready_documents = [document for document in documents if document.is_enabled and _document_prompt_status(document) == "ready"]
     prompt_limit = max(1, int(kb_tools_config.PROMPT_CATALOG_LIMIT))
     total_ready = len(ready_documents) + len(ready_assets)
