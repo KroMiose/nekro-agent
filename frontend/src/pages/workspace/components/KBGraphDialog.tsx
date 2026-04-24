@@ -5,6 +5,7 @@ import {
   ZoomIn as ZoomInIcon,
   ZoomOut as ZoomOutIcon,
   CenterFocusStrong as FitIcon,
+  ShareOutlined as RefModeIcon,
 } from '@mui/icons-material'
 import { useTranslation } from 'react-i18next'
 import type { KBDocumentListItem, KBAssetListItem } from '../../../services/api/workspace'
@@ -211,23 +212,30 @@ function buildReferencePortOffset(index: number, total: number): number {
   return (index - (total - 1) / 2) * step
 }
 
+function resolveReferenceNodes(
+  ref: KBGraphReferenceEdge,
+  nodeMap: Map<string, LayoutNode>,
+): { from: LayoutNode; to: LayoutNode } | null {
+  const from = ref.fromKind != null
+    ? nodeMap.get(`${ref.fromKind}::${ref.fromId}`)
+    : nodeMap.get(`document::${ref.fromId}`) ?? nodeMap.get(`asset::${ref.fromId}`)
+  const to = ref.toKind != null
+    ? nodeMap.get(`${ref.toKind}::${ref.toId}`)
+    : nodeMap.get(`document::${ref.toId}`) ?? nodeMap.get(`asset::${ref.toId}`)
+  if (!from || !to) return null
+  return { from, to }
+}
+
 function buildReferenceEdges(
   references: KBGraphReferenceEdge[],
   nodeMap: Map<string, LayoutNode>,
   hiddenNodeIds: Set<string>,
 ): RefEdge[] {
-  const resolveNodeForRef = (id: number, kind?: EntryKind) => {
-    if (kind != null) {
-      return nodeMap.get(`${kind}::${id}`)
-    }
-    return nodeMap.get(`document::${id}`) ?? nodeMap.get(`asset::${id}`)
-  }
-
   const candidates: ReferenceRouteCandidate[] = references
     .map((ref, index) => {
-      const from = resolveNodeForRef(ref.fromId, ref.fromKind)
-      const to = resolveNodeForRef(ref.toId, ref.toKind)
-      if (!from || !to) return null
+      const resolved = resolveReferenceNodes(ref, nodeMap)
+      if (!resolved) return null
+      const { from, to } = resolved
       if (!isCategoryInScope(to.category, from.category)) return null
       if (hiddenNodeIds.has(from.id) || hiddenNodeIds.has(to.id)) return null
 
@@ -827,6 +835,7 @@ export default function KBGraphDialog({
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set())
+  const [showAllReferences, setShowAllReferences] = useState(false)
 
   useEffect(() => {
     const el = containerRef.current
@@ -850,6 +859,11 @@ export default function KBGraphDialog({
     [layout.nodes],
   )
 
+  const activeReferenceSource = useMemo(
+    () => (hoveredId ? nodeMap.get(hoveredId) ?? null : null),
+    [hoveredId, nodeMap],
+  )
+
   const hiddenNodeIds = useMemo(() => {
     const next = new Set<string>()
     layout.nodes.forEach(node => {
@@ -862,10 +876,34 @@ export default function KBGraphDialog({
     return next
   }, [layout.nodes, collapsedCategories])
 
+  const visibleReferences = useMemo(() => {
+    if (showAllReferences) {
+      return references
+    }
+    if (activeReferenceSource == null) {
+      return []
+    }
+    return references.filter(ref => {
+      const resolved = resolveReferenceNodes(ref, nodeMap)
+      if (!resolved) return false
+      const { from, to } = resolved
+      if (activeReferenceSource.kind === 'category') {
+        return (
+          isCategoryInScope(from.category, activeReferenceSource.category) ||
+          isCategoryInScope(to.category, activeReferenceSource.category)
+        )
+      }
+      if (activeReferenceSource.entryKind !== null) {
+        return from.id === activeReferenceSource.id || to.id === activeReferenceSource.id
+      }
+      return false
+    })
+  }, [showAllReferences, activeReferenceSource, references, nodeMap])
+
   // Reference edges: only within the source category subtree, and hidden together with collapsed descendants.
   const refEdges = useMemo(
-    () => buildReferenceEdges(references, nodeMap, hiddenNodeIds),
-    [references, nodeMap, hiddenNodeIds],
+    () => buildReferenceEdges(visibleReferences, nodeMap, hiddenNodeIds),
+    [visibleReferences, nodeMap, hiddenNodeIds],
   )
 
   const visibleHierarchyEdges = useMemo(
@@ -1028,10 +1066,20 @@ export default function KBGraphDialog({
 
   const totalCount = documents.length + boundGlobalAssets.length
   const catCount = layout.nodes.filter(node => node.kind === 'category').length
+  const refEdgeStroke = alpha(theme.palette.primary.main, 0.45)
+  const refArrowFill = alpha(theme.palette.primary.main, 0.72)
   const statsLabels = [
     t('knowledge.graph.totalCount', { count: totalCount }),
     t('knowledge.graph.categoryCount', { count: catCount }),
   ]
+
+  if (references.length > 0) {
+    statsLabels.push(
+      showAllReferences
+        ? t('knowledge.graph.referenceModeAll')
+        : t('knowledge.graph.referenceModeContext'),
+    )
+  }
 
   if (refEdges.length > 0) {
     statsLabels.push(t('knowledge.graph.referenceCount', { count: refEdges.length }))
@@ -1107,6 +1155,23 @@ export default function KBGraphDialog({
             <FitIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
+        {references.length > 0 && (
+          <Tooltip
+            title={
+              showAllReferences
+                ? t('knowledge.graph.showContextReferences')
+                : t('knowledge.graph.showAllReferences')
+            }
+          >
+            <IconButton
+              size="small"
+              onClick={() => setShowAllReferences(prev => !prev)}
+              sx={{ color: showAllReferences ? 'primary.main' : 'text.secondary' }}
+            >
+              <RefModeIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Stack>
 
       {/* SVG canvas */}
@@ -1124,6 +1189,19 @@ export default function KBGraphDialog({
           height="100%"
           style={{ display: 'block', writingMode: 'horizontal-tb' }}
         >
+          <defs>
+            <marker
+              id="kb-graph-ref-arrow"
+              markerWidth="8"
+              markerHeight="8"
+              refX="7"
+              refY="4"
+              orient="auto"
+              markerUnits="userSpaceOnUse"
+            >
+              <path d="M 0 1.2 L 7 4 L 0 6.8 L 1.8 4 z" fill={refArrowFill} />
+            </marker>
+          </defs>
           <g transform={`translate(${transform.x},${transform.y}) scale(${transform.scale})`}>
 
             {/* Layer 1: hierarchy edges — left-to-right directory tree */}
@@ -1148,11 +1226,12 @@ export default function KBGraphDialog({
                 key={edge.key || `ref-${i}`}
                 d={edge.path}
                 fill="none"
-                stroke={alpha(theme.palette.primary.main, 0.45)}
+                stroke={refEdgeStroke}
                 strokeWidth={edge.strokeWidth}
                 strokeDasharray="5,3"
                 strokeLinejoin="round"
                 strokeLinecap="round"
+                markerEnd="url(#kb-graph-ref-arrow)"
                 pointerEvents="none"
               />
             ))}
@@ -1326,7 +1405,7 @@ export default function KBGraphDialog({
           userSelect: 'none',
         }}
       >
-        {t('knowledge.graph.hint')}
+        {t(showAllReferences ? 'knowledge.graph.hintAll' : 'knowledge.graph.hintContext')}
       </Typography>
     </Box>
   )

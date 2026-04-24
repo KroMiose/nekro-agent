@@ -1256,13 +1256,18 @@
       "totalCount": "{{count}} items",
       "categoryCount": "{{count}} categories",
       "referenceCount": "{{count}} references",
+      "referenceModeContext": "Context refs",
+      "referenceModeAll": "All refs",
       "collapsedCount": "{{count}} collapsed",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
       "fit": "Fit to screen",
+      "showAllReferences": "Show all references",
+      "showContextReferences": "Show references only on hover",
       "expandCategory": "Expand category {{category}}",
       "collapseCategory": "Collapse category {{category}}",
-      "hint": "Wheel to zoom · Drag to pan · Click categories to collapse or expand · Click nodes to open details"
+      "hintContext": "Wheel to zoom · Drag to pan · Click categories to collapse or expand · Hover nodes to inspect related references · Click nodes to open details",
+      "hintAll": "Wheel to zoom · Drag to pan · Click categories to collapse or expand · All references are currently visible · Click nodes to open details"
     },
     "batchPanel": {
       "inProgress": "Uploading {{done}}/{{total}}",

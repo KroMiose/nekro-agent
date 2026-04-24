@@ -1256,13 +1256,18 @@
       "totalCount": "{{count}} 项",
       "categoryCount": "{{count}} 个分类",
       "referenceCount": "{{count}} 条引用",
+      "referenceModeContext": "引用按需",
+      "referenceModeAll": "引用全显",
       "collapsedCount": "{{count}} 类已收起",
       "zoomIn": "放大",
       "zoomOut": "缩小",
       "fit": "适应屏幕",
+      "showAllReferences": "显示全部引用",
+      "showContextReferences": "仅按悬停显示引用",
       "expandCategory": "展开分类 {{category}}",
       "collapseCategory": "收起分类 {{category}}",
-      "hint": "滚轮缩放 · 拖拽平移 · 点击分类收起或展开 · 点击节点打开详情"
+      "hintContext": "滚轮缩放 · 拖拽平移 · 点击分类收起或展开 · 悬停节点查看相关引用 · 点击节点打开详情",
+      "hintAll": "滚轮缩放 · 拖拽平移 · 点击分类收起或展开 · 当前显示全部引用 · 点击节点打开详情"
     },
     "batchPanel": {
       "inProgress": "上传中 {{done}}/{{total}}",
