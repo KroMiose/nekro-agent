@@ -456,7 +456,9 @@ async def gen_openai_chat_response(
     def _extract_valid_delta(chunk: ChatCompletionChunk) -> Optional[Any]:
         delta = chunk.choices[0].delta if chunk.choices else None
         if not delta:
-            if not chunk.usage:
+            if chunk.usage:
+                logger.debug(f"OpenAI流式生成: 收到仅包含 usage 的空 choices 块 {chunk}")
+            else:
                 logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
             return None
         return delta
@@ -465,6 +467,7 @@ async def gen_openai_chat_response(
         nonlocal output, thought_chain, token_consumption, token_input, token_output, first_token_time
 
         if chunk.usage:
+            # include_usage 返回的是整次流式响应的最终统计值，而不是当前 chunk 的增量。
             if chunk.usage.total_tokens is not None:
                 token_consumption = chunk.usage.total_tokens
             if chunk.usage.prompt_tokens is not None:
