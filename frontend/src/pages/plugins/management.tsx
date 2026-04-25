@@ -301,7 +301,9 @@ function PluginDetails({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        minHeight: 0,
         gap: 2,
+        overflow: 'hidden',
       }}
     >
       {/* 标题和总开关 */}
@@ -542,7 +544,7 @@ function PluginDetails({
       </Card>
 
       {/* 选项卡内容 */}
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {activeTab === 0 && (
           <Stack spacing={2}>
             {/* 插件信息 */}
@@ -1148,7 +1150,7 @@ function PluginDetails({
                                 </ActionButton>
                                 <ActionButton
                                   size="small"
-                                  color="error"
+                                  tone="danger"
                                   startIcon={<DeleteIcon fontSize="small" />}
                                   onClick={() => {
                                     setDeleteDataId(data.id)
@@ -1156,6 +1158,7 @@ function PluginDetails({
                                   }}
                                   sx={{
                                     textTransform: 'none',
+                                    color: 'error.main',
                                     '&:hover': {
                                       backgroundColor: 'transparent',
                                       textDecoration: 'underline',
@@ -1640,7 +1643,7 @@ export default function PluginsManagementPage() {
 
   const pluginListContent = (
     <>
-      <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+      <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', flexShrink: 0, bgcolor: 'background.paper' }}>
         <TextField
           placeholder={t('list.search')}
           size="small"
@@ -1672,7 +1675,7 @@ export default function PluginsManagementPage() {
         />
       </Box>
 
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', bgcolor: 'background.paper' }}>
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
             <CircularProgress />
@@ -1791,9 +1794,12 @@ export default function PluginsManagementPage() {
     <Box
       sx={{
         display: 'flex',
-        height: 'calc(100vh - 64px)',
+        height: '100%',
+        minHeight: 0,
         gap: 1,
-        p: 2,
+        p: { xs: 1, sm: 2 },
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       {isMobile ? (
@@ -1804,14 +1810,15 @@ export default function PluginsManagementPage() {
             onClose={() => setDrawerOpen(false)}
             PaperProps={{
               sx: {
-                width: isSmall ? '85%' : '75%',
-                maxWidth: 320,
-                boxShadow: 3,
-                backgroundColor: 'transparent',
-                backdropFilter: 'blur(20px)',
+                width: isSmall ? 'min(88vw, 360px)' : 360,
+                maxWidth: '100vw',
+                backgroundColor: 'background.paper',
+                backgroundImage: 'none',
                 borderRight: `1px solid ${theme.palette.divider}`,
                 display: 'flex',
                 flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: theme.shadows[12],
               },
             }}
           >
@@ -1819,7 +1826,7 @@ export default function PluginsManagementPage() {
           </Drawer>
 
           {/* 移动端主内容区 */}
-          <Box sx={{ flex: 1, overflow: 'auto' }}>
+          <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
             {selectedPlugin ? (
               <PluginDetails
                 plugin={selectedPlugin}
@@ -1870,7 +1877,7 @@ export default function PluginsManagementPage() {
           </Card>
 
           {/* 右侧插件详情 */}
-          <Box sx={{ flex: 1, overflow: 'auto' }}>
+          <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
             {selectedPlugin ? (
               <PluginDetails
                 plugin={selectedPlugin}
@@ -1906,7 +1913,7 @@ export default function PluginsManagementPage() {
       )}
 
       {/* 移动端展示插件列表的Fab按钮 - 始终可见 */}
-      {isMobile && (
+      {isMobile && !drawerOpen && (
         <Fab
           color="primary"
           size={isSmall ? 'medium' : 'large'}
@@ -1915,7 +1922,7 @@ export default function PluginsManagementPage() {
             position: 'fixed',
             bottom: 16,
             right: 16,
-            zIndex: 1099,
+            zIndex: theme.zIndex.drawer - 1,
             boxShadow: 3,
           }}
         >

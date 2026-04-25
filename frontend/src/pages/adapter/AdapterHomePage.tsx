@@ -33,7 +33,7 @@ export default function AdapterHomePage() {
       sx={{
         height: '100%',
         overflow: 'auto',
-        p: 2,
+        p: { xs: 1.5, sm: 2 },
         '&::-webkit-scrollbar': { width: '6px' },
         '&::-webkit-scrollbar-thumb': {
           backgroundColor: theme.palette.divider,
@@ -44,7 +44,7 @@ export default function AdapterHomePage() {
       {/* 适配器文档 */}
       {docsLoading ? (
         <Card sx={CARD_VARIANTS.default.styles}>
-          <CardContent sx={{ p: 3, textAlign: 'center' }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 }, textAlign: 'center' }}>
             <CircularProgress size={32} />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
               {t('home.loadingDocs')}
@@ -57,8 +57,8 @@ export default function AdapterHomePage() {
         </Alert>
       ) : docs?.exists ? (
         <Card sx={CARD_VARIANTS.default.styles}>
-          <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: { xs: 2, sm: 3 }, minWidth: 0 }}>
               <DescriptionIcon color="primary" />
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 {t('home.adapterDocs')}

@@ -127,9 +127,9 @@ export default function McpServicesPage() {
   }
 
   return (
-    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 3 }}>
+    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: { xs: 1.5, sm: 2, md: 3 }, overflow: 'auto' }}>
       {/* Stat cards */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', flexShrink: 0 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, sm: 2 }, mb: { xs: 1.5, md: 3 }, flexShrink: 0 }}>
         <StatCard label={t('mcpServices.stats.total')} value={stats.total} icon={<AutoInjectIcon sx={{ fontSize: 20 }} />} color={theme.palette.primary.main} />
         <StatCard label={t('mcpServices.stats.stdio')} value={stats.stdio} icon={<TerminalIcon sx={{ fontSize: 20 }} />} color={theme.palette.info.main} />
         <StatCard label={t('mcpServices.stats.sse')} value={stats.sse} icon={<HttpIcon sx={{ fontSize: 20 }} />} color={theme.palette.warning.main} />

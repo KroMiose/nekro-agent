@@ -111,23 +111,24 @@ const PresetCard = ({
         },
       }}
     >
-      <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
-        <Box sx={{ display: 'flex', gap: 2.5, mb: 2 }}>
+      <CardContent sx={{ flexGrow: 1, p: { xs: 1.5, sm: 2.5 }, pb: 1 }}>
+        <Box sx={{ display: 'flex', gap: { xs: 1.25, sm: 2.5 }, mb: 2, alignItems: 'flex-start' }}>
           {/* 头像 */}
           <Avatar
             src={preset.avatar}
             alt={preset.name}
             variant="rounded"
             sx={{
-              width: 100,
-              height: 100,
+              flexShrink: 0,
+              width: { xs: 72, sm: 100 },
+              height: { xs: 72, sm: 100 },
               borderRadius: 2,
               boxShadow: '0 3px 10px rgba(0,0,0,0.1)',
             }}
           />
 
           {/* 基本信息 */}
-          <Box sx={{ flexGrow: 1 }}>
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
             <Typography
               variant="h6"
               gutterBottom
@@ -154,7 +155,7 @@ const PresetCard = ({
             >
               {preset.description || t('presetsMarket.noDescription')}
             </Typography>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', minWidth: 0 }}>
               <Typography variant="caption" color="text.secondary">
                 {t('presetsMarket.author')}: {preset.author || t('presetsMarket.unknownAuthor')}
               </Typography>
@@ -198,6 +199,8 @@ const PresetCard = ({
       <CardActions
         sx={{
           justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 1,
           p: 1.5,
           bgcolor: UI_STYLES.SELECTED,
           borderTop: '1px solid',
@@ -344,10 +347,10 @@ export default function PresetsMarket() {
   }
 
   return (
-    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 }, height: '100%', overflow: 'auto' }}>
       <Box
         sx={{
-          mb: 4,
+          mb: { xs: 2, md: 4 },
           display: 'flex',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
@@ -364,11 +367,12 @@ export default function PresetsMarket() {
           actionLabel={loading ? t('presetsMarket.searching') : t('presetsMarket.search')}
           actionDisabled={loading}
         />
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
           <ActionButton
             tone="primary"
             startIcon={<AddIcon />}
             onClick={() => navigate('/presets')}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
             {t('presetsMarket.publishPreset')}
           </ActionButton>
@@ -424,7 +428,7 @@ export default function PresetsMarket() {
 
         {presets.length > 0 ? (
           <>
-            <Grid container spacing={3}>
+            <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
               {presets.map(preset => (
                 <Grid item xs={12} sm={6} md={4} key={preset.remote_id}>
                   <PresetCard

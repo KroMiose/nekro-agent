@@ -44,7 +44,7 @@ export default function AdapterOverrideConfigPage() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        p: 2,
+        p: { xs: 1, sm: 2 },
       }}
     >
       <ConfigTable

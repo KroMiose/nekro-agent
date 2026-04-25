@@ -90,8 +90,8 @@ function CapabilityCard({
     <Card
       sx={{
         ...CARD_VARIANTS.default.styles,
-        flex: '1 1 0',
-        minWidth: 130,
+        minWidth: 0,
+        height: '100%',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'transform 0.15s ease, box-shadow 0.15s ease',
         '&:hover': onClick
@@ -103,14 +103,14 @@ function CapabilityCard({
       }}
       onClick={onClick}
     >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
+      <CardContent sx={{ p: { xs: 1.25, sm: 2 }, '&:last-child': { pb: { xs: 1.25, sm: 2 } } }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: { xs: 1, sm: 1.5 }, minWidth: 0 }}>
           <Box
             sx={{
               color,
               bgcolor: alpha(color, 0.12),
-              borderRadius: 2,
-              p: 1,
+              borderRadius: 1.5,
+              p: { xs: 0.75, sm: 1 },
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -128,13 +128,23 @@ function CapabilityCard({
                 {value ?? '—'}
               </Typography>
             )}
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', lineHeight: 1.35 }}>
               {label}
             </Typography>
             {subtitle && !loading && (
               <Typography
                 variant="caption"
-                sx={{ display: 'block', color: alpha(theme.palette.text.secondary as string, 0.7), fontSize: '0.68rem', mt: 0.2 }}
+                sx={{
+                  display: '-webkit-box',
+                  color: alpha(theme.palette.text.secondary as string, 0.7),
+                  fontSize: '0.68rem',
+                  lineHeight: 1.35,
+                  mt: 0.2,
+                  overflow: 'hidden',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  wordBreak: 'break-word',
+                }}
               >
                 {subtitle}
               </Typography>
@@ -165,11 +175,11 @@ function InfoRow({
   children?: React.ReactNode
 }) {
   return (
-    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 0.25, sm: 1 }, alignItems: 'flex-start', minWidth: 0 }}>
       <Typography
         variant="body2"
         color="text.secondary"
-        sx={{ minWidth: 80, flexShrink: 0, pt: '1px' }}
+        sx={{ minWidth: { xs: 0, sm: 80 }, flexShrink: 0, pt: '1px', fontSize: { xs: '0.78rem', sm: '0.875rem' } }}
       >
         {label}
       </Typography>
@@ -180,6 +190,7 @@ function InfoRow({
             fontFamily: mono ? 'monospace' : undefined,
             wordBreak: 'break-all',
             fontSize: mono ? '0.8rem' : undefined,
+            minWidth: 0,
           }}
         >
           {value ?? '—'}
@@ -499,7 +510,17 @@ export default function OverviewTab({
       />
 
       {/* ── 能力速览卡 ── */}
-      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'repeat(2, minmax(0, 1fr))',
+            sm: 'repeat(3, minmax(0, 1fr))',
+            lg: 'repeat(6, minmax(0, 1fr))',
+          },
+          gap: { xs: 1, sm: 1.5 },
+        }}
+      >
         <CapabilityCard
           icon={<HubIcon sx={{ fontSize: 20 }} />}
           label={t('detail.overview.statCards.channels')}
@@ -559,21 +580,21 @@ export default function OverviewTab({
       {/* ── 双列：工作区身份 + CC 运行状态 ── */}
       <Box
         sx={{
-          display: 'flex',
-          gap: 2,
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' },
+          gap: { xs: 1.5, sm: 2 },
           alignItems: 'stretch',
-          flexDirection: { xs: 'column', lg: 'row' },
         }}
       >
         {/* 左：工作区身份 */}
-        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1, minWidth: 0 }}>
-          <CardContent>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, minWidth: 0 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
             <Box sx={{ mb: 1.5 }}>
               <Typography variant="subtitle1" fontWeight={700} lineHeight={1.25}>
                 {workspace.name}
               </Typography>
               {workspace.description ? (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.55, wordBreak: 'break-word' }}>
                   {workspace.description}
                 </Typography>
               ) : (
@@ -593,7 +614,7 @@ export default function OverviewTab({
                 />
               </InfoRow>
               <InfoRow label={t('detail.overview.infoRows.image')}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', minWidth: 0 }}>
                   <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>
                     {imageCheckQuery.data?.image ?? `${workspace.sandbox_image || t('detail.overview.defaultImage')}:${workspace.sandbox_version || 'latest'}`}
                   </Typography>
@@ -623,9 +644,9 @@ export default function OverviewTab({
         </Card>
 
         {/* 右：沙盒运行摘要 */}
-        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1, minWidth: 0 }}>
-          <CardContent>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5, gap: 1 }}>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, minWidth: 0 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5, gap: 1, flexWrap: 'wrap' }}>
               <Typography variant="subtitle2" fontWeight={600} sx={{ flexGrow: 1 }}>
                 {t('detail.overview.sections.sandboxStatus')}
               </Typography>
@@ -634,7 +655,7 @@ export default function OverviewTab({
                 size="small"
                 endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
                 onClick={onNavigateToSandbox}
-                sx={{ minWidth: 0, px: 1.2, fontSize: '0.75rem' }}
+                sx={{ minWidth: 0, px: 1.2, fontSize: '0.75rem', width: { xs: '100%', sm: 'auto' } }}
               >
                 {t('detail.overview.manage')}
               </ActionButton>
@@ -650,7 +671,7 @@ export default function OverviewTab({
                   />
                   <Typography
                     variant="body2"
-                    sx={{ fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}
+                    sx={{ fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all', minWidth: 0 }}
                   >
                     {containerName ?? '—'}
                   </Typography>
@@ -660,10 +681,10 @@ export default function OverviewTab({
               <InfoRow label={t('detail.overview.infoRows.sessionId')} value={sandboxStatus?.session_id ?? '—'} mono />
               <InfoRow label={t('detail.overview.infoRows.versionInfo')} value={versionInfo || '—'} mono />
               <InfoRow label={t('detail.overview.infoRows.modelGroup')}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, width: '100%' }}>
                   <Typography
                     variant="body2"
-                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.82rem' }}
+                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.82rem', minWidth: 0 }}
                   >
                     {currentPreset ? currentPreset.name : allPresets.length === 0 ? t('detail.overview.loading') : t('detail.overview.notConfigured')}
                   </Typography>
@@ -686,9 +707,9 @@ export default function OverviewTab({
               </InfoRow>
               {workspace.last_heartbeat && (
                 <InfoRow label={t('detail.overview.infoRows.lastHeartbeat')}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
                     <HeartbeatIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                    <Typography variant="body2" sx={{ fontSize: '0.82rem' }}>
+                    <Typography variant="body2" sx={{ fontSize: '0.82rem', wordBreak: 'break-word' }}>
                       {new Date(workspace.last_heartbeat).toLocaleString()}
                     </Typography>
                   </Box>
@@ -718,10 +739,10 @@ export default function OverviewTab({
 
       {/* ── 频道绑定 ── */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <SectionHeader title={t('detail.overview.channels.title')} />
 
-          <Box sx={{ display: 'flex', gap: 1, mb: 1.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, mb: 1.5 }}>
             <Autocomplete
               fullWidth
               options={autocompleteOptions}
@@ -774,7 +795,7 @@ export default function OverviewTab({
               size="small"
               disabled={!selectedChannel || alreadyBound || bindMutation.isPending}
               onClick={() => selectedChannel && bindMutation.mutate(selectedChannel.chat_key)}
-              sx={{ minWidth: 64, flexShrink: 0 }}
+              sx={{ minWidth: 64, flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
             >
               {bindMutation.isPending ? (
                 <CircularProgress size={14} />
@@ -943,7 +964,7 @@ export default function OverviewTab({
 
       {/* ── 协作现状摘要 ── */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <SectionHeader
             title={t('detail.overview.sections.naContext')}
             action={

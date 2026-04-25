@@ -1194,17 +1194,17 @@ export default function PluginsMarket() {
 
   if (error && plugins.length === 0) {
     return (
-      <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+      <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 }, height: '100%', overflow: 'auto' }}>
         <Alert severity="error">{error}</Alert>
       </Box>
     )
   }
 
   return (
-    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+    <Box sx={{ p: { xs: 1.5, sm: 2, md: 3 }, height: '100%', overflow: 'auto' }}>
       <Box
         sx={{
-          mb: 4,
+          mb: { xs: 2, md: 4 },
           display: 'flex',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
@@ -1222,11 +1222,12 @@ export default function PluginsMarket() {
           actionDisabled={loading}
         />
 
-        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
           <ActionButton
             tone="primary"
             startIcon={<AddIcon />}
             onClick={() => setCreateDialogOpen(true)}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
             发布插件
           </ActionButton>
@@ -1282,7 +1283,7 @@ export default function PluginsMarket() {
 
         {plugins.length > 0 ? (
           <>
-            <Grid container spacing={3}>
+            <Grid container spacing={{ xs: 1.5, sm: 2, md: 3 }}>
               {plugins.map(plugin => (
                 <Grid item xs={12} sm={6} md={4} key={plugin.id}>
                   <PluginCard

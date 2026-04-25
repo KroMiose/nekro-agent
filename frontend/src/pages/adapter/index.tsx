@@ -63,7 +63,7 @@ export default function AdapterHubPage() {
   return (
     <Box
       sx={{
-        p: 3,
+        p: { xs: 1.5, sm: 2, md: 3 },
         height: '100%',
         minHeight: 0,
         display: 'flex',
@@ -94,7 +94,7 @@ export default function AdapterHubPage() {
             lg: 'repeat(3, minmax(0, 1fr))',
             xl: 'repeat(4, minmax(0, 1fr))',
           },
-          gap: 2,
+          gap: { xs: 1.25, sm: 2 },
           alignContent: 'start',
           overflow: 'auto',
         }}

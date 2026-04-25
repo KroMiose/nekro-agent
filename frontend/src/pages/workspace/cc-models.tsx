@@ -721,6 +721,7 @@ export default function CCModelsPage() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        p: { xs: 1, sm: 0 },
       }}
     >
       {/* 顶部提示 */}
@@ -739,6 +740,7 @@ export default function CCModelsPage() {
           mb: 1.5,
           flexShrink: 0,
           gap: 1,
+          flexDirection: { xs: 'column', sm: 'row' },
         }}
       >
         <SearchField
@@ -746,14 +748,14 @@ export default function CCModelsPage() {
           value={searchText}
           onChange={setSearchText}
           placeholder={t('ccModels.actions.searchPlaceholder')}
-          sx={{ flex: 1 }}
+          sx={{ flex: 1, width: '100%' }}
         />
         <ActionButton
           tone="primary"
           startIcon={<AddIcon />}
           onClick={handleAdd}
           size="small"
-          sx={{ height: 40, whiteSpace: 'nowrap', flexShrink: 0 }}
+          sx={{ height: 40, whiteSpace: 'nowrap', flexShrink: 0, width: { xs: '100%', sm: 'auto' } }}
         >
           {t('ccModels.createBtn')}
         </ActionButton>
@@ -778,7 +780,16 @@ export default function CCModelsPage() {
             ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
           }}
         >
-          <Table stickyHeader size="medium" sx={{ minWidth: 700 }}>
+          <Table
+            stickyHeader
+            size="medium"
+            sx={{
+              minWidth: { xs: 560, sm: 700 },
+              '& th:nth-of-type(2), & td:nth-of-type(2), & th:nth-of-type(5), & td:nth-of-type(5), & th:nth-of-type(6), & td:nth-of-type(6)': {
+                display: { xs: 'none', md: 'table-cell' },
+              },
+            }}
+          >
             <TableHead>
               <TableRow>
                 <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 80, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
