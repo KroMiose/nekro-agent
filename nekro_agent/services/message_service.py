@@ -369,14 +369,16 @@ class MessageService:
         should_ignore = (user and user.is_prevent_trigger) or (user and not user.is_active)
 
         # 检查是否需要触发回复
-        should_trigger = (
+        explicit_triggered = (
             trigger_agent
             or signal == MsgSignal.FORCE_TRIGGER
             or preset.name in message.content_text
             or message.is_tome
-            or random_chat_check(config)
-            or check_content_trigger(message.content_text, config)
         )
+        random_triggered = random_chat_check(config)
+        content_triggered = check_content_trigger(message.content_text, config)
+        should_trigger = explicit_triggered or random_triggered or content_triggered
+        should_notify_quota_exhausted = explicit_triggered or content_triggered
 
         if not should_ignore and should_trigger:
             if not db_chat_channel.is_active:
@@ -418,6 +420,8 @@ class MessageService:
 
                     if daily_count >= effective_limit:
                         logger.info(f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复")
+                        if not should_notify_quota_exhausted:
+                            return
                         # 通过适配器发送可见通知
                         quota_msg = f"今日回复配额已用完 ({daily_count}/{effective_limit})，请明天再试或联系管理员使用 /quota_boost 临时提升配额"
                         try:
@@ -454,6 +458,8 @@ class MessageService:
 
                         if hourly_count >= hourly_limit:
                             logger.info(f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复")
+                            if not should_notify_quota_exhausted:
+                                return
                             hourly_msg = f"本小时回复配额已用完 ({hourly_count}/{hourly_limit})，请稍后再试"
                             try:
                                 adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
