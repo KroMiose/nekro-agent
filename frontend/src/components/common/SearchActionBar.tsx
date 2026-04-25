@@ -34,7 +34,7 @@ export default function SearchActionBar({
 
   const baseSx = {
     display: { xs: 'flex', sm: 'inline-grid' },
-    flexDirection: { xs: 'column', sm: 'row' },
+    flexDirection: { xs: 'column' },
     width: { xs: '100%', sm: 'max-content' },
     gridTemplateColumns: { sm: 'max-content max-content' },
     justifyItems: 'start',
