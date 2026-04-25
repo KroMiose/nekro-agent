@@ -34,6 +34,7 @@ export default function SearchActionBar({
 
   const baseSx = {
     display: { xs: 'flex', sm: 'inline-grid' },
+    flexDirection: { xs: 'column', sm: 'row' },
     width: { xs: '100%', sm: 'max-content' },
     gridTemplateColumns: { sm: 'max-content max-content' },
     justifyItems: 'start',
@@ -71,7 +72,7 @@ export default function SearchActionBar({
             flexShrink: 0,
             flex: '0 0 auto',
             '& .MuiOutlinedInput-root': {
-              borderRadius: `${BORDER_RADIUS.DEFAULT}px`,
+              borderRadius: BORDER_RADIUS.DEFAULT,
               '@media (min-width:600px)': {
                 borderTopRightRadius: '0 !important',
                 borderBottomRightRadius: '0 !important',
@@ -104,7 +105,7 @@ export default function SearchActionBar({
             minWidth: { xs: '100%', sm: 88 },
             flex: '0 0 auto',
             marginLeft: { xs: 0, sm: '-1px' },
-            borderRadius: `${BORDER_RADIUS.DEFAULT}px`,
+            borderRadius: BORDER_RADIUS.DEFAULT,
             whiteSpace: 'nowrap',
             '@media (min-width:600px)': {
               borderTopLeftRadius: '0 !important',

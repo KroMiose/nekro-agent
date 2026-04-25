@@ -503,11 +503,11 @@ export default function ExtensionsTab({
       <Card sx={CARD_VARIANTS.default.styles}>
         <CardContent>
           {/* 标题行 */}
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
               {t('detail.extensions.skillsCardTitle')}
             </Typography>
-            <Box sx={{ flexGrow: 1 }} />
+              <Box sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }} />
             <ActionButton
               size="small"
               variant={hasUnsavedChanges ? 'contained' : 'outlined'}
@@ -858,10 +858,10 @@ export default function ExtensionsTab({
         {drawerDynamic && (
           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Drawer header */}
-            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ px: { xs: 1.5, sm: 2 }, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }} noWrap>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3, minWidth: 0 }} noWrap>
                     {drawerDynamic.name || drawerDynamic.dir_name}
                   </Typography>
                   <Chip label={t('detail.extensions.skillChipCC')} size="small" color="secondary" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
@@ -909,13 +909,15 @@ export default function ExtensionsTab({
             </Box>
 
             {/* Drawer body: file tree + content pane */}
-            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, overflow: 'hidden' }}>
               {/* Left: File tree */}
               <Box
                 sx={{
-                  width: 200,
-                  minWidth: 200,
-                  borderRight: '1px solid',
+                  width: { xs: '100%', md: 200 },
+                  minWidth: { xs: 0, md: 200 },
+                  maxHeight: { xs: 180, md: 'none' },
+                  borderRight: { xs: 0, md: '1px solid' },
+                  borderBottom: { xs: '1px solid', md: 0 },
                   borderColor: 'divider',
                   overflow: 'auto',
                   bgcolor: (th) => alpha(th.palette.background.default, 0.5),
@@ -991,13 +993,14 @@ export default function ExtensionsTab({
                       py: 0.75,
                       display: 'flex',
                       alignItems: 'center',
+                      flexWrap: 'wrap',
                       gap: 0.5,
                       borderBottom: '1px solid',
                       borderColor: 'divider',
                       bgcolor: (th) => alpha(th.palette.background.default, 0.3),
                     }}
                   >
-                    <Typography variant="caption" sx={{ fontWeight: 500, flex: 1 }} noWrap>
+                    <Typography variant="caption" sx={{ fontWeight: 500, flex: '1 1 160px', minWidth: 0 }} noWrap>
                       {dynSelectedFile}
                     </Typography>
 
@@ -1037,7 +1040,7 @@ export default function ExtensionsTab({
 
                     {isTextFile(dynSelectedFile) && (
                       dynEditing ? (
-                        <Stack direction="row" spacing={0.5}>
+                        <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
                           <ActionButton
                             size="small"
                             variant="contained"

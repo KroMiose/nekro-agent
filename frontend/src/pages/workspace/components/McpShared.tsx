@@ -86,7 +86,7 @@ export function KeyValueEditor({
   return (
     <Box>
       {entries.map(([k, v], i) => (
-        <Box key={i} sx={{ display: 'flex', gap: 1, mb: 0.5, alignItems: 'center' }}>
+        <Box key={i} sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, mb: 0.75, alignItems: { xs: 'stretch', sm: 'center' } }}>
           <TextField size="small" label={keyLabel} value={k} onChange={e => handleChange(k, 'key', e.target.value)} sx={{ flex: 1 }} />
           <TextField size="small" label={valueLabel} value={v} onChange={e => handleChange(k, 'value', e.target.value)} sx={{ flex: 2 }} />
           <IconActionButton size="small" onClick={() => handleRemove(k)}><DeleteIcon fontSize="small" /></IconActionButton>
@@ -318,7 +318,7 @@ export function McpServerManager({
     <Stack spacing={2}>
       {/* Toolbar */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+        <Box sx={{ px: { xs: 1.5, sm: 2 }, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap', flex: '1 1 520px', minWidth: 0 }}>
             {title && (
               <Typography variant="subtitle2" sx={{ fontWeight: 600, flexShrink: 0 }}>
@@ -327,7 +327,7 @@ export function McpServerManager({
             )}
             {toolbarFilters}
           </Box>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', marginLeft: 'auto' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', marginLeft: 'auto', width: { xs: '100%', sm: 'auto' } }}>
             {toolbarActions}
             {viewMode !== 'json' && (
               <>
@@ -420,9 +420,9 @@ export function McpServerManager({
             ))}
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fill, minmax(260px, 1fr))' }, gap: 2 }}>
             {servers.map(server => (
-              <Card key={server.name} sx={{ ...CARD_VARIANTS.default.styles, width: 280, opacity: server.enabled ? 1 : 0.6, transition: 'all 0.2s ease' }}>
+              <Card key={server.name} sx={{ ...CARD_VARIANTS.default.styles, minWidth: 0, opacity: server.enabled ? 1 : 0.6, transition: 'all 0.2s ease' }}>
                 <Box sx={{ p: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: server.enabled ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
@@ -454,12 +454,12 @@ export function McpServerManager({
             {servers.map((server, index) => (
               <Box key={server.name}>
                 {index > 0 && <Divider />}
-                <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 1.25, gap: 1.5, ...UNIFIED_TABLE_STYLES.row }}>
+                <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, flexWrap: { xs: 'wrap', sm: 'nowrap' }, px: { xs: 1.25, sm: 2 }, py: 1.25, gap: { xs: 0.75, sm: 1.5 }, ...UNIFIED_TABLE_STYLES.row }}>
                   <Chip label={server.type.toUpperCase()} size="small" color={typeColor(server.type) as 'info' | 'warning' | 'success'} variant="outlined" sx={{ fontSize: '0.7rem', height: 22, width: 64, flexShrink: 0 }} />
                   <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600, flexShrink: 0 }}>{server.name}</Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, flexDirection: { xs: 'column', sm: 'row' } }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, flexShrink: 0, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>{server.name}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: { xs: 'normal', sm: 'nowrap' }, wordBreak: 'break-all', fontFamily: 'monospace' }}>
                         {server.type === 'stdio' ? `${server.command ?? ''} ${(server.args ?? []).join(' ')}` : server.url ?? ''}
                       </Typography>
                     </Box>

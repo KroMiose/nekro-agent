@@ -306,6 +306,7 @@ function TerminalPanel({ workspaceId, isActive }: { workspaceId: number; isActiv
           py: 0.75,
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: 1.5,
           borderBottom: `1px solid ${theme.palette.divider}`,
           flexShrink: 0,
@@ -349,6 +350,7 @@ function TerminalPanel({ workspaceId, isActive }: { workspaceId: number; isActiv
           overflow: 'hidden',
           position: 'relative',
           '& .xterm': { height: '100%', padding: '8px' },
+          '& .xterm-screen, & .xterm-rows': { maxWidth: '100%' },
           '& .xterm-viewport': { overflowY: 'auto !important' },
         }}
       >
@@ -477,7 +479,7 @@ export default function SandboxTab({
   ]
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 1.5, overflow: { xs: 'auto', md: 'hidden' } }}>
       {/* ── 沙盒控制卡片（顶部，固定高度） ── */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
         <CardContent sx={{ pb: '12px !important' }}>
@@ -492,7 +494,13 @@ export default function SandboxTab({
               </Typography>
             )}
             <Box sx={{ flexGrow: 1 }} />
-            <Stack direction="row" spacing={1} flexWrap="wrap">
+            <Stack
+              direction="row"
+              spacing={1}
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ width: { xs: '100%', sm: 'auto' }, '& > *': { flex: { xs: '1 1 132px', sm: '0 0 auto' } } }}
+            >
               <ActionButton
                 tone="primary"
                 size="small"
@@ -579,9 +587,9 @@ export default function SandboxTab({
           <Divider sx={{ mb: 1.5 }} />
 
           {/* 运行信息行 */}
-          <Stack direction="row" spacing={3} flexWrap="wrap">
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={{ xs: 0.75, sm: 3 }} flexWrap="wrap">
             {statusRows.map(row => (
-              <Box key={row.label} sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
+              <Box key={row.label} sx={{ display: 'flex', gap: 0.75, alignItems: { xs: 'flex-start', sm: 'center' }, minWidth: 0 }}>
                 <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
                   {row.label}
                 </Typography>
@@ -609,7 +617,7 @@ export default function SandboxTab({
       <Box
         sx={{
           flex: 1,
-          minHeight: 0,
+          minHeight: { xs: 560, md: 0 },
           display: 'flex',
           flexDirection: 'column',
           bgcolor: theme.palette.mode === 'dark' ? '#1E1E1E' : '#f5f5f5',
@@ -619,14 +627,14 @@ export default function SandboxTab({
         }}
       >
         {/* 日志区（上 55%）*/}
-        <Box sx={{ flex: '0 0 55%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: { xs: '0 0 240px', md: '0 0 55%' }, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <LogsPanel workspaceId={workspace.id} />
         </Box>
 
         <Box sx={{ height: '2px', bgcolor: 'divider', flexShrink: 0 }} />
 
         {/* 终端区（下 45%）*/}
-        <Box sx={{ flex: '0 0 45%', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ flex: { xs: '1 0 320px', md: '0 0 45%' }, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <TerminalPanel workspaceId={workspace.id} isActive={isActive} />
         </Box>
       </Box>

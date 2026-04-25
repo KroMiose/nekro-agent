@@ -156,10 +156,10 @@ export default function CommandOutputPage() {
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 2, boxSizing: 'border-box' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: { xs: 1.25, sm: 2 }, p: { xs: 1.25, sm: 2 }, boxSizing: 'border-box', minWidth: 0 }}>
       {/* 顶部：频道选择 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
-        <Stack direction="row" alignItems="center" spacing={2} sx={{ p: 2 }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} spacing={1.5} sx={{ p: { xs: 1.25, sm: 2 } }}>
           <FormControl size="small" fullWidth>
             <InputLabel>{t('commandSidebar.selectChannel')}</InputLabel>
             <Select
@@ -227,7 +227,7 @@ export default function CommandOutputPage() {
               </Box>
             ) : (
               entries.map((ev, idx) => (
-                <Box key={idx} sx={{ py: 0.25, display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+                <Box key={idx} sx={{ py: 0.35, display: 'flex', alignItems: 'flex-start', gap: 0.5, flexWrap: { xs: 'wrap', sm: 'nowrap' }, minWidth: 0 }}>
                   <Typography
                     component="span"
                     sx={{ fontSize: 'inherit', color: 'text.disabled', flexShrink: 0 }}
@@ -246,7 +246,7 @@ export default function CommandOutputPage() {
                       '& .MuiChip-label': { px: 0.5 },
                     }}
                   />
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Box sx={{ minWidth: 0, flex: { xs: '1 1 100%', sm: 1 }, overflowWrap: 'anywhere', '& pre, & code': { whiteSpace: 'pre-wrap', wordBreak: 'break-word', overflowWrap: 'anywhere' } }}>
                     {ev.message ? (
                       <Typography
                         component="div"
@@ -281,7 +281,7 @@ export default function CommandOutputPage() {
 
       {/* 底部：命令输入框 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 2 }}>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ p: { xs: 1.25, sm: 2 }, minWidth: 0 }}>
           <Autocomplete
             fullWidth
             freeSolo
@@ -316,11 +316,11 @@ export default function CommandOutputPage() {
             renderOption={({ key, ...props }, opt) =>
               typeof opt === 'string' ? null : (
                 <Box component="li" key={key} {...props}>
-                  <Stack direction="row" spacing={1} alignItems="center">
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                     <Typography variant="body2" component="span" fontFamily="monospace">
                       {opt.name}
                     </Typography>
-                    <Typography variant="caption" component="span" color="text.secondary">
+                    <Typography variant="caption" component="span" color="text.secondary" sx={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
                       {opt.description}
                     </Typography>
                   </Stack>

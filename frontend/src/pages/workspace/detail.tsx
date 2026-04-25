@@ -243,8 +243,8 @@ export default function WorkspaceDetailPage() {
               },
               '& .MuiTab-root': {
                 minHeight: 48,
-                minWidth: { xs: 88, sm: 110 },
-                px: { xs: 1.5, sm: 2 },
+              minWidth: { xs: 96, sm: 110 },
+              px: { xs: 1.75, sm: 2 },
               },
             }}
           >
@@ -289,8 +289,8 @@ export default function WorkspaceDetailPage() {
           flex: 1,
           minHeight: 0,
           overflow: activeTab === 1 ? 'hidden' : 'auto',
-          px: 2,
-          py: 1.5,
+          px: { xs: 1.5, sm: 2 },
+          py: { xs: 1.25, sm: 1.5 },
           display: 'flex',
           flexDirection: 'column',
         }}

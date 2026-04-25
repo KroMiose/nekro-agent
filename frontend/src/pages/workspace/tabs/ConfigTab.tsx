@@ -101,11 +101,11 @@ export default function ConfigTab({
   })
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ pb: { xs: 1, sm: 0 } }}>
       {/* 基本设置 */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
               {t('detail.config.sections.basic')}
             </Typography>
@@ -121,6 +121,7 @@ export default function ConfigTab({
               }
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending || !form.name?.trim()}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               {t('detail.config.buttons.save')}
             </ActionButton>
@@ -182,7 +183,7 @@ export default function ConfigTab({
 
       {/* CC 模型配置 */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
             {t('detail.config.sections.ccModel')}
           </Typography>
@@ -256,7 +257,7 @@ export default function ConfigTab({
       <Card
         sx={{ ...CARD_VARIANTS.default.styles, border: '1px solid', borderColor: 'error.main' }}
       >
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'error.main', mb: 0.5 }}>
             {t('detail.config.sections.danger')}
           </Typography>
@@ -268,6 +269,7 @@ export default function ConfigTab({
             size="small"
             startIcon={<DeleteIcon />}
             onClick={() => setDeleteOpen(true)}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
             {t('detail.config.deleteBtn')}
           </ActionButton>
