@@ -456,12 +456,21 @@ async def gen_openai_chat_response(
     def _extract_valid_delta(chunk: ChatCompletionChunk) -> Optional[Any]:
         delta = chunk.choices[0].delta if chunk.choices else None
         if not delta:
-            logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
+            if not chunk.usage:
+                logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
             return None
         return delta
 
     async def _apply_stream_chunk(chunk: ChatCompletionChunk) -> bool:
         nonlocal output, thought_chain, token_consumption, token_input, token_output, first_token_time
+
+        if chunk.usage:
+            if chunk.usage.total_tokens is not None:
+                token_consumption = chunk.usage.total_tokens
+            if chunk.usage.prompt_tokens is not None:
+                token_input = chunk.usage.prompt_tokens
+            if chunk.usage.completion_tokens is not None:
+                token_output = chunk.usage.completion_tokens
 
         delta = _extract_valid_delta(chunk)
         if delta is None:
@@ -475,17 +484,6 @@ async def gen_openai_chat_response(
             output += chunk_text
         current_thought_chain = getattr(delta, thought_chain_field_name, "") or ""
         thought_chain += current_thought_chain
-
-        if chunk.usage and chunk.usage.total_tokens is not None:
-            token_consumption += chunk.usage.total_tokens
-
-        if chunk.usage and chunk.usage.prompt_tokens is not None:
-            token_input += chunk.usage.prompt_tokens
-
-        completion_tokens = 0
-        if chunk.usage and chunk.usage.completion_tokens is not None:
-            completion_tokens = chunk.usage.completion_tokens
-        token_output += completion_tokens
 
         if chunk_callback and await chunk_callback(
             OpenAIStreamChunk(
@@ -540,8 +538,9 @@ async def gen_openai_chat_response(
                 res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    **gen_kwargs,   
+                    **gen_kwargs,
                     stream=True,
+                    stream_options={"include_usage": True},
                 )
                 first_chunk = await _get_first_stream_chunk(res_stream, first_token_timeout)
                 if first_chunk and not first_token_time:
