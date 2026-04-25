@@ -5,8 +5,6 @@ import {
   FormControlLabel,
   Switch,
   Stack,
-  IconButton,
-  Button,
   Paper,
 } from '@mui/material'
 import { LoadingButton } from '@mui/lab'
@@ -20,6 +18,8 @@ import {
 } from '@mui/icons-material'
 import { useNotification } from '../../../hooks/useNotification'
 import { copyText } from '../../../utils/clipboard'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 // 格式化时间
 const formatTime = (isoTime: string, locale?: string) => {
@@ -206,7 +206,7 @@ export default function OneBotV11LogsPage() {
   }
 
   return (
-    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box sx={{ p: { xs: 1.25, sm: 2 }, height: '100%', display: 'flex', flexDirection: 'column', gap: { xs: 1.25, sm: 2 }, boxSizing: 'border-box', minWidth: 0 }}>
       <Stack spacing={2}>
         <Alert
           severity={status?.running ? 'success' : 'error'}
@@ -229,12 +229,12 @@ export default function OneBotV11LogsPage() {
           {status?.started_at ? formatTime(status.started_at, i18n.language) : t('logs.unknown')}
         </Alert>
 
-        <Stack direction="row" spacing={2} alignItems="center">
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} alignItems={{ xs: 'stretch', md: 'center' }}>
           <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
             <Alert
               severity={isReconnecting ? 'warning' : webuiToken ? 'success' : 'info'}
               sx={{
-                maxWidth: '360px',
+                maxWidth: { xs: '100%', md: '360px' },
                 '& .MuiAlert-message': {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -244,9 +244,14 @@ export default function OneBotV11LogsPage() {
               action={
                 !isReconnecting &&
                 webuiToken && (
-                  <Button size="small" startIcon={<ContentCopyIcon />} onClick={handleCopyToken}>
+                  <ActionButton
+                    tone="secondary"
+                    size="small"
+                    startIcon={<ContentCopyIcon />}
+                    onClick={handleCopyToken}
+                  >
                     {t('logs.copy')}
-                  </Button>
+                  </ActionButton>
                 )
               }
             >
@@ -262,14 +267,18 @@ export default function OneBotV11LogsPage() {
             </Alert>
           </Box>
           <Box sx={{ flex: '0 0 auto' }}>
-            <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" useFlexGap flexWrap="wrap">
               <FormControlLabel
                 control={<Switch checked={autoScroll} onChange={handleAutoScrollChange} />}
                 label={t('logs.autoScroll')}
               />
-              <IconButton onClick={handleClearLogs} size="small">
+              <IconActionButton
+                onClick={handleClearLogs}
+                size="small"
+                title={t('logs.clearLogs', '清空日志')}
+              >
                 <DeleteIcon />
-              </IconButton>
+              </IconActionButton>
             </Stack>
           </Box>
         </Stack>
@@ -278,15 +287,15 @@ export default function OneBotV11LogsPage() {
       <Paper
         ref={tableContainerRef}
         sx={{
-          p: 2,
+          p: { xs: 1, sm: 2 },
           flexGrow: 1,
           overflow: 'auto',
           bgcolor: theme => (theme.palette.mode === 'dark' ? '#1a1a1a' : '#f5f5f5'),
           '& pre': {
             margin: 0,
             fontFamily: '"Courier New", Consolas, monospace',
-            fontSize: '14px',
-            lineHeight: '1.2',
+            fontSize: { xs: '12px', sm: '14px' },
+            lineHeight: { xs: 1.35, sm: 1.2 },
             letterSpacing: 0,
             whiteSpace: 'pre-wrap',
             wordWrap: 'break-word',

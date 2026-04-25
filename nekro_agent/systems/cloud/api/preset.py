@@ -15,6 +15,8 @@ from nekro_agent.systems.cloud.schemas.preset import (
 from .client import get_client
 
 logger = get_sub_logger("cloud_api")
+
+PRESET_API = "/api/v2/preset"
 async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
     """创建人设资源
 
@@ -27,7 +29,7 @@ async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
     try:
         async with get_client(require_auth=True) as client:
             response = await client.post(
-                url="/api/preset",
+                url=PRESET_API,
                 json={
                     "name": preset_data.name,
                     "title": preset_data.title,
@@ -61,7 +63,7 @@ async def update_preset(preset_id: str, preset_data: PresetUpdate) -> BasicRespo
     try:
         async with get_client(require_auth=True) as client:
             response = await client.put(
-                url=f"/api/preset/{preset_id}",
+                url=f"{PRESET_API}/{preset_id}",
                 json={
                     "name": preset_data.name,
                     "title": preset_data.title,
@@ -95,7 +97,7 @@ async def delete_preset(preset_id: str, instance_id: str) -> BasicResponse:
     try:
         async with get_client(require_auth=True) as client:
             response = await client.delete(
-                url=f"/api/preset/{preset_id}",
+                url=f"{PRESET_API}/{preset_id}",
                 params={"instanceId": instance_id},
             )
             response.raise_for_status()
@@ -116,7 +118,7 @@ async def get_preset(preset_id: str) -> PresetDetailResponse:
     """
     try:
         async with get_client() as client:
-            response = await client.get(url=f"/api/preset/{preset_id}")
+            response = await client.get(url=f"{PRESET_API}/{preset_id}")
             response.raise_for_status()
             return PresetDetailResponse.model_validate(response.json())
     except Exception as e:
@@ -140,7 +142,7 @@ async def list_presets(
         allow_nsfw: 是否允许返回非安全内容
 
     Returns:
-        PresetListResponse: 人设列表响应
+        PresetListResponse: 人设列表响应，包含 isFavorited 字段
     """
     try:
         params: Dict[str, Union[str, int, bool]] = {
@@ -155,13 +157,15 @@ async def list_presets(
         if not config.ENSURE_SFW_CONTENT:
             params["allowNsfw"] = True
 
-        async with get_client() as client:
+        # 使用认证客户端，云端会返回 isFavorited 字段
+        async with get_client(require_auth=True) as client:
             response = await client.get(
-                url="/api/preset",
+                url=PRESET_API,
                 params=params,
             )
             response.raise_for_status()
-            return PresetListResponse(**response.json())
+            data = response.json()
+            return PresetListResponse(**data)
     except Exception as e:
         logger.exception(f"查询人设列表发生错误: {e}")
         return PresetListResponse.process_exception(e)
@@ -175,7 +179,7 @@ async def list_user_presets() -> UserPresetListResponse:
     """
     try:
         async with get_client(require_auth=True) as client:
-            response = await client.get(url="/api/preset/user")
+            response = await client.get(url=f"{PRESET_API}/user")
             response.raise_for_status()
             return UserPresetListResponse(**response.json())
     except Exception as e:

@@ -2,6 +2,15 @@ import axios from './axios'
 import type { I18nDict } from './types'
 import { createEventStream } from './utils/stream'
 
+export interface CommandOutputSegment {
+  type: 'text' | 'image' | 'file'
+  text?: string
+  file_path?: string
+  file_name?: string
+  mime_type?: string
+  web_url?: string
+}
+
 export interface CommandState {
   name: string
   namespace: string
@@ -9,10 +18,13 @@ export interface CommandState {
   description: string
   usage: string
   permission: string
+  default_permission: string
   category: string
   source: string
+  source_display_name: string
   enabled: boolean
   has_channel_override: boolean
+  has_permission_override: boolean
   params_schema?: Record<string, unknown>
   i18n_description?: I18nDict
   i18n_usage?: I18nDict
@@ -24,7 +36,14 @@ export interface CommandOutputEvent {
   command_name: string
   status: string
   message: string
+  output_segments?: CommandOutputSegment[] | null
   timestamp: number
+}
+
+export interface WebUIExecuteResponseItem {
+  status: string
+  message: string
+  output_segments?: CommandOutputSegment[] | null
 }
 
 export const commandsApi = {
@@ -46,6 +65,27 @@ export const commandsApi = {
 
   resetCommandState: async (commandName: string, chatKey?: string): Promise<boolean> => {
     const response = await axios.post<{ ok: boolean }>('/commands/reset-state', {
+      command_name: commandName,
+      chat_key: chatKey || undefined,
+    })
+    return response.data.ok
+  },
+
+  setCommandPermission: async (
+    commandName: string,
+    permission: string,
+    chatKey?: string,
+  ): Promise<boolean> => {
+    const response = await axios.post<{ ok: boolean }>('/commands/set-permission', {
+      command_name: commandName,
+      permission,
+      chat_key: chatKey || undefined,
+    })
+    return response.data.ok
+  },
+
+  resetCommandPermission: async (commandName: string, chatKey?: string): Promise<boolean> => {
+    const response = await axios.post<{ ok: boolean }>('/commands/reset-permission', {
       command_name: commandName,
       chat_key: chatKey || undefined,
     })
@@ -82,10 +122,10 @@ export const commandsApi = {
     commandName: string,
     chatKey: string,
     rawArgs: string = '',
-  ): Promise<{ ok: boolean; responses: Array<{ status: string; message: string }> }> => {
+  ): Promise<{ ok: boolean; responses: WebUIExecuteResponseItem[] }> => {
     const response = await axios.post<{
       ok: boolean
-      responses: Array<{ status: string; message: string }>
+      responses: WebUIExecuteResponseItem[]
     }>('/commands/webui-execute', {
       command_name: commandName,
       chat_key: chatKey,

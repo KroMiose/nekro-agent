@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   Box,
   TextField,
-  Button,
   Typography,
   Stack,
   Card,
@@ -11,9 +10,10 @@ import {
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { authApi } from '../../services/api/auth'
-import { CARD_VARIANTS, INPUT_VARIANTS, BUTTON_VARIANTS, BORDER_RADIUS } from '../../theme/variants'
+import { CARD_VARIANTS, INPUT_VARIANTS, BORDER_RADIUS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../components/common/ActionButton'
 
 export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('')
@@ -67,10 +67,10 @@ export default function ProfilePage() {
   }
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
+    <Box sx={{ maxWidth: 800, mx: 'auto', p: { xs: 1.5, sm: 2, md: 3 }, boxSizing: 'border-box' }}>
       {/* 用户信息卡片 */}
-      <Card sx={{ ...CARD_VARIANTS.default.styles, borderRadius: BORDER_RADIUS.LARGE, mb: 4 }}>
-        <CardContent>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, borderRadius: { xs: BORDER_RADIUS.MEDIUM, sm: BORDER_RADIUS.LARGE }, mb: { xs: 2, md: 4 } }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="h6" gutterBottom>
             {t('personalInfo.title')}
           </Typography>
@@ -80,13 +80,13 @@ export default function ProfilePage() {
               <Typography variant="subtitle2" color="text.secondary">
                 {t('personalInfo.username')}
               </Typography>
-              <Typography variant="body1">{userInfo?.username}</Typography>
+              <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>{userInfo?.username}</Typography>
             </Box>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
                 {t('personalInfo.userId')}
               </Typography>
-              <Typography variant="body1">{userInfo?.userId}</Typography>
+              <Typography variant="body1" sx={{ wordBreak: 'break-word' }}>{userInfo?.userId}</Typography>
             </Box>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
@@ -99,8 +99,8 @@ export default function ProfilePage() {
       </Card>
 
       {/* 修改密码卡片 */}
-      <Card sx={{ ...CARD_VARIANTS.default.styles, borderRadius: BORDER_RADIUS.LARGE }}>
-        <CardContent>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, borderRadius: { xs: BORDER_RADIUS.MEDIUM, sm: BORDER_RADIUS.LARGE } }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="h6" gutterBottom>
             {t('changePassword.title')}
           </Typography>
@@ -119,7 +119,7 @@ export default function ProfilePage() {
               onChange={e => setNewPassword(e.target.value)}
               disabled={isAdminUser}
               autoComplete="new-password"
-              sx={INPUT_VARIANTS.default.styles}
+              sx={{ ...INPUT_VARIANTS.default.styles, minWidth: 0 }}
             />
             <TextField
               fullWidth
@@ -129,16 +129,16 @@ export default function ProfilePage() {
               onChange={e => setConfirmPassword(e.target.value)}
               disabled={isAdminUser}
               autoComplete="new-password"
-              sx={INPUT_VARIANTS.default.styles}
+              sx={{ ...INPUT_VARIANTS.default.styles, minWidth: 0 }}
             />
-            <Button
-              variant="contained"
+            <ActionButton
+              tone="primary"
               onClick={handleChangePassword}
               disabled={isAdminUser || loading || !newPassword || !confirmPassword}
-              sx={BUTTON_VARIANTS.primary.styles}
+              sx={{ width: { xs: '100%', sm: 'fit-content' } }}
             >
               {loading ? t('changePassword.submitting') : t('changePassword.submit')}
-            </Button>
+            </ActionButton>
           </Stack>
         </CardContent>
       </Card>

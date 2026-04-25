@@ -2,9 +2,39 @@
   "loading": "加载适配器信息中...",
   "loadFailed": "加载失败",
   "loadAdapterFailed": "加载适配器信息失败",
+  "hub": {
+    "title": "适配器总览",
+    "backToHub": "返回总览",
+    "searchPlaceholder": "搜索适配器名称、描述、标签或配置类",
+    "searchAction": "搜索",
+    "clearSearch": "清空搜索",
+    "statusLabel": "状态",
+    "statusAll": "全部状态",
+    "emptyTitle": "没有符合条件的适配器",
+    "emptyDescription": "调整搜索词或状态筛选后再试。",
+    "open": "进入适配器",
+    "configClass": "配置类",
+    "ruleCount": "频道规则",
+    "rules": "{{count}} 条",
+    "noDescription": "暂无适配器描述",
+    "statsLabel": {
+      "total": "适配器总数",
+      "enabled": "已启用",
+      "failed": "加载失败",
+      "disabled": "已禁用"
+    },
+    "stats": {
+      "total": "共 {{count}} 个",
+      "enabled": "{{count}} 已启用",
+      "failed": "{{count}} 加载失败",
+      "disabled": "{{count}} 已禁用"
+    }
+  },
   "home": {
     "version": "版本",
     "author": "作者",
+    "expandSummary": "展开简介",
+    "collapseSummary": "收起简介",
     "loadingDocs": "加载文档中...",
     "loadDocsFailed": "加载文档失败",
     "adapterDocs": "适配器文档",
@@ -20,7 +50,8 @@
     "overrides": "覆盖配置",
     "advanced": "高级",
     "logs": "容器日志",
-    "napcat": "NapCat"
+    "napcat": "NapCat",
+    "emails": "邮件列表"
   },
   "names": {
     "default": "通用适配器",
@@ -33,7 +64,8 @@
     "telegram": "Telegram",
     "email": "Email",
     "feishu": "飞书",
-    "wxwork": "WeWork Bot"
+    "wxwork": "企业微信 AI Bot",
+    "wxwork_corp_app": "企业微信自建应用"
   },
   "status": {
     "enabled": "已启用",
@@ -105,5 +137,16 @@
     "chatRules": "聊天标识规则",
     "chatRulesDesc": "该适配器使用以下格式来标识不同的聊天频道：",
     "errorMsg": "错误信息"
+  },
+  "emails": {
+    "title": "邮件列表",
+    "subject": "主题",
+    "sender": "发件人",
+    "account": "账户",
+    "date": "日期",
+    "attachments": "附件",
+    "noSubject": "(无主题)",
+    "noEmails": "暂无邮件",
+    "loadError": "加载邮件列表失败"
   }
 }

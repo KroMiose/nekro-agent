@@ -23,6 +23,16 @@ import { ReactElement } from 'react'
 import { Theme } from '@mui/material'
 import { Avatar, SxProps } from '@mui/material'
 import { UI_STYLES } from '../theme/themeConfig'
+import minecraftIcon from '../assets/adapters/minecraft.svg'
+import telegramIcon from '../assets/adapters/telegram.svg'
+import bilibiliIcon from '../assets/adapters/bilibili.svg'
+import discordIcon from '../assets/adapters/discord.svg'
+import emailIcon from '../assets/adapters/email.svg'
+import qqIcon from '../assets/adapters/qq.svg'
+import feishuIcon from '../assets/adapters/feishu.svg'
+import wechatIcon from '../assets/adapters/wechat.svg'
+import wecomIcon from '../assets/adapters/wecom.svg'
+import sseIcon from '../assets/adapters/sse.svg'
 
 import AdapterHomePage from '../pages/adapter/AdapterHomePage'
 import AdapterConfigPage from '../pages/adapter/AdapterConfigPage'
@@ -30,6 +40,7 @@ import AdapterAdvancedPage from '../pages/adapter/AdapterAdvancedPage'
 import AdapterOverrideConfigPage from '../pages/adapter/AdapterOverrideConfigPage'
 import OneBotV11NapCatPage from '../pages/adapter/onebot_v11/napcat'
 import OneBotV11LogsPage from '../pages/adapter/onebot_v11/logs'
+import EmailsPage from '../pages/adapter/email/emails'
 
 export interface AdapterTabConfig {
   label: string
@@ -63,6 +74,19 @@ export interface AdapterStatusDisplay {
   getBgColor: (theme: Theme) => string
 }
 
+const ADAPTER_ICON_ASSETS: Partial<Record<string, string>> = {
+  onebot_v11: qqIcon,
+  minecraft: minecraftIcon,
+  bilibili_live: bilibiliIcon,
+  discord: discordIcon,
+  sse: sseIcon,
+  wechatpad: wechatIcon,
+  telegram: telegramIcon,
+  email: emailIcon,
+  feishu: feishuIcon,
+  wxwork: wecomIcon,
+  wxwork_corp_app: wecomIcon,
+}
 // 适配器配置映射
 export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   // OneBot V11 适配器配置
@@ -407,6 +431,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         component: <AdapterOverrideConfigPage />,
       },
       {
+        label: 'tabs.emails',
+        value: 'emails',
+        icon: <EmailIcon fontSize="small" />,
+        path: 'emails',
+        component: <EmailsPage />,
+      },
+      {
         label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
@@ -458,49 +489,89 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     ],
   },
 
-  // // 企业微信智能机器人适配器配置
-  // 目前企业微信智能机器人只能被动回复消息，暂不实现该适配器
-  // 文档: https://developer.work.weixin.qq.com/document/path/101031
-  // wxwork: {
-  //   key: 'wxwork',
-  //   visual: {
-  //     displayName: 'WeWork Bot',
-  //     iconText: '企微',
-  //     navIcon: <ChatIcon />,
-  //     description: '企业微信智能机器人适配器，支持在企业内部与成员进行智能交互',
-  //     tags: ['企业微信', 'WeWork', '智能机器人', 'IM'],
-  //   },
-  //   tabs: [
-  //     {
-  //       label: '主页',
-  //       value: 'home',
-  //       icon: <HomeIcon fontSize="small" />,
-  //       path: '',
-  //       component: <AdapterHomePage />,
-  //     },
-  //     {
-  //       label: '适配器配置',
-  //       value: 'config',
-  //       icon: <SettingsIcon fontSize="small" />,
-  //       path: 'config',
-  //       component: <AdapterConfigPage />,
-  //     },
-  //     {
-  //       label: '覆盖配置',
-  //       value: 'overrides',
-  //       icon: <StyleIcon fontSize="small" />,
-  //       path: 'overrides',
-  //       component: <AdapterOverrideConfigPage />,
-  //     },
-  //     {
-  //       label: '高级',
-  //       value: 'advanced',
-  //       icon: <EngineeringIcon fontSize="small" />,
-  //       path: 'advanced',
-  //       component: <AdapterAdvancedPage />,
-  //     },
-  //   ],
-  // },
+  // 企业微信智能机器人适配器配置
+  wxwork: {
+    key: 'wxwork',
+    visual: {
+      displayName: 'names.wxwork',
+      iconText: '企微AI',
+      navIcon: <ChatIcon />,
+      description: '企业微信 AI Bot 长连接适配器，使用 Bot ID 与 Secret 收发消息',
+      tags: ['企业微信', 'WeWork', 'WeCom', 'AI Bot', 'WebSocket'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
+  // 企业微信自建应用适配器配置
+  wxwork_corp_app: {
+    key: 'wxwork_corp_app',
+    visual: {
+      displayName: 'names.wxwork_corp_app',
+      iconText: '企微应用',
+      navIcon: <ChatIcon />,
+      description: '企业微信自建应用适配器，使用回调接收消息并通过应用 API 发送',
+      tags: ['企业微信', 'WeWork', 'WeCom', 'Corp App', 'IM'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
 
   // 默认适配器配置（用于其他适配器）
   default: {
@@ -600,14 +671,22 @@ export const getAdapterTabPath = (adapterKey: string, tabPath: string): string =
  * @returns 导航配置数组
  */
 export const getAdapterNavigationConfigs = () => {
-  return Object.values(ADAPTER_CONFIGS)
+  return [
+    {
+      path: '/adapters',
+      text: i18next.t('menu.adaptersHub', { ns: 'navigation' }),
+      icon: <ApiIcon />,
+      parent: 'adapters',
+    },
+    ...Object.values(ADAPTER_CONFIGS)
     .filter(config => config.key !== 'default')
     .map(config => ({
       path: `/adapters/${config.key}`,
       text: i18next.t(config.visual.displayName, { ns: 'adapter' }),
       icon: config.visual.navIcon,
       parent: 'adapters',
-    }))
+    })),
+  ]
 }
 
 /**
@@ -661,6 +740,7 @@ export const createAdapterIcon = (
   size: number = 48
 ): ReactElement => {
   const iconText = getAdapterIconText(adapterKey)
+  const iconAsset = ADAPTER_ICON_ASSETS[adapterKey]
 
   const iconSx: SxProps<Theme> = {
     width: size,
@@ -672,5 +752,13 @@ export const createAdapterIcon = (
     color: theme.palette.text.primary,
   }
 
-  return <Avatar sx={iconSx}>{iconText}</Avatar>
+  return (
+    <Avatar
+      src={iconAsset}
+      sx={iconSx}
+      imgProps={{ style: { objectFit: 'contain', padding: size < 40 ? 6 : 8 } }}
+    >
+      {iconText}
+    </Avatar>
+  )
 }

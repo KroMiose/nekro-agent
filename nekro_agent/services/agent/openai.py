@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from datetime import datetime
@@ -344,6 +345,52 @@ def _create_http_client(
     )
 
 
+def _extract_model_ids(payload: Dict[str, Any]) -> List[str]:
+    """从 OpenAI 兼容模型列表响应中提取模型 ID。"""
+
+    def pick(items: Any) -> List[str]:
+        if not isinstance(items, list):
+            return []
+        result: List[str] = []
+        for item in items:
+            if isinstance(item, str):
+                result.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("id"), str):
+                result.append(item["id"])
+        return result
+
+    return sorted(set([*pick(payload.get("data")), *pick(payload.get("models"))]))
+
+
+async def list_openai_models(
+    *,
+    base_url: str,
+    api_key: Optional[str] = None,
+    proxy_url: Optional[str] = None,
+) -> List[str]:
+    """通过服务端真实网络出口拉取 OpenAI 兼容模型列表。"""
+
+    normalized_base_url = base_url.strip().rstrip("/")
+    models_url = f"{normalized_base_url}/models"
+    headers = {"Content-Type": "application/json"}
+    if api_key and api_key.strip():
+        headers["Authorization"] = f"Bearer {api_key.strip()}"
+
+    async with _create_http_client(
+        proxy_url=proxy_url,
+        read_timeout=60,
+        write_timeout=60,
+        connect_timeout=10,
+        pool_timeout=10,
+    ) as client:
+        response = await client.get(models_url, headers=headers)
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("模型列表响应格式无效")
+        return _extract_model_ids(payload)
+
+
 async def gen_openai_chat_response(
     model: str,
     messages: Any,
@@ -360,6 +407,7 @@ async def gen_openai_chat_response(
     proxy_url: Optional[str] = None,
     stream_mode: bool = False,
     max_wait_time: Optional[int] = None,
+    first_token_timeout: Optional[int] = None,
     thought_chain_field_name: str = "reasoning_content",
     chunk_callback: Optional[_AsyncFunc] = None,
     log_path: Optional[Union[str, Path]] = None,
@@ -405,6 +453,73 @@ async def gen_openai_chat_response(
     token_output: int = 0
     first_token_time: Optional[float] = None
 
+    def _extract_valid_delta(chunk: ChatCompletionChunk) -> Optional[Any]:
+        delta = chunk.choices[0].delta if chunk.choices else None
+        if not delta:
+            if chunk.usage:
+                logger.debug(f"OpenAI流式生成: 收到仅包含 usage 的空 choices 块 {chunk}")
+            else:
+                logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
+            return None
+        return delta
+
+    async def _apply_stream_chunk(chunk: ChatCompletionChunk) -> bool:
+        nonlocal output, thought_chain, token_consumption, token_input, token_output, first_token_time
+
+        if chunk.usage:
+            # include_usage 返回的是整次流式响应的最终统计值，而不是当前 chunk 的增量。
+            if chunk.usage.total_tokens is not None:
+                token_consumption = chunk.usage.total_tokens
+            if chunk.usage.prompt_tokens is not None:
+                token_input = chunk.usage.prompt_tokens
+            if chunk.usage.completion_tokens is not None:
+                token_output = chunk.usage.completion_tokens
+
+        delta = _extract_valid_delta(chunk)
+        if delta is None:
+            return False
+
+        if not first_token_time:
+            first_token_time = time.time()
+
+        chunk_text: Optional[str] = delta.content
+        if chunk_text:
+            output += chunk_text
+        current_thought_chain = getattr(delta, thought_chain_field_name, "") or ""
+        thought_chain += current_thought_chain
+
+        if chunk_callback and await chunk_callback(
+            OpenAIStreamChunk(
+                chunk_text=chunk_text or "",
+                thought_chain=current_thought_chain or "",
+                token_consumption=token_consumption,
+                token_input=token_input,
+                token_output=token_output,
+            ),
+        ):
+            return True
+        return False
+
+    async def _get_first_stream_chunk(
+        stream: AsyncStream[ChatCompletionChunk],
+        timeout_seconds: Optional[int],
+    ) -> Optional[ChatCompletionChunk]:
+        stream_iter = stream.__aiter__()
+
+        async def wait_first_chunk() -> ChatCompletionChunk:
+            try:
+                return await stream_iter.__anext__()
+            except StopAsyncIteration as exc:
+                raise ValueError("流式响应在返回首个数据块前已结束，API 供应商返回了空流") from exc
+
+        if timeout_seconds and timeout_seconds > 0:
+            try:
+                async with asyncio.timeout(timeout_seconds):
+                    return await wait_first_chunk()
+            except TimeoutError as exc:
+                raise TimeoutError(f"等待流式响应首个数据块超时，已超过 {timeout_seconds} 秒") from exc
+        return await wait_first_chunk()
+
     # 使用async with语法创建和管理httpx客户端
     try:
         wait_timeout = max_wait_time or 3600
@@ -418,6 +533,7 @@ async def gen_openai_chat_response(
                 api_key=api_key.strip() if api_key else None,
                 base_url=base_url or _OPENAI_BASE_URL,
                 http_client=http_client,
+                max_retries=0,
             ) as client,
         ):
 
@@ -425,49 +541,19 @@ async def gen_openai_chat_response(
                 res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    **gen_kwargs,   
+                    **gen_kwargs,
                     stream=True,
+                    stream_options={"include_usage": True},
                 )
-
-                async for chunk in res_stream:
-                    if not first_token_time:
-                        first_token_time = time.time()
-                    delta = chunk.choices[0].delta if chunk.choices else None
-                    if not delta:
-                        logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
-                        continue
-                    has_content = delta.content
-                    has_reasoning = getattr(delta, thought_chain_field_name, None)
-                    if not has_content and not has_reasoning:
-                        logger.warning(f"OpenAI流式生成: 跳过空响应块 (content={delta.content}, reasoning={has_reasoning})")
-                        continue
-                    chunk_text: Optional[str] = delta.content
-                    if chunk_text:
-                        output += chunk_text
-                    _thought_chain = getattr(delta, thought_chain_field_name, "") or ""
-                    thought_chain += _thought_chain
-
-                    if chunk.usage and chunk.usage.total_tokens is not None:
-                        token_consumption += chunk.usage.total_tokens
-
-                    if chunk.usage and chunk.usage.prompt_tokens is not None:
-                        token_input += chunk.usage.prompt_tokens
-
-                    completion_tokens = 0
-                    if chunk.usage and chunk.usage.completion_tokens is not None:
-                        completion_tokens = chunk.usage.completion_tokens
-                    token_output += completion_tokens
-
-                    if chunk_callback and await chunk_callback(
-                        OpenAIStreamChunk(
-                            chunk_text=chunk_text or "",
-                            thought_chain=_thought_chain or "",
-                            token_consumption=token_consumption,
-                            token_input=token_input,
-                            token_output=token_output,
-                        ),
-                    ):
-                        break
+                first_chunk = await _get_first_stream_chunk(res_stream, first_token_timeout)
+                if first_chunk and not first_token_time:
+                    first_token_time = time.time()
+                if first_chunk and await _apply_stream_chunk(first_chunk):
+                    pass
+                else:
+                    async for chunk in res_stream:
+                        if await _apply_stream_chunk(chunk):
+                            break
             else:
                 res: ChatCompletion = await client.chat.completions.create(
                     model=model,
@@ -475,7 +561,7 @@ async def gen_openai_chat_response(
                     **gen_kwargs,
                 )
                 if not res.choices or len(res.choices) == 0 or not res.choices[0].message.content:
-                    raise ValueError("Chat response is empty! Response: %s", res)  # noqa: TRY301
+                    raise ValueError(f"非流式响应内容为空，供应商未返回可用消息。原始响应: {res}")  # noqa: TRY301
 
                 output = res.choices[0].message.content
                 thought_chain = getattr(res.choices[0].message, thought_chain_field_name, "") or ""
@@ -545,9 +631,9 @@ async def gen_openai_chat_response(
 async def gen_openai_embeddings(
     model: str,
     input: Union[str, List[Dict[str, Any]]],  # noqa: A002
-    dimensions: int,
     api_key: str,
     base_url: str,
+    dimensions: Optional[int] = None,
     proxy_url: Optional[str] = None,
     endpoint: str = "/embeddings",
     timeout: int = 10,
@@ -557,9 +643,9 @@ async def gen_openai_embeddings(
     Args:
         model: 模型名称
         input: 输入文本或文本列表
-        dimensions: 向量维度
         api_key: API 密钥
         base_url: API 基础地址
+        dimensions: 向量维度（可选，不传则由模型决定默认维度）
         proxy_url: 代理地址
         endpoint: API 端点
         timeout: 请求超时时间（秒），默认 10 秒
@@ -572,11 +658,11 @@ async def gen_openai_embeddings(
         read_timeout=timeout,
         write_timeout=timeout,
     ) as client:
-        # 手动序列化JSON，并设置ensure_ascii=False
-        data = json.dumps(
-            {"model": model, "input": input, "dimensions": dimensions},
-            ensure_ascii=False,
-        )
+        payload: dict[str, object] = {"model": model, "input": input}
+        if dimensions is not None:
+            payload["dimensions"] = dimensions
+
+        data = json.dumps(payload, ensure_ascii=False)
 
         res = await client.post(
             f"{base_url}{endpoint}",
@@ -670,6 +756,7 @@ async def gen_openai_chat_stream(
                 api_key=api_key.strip() if api_key else None,
                 base_url=base_url or _OPENAI_BASE_URL,
                 http_client=http_client,
+                max_retries=0,
             )
 
             # 创建流式响应

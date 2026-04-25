@@ -1,4 +1,4 @@
-import { Pagination, PaginationProps, Stack, Typography } from '@mui/material'
+import { Pagination, PaginationProps, Stack, Typography, alpha, useTheme } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 
 interface PaginationStyledProps extends PaginationProps {
@@ -26,6 +26,8 @@ const PaginationStyled = ({
   ...props
 }: PaginationStyledProps) => {
   const { t } = useTranslation('common')
+  const theme = useTheme()
+  const surfaceOpacity = theme.palette.mode === 'dark' ? 0.35 : 0.75
   
   // 如果只有一页或没有页且不是始终显示模式，则不显示分页器
   if (totalPages <= 1 && !alwaysShow) return null
@@ -44,7 +46,20 @@ const PaginationStyled = ({
       direction="column" 
       spacing={1} 
       alignItems="center" 
-      sx={{ mt: 4 }}
+      sx={{
+        mt: 4,
+        px: 1,
+        py: 0.75,
+        borderRadius: 1.5,
+        backgroundColor: alpha(theme.palette.background.paper, surfaceOpacity),
+        backdropFilter: 'blur(8px)',
+        border: '1px solid',
+        borderColor: 'divider',
+        boxShadow: theme.shadows[0],
+        width: 'fit-content',
+        maxWidth: '100%',
+        mx: 'auto',
+      }}
     >
       {/* 如果需要显示页码信息 */}
       {showPageInfo && (
@@ -76,6 +91,7 @@ const PaginationStyled = ({
             mx: 0.5,
             transition: 'all 0.2s',
             fontSize: '0.9rem',
+            color: 'text.primary',
             '&.Mui-selected': {
               fontWeight: 'bold',
               background: theme => theme.palette.primary.main,

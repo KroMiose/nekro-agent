@@ -4,7 +4,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   TextField,
   Box,
   useTheme,
@@ -13,6 +12,7 @@ import {
 } from '@mui/material'
 import { UserFormData } from '../../../services/api/user-manager'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../../components/common/ActionButton'
 
 interface UserFormProps {
   open: boolean
@@ -242,18 +242,17 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
         </Box>
       </DialogContent>
       <DialogActions sx={{ px: isSmall ? 2 : 3, py: isSmall ? 1.5 : 2 }}>
-        <Button onClick={handleClose} size={isSmall ? 'small' : 'medium'}>
+        <ActionButton tone="secondary" onClick={handleClose} size={isSmall ? 'small' : 'medium'}>
           {t('actions.cancel', { ns: 'common' })}
-        </Button>
-        <Button
+        </ActionButton>
+        <ActionButton
           onClick={handleSubmit}
-          color="primary"
-          variant="contained"
+          tone="primary"
           disabled={isSubmitting}
           size={isSmall ? 'small' : 'medium'}
         >
           {isSubmitting ? t('actions.create') + '...' : t('actions.create')}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )

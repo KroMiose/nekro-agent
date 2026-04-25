@@ -1,0 +1,71 @@
+{
+  "title": "机器人公告",
+  "subtitle": "向多个频道发送统一消息，不写入 AI 上下文，也不显示在 WebUI 对话历史中。",
+  "stats": {
+    "selected": "已选 {{count}} 个频道",
+    "filtered": "当前筛选 {{count}} 个频道"
+  },
+  "search": {
+    "placeholder": "搜索频道名称或 chat_key"
+  },
+  "filters": {
+    "type": "类型",
+    "status": "状态",
+    "all": "全部",
+    "group": "群聊",
+    "private": "私聊",
+    "observe": "旁观中",
+    "active": "激活中",
+    "inactive": "已停用"
+  },
+  "selector": {
+    "title": "频道选择",
+    "selectVisible": "选择当前页",
+    "clearSelection": "清空选择",
+    "visibleCount": "当前页 {{count}} 个频道",
+    "selectedCount": "已选 {{count}} 个频道",
+    "empty": "当前筛选条件下没有可选频道",
+    "messageCount": "{{count}} 条消息",
+    "noActivity": "暂无活跃记录",
+    "chatKey": "频道标识"
+  },
+  "summary": {
+    "title": "已选频道",
+    "empty": "还没有选择任何频道",
+    "clear": "清空",
+    "count": "{{count}} 个频道"
+  },
+  "composer": {
+    "title": "公告内容",
+    "help": "公告说明",
+    "identity": "发送身份：Bot",
+    "messageLabel": "公告消息",
+    "messagePlaceholder": "输入要发送的公告内容...",
+    "helper": "公告会按频道逐个发送，发送过程中会显示实时进度。",
+    "length": "已输入 {{count}} 字",
+    "selectionSummary": "已选 {{selected}} 个频道，当前筛选结果 {{filtered}} 个频道。",
+    "actionTitle": "确认后点击这里发送",
+    "actionReady": "已选 {{channels}} 个频道，当前消息 {{count}} 字。",
+    "send": "发送到 {{count}} 个频道",
+    "sending": "发送中...",
+    "messageRequired": "请输入要发送的消息",
+    "selectionRequired": "请先选择至少一个频道"
+  },
+  "result": {
+    "title": "最近一次公告结果",
+    "empty": "发送后会在这里展示逐频道结果",
+    "success": "成功 {{count}} 个",
+    "failure": "失败 {{count}} 个",
+    "allSuccess": "全部频道发送成功",
+    "ok": "发送成功",
+    "failed": "发送失败"
+  },
+  "progress": {
+    "title": "正在发送公告",
+    "sending": "正在发送当前频道",
+    "waiting": "随机等待中，准备发送下一个频道",
+    "current": "当前频道：{{name}}",
+    "count": "已完成 {{completed}} / {{total}}",
+    "summary": "成功 {{success}} · 失败 {{failure}}"
+  }
+}

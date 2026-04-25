@@ -6,17 +6,14 @@ import {
   Typography,
   Divider,
   Switch,
-  Button,
   Card,
   CardContent,
   TextField,
   Chip,
   Tab,
-  Tabs,
   FormControlLabel,
   CircularProgress,
   Alert,
-  IconButton,
   Tooltip,
   Table,
   TableBody,
@@ -79,9 +76,12 @@ import {
 } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 import { getLocalizedText } from '../../services/api/types'
 import { copyText } from '../../utils/clipboard'
 import { pluginsManagementPath } from '../../router/routes'
+import { PageTabs } from '../../components/common/NekroTabs'
 
 // 添加 server_addr 配置
 const server_addr = window.location.origin
@@ -301,7 +301,9 @@ function PluginDetails({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        minHeight: 0,
         gap: 2,
+        overflow: 'hidden',
       }}
     >
       {/* 标题和总开关 */}
@@ -324,9 +326,9 @@ function PluginDetails({
             }}
           >
             {isMobile && (
-              <IconButton onClick={onBack} edge="start">
+              <IconActionButton onClick={onBack} edge="start">
                 <ArrowBackIcon />
-              </IconButton>
+              </IconActionButton>
             )}
             <Chip
               label={getPluginTypeText()}
@@ -375,7 +377,7 @@ function PluginDetails({
       {/* 选项卡导航 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles }}>
         <Box sx={{ display: 'flex', alignItems: 'center', px: { xs: 1, sm: 1.5 } }}>
-          <Tabs
+          <PageTabs
             value={activeTab}
             onChange={(_, newValue) => setActiveTab(newValue)}
             variant="scrollable"
@@ -386,12 +388,6 @@ function PluginDetails({
               '& .MuiTab-root': {
                 minHeight: 48,
                 minWidth: 'auto',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                textTransform: 'none',
-                transition: 'all 0.2s ease',
-                borderRadius: '8px',
-                mx: 0.5,
                 px: { xs: 1.5, sm: 2 },
                 flexDirection: 'row',
                 gap: 1,
@@ -399,39 +395,26 @@ function PluginDetails({
                   marginBottom: 0,
                   mr: 0.5,
                 },
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-                '&.Mui-selected': {
-                  color: theme.palette.primary.main,
-                  backgroundColor: theme.palette.action.selected,
-                },
-              },
-              '& .MuiTabs-indicator': {
-                height: 3,
-                borderRadius: '2px',
-                backgroundColor: theme.palette.primary.main,
-                boxShadow: `0 0 8px ${theme.palette.primary.main}`,
               },
             }}
           >
             {pluginTabs.map(tab => (
               <Tab key={tab.label} label={tab.label} icon={tab.icon} />
             ))}
-          </Tabs>
+          </PageTabs>
 
           {/* 操作按钮组 */}
           <Stack direction="row" spacing={1} sx={{ pl: 2, flexShrink: 0 }}>
             {isMobile ? (
               // 移动端：只显示更多操作按钮
               <>
-                <IconButton
+                <IconActionButton
                   size="small"
                   onClick={event => setMoreMenuAnchorEl(event.currentTarget)}
                   sx={{ border: 1, borderColor: 'divider' }}
                 >
                   <MoreVertIcon />
-                </IconButton>
+                </IconActionButton>
                 <Menu
                   anchorEl={moreMenuAnchorEl}
                   open={Boolean(moreMenuAnchorEl)}
@@ -512,48 +495,48 @@ function PluginDetails({
               // 桌面端：显示所有按钮
               <>
                 {!plugin.isBuiltin && (
-                  <Button
-                    variant="outlined"
+                  <ActionButton
+                    tone={plugin.isPackage ? 'danger' : 'secondary'}
                     startIcon={plugin.isPackage ? <DeleteIcon /> : <EditIcon />}
                     onClick={() =>
                       plugin.isPackage ? setDeleteConfirmOpen(true) : handleNavigateToEditor()
                     }
-                    color={plugin.isPackage ? 'error' : 'warning'}
                     size="small"
+                    sx={!plugin.isPackage ? { color: 'warning.main', borderColor: 'warning.main' } : undefined}
                   >
                     {plugin.isPackage ? t('actions.delete') : t('actions.edit')}
-                  </Button>
+                  </ActionButton>
                 )}
                 {plugin.isPackage && (
-                  <Button
-                    variant="outlined"
+                  <ActionButton
+                    tone="secondary"
                     startIcon={<RefreshIcon />}
                     onClick={() => setUpdateConfirmOpen(true)}
-                    color="success"
                     size="small"
+                    sx={{ color: 'success.main', borderColor: 'success.main' }}
                   >
                     {t('actions.update')}
-                  </Button>
+                  </ActionButton>
                 )}
-                <Button
-                  variant="outlined"
+                <ActionButton
+                  tone="secondary"
                   startIcon={<DeleteIcon />}
                   onClick={() => setResetDataConfirmOpen(true)}
                   disabled={plugin.loadFailed}
-                  color="warning"
                   size="small"
+                  sx={{ color: 'warning.main', borderColor: 'warning.main' }}
                 >
                   {t('actions.reset')}
-                </Button>
-                <Button
-                  variant="outlined"
+                </ActionButton>
+                <ActionButton
+                  tone="secondary"
                   startIcon={<RefreshIcon />}
                   onClick={() => setReloadConfirmOpen(true)}
                   disabled={plugin.isBuiltin || (plugin.loadFailed && plugin.isPackage)}
                   size="small"
                 >
                   {t('actions.reload')}
-                </Button>
+                </ActionButton>
               </>
             )}
           </Stack>
@@ -561,7 +544,7 @@ function PluginDetails({
       </Card>
 
       {/* 选项卡内容 */}
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {activeTab === 0 && (
           <Stack spacing={2}>
             {/* 插件信息 */}
@@ -586,13 +569,13 @@ function PluginDetails({
                       </Typography>
                     )}
                     {plugin.stackTrace && (
-                      <Button
+                      <ActionButton
                         size="small"
                         onClick={() => setErrorDetailOpen(true)}
                         sx={{ mt: 1.5, textTransform: 'none' }}
                       >
                         {t('actions.viewDetails')}
-                      </Button>
+                      </ActionButton>
                     )}
                   </Alert>
                 ) : (
@@ -971,7 +954,7 @@ function PluginDetails({
                               </Typography>
                             </TableCell>
                             <TableCell align="right">
-                              <Button
+                              <ActionButton
                                 size="small"
                                 startIcon={<ContentCopyIcon fontSize="small" />}
                                 onClick={async () => {
@@ -1002,10 +985,10 @@ function PluginDetails({
                                 }}
                               >
                                 {t('webhook.copy')}
-                              </Button>
+                              </ActionButton>
                             </TableCell>
                             <TableCell padding="none">
-                              <IconButton
+                              <IconActionButton
                                 size="small"
                                 onClick={() => {
                                   const newExpandedRows = new Set(expandedRows)
@@ -1022,7 +1005,7 @@ function PluginDetails({
                                 ) : (
                                   <KeyboardArrowDownIcon fontSize={isSmall ? 'small' : 'medium'} />
                                 )}
-                              </IconButton>
+                              </IconActionButton>
                             </TableCell>
                           </TableRow>
                           <TableRow>
@@ -1134,7 +1117,7 @@ function PluginDetails({
                                 justifyContent="flex-end"
                                 flexWrap="wrap"
                               >
-                                <Button
+                                <ActionButton
                                   size="small"
                                   startIcon={<ContentCopyIcon fontSize="small" />}
                                   onClick={async () => {
@@ -1164,10 +1147,10 @@ function PluginDetails({
                                   }}
                                 >
                                   {t('actions.copy')}
-                                </Button>
-                                <Button
+                                </ActionButton>
+                                <ActionButton
                                   size="small"
-                                  color="error"
+                                  tone="danger"
                                   startIcon={<DeleteIcon fontSize="small" />}
                                   onClick={() => {
                                     setDeleteDataId(data.id)
@@ -1175,6 +1158,7 @@ function PluginDetails({
                                   }}
                                   sx={{
                                     textTransform: 'none',
+                                    color: 'error.main',
                                     '&:hover': {
                                       backgroundColor: 'transparent',
                                       textDecoration: 'underline',
@@ -1191,11 +1175,11 @@ function PluginDetails({
                                   }}
                                 >
                                   {t('data.delete')}
-                                </Button>
+                                </ActionButton>
                               </Stack>
                             </TableCell>
                             <TableCell padding="none">
-                              <IconButton
+                              <IconActionButton
                                 size="small"
                                 onClick={() => {
                                   const newExpandedRows = new Set(expandedDataRows)
@@ -1212,7 +1196,7 @@ function PluginDetails({
                                 ) : (
                                   <KeyboardArrowDownIcon fontSize={isSmall ? 'small' : 'medium'} />
                                 )}
-                              </IconButton>
+                              </IconActionButton>
                             </TableCell>
                           </TableRow>
                           <TableRow>
@@ -1274,23 +1258,23 @@ function PluginDetails({
           <DialogContentText>{t('dialogs.resetMessage', { name: plugin.name })}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setResetDataConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => {
               resetDataMutation.mutate()
               setResetDataConfirmOpen(false)
             }}
-            color="error"
-            variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1301,23 +1285,23 @@ function PluginDetails({
           <DialogContentText>{t('dialogs.reloadMessage', { name: plugin.name })}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setReloadConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={() => {
               reloadMutation.mutate()
               setReloadConfirmOpen(false)
             }}
-            color="primary"
-            variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1344,7 +1328,8 @@ function PluginDetails({
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => {
               setDeleteConfirmOpen(false)
               setClearDataOnDelete(false) // 重置勾选状态
@@ -1352,19 +1337,18 @@ function PluginDetails({
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => {
               removePackageMutation.mutate()
               setDeleteConfirmOpen(false)
               setClearDataOnDelete(false) // 重置勾选状态
             }}
-            color="error"
-            variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1383,23 +1367,23 @@ function PluginDetails({
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setUpdateConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={() => {
               updatePackageMutation.mutate()
               setUpdateConfirmOpen(false)
             }}
-            color="primary"
-            variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1410,13 +1394,15 @@ function PluginDetails({
           <DialogContentText>{t('dialogs.deleteDataMessage')}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setDeleteDataConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => {
               if (deleteDataId !== null) {
                 deleteDataMutation.mutate(deleteDataId)
@@ -1424,12 +1410,10 @@ function PluginDetails({
                 setDeleteDataId(null)
               }
             }}
-            color="error"
-            variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('data.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1480,12 +1464,12 @@ function PluginDetails({
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
             onClick={() => setErrorDetailOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.cancel')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>
@@ -1659,7 +1643,7 @@ export default function PluginsManagementPage() {
 
   const pluginListContent = (
     <>
-      <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+      <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', flexShrink: 0, bgcolor: 'background.paper' }}>
         <TextField
           placeholder={t('list.search')}
           size="small"
@@ -1671,14 +1655,14 @@ export default function PluginsManagementPage() {
             input: {
               endAdornment: searchTerm ? (
                 <InputAdornment position="end">
-                  <IconButton
+                  <IconActionButton
                     size="small"
                     edge="end"
                     aria-label={t('actions.clear')}
                     onClick={() => updateSearchTerm('')}
                   >
                     <CloseIcon fontSize="small" />
-                  </IconButton>
+                  </IconActionButton>
                 </InputAdornment>
               ) : undefined,
             },
@@ -1691,7 +1675,7 @@ export default function PluginsManagementPage() {
         />
       </Box>
 
-      <Box sx={{ flex: 1, overflow: 'auto' }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', bgcolor: 'background.paper' }}>
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
             <CircularProgress />
@@ -1810,9 +1794,12 @@ export default function PluginsManagementPage() {
     <Box
       sx={{
         display: 'flex',
-        height: 'calc(100vh - 64px)',
+        height: '100%',
+        minHeight: 0,
         gap: 1,
-        p: 2,
+        p: { xs: 1, sm: 2 },
+        boxSizing: 'border-box',
+        overflow: 'hidden',
       }}
     >
       {isMobile ? (
@@ -1823,14 +1810,15 @@ export default function PluginsManagementPage() {
             onClose={() => setDrawerOpen(false)}
             PaperProps={{
               sx: {
-                width: isSmall ? '85%' : '75%',
-                maxWidth: 320,
-                boxShadow: 3,
-                backgroundColor: 'transparent',
-                backdropFilter: 'blur(20px)',
+                width: isSmall ? 'min(88vw, 360px)' : 360,
+                maxWidth: '100vw',
+                backgroundColor: 'background.paper',
+                backgroundImage: 'none',
                 borderRight: `1px solid ${theme.palette.divider}`,
                 display: 'flex',
                 flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: theme.shadows[12],
               },
             }}
           >
@@ -1838,7 +1826,7 @@ export default function PluginsManagementPage() {
           </Drawer>
 
           {/* 移动端主内容区 */}
-          <Box sx={{ flex: 1, overflow: 'auto' }}>
+          <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
             {selectedPlugin ? (
               <PluginDetails
                 plugin={selectedPlugin}
@@ -1889,7 +1877,7 @@ export default function PluginsManagementPage() {
           </Card>
 
           {/* 右侧插件详情 */}
-          <Box sx={{ flex: 1, overflow: 'auto' }}>
+          <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
             {selectedPlugin ? (
               <PluginDetails
                 plugin={selectedPlugin}
@@ -1925,7 +1913,7 @@ export default function PluginsManagementPage() {
       )}
 
       {/* 移动端展示插件列表的Fab按钮 - 始终可见 */}
-      {isMobile && (
+      {isMobile && !drawerOpen && (
         <Fab
           color="primary"
           size={isSmall ? 'medium' : 'large'}
@@ -1934,7 +1922,7 @@ export default function PluginsManagementPage() {
             position: 'fixed',
             bottom: 16,
             right: 16,
-            zIndex: 1099,
+            zIndex: theme.zIndex.drawer - 1,
             boxShadow: 3,
           }}
         >

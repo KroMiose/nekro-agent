@@ -11,12 +11,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   MenuItem,
   InputAdornment,
   Typography,
   Chip,
-  Button,
   Avatar,
   List,
   ListItem,
@@ -47,8 +45,10 @@ import {
   HelpOutline as HelpOutlineIcon,
   RestartAlt as RestartIcon,
 } from '@mui/icons-material'
-import { useNavigate } from 'react-router-dom'
+import { unstable_usePrompt as usePrompt, useBeforeUnload, useNavigate } from 'react-router-dom'
 import { UNIFIED_TABLE_STYLES, CHIP_VARIANTS } from '../../theme/variants'
+import ActionButton from './ActionButton'
+import IconActionButton from './IconActionButton'
 import { useNotification } from '../../hooks/useNotification'
 import { restartApi } from '../../services/api/restart'
 import { ThemedTooltip } from './ThemedTooltip'
@@ -56,6 +56,9 @@ import { presetsApi, Preset } from '../../services/api/presets'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { I18nDict, getLocalizedText } from '../../services/api/types'
+
+const Button = ActionButton
+const IconButton = IconActionButton
 
 const HtmlTooltip = ThemedTooltip
 
@@ -76,6 +79,8 @@ export interface ConfigItem {
       type: string
       title: string
       description: string
+      i18n_title?: I18nDict
+      i18n_description?: I18nDict
       default?: unknown
       required: boolean
       is_secret?: boolean
@@ -363,8 +368,7 @@ function renderFieldInput(
           InputProps={{
             style: fieldSchema.is_secret
               ? ({
-                  '-webkit-text-security': 'disc',
-                  'text-security': 'disc',
+                  WebkitTextSecurity: 'disc',
                 } as React.CSSProperties)
               : undefined,
           }}
@@ -400,6 +404,7 @@ function renderNestedConfigRows(
   expandedRows: ExpandedRowsState,
   setExpandedRows: React.Dispatch<React.SetStateAction<ExpandedRowsState>>,
   t: TFunction,
+  language: string,
   level: number = 0,
   parentKey: string = ''
 ): React.ReactNode[] {
@@ -531,6 +536,18 @@ function renderNestedConfigRows(
           Object.entries(config.field_schema).forEach(([fieldName, fieldSchema]) => {
             const fieldValue = (item as Record<string, unknown>)[fieldName]
             const subKey = `${parentKey}${config.key}[${index}].${fieldName}`
+            const fieldTitle = getLocalizedText(
+              fieldSchema.i18n_title,
+              fieldSchema.title || fieldName,
+              language
+            )
+            const fieldDescription = fieldSchema.description
+              ? getLocalizedText(
+                  fieldSchema.i18n_description,
+                  fieldSchema.description,
+                  language
+                )
+              : undefined
             rows.push(
               <TableRow key={subKey} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
                 {isOverridePage && <TableCell sx={{ ...tableCellStyle, pl: 4 + level * 2 }} />}
@@ -545,12 +562,12 @@ function renderNestedConfigRows(
                           mr: 0.5,
                         }}
                       >
-                        {fieldSchema.title || fieldName}
+                        {fieldTitle}
                       </Typography>
-                      {fieldSchema.description && (
+                      {fieldDescription && (
                         <HtmlTooltip
                           title={
-                            <div dangerouslySetInnerHTML={{ __html: fieldSchema.description }} />
+                            <div dangerouslySetInnerHTML={{ __html: fieldDescription }} />
                           }
                           placement="right"
                         >
@@ -625,7 +642,7 @@ function renderNestedConfigRows(
                           variant="body2"
                           sx={{ fontSize: isSmall ? '0.75rem' : 'inherit' }}
                         >
-                          {fieldSchema.title || fieldName}[{listIndex}]
+                          {fieldTitle}[{listIndex}]
                         </Typography>
                         <IconButton
                           size="small"
@@ -693,7 +710,7 @@ function renderNestedConfigRows(
                       }}
                       sx={{ color: 'primary.main' }}
                     >
-                      {t('configTable.addItem', { name: fieldSchema.title || fieldName })}
+                      {t('configTable.addItem', { name: fieldTitle })}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -924,6 +941,38 @@ export default function ConfigTable({
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
+  const hasUnsavedChanges = dirtyKeys.size > 0
+
+  useBeforeUnload(
+    useCallback((event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) {
+        return
+      }
+      event.preventDefault()
+      event.returnValue = ''
+    }, [hasUnsavedChanges])
+  )
+
+  usePrompt({
+    when: useCallback(
+      ({ currentLocation, nextLocation }) => {
+        if (!hasUnsavedChanges) {
+          return false
+        }
+
+        if (currentLocation.pathname !== nextLocation.pathname) {
+          return true
+        }
+
+        const currentCategory = new URLSearchParams(currentLocation.search).get('category')
+        const nextCategory = new URLSearchParams(nextLocation.search).get('category')
+
+        return currentCategory !== nextCategory
+      },
+      [hasUnsavedChanges]
+    ),
+    message: t('configTable.unsavedChangesConfirm'),
+  })
 
   useEffect(() => {
     if (!onSearchChange) {
@@ -974,12 +1023,14 @@ export default function ConfigTable({
       return map
     }
     configs.forEach(config => {
-      if (config.key.startsWith('enable_')) {
-        const currentValue = editingValues[config.key]
-        try {
-          const value = currentValue !== undefined ? JSON.parse(currentValue) : config.value
+      const currentValue = editingValues[config.key]
+      try {
+        const value = currentValue !== undefined ? JSON.parse(currentValue) : config.value
+        if (typeof value === 'boolean') {
           map.set(config.key, value as boolean)
-        } catch {
+        }
+      } catch {
+        if (typeof config.value === 'boolean') {
           map.set(config.key, config.value as boolean)
         }
       }
@@ -991,7 +1042,7 @@ export default function ConfigTable({
     const emptyFields = configs
       .filter(config => {
         if (!config.required) return false
-        if (isOverridePage && config.enable_toggle && !enableStateMap.get(config.enable_toggle)) {
+        if (config.enable_toggle && enableStateMap.get(config.enable_toggle) === false) {
           return false
         }
         const currentValue =
@@ -1006,7 +1057,7 @@ export default function ConfigTable({
       return false
     }
     return true
-  }, [configs, editingValues, isOverridePage, enableStateMap, getConfigTitle])
+  }, [configs, editingValues, enableStateMap, getConfigTitle])
 
   const handleSaveAllChanges = useCallback(
     async (force: boolean = false) => {
@@ -1212,7 +1263,7 @@ export default function ConfigTable({
               }
               size="small"
               endIcon={<LaunchIcon fontSize={isSmall ? 'small' : 'inherit'} />}
-              onClick={() => navigate('/settings/model-groups')}
+              onClick={() => navigate('/settings/models?tab=basic')}
               sx={{
                 flexShrink: 0,
                 borderRadius: 999,
@@ -1559,8 +1610,7 @@ export default function ConfigTable({
               style:
                 isSecret && !visibleSecrets[config.key]
                   ? ({
-                      '-webkit-text-security': 'disc',
-                      'text-security': 'disc',
+                      WebkitTextSecurity: 'disc',
                     } as React.CSSProperties)
                   : undefined,
               endAdornment: isSecret ? (
@@ -1629,7 +1679,7 @@ export default function ConfigTable({
                 size="small"
                 onClick={() => handleSaveAllChanges(false)}
                 startIcon={<SaveIcon />}
-                disabled={dirtyKeys.size === 0}
+                disabled={!hasUnsavedChanges}
               >
                 {t('configTable.saveChanges')}
               </Button>
@@ -1858,6 +1908,7 @@ export default function ConfigTable({
                         expandedRows,
                         setExpandedRows,
                         t,
+                        i18n.language,
                         1
                       )
                     : []

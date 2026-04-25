@@ -111,9 +111,10 @@ class MessageProcessor:
         """处理消息内容，转换为标准消息段"""
         segments: List[ChatMessageSegment] = []
 
-        # 处理文本内容
-        if message.text:
-            segment = ChatMessageSegment(type=ChatMessageSegmentType.TEXT, text=message.text)
+        # 处理文本内容（text 用于纯文本消息，caption 用于媒体消息附带的说明文字）
+        text_content = message.text or message.caption
+        if text_content:
+            segment = ChatMessageSegment(type=ChatMessageSegmentType.TEXT, text=text_content)
             segments.append(segment)
 
         # 处理照片
@@ -409,24 +410,7 @@ class MessageProcessor:
         
         logger.debug(f"获取用户信息: display_name={display_name}, nickname={full_nickname}")
         return display_name, full_nickname
-    
-    async def _get_channel_display_name(self, chat) -> str:
-        """获取频道/群聊的显示名称"""
-        # 对于群聊，优先使用 title
-        if chat.type in ["group", "supergroup", "channel"]:
-            return chat.title or f"群聊 {chat.id}"
-        
-        # 对于私聊，使用对方的名称
-        elif chat.type == "private":
-            return (
-                chat.first_name
-                or chat.username
-                or f"私聊 {chat.id}"
-            )
-        
-        # 其他情况
-        return str(chat.id)
-    
+
     def _build_full_name(self, user) -> str:
         """构建用户的完整名称"""
         if hasattr(user, 'first_name') and hasattr(user, 'last_name'):

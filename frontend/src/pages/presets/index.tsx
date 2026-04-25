@@ -2,14 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Box,
   Typography,
-  Button,
   TextField,
   Card,
   CardContent,
   CardActions,
   Grid,
   Chip,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -43,7 +41,9 @@ import {
   FilterList as FilterListIcon,
   Clear as ClearIcon,
 } from '@mui/icons-material'
+import { ApiError } from '../../services/api/axios'
 import { Preset, PresetDetail, presetsApi, TagInfo } from '../../services/api/presets'
+import { presetsMarketApi } from '../../services/api/cloud/presets_market'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
 
@@ -52,6 +52,9 @@ import { UI_STYLES } from '../../theme/themeConfig'
 import { Fade } from '@mui/material'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 // 定义预设编辑表单数据类型
 interface PresetFormData {
@@ -401,13 +404,13 @@ const PresetEditDialog = ({
                     onChange={handleFileUpload}
                     autoComplete="off"
                   />
-                  <Button
+                  <ActionButton
                     variant="outlined"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={loading}
                   >
                     {t('form.uploadAvatar')}
-                  </Button>
+                  </ActionButton>
                   {errors.avatar && (
                     <Typography variant="caption" color="error" mt={1}>
                       {errors.avatar}
@@ -518,12 +521,12 @@ const PresetEditDialog = ({
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={onClose} disabled={loading}>
+          <ActionButton tone="secondary" onClick={onClose} disabled={loading}>
             {t('dialog.cancel')}
-          </Button>
-          <Button onClick={handleSave} color="primary" disabled={loading} variant="contained">
+          </ActionButton>
+          <ActionButton tone="primary" onClick={handleSave} disabled={loading}>
             {loading ? <CircularProgress size={24} /> : t('dialog.save')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -556,10 +559,10 @@ const PresetEditDialog = ({
           <Typography>{t('cloud.unlinkConfirm')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => handleRemoteConfirm(false)}>{t('dialog.cancel')}</Button>
-          <Button onClick={() => handleRemoteConfirm(true)} color="primary" variant="contained">
+          <ActionButton tone="secondary" onClick={() => handleRemoteConfirm(false)}>{t('dialog.cancel')}</ActionButton>
+          <ActionButton tone="primary" onClick={() => handleRemoteConfirm(true)}>
             {t('cloud.unlinkButton')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </>
@@ -702,9 +705,9 @@ const PresetCard = ({
     if (!preset.on_shared && !preset.remote_id) {
       return (
         <Tooltip title={t('cloud.shareToCloud')}>
-          <IconButton size="small" color="primary" onClick={() => setShowShareDialog(true)}>
+          <IconActionButton size="small" tone="primary" onClick={() => setShowShareDialog(true)}>
             <CloudUploadIcon />
-          </IconButton>
+          </IconActionButton>
         </Tooltip>
       )
     }
@@ -713,14 +716,14 @@ const PresetCard = ({
       return (
         <>
           <Tooltip title={t('cloud.revokeShare')}>
-            <IconButton size="small" color="warning" onClick={() => setShowUnshareDialog(true)}>
+            <IconActionButton size="small" onClick={() => setShowUnshareDialog(true)} sx={{ color: 'warning.main' }}>
               <CloudOffIcon />
-            </IconButton>
+            </IconActionButton>
           </Tooltip>
           <Tooltip title={t('cloud.syncToCloud')}>
-            <IconButton size="small" color="primary" onClick={() => setShowSyncToCloudDialog(true)}>
+            <IconActionButton size="small" tone="primary" onClick={() => setShowSyncToCloudDialog(true)}>
               <UploadIcon />
-            </IconButton>
+            </IconActionButton>
           </Tooltip>
         </>
       )
@@ -729,7 +732,7 @@ const PresetCard = ({
     else if (!preset.on_shared && preset.remote_id) {
       return (
         <Tooltip title={t('cloud.syncFromCloud')}>
-          <IconButton
+          <IconActionButton
             size="small"
             color="primary"
             onClick={async () => {
@@ -743,7 +746,7 @@ const PresetCard = ({
             disabled={syncLoading}
           >
             {syncLoading ? <CircularProgress size={24} /> : <SyncIcon />}
-          </IconButton>
+          </IconActionButton>
         </Tooltip>
       )
     }
@@ -976,7 +979,7 @@ const PresetCard = ({
           borderColor: 'divider',
         }}
       >
-        <Button
+        <ActionButton
           size="small"
           variant="text"
           startIcon={<InfoIcon />}
@@ -991,16 +994,16 @@ const PresetCard = ({
           }}
         >
           {t('card.moreActions')}
-        </Button>
+        </ActionButton>
         <Box>
           <Tooltip title={t('card.edit')}>
-            <IconButton size="small" color="primary" onClick={onEdit}>
+            <IconActionButton size="small" color="primary" onClick={onEdit}>
               <EditIcon />
-            </IconButton>
+            </IconActionButton>
           </Tooltip>
           {preset.remote_id && preset.on_shared && (
             <Tooltip title={t('cloud.syncFromCloud')}>
-              <IconButton
+              <IconActionButton
                 size="small"
                 color="primary"
                 onClick={async () => {
@@ -1014,14 +1017,14 @@ const PresetCard = ({
                 disabled={syncLoading}
               >
                 {syncLoading ? <CircularProgress size={24} /> : <SyncIcon />}
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
           )}
           {renderShareButtons()}
           <Tooltip title={t('card.delete')}>
-            <IconButton size="small" color="error" onClick={onDelete}>
+            <IconActionButton size="small" color="error" onClick={onDelete}>
               <DeleteIcon />
-            </IconButton>
+            </IconActionButton>
           </Tooltip>
         </Box>
       </CardActions>
@@ -1066,9 +1069,9 @@ const PresetCard = ({
           <Typography variant="h6" component="div" sx={{ flex: 1 }}>
             人设详情：{preset.title}
           </Typography>
-          <IconButton size="small" onClick={onExpand} edge="end">
+          <IconActionButton size="small" onClick={onExpand} edge="end">
             <CloseIcon />
-          </IconButton>
+          </IconActionButton>
         </DialogTitle>
         <DialogContent dividers sx={{ p: 3 }}>
           {loading ? (
@@ -1189,9 +1192,9 @@ const PresetCard = ({
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button variant="contained" onClick={onExpand} color="primary">
+          <ActionButton variant="contained" onClick={onExpand} color="primary">
             {t('actions.close')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1238,7 +1241,7 @@ const PresetCard = ({
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
                   {t('cloud.termsConfirm')}{' '}
                   <Link
-                    href="https://community.nekro.ai/terms"
+                    href="https://cloud.nekro.ai/terms"
                     target="_blank"
                     underline="hover"
                     sx={{ ml: 0.5 }}
@@ -1251,17 +1254,16 @@ const PresetCard = ({
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setShowShareDialog(false)} disabled={shareLoading}>
+          <ActionButton tone="secondary" onClick={() => setShowShareDialog(false)} disabled={shareLoading}>
             {t('dialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={handleShareToCloud}
-            color="primary"
-            variant="contained"
             disabled={shareLoading || !isSfw || !agreeToTerms}
           >
             {shareLoading ? <CircularProgress size={24} /> : t('actions.share')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1294,17 +1296,16 @@ const PresetCard = ({
           <Typography>{t('cloud.revokeConfirmMessage')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setShowUnshareDialog(false)} disabled={shareLoading}>
+          <ActionButton tone="secondary" onClick={() => setShowUnshareDialog(false)} disabled={shareLoading}>
             {t('dialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={handleUnshare}
-            color="warning"
-            variant="contained"
             disabled={shareLoading}
           >
             {shareLoading ? <CircularProgress size={24} /> : t('cloud.revokeShare')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1351,7 +1352,7 @@ const PresetCard = ({
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
                   {t('cloud.termsConfirm')}{' '}
                   <Link
-                    href="https://community.nekro.ai/terms"
+                    href="https://cloud.nekro.ai/terms"
                     target="_blank"
                     underline="hover"
                     sx={{ ml: 0.5 }}
@@ -1364,17 +1365,16 @@ const PresetCard = ({
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setShowSyncToCloudDialog(false)} disabled={shareLoading}>
+          <ActionButton tone="secondary" onClick={() => setShowSyncToCloudDialog(false)} disabled={shareLoading}>
             {t('dialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={handleSyncToCloud}
-            color="primary"
-            variant="contained"
             disabled={shareLoading || !isSfw || !agreeToTerms}
           >
             {shareLoading ? <CircularProgress size={24} /> : '同步'}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Card>
@@ -1383,6 +1383,7 @@ const PresetCard = ({
 
 // 主页面组件
 export default function PresetsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [presets, setPresets] = useState<Preset[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -1462,6 +1463,12 @@ export default function PresetsPage() {
     fetchAvailableTags()
   }, [fetchAvailableTags])
 
+  const clearEditRemoteId = useCallback(() => {
+    const nextSearchParams = new URLSearchParams(searchParams)
+    nextSearchParams.delete('editRemoteId')
+    setSearchParams(nextSearchParams, { replace: true })
+  }, [searchParams, setSearchParams])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(1)
@@ -1497,6 +1504,44 @@ export default function PresetsPage() {
       showError(t('card.loadDetails'))
     }
   }
+
+  const handleEditRemotePreset = useCallback(
+    async (remoteId: string) => {
+      try {
+        showSuccess(t('list.loadingDetails'))
+        let detailData: PresetDetail
+
+        try {
+          detailData = await presetsApi.getDetailByRemoteId(remoteId)
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.type !== 'NotFoundError') {
+            throw error
+          }
+
+          await presetsMarketApi.downloadPreset(remoteId)
+          detailData = await presetsApi.getDetailByRemoteId(remoteId)
+        }
+
+        setEditingPreset(detailData)
+        setEditDialog(true)
+
+        void fetchData()
+        void fetchAvailableTags()
+      } catch (_error) {
+        showError(t('card.loadDetails'))
+      } finally {
+        clearEditRemoteId()
+      }
+    },
+    [clearEditRemoteId, fetchAvailableTags, fetchData, showError, showSuccess, t]
+  )
+
+  useEffect(() => {
+    const remoteId = searchParams.get('editRemoteId')
+    if (!remoteId) return
+
+    void handleEditRemotePreset(remoteId)
+  }, [handleEditRemotePreset, searchParams])
 
   const handleSave = async (data: PresetFormData) => {
     try {
@@ -1615,20 +1660,17 @@ export default function PresetsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             autoComplete="off"
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
-          {/* <Button type="submit" sx={{ ml: 1 }}>
-            搜索
-          </Button> */}
-        </Box>
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" />
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Box>
         <Box className="flex gap-2">
-          <Button
+          <ActionButton
             variant="outlined"
             startIcon={<CloudSyncIcon />}
             onClick={handleRefreshSharedStatus}
@@ -1642,8 +1684,8 @@ export default function PresetsPage() {
             ) : (
               t('actions.refresh')
             )}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => {
@@ -1653,7 +1695,7 @@ export default function PresetsPage() {
             size={isSmall ? 'small' : 'medium'}
           >
             {t('actions.create')}
-          </Button>
+          </ActionButton>
         </Box>
       </Box>
 
@@ -1683,7 +1725,7 @@ export default function PresetsPage() {
               </Typography>
             </Box>
             {selectedTags.length > 0 && (
-              <Button
+              <ActionButton
                 size="small"
                 startIcon={<ClearIcon />}
                 onClick={() => setSelectedTags([])}
@@ -1698,7 +1740,7 @@ export default function PresetsPage() {
                 }}
               >
                 {t('filter.clearFilters')}
-              </Button>
+              </ActionButton>
             )}
           </Box>
           <Box
@@ -1792,7 +1834,7 @@ export default function PresetsPage() {
           <Typography color="text.secondary" gutterBottom>
             {t('list.noResults')}
           </Typography>
-          <Button
+          <ActionButton
             variant="outlined"
             startIcon={<AddIcon />}
             onClick={() => {
@@ -1802,7 +1844,7 @@ export default function PresetsPage() {
             size={isSmall ? 'small' : 'medium'}
           >
             {t('actions.create')}
-          </Button>
+          </ActionButton>
         </Box>
       )}
 
@@ -1841,10 +1883,10 @@ export default function PresetsPage() {
           <Typography>{t('dialog.confirmDeleteMessage')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setConfirmDelete(null)}>{t('dialog.cancel')}</Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+          <ActionButton tone="secondary" onClick={() => setConfirmDelete(null)}>{t('dialog.cancel')}</ActionButton>
+          <ActionButton tone="danger" onClick={handleDeleteConfirm}>
             {t('dialog.confirmDeleteTitle')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

@@ -4,7 +4,6 @@ import {
   Typography,
   Stack,
   Paper,
-  Button,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -29,12 +28,15 @@ import {
   Face as FaceIcon,
   Search as SearchIcon,
   CloudDownload as CloudDownloadIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { ChatChannelDetail, chatChannelApi } from '../../../../services/api/chat-channel'
 import { Preset, presetsApi } from '../../../../services/api/presets'
 import { useSnackbar } from 'notistack'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { copyText } from '../../../../utils/clipboard'
+import ActionButton from '../../../../components/common/ActionButton'
 
 interface BasicInfoProps {
   channel: ChatChannelDetail
@@ -121,6 +123,16 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
     }
   }
 
+  const handleCopyChannelId = async () => {
+    const success = await copyText(channel.chat_key)
+    if (success) {
+      enqueueSnackbar('频道 ID 已复制到剪贴板', { variant: 'success' })
+      return
+    }
+
+    enqueueSnackbar('复制失败，请稍后重试', { variant: 'error' })
+  }
+
   const InfoItem = ({
     icon,
     label,
@@ -183,14 +195,14 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
             )
           }
           action={
-            <Button
+            <ActionButton
               size="small"
               variant="outlined"
               onClick={handleOpenPresetDialog}
               disabled={loading}
             >
               {t('basicInfo.selectPreset')}
-            </Button>
+            </ActionButton>
           }
         />
         <InfoItem
@@ -212,6 +224,25 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
           icon={<UpdateIcon color="warning" />}
           label={t('basicInfo.lastActiveTime')}
           value={channel.last_message_time || t('basicInfo.noMessages')}
+        />
+        <InfoItem
+          icon={<PersonIcon color="action" />}
+          label="频道 ID"
+          value={
+            <Typography component="div" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+              {channel.chat_key}
+            </Typography>
+          }
+          action={
+            <ActionButton
+              size="small"
+              variant="outlined"
+              startIcon={<ContentCopyIcon />}
+              onClick={handleCopyChannelId}
+            >
+              复制 ID
+            </ActionButton>
+          }
         />
       </Stack>
 
@@ -240,9 +271,9 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
                 ),
                 endAdornment: (
                   <InputAdornment position="end">
-                    <Button size="small" onClick={handleSearch} disabled={loading}>
+                    <ActionButton size="small" onClick={handleSearch} disabled={loading}>
                       {t('basicInfo.search')}
-                    </Button>
+                    </ActionButton>
                   </InputAdornment>
                 ),
               }}
@@ -250,14 +281,14 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
           </Box>
 
           <Box className="mb-3">
-            <Button
+            <ActionButton
               fullWidth
               variant="outlined"
               onClick={() => handleSelectPreset(null)}
               disabled={loading}
             >
               {t('basicInfo.useDefault')}
-            </Button>
+            </ActionButton>
           </Box>
 
           <Divider className="mb-2" />
@@ -303,7 +334,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPresetDialogOpen(false)}>{t('basicInfo.cancel')}</Button>
+          <ActionButton onClick={() => setPresetDialogOpen(false)}>{t('basicInfo.cancel')}</ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

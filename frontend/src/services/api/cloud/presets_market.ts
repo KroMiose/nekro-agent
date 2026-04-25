@@ -12,6 +12,8 @@ export interface CloudPreset {
   author: string
   create_time: string
   update_time: string
+  favoriteCount?: number
+  isFavorited?: boolean
 }
 
 export interface CloudPresetListResponse {
@@ -20,6 +22,19 @@ export interface CloudPresetListResponse {
   page: number
   page_size: number
   total_pages: number
+}
+
+export interface UserPreset {
+  id: string
+  name: string
+  title: string
+  avatar?: string
+  favoriteCount?: number
+}
+
+export interface UserPresetListResponse {
+  items: UserPreset[]
+  total: number
 }
 
 export interface ActionResponse {
@@ -37,6 +52,22 @@ export const presetsMarketApi = {
     tag?: string
   }): Promise<CloudPresetListResponse> => {
     const response = await axios.get<CloudPresetListResponse>('/cloud/presets-market/list', { params })
+    return response.data
+  },
+
+  /**
+   * 获取用户上传的人设列表
+   */
+  getUserPresets: async (): Promise<UserPresetListResponse> => {
+    const response = await axios.get<UserPresetListResponse>('/cloud/presets-market/user-presets')
+    return response.data
+  },
+
+  /**
+   * 获取人设详情
+   */
+  getPresetDetail: async (remote_id: string): Promise<CloudPreset> => {
+    const response = await axios.get<CloudPreset>(`/cloud/presets-market/detail/${remote_id}`)
     return response.data
   },
 

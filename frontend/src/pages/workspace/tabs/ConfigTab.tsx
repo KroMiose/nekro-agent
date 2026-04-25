@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Typography,
@@ -15,28 +14,22 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  IconButton,
-  InputAdornment,
-  Tooltip,
 } from '@mui/material'
 import {
   Delete as DeleteIcon,
   Save as SaveIcon,
-  Add as AddIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   workspaceApi,
   WorkspaceDetail,
   UpdateWorkspaceBody,
-  WorkspaceEnvVar,
 } from '../../../services/api/workspace'
 import { ccModelPresetApi, CCModelPresetInfo } from '../../../services/api/cc-model-preset'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../../components/common/ActionButton'
 
 export default function ConfigTab({
   workspace,
@@ -83,7 +76,7 @@ export default function ConfigTab({
     queryFn: () => ccModelPresetApi.getList(),
   })
 
-  const [selectedPreset, setSelectedPreset] = useState<CCModelPresetInfo | null>(null)
+  const [selectedPreset, setSelectedPreset] = useState<CCModelPresetInfo | undefined>(undefined)
 
   // 用 WorkspaceDetail 自带的 cc_model_preset_id 初始化选中项，避免独立查询的竞态问题
   useEffect(() => {
@@ -107,67 +100,18 @@ export default function ConfigTab({
     onError: (err: Error) => notification.error(t('detail.config.notifications.ccPresetFailed', { message: err.message })),
   })
 
-  // 环境变量
-  const { data: serverEnvVars = [] } = useQuery({
-    queryKey: ['workspace-env-vars', workspace.id],
-    queryFn: () => workspaceApi.getEnvVars(workspace.id),
-  })
-
-  const [envVars, setEnvVars] = useState<WorkspaceEnvVar[]>([])
-  const [visibleValues, setVisibleValues] = useState<Set<number>>(new Set())
-
-  useEffect(() => {
-    setEnvVars(serverEnvVars)
-  }, [serverEnvVars])
-
-  const saveEnvVarsMutation = useMutation({
-    mutationFn: () => workspaceApi.updateEnvVars(workspace.id, envVars),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workspace-env-vars', workspace.id] })
-      queryClient.invalidateQueries({ queryKey: ['workspace', workspace.id] })
-      notification.success(t('detail.config.notifications.envVarsSaveSuccess'))
-    },
-    onError: (err: Error) => notification.error(t('detail.config.notifications.envVarsSaveFailed', { message: err.message })),
-  })
-
-  const addEnvVar = () => {
-    setEnvVars(prev => [...prev, { key: '', value: '', description: '' }])
-  }
-
-  const removeEnvVar = (idx: number) => {
-    setEnvVars(prev => prev.filter((_, i) => i !== idx))
-    setVisibleValues(prev => {
-      const next = new Set(prev)
-      next.delete(idx)
-      return new Set([...next].map(i => (i > idx ? i - 1 : i)))
-    })
-  }
-
-  const updateEnvVar = (idx: number, field: keyof WorkspaceEnvVar, val: string) => {
-    setEnvVars(prev => prev.map((item, i) => i === idx ? { ...item, [field]: val } : item))
-  }
-
-  const toggleValueVisible = (idx: number) => {
-    setVisibleValues(prev => {
-      const next = new Set(prev)
-      if (next.has(idx)) next.delete(idx)
-      else next.add(idx)
-      return next
-    })
-  }
-
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} sx={{ pb: { xs: 1, sm: 0 } }}>
       {/* 基本设置 */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
               {t('detail.config.sections.basic')}
             </Typography>
-            <Button
+            <ActionButton
+              tone="primary"
               size="small"
-              variant="contained"
               startIcon={
                 saveMutation.isPending ? (
                   <CircularProgress size={14} color="inherit" />
@@ -177,9 +121,10 @@ export default function ConfigTab({
               }
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending || !form.name?.trim()}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               {t('detail.config.buttons.save')}
-            </Button>
+            </ActionButton>
           </Box>
           <Stack spacing={2}>
             <TextField
@@ -238,7 +183,7 @@ export default function ConfigTab({
 
       {/* CC 模型配置 */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
             {t('detail.config.sections.ccModel')}
           </Typography>
@@ -308,105 +253,26 @@ export default function ConfigTab({
         </CardContent>
       </Card>
 
-      {/* 环境变量 */}
-      <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
-              {t('detail.config.sections.envVars')}
-            </Typography>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={saveEnvVarsMutation.isPending ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
-              onClick={() => saveEnvVarsMutation.mutate()}
-              disabled={saveEnvVarsMutation.isPending}
-            >
-              {t('detail.config.buttons.save')}
-            </Button>
-          </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-            {t('detail.config.envVars.hint')}
-          </Typography>
-
-          <Stack spacing={1}>
-            {envVars.map((ev, idx) => (
-              <Box key={idx} sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
-                <TextField
-                  size="small"
-                  label={t('detail.config.envVars.key')}
-                  value={ev.key}
-                  onChange={e => updateEnvVar(idx, 'key', e.target.value)}
-                  sx={{ width: 180, flexShrink: 0 }}
-                  inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.82rem' } }}
-                  autoComplete="off"
-                />
-                <TextField
-                  size="small"
-                  label={t('detail.config.envVars.value')}
-                  type={visibleValues.has(idx) ? 'text' : 'password'}
-                  value={ev.value}
-                  onChange={e => updateEnvVar(idx, 'value', e.target.value)}
-                  sx={{ width: 200, flexShrink: 0 }}
-                  autoComplete="new-password"
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton size="small" onClick={() => toggleValueVisible(idx)} edge="end" tabIndex={-1}>
-                          {visibleValues.has(idx) ? <VisibilityOffIcon sx={{ fontSize: 16 }} /> : <VisibilityIcon sx={{ fontSize: 16 }} />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-                <TextField
-                  size="small"
-                  label={t('detail.config.envVars.description')}
-                  value={ev.description}
-                  onChange={e => updateEnvVar(idx, 'description', e.target.value)}
-                  sx={{ flex: 1 }}
-                  autoComplete="off"
-                />
-                <Tooltip title={t('detail.config.envVars.remove')}>
-                  <IconButton size="small" color="error" onClick={() => removeEnvVar(idx)} sx={{ mt: 0.5 }}>
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            ))}
-          </Stack>
-
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={addEnvVar}
-            sx={{ mt: envVars.length > 0 ? 1.5 : 0.5 }}
-          >
-            {t('detail.config.envVars.add')}
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* 危险区 */}
       <Card
         sx={{ ...CARD_VARIANTS.default.styles, border: '1px solid', borderColor: 'error.main' }}
       >
-        <CardContent>
+        <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'error.main', mb: 0.5 }}>
             {t('detail.config.sections.danger')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {t('detail.config.dangerDesc')}
           </Typography>
-          <Button
-            variant="outlined"
-            color="error"
+          <ActionButton
+            tone="danger"
             size="small"
             startIcon={<DeleteIcon />}
             onClick={() => setDeleteOpen(true)}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
             {t('detail.config.deleteBtn')}
-          </Button>
+          </ActionButton>
         </CardContent>
       </Card>
 
@@ -418,17 +284,16 @@ export default function ConfigTab({
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
+          <ActionButton tone="secondary" onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
             {t('detail.config.deleteDialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => deleteMutation.mutate()}
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending ? <CircularProgress size={20} /> : t('detail.config.deleteDialog.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Stack>

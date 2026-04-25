@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, Request
@@ -22,6 +23,7 @@ from .cc_model_presets import router as cc_model_presets_router
 from .chat_channel import router as chat_channel_router
 from .cloud.announcement import router as cloud_announcement_router
 from .cloud.auth import router as cloud_auth_router
+from .cloud.favorites import router as cloud_favorites_router
 from .cloud.plugins_market import router as plugins_market_router
 from .cloud.presets_market import router as presets_market_router
 from .cloud.telemetry import router as telemetry_router
@@ -29,11 +31,14 @@ from .commands import router as commands_router
 from .common import router as common_router
 from .config import router as config_router
 from .dashboard import router as dashboard_router
+from .email import router as email_router
 from .events import router as events_router
 from .logs import router as logs_router
+from .mcp import router as mcp_router
 from .plugin_editor import router as plugin_editor_router
 from .plugins import router as plugins_router
 from .presets import router as presets_router
+from .resources import router as resources_router
 from .restart import router as restart_router
 from .rpc import router as exec_router
 from .sandbox import router as sandbox_router
@@ -59,6 +64,54 @@ def mount_middlewares(app: FastAPI):
         allow_headers=["*"],
     )
 
+    @app.middleware("http")
+    async def request_timing_middleware(request: Request, call_next):
+        """记录 HTTP 请求耗时，并回写响应头。
+
+        说明：
+        - 普通请求记录的是完整处理耗时
+        - 流式响应记录的是开始返回响应前的耗时，不包含整个流结束时间
+        """
+        def get_elapsed_color(elapsed_ms: float) -> str:
+            if elapsed_ms >= 3000:
+                return "red"
+            if elapsed_ms >= 1000:
+                return "yellow"
+            if elapsed_ms >= 300:
+                return "blue"
+            return "green"
+
+        started_at = time.perf_counter()
+        status_code = 500
+
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+        except Exception:
+            elapsed_ms = (time.perf_counter() - started_at) * 1000
+            elapsed_color = get_elapsed_color(elapsed_ms)
+            client_host = request.client.host if request.client else "unknown"
+            logger.opt(colors=True).debug(
+                f"[HTTP] {request.method} {request.url.path} "
+                f"status={status_code} "
+                f"elapsed=<{elapsed_color}>{elapsed_ms:.2f}ms</{elapsed_color}> "
+                f"client={client_host}"
+            )
+            raise
+
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        response.headers["X-Process-Time"] = f"{elapsed_ms:.2f}ms"
+
+        elapsed_color = get_elapsed_color(elapsed_ms)
+        client_host = request.client.host if request.client else "unknown"
+        logger.opt(colors=True).debug(
+            f"[HTTP] {request.method} {request.url.path} "
+            f"status={status_code} "
+            f"elapsed=<{elapsed_color}>{elapsed_ms:.2f}ms</{elapsed_color}> "
+            f"client={client_host}"
+        )
+        return response
+
     # 注册统一的全局异常处理器
     # 支持 AppError 业务错误、验证错误、HTTPException 及通用异常
     register_exception_handlers(app)
@@ -81,9 +134,11 @@ def mount_api_routes(app: FastAPI):
     api.include_router(webhook_router)
     api.include_router(presets_router)
     api.include_router(restart_router)
+    api.include_router(resources_router)
     api.include_router(telemetry_router)
     api.include_router(presets_market_router)
     api.include_router(plugins_market_router)
+    api.include_router(cloud_favorites_router)
     api.include_router(cloud_auth_router)
     api.include_router(cloud_announcement_router)
     api.include_router(adapters_router)
@@ -95,6 +150,8 @@ def mount_api_routes(app: FastAPI):
     api.include_router(cc_model_presets_router)
     api.include_router(events_router)
     api.include_router(commands_router)
+    api.include_router(mcp_router)
+    api.include_router(email_router)
 
     api.include_router(load_adapters_api())
 

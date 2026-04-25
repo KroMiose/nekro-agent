@@ -85,6 +85,33 @@ async def render_plugin_prompt_unit(unit: PluginPromptRenderUnit) -> str:
     return await _render_plugin_prompt(unit)
 
 
+async def _enrich_units_with_inject(
+    units: List[PluginPromptRenderUnit],
+    plugins: List[NekroPlugin],
+    ctx: AgentCtx,
+    states: Optional[set] = None,
+) -> List[PluginPromptRenderUnit]:
+    """按需为指定 state 的 unit 调用 render_inject_prompt，仅用于构建 runtime_prompt。
+
+    Args:
+        units: 原始 unit 列表（inject 字段为空）
+        plugins: 插件列表，用于查找 inject 方法
+        ctx: Agent 上下文
+        states: 需要渲染 inject 的 state 集合，None 表示所有 state
+    """
+    plugin_map = {p.module_name: p for p in plugins}
+    result: List[PluginPromptRenderUnit] = []
+    for unit in units:
+        if states is None or unit.state in states:
+            plugin = plugin_map.get(unit.module_name)
+            if plugin:
+                injected = await plugin.render_inject_prompt(ctx)
+                result.append(unit.model_copy(update={"plugin_injected_prompt": injected}))
+                continue
+        result.append(unit)
+    return result
+
+
 async def render_plugins_prompt_legacy(plugins: List[NekroPlugin], ctx: AgentCtx) -> RenderedPluginPrompts:
     units: List[PluginPromptRenderUnit] = []
     for plugin in plugins:
@@ -96,19 +123,14 @@ async def render_plugins_prompt_legacy(plugins: List[NekroPlugin], ctx: AgentCtx
                 plugin_name=plugin.name,
                 module_name=plugin.module_name,
                 state="always_awake",
-                plugin_injected_prompt=await plugin.render_inject_prompt(ctx),
                 plugin_method_prompt=await plugin.render_sandbox_methods_prompt(ctx),
             ),
         )
     units = _sort_plugin_units_for_cache(units)
+    runtime_units = await _enrich_units_with_inject(units, plugins, ctx)
     return RenderedPluginPrompts(
-        system_prompt="\n\n".join(
-            [
-                await _render_plugin_prompt(unit.model_copy(update={"plugin_injected_prompt": ""}))
-                for unit in units
-            ],
-        ),
-        runtime_prompt=_render_plugin_runtime_prompt(units),
+        system_prompt="\n\n".join([await _render_plugin_prompt(unit) for unit in units]),
+        runtime_prompt=_render_plugin_runtime_prompt(runtime_units),
     )
 
 
@@ -122,12 +144,8 @@ async def render_plugins_prompt(
 
     units = await build_prompt_disclosure_view(plugins, ctx)
     units = _sort_plugin_units_for_cache(units)
+    runtime_units = await _enrich_units_with_inject(units, plugins, ctx, states={"active", "always_awake"})
     return RenderedPluginPrompts(
-        system_prompt="\n\n".join(
-            [
-                await _render_plugin_prompt(unit.model_copy(update={"plugin_injected_prompt": ""}))
-                for unit in units
-            ],
-        ),
-        runtime_prompt=_render_plugin_runtime_prompt(units),
+        system_prompt="\n\n".join([await _render_plugin_prompt(unit) for unit in units]),
+        runtime_prompt=_render_plugin_runtime_prompt(runtime_units),
     )

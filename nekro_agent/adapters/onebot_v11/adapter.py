@@ -15,10 +15,13 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.adapters.onebot_v11.matchers.message import register_matcher
 from nekro_agent.core import config, logger
-from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
+from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.schemas.i18n import i18n_text
+from nekro_agent.services.command.schemas import CommandResponse
+from nekro_agent.core.core_utils import ExtraField
 
 from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
 from .core.bot import get_bot
@@ -33,18 +36,43 @@ class OnebotV11Config(BaseAdapterConfig):
         default=True,
         title="启用适配器",
         description="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
-        json_schema_extra=ExtraField(is_need_restart=True).model_dump(),
+        json_schema_extra=ExtraField(
+            is_need_restart=True,
+            i18n_category=i18n_text(zh_CN="基础设置", en_US="Basic Settings"),
+            i18n_title=i18n_text(zh_CN="启用适配器", en_US="Enable Adapter"),
+            i18n_description=i18n_text(
+                zh_CN="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
+                en_US="When disabled, this adapter will not be loaded on startup. Restart the application after changes.",
+            ),
+        ).model_dump(),
     )
 
     BOT_QQ: str = Field(
         default="",
         title="机器人 QQ 号",
-        json_schema_extra=ExtraField(required=True).model_dump(),
+        description="当前 OneBot 机器人的 QQ 号",
+        json_schema_extra=ExtraField(
+            required=True,
+            i18n_category=i18n_text(zh_CN="OneBot", en_US="OneBot"),
+            i18n_title=i18n_text(zh_CN="机器人 QQ 号", en_US="Bot QQ Number"),
+            i18n_description=i18n_text(
+                zh_CN="当前 OneBot 机器人的 QQ 号",
+                en_US="QQ number of the current OneBot bot.",
+            ),
+        ).model_dump(),
     )
     RESOLVE_CQ_CODE: bool = Field(
         default=False,
         title="是否解析 CQ 码",
         description="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="OneBot", en_US="OneBot"),
+            i18n_title=i18n_text(zh_CN="是否解析 CQ 码", en_US="Parse CQ Codes"),
+            i18n_description=i18n_text(
+                zh_CN="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
+                en_US="When enabled, CQ codes in AI-generated messages will no longer be treated as plain text and will instead be parsed into rich messages by the protocol implementation.",
+            ),
+        ).model_dump(),
     )
 
     """NAPCAT 配置"""
@@ -52,9 +80,29 @@ class OnebotV11Config(BaseAdapterConfig):
         default="http://127.0.0.1:6099/webui",
         title="NapCat WebUI 访问地址",
         description="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
-        json_schema_extra=ExtraField(placeholder="例: http://<服务器 IP>:<NapCat 端口>/webui").model_dump(),
+        json_schema_extra=ExtraField(
+            placeholder="例: http://<服务器 IP>:<NapCat 端口>/webui",
+            i18n_category=i18n_text(zh_CN="NapCat", en_US="NapCat"),
+            i18n_title=i18n_text(zh_CN="NapCat WebUI 访问地址", en_US="NapCat WebUI URL"),
+            i18n_description=i18n_text(
+                zh_CN="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
+                en_US="WebUI URL of NapCat. Make sure the corresponding port is accessible.",
+            ),
+        ).model_dump(),
     )
-    NAPCAT_CONTAINER_NAME: str = Field(default="nekro_napcat", title="NapCat 容器名称")
+    NAPCAT_CONTAINER_NAME: str = Field(
+        default="nekro_napcat",
+        title="NapCat 容器名称",
+        description="NapCat 容器名称，用于容器相关集成功能",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="NapCat", en_US="NapCat"),
+            i18n_title=i18n_text(zh_CN="NapCat 容器名称", en_US="NapCat Container Name"),
+            i18n_description=i18n_text(
+                zh_CN="NapCat 容器名称，用于容器相关集成功能",
+                en_US="Container name of NapCat, used by container-related integration features.",
+            ),
+        ).model_dump(),
+    )
 
 
 class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
@@ -74,7 +122,7 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
             name="OneBot V11",
             description="OneBot V11 协议适配器，支持与兼容 OneBot V11 标准的 QQ 机器人实现进行通信",
             version="1.0.0",
-            author="NekroAgent",
+            author="NekroAI",
             homepage="https://github.com/nekro-agent/nekro-agent",
             tags=["qq", "onebot", "v11", "chat", "messaging"],
         )
@@ -112,6 +160,27 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
             await self._send_forward_message(chat_key, message)
         except Exception as e:
             logger.warning(f"[ForwardMsg] 合并转发发送失败: {e}")
+            return False
+        else:
+            return True
+
+    async def _try_send_enhanced_command_response(
+        self,
+        chat_key: str,
+        response: CommandResponse,
+        messages: list[AgentMessageSegment],
+    ) -> bool:
+        """OneBot V11: 以合并转发消息形式发送图文命令输出。"""
+        if not response.output_segments:
+            return False
+
+        if any(msg.type == AgentMessageSegmentType.FILE for msg in messages):
+            return False
+
+        try:
+            await self._send_forward_segments(chat_key, messages)
+        except Exception as e:
+            logger.warning(f"[ForwardMsg] 富媒体命令输出发送失败: {e}")
             return False
         else:
             return True
@@ -155,6 +224,60 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
 
         if not nodes:
             raise ValueError("无法拆分消息内容")
+
+        if chat_type is ChatType.GROUP:
+            await bot.call_api("send_group_forward_msg", group_id=chat_id, messages=nodes)
+        elif chat_type is ChatType.PRIVATE:
+            await bot.call_api("send_private_forward_msg", user_id=chat_id, messages=nodes)
+        else:
+            raise ValueError(f"不支持的聊天类型: {chat_type}")
+
+    async def _send_forward_segments(self, chat_key: str, messages: list[AgentMessageSegment]) -> None:
+        """以合并转发消息形式发送图文消息段。"""
+        bot: Bot = get_bot()
+        db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
+        chat_type = db_chat_channel.chat_type
+        chat_id = int(db_chat_channel.channel_id.split("_")[1])
+
+        nodes: list[dict[str, Any]] = []
+        current_message = Message()
+
+        def flush_current() -> None:
+            if current_message:
+                nodes.append(
+                    {
+                        "type": "node",
+                        "data": {
+                            "name": "NekroAgent",
+                            "uin": bot.self_id,
+                            "content": current_message.copy(),
+                        },
+                    }
+                )
+                current_message.clear()
+
+        for item in messages:
+            if item.type == AgentMessageSegmentType.TEXT:
+                text = item.content.strip()
+                if not text:
+                    continue
+                if current_message:
+                    flush_current()
+                current_message.append(MessageSegment.text(text))
+                continue
+
+            if item.type == AgentMessageSegmentType.IMAGE:
+                image_path = Path(item.content)
+                if not image_path.exists():
+                    logger.warning(f"[ForwardMsg] 图片不存在，跳过: {image_path}")
+                    continue
+                current_message.append(MessageSegment.image(file=image_path.read_bytes()))
+                flush_current()
+
+        flush_current()
+
+        if not nodes:
+            raise ValueError("无法构建合并转发节点")
 
         if chat_type is ChatType.GROUP:
             await bot.call_api("send_group_forward_msg", group_id=chat_id, messages=nodes)

@@ -28,6 +28,7 @@ jobs:
         run: uv sync
 
       - name: Plugin Load Test
+        timeout-minutes: 10
         run: |
           uv run bot --load-test
           if [ $? -ne 0 ]; then

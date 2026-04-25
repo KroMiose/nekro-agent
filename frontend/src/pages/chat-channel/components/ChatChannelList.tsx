@@ -2,20 +2,19 @@ import {
   List,
   ListItem,
   ListItemButton,
-  ListItemText,
   ListItemIcon,
+  ListItemText,
   Typography,
   Skeleton,
   Stack,
   Box,
 } from '@mui/material'
 import { Group as GroupIcon, Person as PersonIcon, Circle as CircleIcon } from '@mui/icons-material'
-import { ChatChannel } from '../../../services/api/chat-channel'
-import { formatLastActiveTime } from '../../../utils/time'
+import type { ChannelDirectoryEntry } from '../../../hooks/useChannelDirectory'
 import { useTranslation } from 'react-i18next'
 
 interface ChatChannelListProps {
-  channels: ChatChannel[]
+  channels: ChannelDirectoryEntry[]
   selectedChatKey: string | null
   onSelectChannel: (chatKey: string) => void
   isLoading: boolean
@@ -84,30 +83,18 @@ export default function ChatChannelList({
                 <CircleIcon
                   sx={{
                     fontSize: 8,
-                    color: channel.is_active ? 'success.main' : 'text.disabled',
+                    color: channel.status === 'active'
+                      ? 'success.main'
+                      : channel.status === 'observe'
+                        ? 'warning.main'
+                        : 'text.disabled',
                   }}
                   className="flex-shrink-0"
                 />
               </Stack>
-              <Stack spacing={0.5} className="min-w-0">
-                <Stack
-                  direction="row"
-                  spacing={1}
-                  alignItems="center"
-                  justifyContent="space-between"
-                >
-                  <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1.2 }}>
-                    {t('list.messageCount', { count: channel.message_count })}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1.2 }}>
-                    {channel.last_message_time
-                      ? formatLastActiveTime(
-                          Math.floor(new Date(channel.last_message_time).getTime() / 1000)
-                        )
-                      : t('list.noActiveRecord')}
-                  </Typography>
-                </Stack>
-              </Stack>
+              <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1.2 }}>
+                {channel.chat_key}
+              </Typography>
             </Box>
           </ListItemButton>
         </ListItem>

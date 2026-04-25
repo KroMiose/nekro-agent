@@ -1,4 +1,5 @@
 import importlib
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict
@@ -101,6 +102,22 @@ ADAPTER_REGISTRY: Dict[str, AdapterSpec] = {
         description="飞书适配器",
         tags=("feishu",),
     ),
+    "wxwork": AdapterSpec(
+        key="wxwork",
+        adapter_path="nekro_agent.adapters.wxwork.adapter.WxWorkAdapter",
+        config_path="nekro_agent.adapters.wxwork.config.WxWorkConfig",
+        name="WeCom AI Bot",
+        description="企业微信智能机器人（AI Bot）适配器",
+        tags=("wxwork", "wecom", "wechat_work"),
+    ),
+    "wxwork_corp_app": AdapterSpec(
+        key="wxwork_corp_app",
+        adapter_path="nekro_agent.adapters.wxwork_corp_app.adapter.WxWorkCorpAppAdapter",
+        config_path="nekro_agent.adapters.wxwork_corp_app.config.WxWorkCorpAppConfig",
+        name="WeCom Corp App",
+        description="企业微信自建应用适配器",
+        tags=("wxwork", "wecom", "corp_app"),
+    ),
 }
 
 ADAPTER_DICT: Dict[str, str] = {key: spec.adapter_path for key, spec in ADAPTER_REGISTRY.items()}
@@ -176,9 +193,15 @@ async def init_adapters(_app: FastAPI):
 
 
 async def cleanup_adapters(_app: FastAPI):
+    cleanup_started_at = time.perf_counter()
+    logger.debug(f"Adapter cleanup begin, total={len(loaded_adapters)}")
     for adapter_key, adapter in loaded_adapters.items():
+        adapter_started_at = time.perf_counter()
+        logger.debug(f"Adapter {adapter_key} cleanup begin")
         await adapter.cleanup()
+        logger.debug(f"Adapter {adapter_key} cleanup finished in {time.perf_counter() - adapter_started_at:.3f}s")
         logger.info(f"Adapter {adapter_key} cleaned up")
+    logger.debug(f"Adapter cleanup finished in {time.perf_counter() - cleanup_started_at:.3f}s")
 
 
 def get_adapter(adapter_key: str) -> BaseAdapter:

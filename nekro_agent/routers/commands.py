@@ -4,10 +4,12 @@ import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.command.schemas import CommandOutputSegment
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -24,10 +26,13 @@ class CommandStateResponse(BaseModel):
     description: str
     usage: str
     permission: str
+    default_permission: str
     category: str
     source: str  # "built_in" | 插件 key
+    source_display_name: str
     enabled: bool
     has_channel_override: bool
+    has_permission_override: bool
     params_schema: Optional[dict] = None
     i18n_description: Optional[dict[str, str]] = None
     i18n_usage: Optional[dict[str, str]] = None
@@ -86,6 +91,43 @@ async def reset_command_state(
     from nekro_agent.services.command.manager import command_manager
 
     await command_manager.reset_command_state(req.command_name, req.chat_key)
+    return {"ok": True}
+
+
+class SetCommandPermissionRequest(BaseModel):
+    command_name: str
+    permission: CommandPermission
+    chat_key: Optional[str] = None
+
+
+@router.post("/set-permission", summary="设置命令权限")
+@require_role(Role.Admin)
+async def set_command_permission(
+    req: SetCommandPermissionRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
+    """设置命令权限覆盖"""
+    from nekro_agent.services.command.manager import command_manager
+
+    await command_manager.set_command_permission(req.command_name, req.permission, req.chat_key)
+    return {"ok": True}
+
+
+class ResetCommandPermissionRequest(BaseModel):
+    command_name: str
+    chat_key: Optional[str] = None
+
+
+@router.post("/reset-permission", summary="重置命令权限")
+@require_role(Role.Admin)
+async def reset_command_permission(
+    req: ResetCommandPermissionRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
+    """重置命令权限覆盖（回退到上级）"""
+    from nekro_agent.services.command.manager import command_manager
+
+    await command_manager.reset_command_permission(req.command_name, req.chat_key)
     return {"ok": True}
 
 
@@ -168,10 +210,10 @@ async def stream_command_output(
                 try:
                     event = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
-                    yield ": ping\n\n"
+                    yield {"comment": "ping"}
                     continue
 
-                yield f"data: {json.dumps(event.model_dump(), ensure_ascii=False)}\n\n"
+                yield {"data": json.dumps(event.model_dump(), ensure_ascii=False)}
         finally:
             subscription.close()
 
@@ -196,9 +238,15 @@ class WebUIExecuteRequest(BaseModel):
     raw_args: str = ""
 
 
+class WebUIExecuteResponseItem(BaseModel):
+    status: str
+    message: str
+    output_segments: list[CommandOutputSegment] | None = None
+
+
 class WebUIExecuteResponse(BaseModel):
     ok: bool = True
-    responses: list[dict] = []
+    responses: list[WebUIExecuteResponseItem] = Field(default_factory=list)
 
 
 @router.post("/webui-execute", summary="WebUI 执行命令（不转发到平台）")
@@ -210,6 +258,7 @@ async def webui_execute_command(
     """从 WebUI 直接执行命令，结果仅通过 SSE 广播到 WebUI，不发送到聊天平台"""
     from nekro_agent.core.config import config
     from nekro_agent.schemas.i18n import SupportedLang
+    from nekro_agent.services.command.output import materialize_command_response
     from nekro_agent.services.command.registry import command_registry
     from nekro_agent.services.command.schemas import CommandExecutionContext, CommandRequest
     from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
@@ -225,15 +274,23 @@ async def webui_execute_command(
     )
     request = CommandRequest(context=context, command_name=req.command_name, raw_args=req.raw_args)
 
-    results: list[dict] = []
-    async for response in command_registry.execute(request):
+    results: list[WebUIExecuteResponseItem] = []
+    async for raw_response in command_registry.execute(request):
+        response = await materialize_command_response(req.chat_key, raw_response)
         await command_output_broadcaster.publish(
             chat_key=req.chat_key,
             command_name=req.command_name,
             status=response.status.value,
             message=response.message,
+            output_segments=response.output_segments,
         )
-        results.append({"status": response.status.value, "message": response.message})
+        results.append(
+            WebUIExecuteResponseItem(
+                status=response.status.value,
+                message=response.message,
+                output_segments=response.output_segments,
+            )
+        )
 
     return WebUIExecuteResponse(ok=True, responses=results)
 

@@ -1,10 +1,11 @@
-import { Box, Typography, CircularProgress, IconButton, Tooltip, alpha } from '@mui/material'
+import { Box, Typography, CircularProgress, Tooltip, alpha } from '@mui/material'
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material'
 import { useTheme } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WorkspaceDetail, SandboxStatus } from '../../../services/api/workspace'
 import WorkspaceStatusChip from './WorkspaceStatusChip'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 export default function WorkspaceHeader({
   workspace,
@@ -34,7 +35,6 @@ export default function WorkspaceHeader({
         alignItems: 'center',
         gap: 1.5,
         flexShrink: 0,
-        // 玻璃 paper 背景：比卡片更不透明，作为结构性导航条
         backgroundColor: theme.palette.mode === 'dark'
           ? 'rgba(47, 47, 47, 0.95)'
           : 'rgba(250, 250, 250, 0.97)',
@@ -50,9 +50,9 @@ export default function WorkspaceHeader({
       }}
     >
       <Tooltip title={t('detail.header.backTooltip')}>
-        <IconButton size="small" onClick={onBack}>
+        <IconActionButton size="small" onClick={onBack}>
           <ArrowBackIcon fontSize="small" />
-        </IconButton>
+        </IconActionButton>
       </Tooltip>
 
       <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -61,7 +61,6 @@ export default function WorkspaceHeader({
 
       <Box sx={{ flexGrow: 1 }} />
 
-      {/* CC 执行中指示器 */}
       <AnimatePresence>
         {ccWorking && (
           <motion.div
@@ -99,7 +98,6 @@ export default function WorkspaceHeader({
         )}
       </AnimatePresence>
 
-      {/* 沙盒状态展示，点击跳转到沙盒容器 Tab */}
       <Tooltip title={t('detail.header.viewSandboxTooltip')} placement="left">
         <Box
           onClick={onNavigateToSandbox}

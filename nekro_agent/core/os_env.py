@@ -55,7 +55,7 @@ class OsEnv:
     ADMIN_PASSWORD: str = OsEnvTypes.Str("ADMIN_PASSWORD", default="")
 
     """Nekro Cloud API"""
-    NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://community.nekro.ai")
+    NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://cloud.nekro.ai")
     # NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="http://localhost:8787")
 
     """OPENAPI 配置"""
@@ -95,6 +95,15 @@ TIMER_ONE_SHOT_PERSIST_PATH: str = TIMER_SYSTEM_DIR + "/one_shot_timers.json"
 
 CALENDAR_SYSTEM_DIR: str = APP_SYSTEM_DIR + "/calendar"
 CALENDAR_CN_HOLIDAY_DIR: str = CALENDAR_SYSTEM_DIR + "/cn_holidays"
+
+# =============================================================================
+# Command data paths (under DATA_DIR/configs)
+# =============================================================================
+COMMAND_STATE_DIR: str = OsEnv.DATA_DIR + "/configs/command_states"
+COMMAND_SYSTEM_STATE_FILE: str = COMMAND_STATE_DIR + "/system.json"
+COMMAND_CHANNEL_STATE_DIR: str = COMMAND_STATE_DIR + "/channels"
+COMMAND_SYSTEM_PERMISSION_FILE: str = COMMAND_STATE_DIR + "/system_permissions.json"
+COMMAND_CHANNEL_PERMISSION_DIR: str = COMMAND_STATE_DIR + "/channel_permissions"
 
 
 # 设置上传目录及其子目录权限

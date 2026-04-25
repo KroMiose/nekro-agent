@@ -98,7 +98,7 @@ class CoreConfig(ConfigBase):
     NEKRO_CLOUD_API_KEY: str = Field(
         default="",
         title="NekroAI 云服务 API Key",
-        description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
+        description="NekroAI 云服务 API Key，可前往 <a href='https://cloud.nekro.ai/me'>NekroAI 社区</a> 获取",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
                 zh_CN="基础设置",
@@ -111,8 +111,8 @@ class CoreConfig(ConfigBase):
                 en_US="NekroAI Cloud Service API Key",
             ),
             i18n_description=i18n_text(
-                zh_CN="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me' target='_blank' rel='noopener noreferrer'>NekroAI 社区</a> 获取",
-                en_US="NekroAI Cloud Service API Key, get it from <a href='https://community.nekro.ai/me' target='_blank' rel='noopener noreferrer'>NekroAI Community</a>",
+                zh_CN="NekroAI 云服务 API Key，可前往 <a href='https://cloud.nekro.ai/me' target='_blank' rel='noopener noreferrer'>NekroAI 社区</a> 获取",
+                en_US="NekroAI Cloud Service API Key, get it from <a href='https://cloud.nekro.ai/me' target='_blank' rel='noopener noreferrer'>NekroAI Community</a>",
             ),
         ).model_dump(),
     )
@@ -144,7 +144,7 @@ class CoreConfig(ConfigBase):
     SUPER_USERS: List[str] = Field(
         default=[],
         title="管理员列表",
-        description="此处指定的管理员用户可使用指令和登陆 WebUI, 初始密码为 `123456`",
+        description="此处指定的管理员用户可在 OneBot V11 适配器频道中使用指令 (填写 QQ 号)",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
                 zh_CN="基础设置",
@@ -155,27 +155,8 @@ class CoreConfig(ConfigBase):
                 en_US="Administrator List",
             ),
             i18n_description=i18n_text(
-                zh_CN="此处指定的管理员用户可使用指令和登陆 WebUI, 初始密码为 123456",
-                en_US="Administrators specified here can use commands and login to WebUI, initial password is 123456",
-            ),
-        ).model_dump(),
-    )
-    ALLOW_SUPER_USERS_LOGIN: bool = Field(
-        default=True,
-        title="允许管理员登陆 WebUI",
-        description="启用后可使用管理员账号登陆 WebUI，登陆后请及时在 个人中心 修改密码",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(
-                zh_CN="基础设置",
-                en_US="Basic Settings",
-            ),
-            i18n_title=i18n_text(
-                zh_CN="允许管理员登陆 WebUI",
-                en_US="Allow Administrators Login to WebUI",
-            ),
-            i18n_description=i18n_text(
-                zh_CN="启用后可使用管理员账号登陆 WebUI，登陆后请及时在个人中心修改密码",
-                en_US="When enabled, administrators can login to WebUI, please change password in profile after login",
+                zh_CN="此处指定的管理员用户可在 OneBot V11 适配器频道中使用指令 (填写 QQ 号)",
+                en_US="Administrators specified here can use commands in the OneBot V11 adapter channel (fill in QQ number)",
             ),
         ).model_dump(),
     )
@@ -195,6 +176,25 @@ class CoreConfig(ConfigBase):
             i18n_description=i18n_text(
                 zh_CN="全局关闭后所有适配器不再处理命令",
                 en_US="When disabled, all adapters will stop processing commands",
+            ),
+        ).model_dump(),
+    )
+    COMMAND_MATCH_ALLOW_HYPHEN_FOR_UNDERSCORE: bool = Field(
+        default=True,
+        title="命令匹配允许连字符代替下划线",
+        description="启用后，命令名匹配时会将连字符视为下划线，输入 cc-help 时可匹配 cc_help",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="命令匹配允许连字符代替下划线",
+                en_US="Allow Hyphen Instead of Underscore in Command Matching",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用后，命令名匹配时会将连字符视为下划线，输入 cc-help 时可匹配 cc_help",
+                en_US="When enabled, command matching treats hyphens as underscores, so cc-help can match cc_help",
             ),
         ).model_dump(),
     )
@@ -256,20 +256,666 @@ class CoreConfig(ConfigBase):
     )
     DEFAULT_PROXY: str = Field(
         default="",
-        title="默认代理",
+        title="系统级默认代理地址",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="基础设置",
-                en_US="Basic Settings",
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
             ),
             placeholder="例: http://127.0.0.1:7890",
             i18n_title=i18n_text(
-                zh_CN="默认代理",
-                en_US="Default Proxy",
+                zh_CN="系统级默认代理地址",
+                en_US="System Default Proxy URL",
             ),
             i18n_description=i18n_text(
-                zh_CN="默认代理服务器地址，用于网络请求",
-                en_US="Default proxy server address for network requests",
+                zh_CN="系统级功能使用的默认代理地址，不影响模型组代理；需包含协议头，例如 http:// 或 socks5://",
+                en_US="Default proxy URL used by system-level features, without affecting model-group proxies; must include a scheme such as http:// or socks5://",
+            ),
+        ).model_dump(),
+    )
+    DEFAULT_PROXY_USERNAME: str = Field(
+        default="",
+        title="系统级代理用户名",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="系统级代理用户名",
+                en_US="System Proxy Username",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="可选。系统级代理认证用户名，仅对接入系统级代理管理的功能生效",
+                en_US="Optional. Username for system-level proxy authentication, effective only for features using the system proxy manager",
+            ),
+        ).model_dump(),
+    )
+    DEFAULT_PROXY_PASSWORD: str = Field(
+        default="",
+        title="系统级代理密码",
+        json_schema_extra=ExtraField(
+            is_secret=True,
+            i18n_category=i18n_text(
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="系统级代理密码",
+                en_US="System Proxy Password",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="可选。系统级代理认证密码，仅对接入系统级代理管理的功能生效",
+                en_US="Optional. Password for system-level proxy authentication, effective only for features using the system proxy manager",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_ENABLE_SYSTEM: bool = Field(
+        default=False,
+        title="启用记忆系统",
+        description="控制记忆系统的自动运行主链路。关闭后将停止自动沉淀、自动检索注入、CC 记忆握手、自动恢复与后台维护；已存在的记忆数据不会被删除，只读观测与少数显式手动维护功能仍可使用",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="启用记忆系统", en_US="Enable Memory System"),
+            i18n_description=i18n_text(
+                zh_CN="控制记忆系统的自动运行主链路。关闭后将停止自动沉淀、自动检索注入、CC 记忆握手、自动恢复与后台维护；已存在的记忆数据不会被删除，只读观测与少数显式手动维护功能仍可使用",
+                en_US="Controls the automatic memory pipeline. When disabled, automatic consolidation, retrieval injection, CC memory handshake, automatic recovery, and background maintenance stop; existing memory data is kept, while read-only inspection and a few explicit manual maintenance actions remain available",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONTEXT_MAX_LENGTH: int = Field(
+        default=1200,
+        title="记忆上下文最大长度",
+        description="记忆系统注入到 Agent 提示词中的最大字符长度。值越大，Agent 可参考的记忆越多，但也会占用更多上下文窗口",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="记忆上下文最大长度", en_US="Memory Context Max Length"),
+            i18n_description=i18n_text(
+                zh_CN="记忆系统注入到 Agent 提示词中的最大字符长度。值越大，Agent 可参考的记忆越多，但也会占用更多上下文窗口",
+                en_US="Maximum character length of memory context injected into the Agent prompt. Larger values allow more memory context but consume more prompt window",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_ENABLE_ENHANCED_RETRIEVAL: bool = Field(
+        default=False,
+        title="启用增强记忆检索",
+        description="启用后会先使用专门的模型根据最近上下文生成结构化记忆检索条件，再执行记忆检索；模型不可用或输出异常时会自动回退到规则检索",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="启用增强记忆检索", en_US="Enable Enhanced Memory Retrieval"),
+            i18n_description=i18n_text(
+                zh_CN="启用后会先使用专门的模型根据最近上下文生成结构化记忆检索条件，再执行记忆检索；模型不可用或输出异常时会自动回退到规则检索",
+                en_US="When enabled, a dedicated model first generates a structured memory retrieval plan from recent context before retrieval. It automatically falls back to rule-based retrieval when the model is unavailable or returns invalid output",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_ENHANCED_RETRIEVAL_MODEL_GROUP: str = Field(
+        default="",
+        title="增强记忆检索模型组",
+        description="用于增强记忆检索规划的聊天模型组。留空时回退到默认聊天模型组",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            ref_model_groups=True,
+            model_type="chat",
+            i18n_title=i18n_text(zh_CN="增强记忆检索模型组", en_US="Enhanced Memory Retrieval Model Group"),
+            i18n_description=i18n_text(
+                zh_CN="用于增强记忆检索规划的聊天模型组。留空时回退到默认聊天模型组",
+                en_US="Chat model group used for enhanced memory retrieval planning. Falls back to the default chat model group when empty",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_MODEL_GROUP: str = Field(
+        default="default",
+        title="情景沉淀模型组",
+        description="用于情景记忆沉淀提取的模型组名称。留空时回退到默认聊天模型组",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            ref_model_groups=True,
+            model_type="chat",
+            i18n_title=i18n_text(zh_CN="情景沉淀模型组", en_US="Memory Consolidation Model Group"),
+            i18n_description=i18n_text(
+                zh_CN="用于情景记忆沉淀提取的模型组名称。留空时回退到默认聊天模型组",
+                en_US="Model group for episodic memory consolidation. Falls back to the default chat model group when empty",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_FALLBACK_MODEL_GROUP: str = Field(
+        default="",
+        title="情景沉淀备用模型组",
+        description="当情景记忆沉淀在最后一次解析重试时，切换使用的备用模型组。留空时回退到情景沉淀主模型组",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            ref_model_groups=True,
+            model_type="chat",
+            i18n_title=i18n_text(zh_CN="情景沉淀备用模型组", en_US="Memory Consolidation Fallback Model Group"),
+            i18n_description=i18n_text(
+                zh_CN="当情景记忆沉淀在最后一次解析重试时，切换使用的备用模型组。留空时回退到情景沉淀主模型组",
+                en_US="Fallback model group used on the final parse retry of episodic memory consolidation. Falls back to the primary consolidation model group when empty",
+            ),
+            placeholder="例: api-nekro-pro-2.5",
+        ).model_dump(),
+    )
+    MEMORY_EMBEDDING_MODEL_GROUP: str = Field(
+        default="text-embedding",
+        title="记忆 Embedding 模型组",
+        description="用于记忆系统向量化的 embedding 模型组。应选择 MODEL_TYPE 为 embedding 的模型组，并与向量维度配置保持一致",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            ref_model_groups=True,
+            model_type="embedding",
+            i18n_title=i18n_text(zh_CN="记忆 Embedding 模型组", en_US="Memory Embedding Model Group"),
+            i18n_description=i18n_text(
+                zh_CN="用于记忆系统向量化的 embedding 模型组。应选择 MODEL_TYPE 为 embedding 的模型组，并与向量维度配置保持一致",
+                en_US="Embedding model group used by the memory system for vectorization. It should use a model group with MODEL_TYPE set to embedding and match the configured vector dimension",
+            ),
+            placeholder="例: text-embedding",
+        ).model_dump(),
+    )
+    MEMORY_EMBEDDING_DIMENSION: int = Field(
+        default=1024,
+        title="记忆 Embedding 维度",
+        description="记忆系统向量化使用的维度，需要与所选 embedding 模型和 Qdrant 索引保持一致",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="记忆系统",
+                en_US="Memory System",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="记忆 Embedding 维度",
+                en_US="Memory Embedding Dimension",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="记忆系统向量化使用的维度，需要与所选 embedding 模型和 Qdrant 索引保持一致",
+                en_US="Embedding dimension used by memory system, must match the selected embedding model and Qdrant index",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_FORCE_JSON_OUTPUT: bool = Field(
+        default=True,
+        title="强制沉淀模型输出 JSON",
+        description="为记忆沉淀请求显式附加 JSON 输出约束，降低解析失败概率。关闭后仅适用于兼容性调试场景",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="强制沉淀模型输出 JSON", en_US="Force JSON Consolidation Output"),
+            i18n_description=i18n_text(
+                zh_CN="为记忆沉淀请求显式附加 JSON 输出约束，降低解析失败概率",
+                en_US="Explicitly request JSON output for memory consolidation to reduce parse failures",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_LLM_MAX_RETRIES: int = Field(
+        default=3,
+        title="记忆 LLM 调用最大重试次数",
+        description="记忆沉淀调用模型接口时的最大重试次数。用于处理网络抖动、上游超时或模型临时不可用",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="LLM 最大重试次数", en_US="LLM Max Retries"),
+            i18n_description=i18n_text(
+                zh_CN="记忆沉淀调用模型接口时的最大重试次数。用于处理网络抖动、上游超时或模型临时不可用",
+                en_US="Maximum retry count for model calls during memory consolidation, used for transient network issues, upstream timeouts, or temporary model unavailability",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_PARSE_MAX_RETRIES: int = Field(
+        default=2,
+        title="沉淀解析最大重试次数",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="沉淀解析最大重试次数", en_US="Consolidation Parse Max Retries"),
+            i18n_description=i18n_text(
+                zh_CN="当 LLM 返回内容无法解析为记忆 JSON 时，重新请求的最大次数",
+                en_US="Maximum number of re-requests when LLM output cannot be parsed into memory JSON",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_RETRIEVAL_DEFAULT_LIMIT: int = Field(
+        default=10,
+        title="默认检索数量",
+        description="单次记忆检索默认返回的候选数量上限。过大可能增加噪声和上下文占用，过小可能遗漏相关记忆",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="默认检索数量", en_US="Default Retrieval Limit"),
+            i18n_description=i18n_text(
+                zh_CN="单次记忆检索默认返回的候选数量上限。过大可能增加噪声和上下文占用，过小可能遗漏相关记忆",
+                en_US="Default maximum number of candidates returned by a memory retrieval. Too large may add noise and prompt cost, too small may miss relevant memories",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_RETRIEVAL_MIN_SIMILARITY: float = Field(
+        default=0.5,
+        title="最低相似度",
+        description="向量检索的最低相似度阈值。提高该值会减少低相关记忆，降低该值会提高召回率但可能带来噪声",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="最低相似度", en_US="Minimum Similarity"),
+            i18n_description=i18n_text(
+                zh_CN="向量检索的最低相似度阈值。提高该值会减少低相关记忆，降低该值会提高召回率但可能带来噪声",
+                en_US="Minimum similarity threshold for vector retrieval. Higher values reduce weak matches; lower values improve recall but may increase noise",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_RETRIEVAL_EPISODIC_BOOST: float = Field(
+        default=1.2,
+        title="情景记忆加权",
+        description="检索排序时对情景记忆的额外权重系数。提高后更偏向近期经历和历史事件",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="情景记忆加权", en_US="Episodic Boost"),
+            i18n_description=i18n_text(
+                zh_CN="检索排序时对情景记忆的额外权重系数。提高后更偏向近期经历和历史事件",
+                en_US="Extra weighting factor applied to episodic memories during retrieval ranking. Higher values bias toward experiences and events",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_RETRIEVAL_RECENT_BOOST_HOURS: int = Field(
+        default=24,
+        title="近期记忆加权窗口",
+        description="在该时间窗口内的记忆会被视为近期记忆，可额外获得近期加权",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="近期记忆加权窗口", en_US="Recent Boost Hours"),
+            i18n_description=i18n_text(
+                zh_CN="在该时间窗口内的记忆会被视为近期记忆，可额外获得近期加权",
+                en_US="Memories within this time window are treated as recent and can receive an additional ranking boost",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_RETRIEVAL_RECENT_BOOST_FACTOR: float = Field(
+        default=1.1,
+        title="近期记忆加权倍率",
+        description="用于提升近期记忆排序分数的倍率，通常与近期记忆加权窗口配合使用",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="近期记忆加权倍率", en_US="Recent Boost Factor"),
+            i18n_description=i18n_text(
+                zh_CN="用于提升近期记忆排序分数的倍率，通常与近期记忆加权窗口配合使用",
+                en_US="Multiplier used to boost the ranking score of recent memories, usually paired with the recent boost window",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_RETRIEVAL_RELATION_BOOST: float = Field(
+        default=1.05,
+        title="关系记忆加权",
+        description="关系检索结果合并回段落候选时的额外加权系数。提高后更容易命中实体关系相关记忆",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="关系记忆加权", en_US="Relation Boost"),
+            i18n_description=i18n_text(
+                zh_CN="关系检索结果合并回段落候选时的额外加权系数。提高后更容易命中实体关系相关记忆",
+                en_US="Extra weighting applied when relation-based matches are merged back into paragraph candidates. Higher values favor entity-relation memories",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_RETRIEVAL_RELATION_MATCH_LIMIT: int = Field(
+        default=20,
+        title="关系匹配实体上限",
+        description="单次关系补召回时允许参与匹配的实体数量上限，用于限制关系扩展成本",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="关系匹配实体上限", en_US="Relation Match Limit"),
+            i18n_description=i18n_text(
+                zh_CN="单次关系补召回时允许参与匹配的实体数量上限，用于限制关系扩展成本",
+                en_US="Maximum number of entities considered during relation-based recall expansion, used to cap relation matching cost",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_BATCH_SIZE: int = Field(
+        default=50,
+        title="单次沉淀消息数",
+        description="每次情景记忆沉淀最多读取的消息数量。较大值有利于形成完整片段，但会增加单批处理耗时",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="单次沉淀消息数", en_US="Consolidation Batch Size"),
+            i18n_description=i18n_text(
+                zh_CN="每次情景记忆沉淀最多读取的消息数量。较大值有利于形成完整片段，但会增加单批处理耗时",
+                en_US="Maximum number of messages read in one episodic consolidation batch. Larger values help form fuller context but increase batch latency",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_MIN_CONTENT_LENGTH: int = Field(
+        default=10,
+        title="最小沉淀内容长度",
+        description="当合并后的消息内容低于该长度时，跳过本次情景记忆沉淀，避免产生价值过低的记忆",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="最小沉淀内容长度", en_US="Minimum Consolidation Content Length"),
+            i18n_description=i18n_text(
+                zh_CN="当合并后的消息内容低于该长度时，跳过本次情景记忆沉淀，避免产生价值过低的记忆",
+                en_US="Skip episodic consolidation when the merged message content is shorter than this length to avoid very low-value memories",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_MAX_SUMMARY_LENGTH: int = Field(
+        default=200,
+        title="沉淀摘要最大长度",
+        description="情景记忆摘要字段的最大长度，用于控制数据库展示和检索摘要的体积",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="沉淀摘要最大长度", en_US="Consolidation Summary Max Length"),
+            i18n_description=i18n_text(
+                zh_CN="情景记忆摘要字段的最大长度，用于控制数据库展示和检索摘要的体积",
+                en_US="Maximum length of the episodic memory summary field, used to control display and retrieval summary size",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_MSG_THRESHOLD: int = Field(
+        default=50,
+        title="沉淀消息阈值",
+        description="调度器判断是否触发自动情景沉淀时使用的消息数量阈值",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="沉淀消息阈值", en_US="Consolidation Message Threshold"),
+            i18n_description=i18n_text(
+                zh_CN="调度器判断是否触发自动情景沉淀时使用的消息数量阈值",
+                en_US="Message-count threshold used by the scheduler to decide when automatic episodic consolidation should be triggered",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_TIME_THRESHOLD_HOURS: float = Field(
+        default=2.0,
+        title="沉淀时间阈值",
+        description="距离上次沉淀超过该时长后，即使消息数不高，也可能触发自动沉淀",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="沉淀时间阈值", en_US="Consolidation Time Threshold"),
+            i18n_description=i18n_text(
+                zh_CN="距离上次沉淀超过该时长后，即使消息数不高，也可能触发自动沉淀",
+                en_US="If this duration has passed since the last consolidation, automatic consolidation may still be triggered even with a low message count",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_MIN_INTERVAL_SECONDS: int = Field(
+        default=300,
+        title="最小沉淀间隔",
+        description="两次自动情景沉淀之间的最小间隔，用于避免高活跃频道被频繁打断",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="最小沉淀间隔", en_US="Minimum Consolidation Interval"),
+            i18n_description=i18n_text(
+                zh_CN="两次自动情景沉淀之间的最小间隔，用于避免高活跃频道被频繁打断",
+                en_US="Minimum interval between automatic episodic consolidations, used to avoid over-triggering on highly active channels",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_CONSOLIDATION_BATCH_COOLDOWN_SECONDS: float = Field(
+        default=0.2,
+        title="沉淀批次冷却间隔（秒）",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="沉淀批次冷却间隔（秒）", en_US="Consolidation Batch Cooldown Seconds"),
+            i18n_description=i18n_text(
+                zh_CN="单个沉淀批次结束后的短暂让步时间，用于降低对其他接口响应的影响",
+                en_US="Short cooldown after each consolidation batch to reduce impact on other API responses",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_RELATION_HALF_LIFE_SECONDS: int = Field(
+        default=86400,
+        title="关系半衰期",
+        description="新创建关系记忆的默认半衰期秒数。值越小，关系有效权重衰减越快",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="关系半衰期", en_US="Relation Half-Life"),
+            i18n_description=i18n_text(
+                zh_CN="新创建关系记忆的默认半衰期秒数。值越小，关系有效权重衰减越快",
+                en_US="Default half-life in seconds for newly created relation memories. Smaller values decay relation weight faster",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_SEMANTIC_HALF_LIFE_DAYS: int = Field(
+        default=30,
+        title="语义记忆半衰期天数",
+        description="CC 语义记忆的默认半衰期天数。较长的值更适合沉淀稳定可复用的经验结论",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="语义记忆半衰期天数", en_US="Semantic Half-Life Days"),
+            i18n_description=i18n_text(
+                zh_CN="CC 语义记忆的默认半衰期天数。较长的值更适合沉淀稳定可复用的经验结论",
+                en_US="Default half-life in days for CC semantic memories. Larger values fit stable and reusable knowledge better",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_SEMANTIC_MIN_RESULT_LENGTH: int = Field(
+        default=60,
+        title="语义沉淀最小结果长度",
+        description="CC 任务结果短于该长度时不进行语义记忆沉淀，避免将过短回复误记为长期知识",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="语义沉淀最小结果长度", en_US="Semantic Minimum Result Length"),
+            i18n_description=i18n_text(
+                zh_CN="CC 任务结果短于该长度时不进行语义记忆沉淀，避免将过短回复误记为长期知识",
+                en_US="Do not persist CC semantic memory when the task result is shorter than this length, to avoid storing very short replies as durable knowledge",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_SEMANTIC_MAX_TASK_LENGTH: int = Field(
+        default=300,
+        title="语义沉淀任务摘要长度",
+        description="CC 任务描述在写入语义记忆前保留的最大长度，用于控制摘要和正文体积",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="语义沉淀任务摘要长度", en_US="Semantic Task Max Length"),
+            i18n_description=i18n_text(
+                zh_CN="CC 任务描述在写入语义记忆前保留的最大长度，用于控制摘要和正文体积",
+                en_US="Maximum preserved length of the CC task description before writing semantic memory, used to control summary and content size",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_SEMANTIC_MAX_RESULT_LENGTH: int = Field(
+        default=4000,
+        title="语义沉淀结果最大长度",
+        description="CC 任务结果写入语义记忆时保留的最大长度，用于限制超长产出对存储和检索的影响",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="语义沉淀结果最大长度", en_US="Semantic Result Max Length"),
+            i18n_description=i18n_text(
+                zh_CN="CC 任务结果写入语义记忆时保留的最大长度，用于限制超长产出对存储和检索的影响",
+                en_US="Maximum preserved length of CC task results when writing semantic memory, used to cap storage and retrieval impact of very long outputs",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_SEMANTIC_MAX_SUMMARY_LENGTH: int = Field(
+        default=120,
+        title="语义记忆摘要最大长度",
+        description="CC 语义记忆摘要字段的最大长度，主要影响列表展示和简短检索摘要",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="语义记忆摘要最大长度", en_US="Semantic Summary Max Length"),
+            i18n_description=i18n_text(
+                zh_CN="CC 语义记忆摘要字段的最大长度，主要影响列表展示和简短检索摘要",
+                en_US="Maximum length of the CC semantic memory summary field, mainly affecting list display and short retrieval summaries",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_SCHEDULER_MAX_CONCURRENT: int = Field(
+        default=3,
+        title="最大并发沉淀数",
+        description="后台调度器同时允许执行的最大沉淀任务数。增大可提高吞吐，但也会增加资源占用",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="最大并发沉淀数", en_US="Max Concurrent Consolidations"),
+            i18n_description=i18n_text(
+                zh_CN="后台调度器同时允许执行的最大沉淀任务数。增大可提高吞吐，但也会增加资源占用",
+                en_US="Maximum number of consolidation tasks the background scheduler may run concurrently. Larger values improve throughput but increase resource usage",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_SCHEDULER_STAGGER_DELAY_SECONDS: int = Field(
+        default=5,
+        title="错峰调度延迟",
+        description="调度器为不同工作区任务增加的基础错峰延迟，用于降低多个沉淀任务同时抢占资源的概率",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="错峰调度延迟", en_US="Stagger Delay"),
+            i18n_description=i18n_text(
+                zh_CN="调度器为不同工作区任务增加的基础错峰延迟，用于降低多个沉淀任务同时抢占资源的概率",
+                en_US="Base stagger delay added by the scheduler across workspace tasks to reduce simultaneous resource contention",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_REBUILD_LOOKBACK_DAYS: int = Field(
+        default=30,
+        title="记忆重建回溯天数",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="记忆重建回溯天数", en_US="Memory Rebuild Lookback Days"),
+            i18n_description=i18n_text(
+                zh_CN="重建工作区记忆时，默认只从当前时间往前指定天数内的聊天和委托记录开始回放；设为 0 表示不限制",
+                en_US="When rebuilding workspace memory, only replay chat and delegation records within the specified number of days from now by default; set to 0 for unlimited",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_PRUNE_ENABLED: bool = Field(
+        default=True,
+        title="启用自动记忆清理",
+        description="控制后台是否定期清理低价值记忆。关闭后不会自动 prune，但手动清理仍可使用",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="启用自动记忆清理", en_US="Enable Automatic Memory Pruning"),
+            i18n_description=i18n_text(
+                zh_CN="控制后台是否定期清理低价值记忆。关闭后不会自动 prune，但手动清理仍可使用",
+                en_US="Controls whether low-value memories are pruned periodically in the background. When disabled, automatic pruning stops but manual pruning remains available",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_PRUNE_INTERVAL_HOURS: int = Field(
+        default=6,
+        title="自动清理间隔（小时）",
+        description="后台自动记忆清理的执行间隔，仅在启用自动记忆清理时生效",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="自动清理间隔（小时）", en_US="Automatic Prune Interval (Hours)"),
+            i18n_description=i18n_text(
+                zh_CN="后台自动记忆清理的执行间隔，仅在启用自动记忆清理时生效",
+                en_US="Execution interval for background automatic memory pruning, only effective when automatic pruning is enabled",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_PRUNE_PARAGRAPH_THRESHOLD: float = Field(
+        default=0.05,
+        title="段落清理阈值",
+        description="段落记忆有效权重低于该阈值时可被自动清理。提高该值会更激进地淘汰低价值段落",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="段落清理阈值", en_US="Paragraph Prune Threshold"),
+            i18n_description=i18n_text(
+                zh_CN="段落记忆有效权重低于该阈值时可被自动清理。提高该值会更激进地淘汰低价值段落",
+                en_US="Paragraph memories with effective weight below this threshold may be pruned automatically. Higher values prune low-value paragraphs more aggressively",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_PRUNE_RELATION_THRESHOLD: float = Field(
+        default=0.03,
+        title="关系清理阈值",
+        description="关系记忆有效权重低于该阈值时可被自动清理。提高该值会更激进地淘汰低价值关系",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="关系清理阈值", en_US="Relation Prune Threshold"),
+            i18n_description=i18n_text(
+                zh_CN="关系记忆有效权重低于该阈值时可被自动清理。提高该值会更激进地淘汰低价值关系",
+                en_US="Relation memories with effective weight below this threshold may be pruned automatically. Higher values prune low-value relations more aggressively",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_EPISODE_ENABLED: bool = Field(
+        default=True,
+        title="启用 Episode 聚合",
+        description="控制是否启用 episodic paragraph 到 Episode 事件的聚合能力。关闭后不再自动或手动形成 Episode",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="启用 Episode 聚合", en_US="Enable Episode Aggregation"),
+            i18n_description=i18n_text(
+                zh_CN="控制是否启用 episodic paragraph 到 Episode 事件的聚合能力。关闭后不再自动或手动形成 Episode",
+                en_US="Controls whether episodic paragraphs can be aggregated into Episode events. When disabled, Episode creation stops for both automatic and manual flows",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_EPISODE_MIN_PARAGRAPHS: int = Field(
+        default=3,
+        title="Episode 最小段落数",
+        description="形成一个 Episode 至少需要的情景段落数量。值越大，Episode 事件会更保守",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="Episode 最小段落数", en_US="Episode Minimum Paragraphs"),
+            i18n_description=i18n_text(
+                zh_CN="形成一个 Episode 至少需要的情景段落数量。值越大，Episode 事件会更保守",
+                en_US="Minimum number of episodic paragraphs required to form an Episode. Larger values make Episode creation more conservative",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_EPISODE_TIME_GAP_MINUTES: int = Field(
+        default=30,
+        title="Episode 时间间隔阈值",
+        description="聚合 Episode 时，相邻段落允许的最大时间间隔。超过该间隔会被视为不同事件",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="Episode 时间间隔阈值", en_US="Episode Time Gap Minutes"),
+            i18n_description=i18n_text(
+                zh_CN="聚合 Episode 时，相邻段落允许的最大时间间隔。超过该间隔会被视为不同事件",
+                en_US="Maximum allowed time gap between adjacent paragraphs when aggregating Episodes. Larger gaps are treated as different events",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_EPISODE_AUTO_CONSOLIDATE: bool = Field(
+        default=True,
+        title="自动 Episode 聚合",
+        description="控制情景记忆沉淀后是否顺带自动尝试 Episode 聚合。关闭后仅可通过手动入口触发",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="自动 Episode 聚合", en_US="Auto Episode Consolidation"),
+            i18n_description=i18n_text(
+                zh_CN="控制情景记忆沉淀后是否顺带自动尝试 Episode 聚合。关闭后仅可通过手动入口触发",
+                en_US="Controls whether Episode aggregation is attempted automatically after episodic consolidation. When disabled, it can only be triggered manually",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_EPISODE_SCAN_LIMIT: int = Field(
+        default=200,
+        title="Episode 聚合扫描上限",
+        description="单次 Episode 聚合扫描的最大候选段落数，用于限制聚合成本",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="Episode 聚合扫描上限", en_US="Episode Scan Limit"),
+            i18n_description=i18n_text(
+                zh_CN="单次 Episode 聚合扫描的最大候选段落数，用于限制聚合成本",
+                en_US="Maximum number of candidate paragraphs scanned in one Episode aggregation run, used to cap aggregation cost",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_STARTUP_RECOVERY_ENABLED: bool = Field(
+        default=False,
+        title="启动时恢复历史沉淀任务",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="启动时恢复历史沉淀任务", en_US="Recover Historical Consolidations On Startup"),
+            i18n_description=i18n_text(
+                zh_CN="启用后会在启动时扫描工作区历史未沉淀消息并自动补跑，可能显著占用系统资源",
+                en_US="When enabled, scans and resumes historical unconsolidated messages on startup, which may significantly consume system resources",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_STARTUP_RECOVERY_MAX_TASKS: int = Field(
+        default=1,
+        title="启动恢复最大任务数",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="启动恢复最大任务数", en_US="Startup Recovery Max Tasks"),
+            i18n_description=i18n_text(
+                zh_CN="限制启动时自动恢复的沉淀任务数，0 表示不限制",
+                en_US="Limit the number of consolidation tasks automatically recovered on startup, 0 means unlimited",
+            ),
+        ).model_dump(),
+    )
+    MEMORY_LOG_RETENTION_DAYS: int = Field(
+        default=30,
+        title="强化日志保留天数",
+        description="记忆强化日志在数据库中的默认保留天数。当前主要影响 reinforcement log 清理，不影响手动导出的其他故障日志文件",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="强化日志保留天数", en_US="Reinforcement Log Retention Days"),
+            i18n_description=i18n_text(
+                zh_CN="记忆强化日志在数据库中的默认保留天数。当前主要影响 reinforcement log 清理，不影响手动导出的其他故障日志文件",
+                en_US="Default retention days for memory reinforcement logs in the database. Currently affects reinforcement-log cleanup only, not other exported failure log files",
             ),
         ).model_dump(),
     )
@@ -491,8 +1137,8 @@ class CoreConfig(ConfigBase):
         description="执行代码过程出错或者产生 Agent 反馈时，进行迭代调用允许的最大次数，增大该值可能略微增加调试成功概率，过大会造成响应时间增加、Token 消耗增加等",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="模型配置",
+                en_US="Model Configuration",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -511,8 +1157,8 @@ class CoreConfig(ConfigBase):
         description="模型组调用失败后重试次数，重试的最后一次将使用备用模型组",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="模型配置",
+                en_US="Model Configuration",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -550,8 +1196,8 @@ class CoreConfig(ConfigBase):
         title="AI 对话内容生成超时时间 (秒)",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="模型配置",
+                en_US="Model Configuration",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -883,6 +1529,26 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    AI_INCLUDE_TOME_INDICATOR: bool = Field(
+        default=False,
+        title="在历史消息中标注消息指向标记",
+        description="启用后，群聊历史中每条人类消息会附加 tome:true/false 标记，表示该消息是否通过固定规则（如 @ 提及）判断为直接指向当前 Bot。AI 会将其作为辅助参考，不会盲信该标记，仍会结合上下文综合判断。",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="在历史消息中标注消息指向标记",
+                en_US="Include Message Addressee Indicator",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用后群聊历史中每条人类消息会附加 tome:true/false 标记，辅助 AI 识别消息归属，避免多 Bot 场景下错误接话",
+                en_US="When enabled, each human message in group chat history will include a tome:true/false indicator to help AI identify message ownership in multi-bot scenarios",
+            ),
+        ).model_dump(),
+    )
     AI_SHOW_REMOTE_URL: bool = Field(
         default=False,
         title="显示远程资源 URL",
@@ -908,8 +1574,8 @@ class CoreConfig(ConfigBase):
         title="启用流式请求",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="模型配置",
+                en_US="Model Configuration",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -922,6 +1588,26 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
         description="启用后 AI 会以流式请求方式返回响应，再合并解析，这可能解决某些 LLM 请求异常的问题，但是会丢失准确的 Token 统计信息",
+    )
+    AI_STREAM_FIRST_TOKEN_TIMEOUT: int = Field(
+        default=60,
+        title="流式首 Token 超时 (秒)",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="模型配置",
+                en_US="Model Configuration",
+            ),
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="流式首 Token 超时 (秒)",
+                en_US="Stream First Token Timeout (seconds)",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="仅在启用流式请求时生效；若在指定时间内未收到首个有效流式片段，则判定本次请求失败并进入后续重试",
+                en_US="Only effective when stream mode is enabled; if no first valid stream chunk is received within this time, the request fails and enters subsequent retries",
+            ),
+        ).model_dump(),
+        description="仅在启用流式请求时生效。若供应商在指定时间内未返回首个有效流式片段（空块不计入），则立即判定本次请求失败并进入后续重试，用于减少长时间无响应等待。",
     )
 
     """聊天设置"""
@@ -1298,38 +1984,38 @@ class CoreConfig(ConfigBase):
     PLUGIN_UPDATE_USE_PROXY: bool = Field(
         default=False,
         title="更新/克隆插件时使用代理",
-        description="是否在克隆或更新插件 Git 仓库时使用 `DEFAULT_PROXY` 配置的代理",
+        description="是否在克隆或更新插件 Git 仓库时使用系统级默认代理",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="插件配置",
-                en_US="Plugin Configuration",
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
             ),
             i18n_title=i18n_text(
                 zh_CN="更新/克隆插件时使用代理",
                 en_US="Use Proxy for Plugin Update/Clone",
             ),
             i18n_description=i18n_text(
-                zh_CN="是否在克隆或更新插件 Git 仓库时使用 DEFAULT_PROXY 配置的代理",
-                en_US="Whether to use DEFAULT_PROXY when cloning or updating plugin Git repositories",
+                zh_CN="是否在克隆或更新插件 Git 仓库时使用系统级默认代理",
+                en_US="Whether to use the system default proxy when cloning or updating plugin Git repositories",
             ),
         ).model_dump(),
     )
     DYNAMIC_PLUGIN_INSTALL_USE_PROXY: bool = Field(
         default=False,
         title="动态安装插件依赖时使用代理",
-        description="是否在动态安装插件依赖时使用 `DEFAULT_PROXY` 配置的代理",
+        description="是否在动态安装插件依赖时使用系统级默认代理",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="插件配置",
-                en_US="Plugin Configuration",
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
             ),
             i18n_title=i18n_text(
                 zh_CN="动态安装插件依赖时使用代理",
                 en_US="Use Proxy for Dynamic Plugin Installation",
             ),
             i18n_description=i18n_text(
-                zh_CN="是否在动态安装插件依赖时使用 DEFAULT_PROXY 配置的代理",
-                en_US="Whether to use DEFAULT_PROXY when dynamically installing plugin dependencies",
+                zh_CN="是否在动态安装插件依赖时使用系统级默认代理",
+                en_US="Whether to use the system default proxy when dynamically installing plugin dependencies",
             ),
         ).model_dump(),
     )

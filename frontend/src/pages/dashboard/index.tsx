@@ -2,14 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
-  Tabs,
   Tab,
   Grid,
   Stack,
   useMediaQuery,
   useTheme,
   Card,
-  Button,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -35,6 +33,8 @@ import { RankingList } from './components/RankingList'
 import { RealTimeStats } from './components/RealTimeStats'
 import { createEventStream } from '../../services/api/utils/stream'
 import { CARD_VARIANTS } from '../../theme/variants'
+import { PageTabs } from '../../components/common/NekroTabs'
+import ActionButton from '../../components/common/ActionButton'
 
 // 定义时间范围类型
 type TimeRange = 'day' | 'week' | 'month'
@@ -43,6 +43,7 @@ const DashboardContent: React.FC = () => {
   // 状态
   const [timeRange, setTimeRange] = useState<TimeRange>('day')
   const [realTimeData, setRealTimeData] = useState<RealTimeDataPoint[]>([])
+  const [streamLoading, setStreamLoading] = useState<boolean>(true)
   const [granularity, setGranularity] = useState<number>(10) // 默认10分钟粒度
   const streamCancelRef = useRef<(() => void) | null>(null)
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
@@ -72,6 +73,7 @@ const DashboardContent: React.FC = () => {
     }
     try {
       const newData = JSON.parse(trimmed) as RealTimeDataPoint
+      setStreamLoading(false)
       setRealTimeData(prev => {
         // 检查是否已存在相同时间戳的数据点
         const existingIndex = prev.findIndex(item => item.timestamp === newData.timestamp)
@@ -106,8 +108,9 @@ const DashboardContent: React.FC = () => {
       streamCancelRef.current()
     }
 
-    // 清空之前的数据
+    // 清空之前的数据，重置加载状态
     setRealTimeData([])
+    setStreamLoading(true)
 
     // 创建新的流连接
     const cancelStream = createEventStream({
@@ -197,46 +200,26 @@ const DashboardContent: React.FC = () => {
             px: { xs: 1, md: 3 },
           }}
         >
-          <Tabs
+          <PageTabs
             value={timeRange}
             onChange={handleTimeRangeChange}
             variant={isSmallMobile ? 'fullWidth' : 'standard'}
             indicatorColor="primary"
             textColor="primary"
             sx={{
-              minHeight: 56,
               flex: 1,
               '& .MuiTab-root': {
                 minHeight: 56,
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                textTransform: 'none',
-                transition: 'all 0.2s ease',
-                borderRadius: '8px',
-                mx: 0.5,
-                '&:hover': {
-                  backgroundColor: theme.palette.action.hover,
-                },
-                '&.Mui-selected': {
-                  color: theme.palette.primary.main,
-                  backgroundColor: theme.palette.primary.main + '10',
-                },
-              },
-              '& .MuiTabs-indicator': {
-                height: 3,
-                borderRadius: '2px',
-                boxShadow: `0 0 8px ${theme.palette.primary.main}`,
               },
             }}
           >
             <Tab value="day" label={t('tabs.day')} />
             <Tab value="week" label={t('tabs.week')} />
             <Tab value="month" label={t('tabs.month')} />
-          </Tabs>
+          </PageTabs>
 
-          <Button
-            variant="outlined"
-            color="error"
+          <ActionButton
+            tone="danger"
             startIcon={<RestartIcon />}
             onClick={() => setRestartDialogOpen(true)}
             sx={{
@@ -255,7 +238,7 @@ const DashboardContent: React.FC = () => {
             }}
           >
             {isSmallMobile ? '' : t('restart.button')}
-          </Button>
+          </ActionButton>
         </Box>
       </Card>
 
@@ -363,6 +346,7 @@ const DashboardContent: React.FC = () => {
           <RealTimeStats
             title={t('charts.realTimeData')}
             data={realTimeData}
+            loading={streamLoading}
             granularity={granularity}
             onGranularityChange={handleGranularityChange}
           />
@@ -446,30 +430,29 @@ const DashboardContent: React.FC = () => {
           <Typography sx={{ mt: 1, mb: 2 }}>{t('restart.confirmMessage')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setRestartDialogOpen(false)} disabled={isRestarting}>
+          <ActionButton tone="secondary" onClick={() => setRestartDialogOpen(false)} disabled={isRestarting}>
             {t('restart.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             onClick={handleRestartSystem}
-            color="error"
-            variant="contained"
+            tone="danger"
             disabled={isRestarting}
             startIcon={<RestartIcon />}
           >
             {isRestarting ? t('restart.restarting') : t('restart.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>
   )
 }
 
-// 提供查询客户端
-const DashboardPage: React.FC = () => {
-  const queryClient = new QueryClient()
+// 模块级静态实例，避免每次渲染重建导致缓存失效
+const dashboardQueryClient = new QueryClient()
 
+const DashboardPage: React.FC = () => {
   return (
-    <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={dashboardQueryClient}>
       <DashboardContent />
     </QueryClientProvider>
   )

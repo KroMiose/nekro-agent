@@ -68,7 +68,6 @@ class WorkspaceService:
 | 工作目录（cwd） | `/workspace/default/` | Claude Code 默认工作目录 |
 | 共享目录 | `/workspace/default/shared/` | 与 NA 交换文件（NA 实时感知目录内容，将产出物放在这里） |
 | 技能目录 | `~/.claude/skills/` | Claude Code 可发现的 workspace 本地技能目录 |
-| 记忆目录 | `/workspace/default/memory/` | 持久化记忆（你负责维护） |
 | 运行策略 | {runtime_policy} | 控制工具可用范围（agent/relaxed/strict） |
 
 ### 预装 CLI 工具
@@ -96,7 +95,7 @@ class WorkspaceService:
 
 **gh（GitHub CLI）**：
 - 已安装，但每次使用前须设置认证：`export GH_TOKEN="<your_github_pat>"`
-- 持久化方案：`echo 'export GH_TOKEN=your_pat' >> ~/.bashrc` 或在记忆文件中记录 token 获取方式
+- 持久化方案：`echo 'export GH_TOKEN=your_pat' >> ~/.bashrc`
 
 **Python 开发**：
 - 工作区内用 `uv add <包名>` 安装依赖（持久化在工作区目录）
@@ -113,46 +112,11 @@ class WorkspaceService:
 
 ## 记忆系统
 
-在 `/workspace/default/memory/` 下按以下结构维护记忆文件：
+统一记忆与经验沉淀由 NekroAgent 在工作区外部集中管理，你只需要：
 
-```
-memory/
-├── context/          # 当前任务/项目上下文（项目状态、技术栈、架构）
-├── preference/       # 工作偏好与约束（代码风格、工具选择）
-├── task/             # 历史任务记录与结论
-├── knowledge/        # 领域知识（API 文档摘要、踩坑记录、解决方案）
-├── environment/      # 环境状态（已安装工具、配置情况）
-└── _na_context.md    # [特殊] NA 共享摘要（NA 会读取此文件注入自身上下文）
-```
-
-每个记忆文件使用 YAML frontmatter 格式：
-
-```
----
-title: "文件标题"
-category: context
-tags: [tag1, tag2]
-shared: true
-updated: "YYYY-MM-DD"
----
-
-正文内容（Markdown 格式）
-```
-
-**关于 `_na_context.md`（强制维护）**：
-这是 NA 主 Agent 的"情报简报"，NA 在每次与用户交互时都会读取此文件注入自身上下文。
-**每次任务完成后，无论任务是否"重要"，你都必须更新此文件。** 这不是可选项。
-
-更新要求：
-- **字数**：600 字以内（约 1800 字符），保持简洁
-- **格式**：使用 YAML frontmatter，`updated` 字段记录当前日期（`YYYY-MM-DD`）
-- **必须包含**：
-  1. 工作区当前状态概要（活跃项目、主要目录结构、技术栈）
-  2. 最近完成的任务摘要（做了什么、结果如何）
-  3. 当前进行中的任务或待办事项（如有）
-  4. 重要约束与注意事项（已知问题、特殊配置、踩坑记录）
-
-**不更新的后果**：NA 将无法感知工作区状态，可能给出错误的指令或重复执行已完成的工作。
+1. 在任务结果中清晰写出结论、改动位置、验证结果和风险
+2. 遇到可复用的技术经验、排障结论、关键约束时，明确写在回复正文中
+3. 不要额外创建、更新或依赖任何本地记忆文件
 
 ## 与 NA 的协作协议
 
@@ -166,11 +130,25 @@ updated: "YYYY-MM-DD"
    - "优化性能"的具体目标是？（减少内存？降低延迟？）
    ```
 5. **自主调整**：当 NA 给出的实现思路与工作区实际情况不符时，你可以基于现实调整方案，并在响应中说明"原计划 X，实际按 Y 执行，原因：Z"
-6. **记忆更新（强制）**：每次任务完成后，**必须**更新 `_na_context.md`（见上方说明），同时按需更新其他记忆文件
+6. **记忆沉淀约定**：每次任务完成后，确保回复中包含足够清晰的结论、改动和注意事项，供上层统一记忆系统提炼
 7. **任务来源**：每条任务消息头部可能包含 `[任务来源频道: <chat_key>]` 标记，标识该任务来自哪个 NA 会话频道。在多频道共用同一工作区场景下，可利用此信息在记忆文件中区分不同频道的任务背景。
-8. **态度认真**：对于来自 NA 的任何指示，必须进行足够深入的分析、思考与研究，时刻思考**我是否真的高质量地完成了任务?**，严禁敷衍了事！
+8. **态度认真**：对于来自 NA 的任何指示，必须进行足够深入的分析、思考与研究，时刻思考**我是否真的高质量地完成了任务?**，严禁敷衍了事或形式完成！
 
-{env_vars_section}
+## Skills 使用规范（必读）
+
+CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开始前，必须先判断是否需要调用相关 skill**。
+
+### Skill 调用规则
+
+当任务涉及你的可用 skill 时，**必须主动加载对应 skill**，并在执行过程中严格遵循其指导
+
+### 重要原则
+
+- **不要凭直觉执行**：当你判断任务涉及上表领域时，必须先加载 skill，即使之前做过类似任务
+- **skill 内容即是规范**：skill 中的规则是经过验证的最佳实践，**必须遵循**，不要跳过或自行其是
+
+{resource_section}
+{shared_section}
 {extra_section}"""
 
     @staticmethod
@@ -178,44 +156,31 @@ updated: "YYYY-MM-DD"
         return WorkspaceService.get_workspace_dir(workspace_id) / "default" / "memory"
 
     @staticmethod
-    def _generate_env_vars_section(env_vars: "List[Dict[str, Any]]") -> str:
-        """从 env_vars 列表生成 CLAUDE.md 的环境变量章节（只展示 key 和 description，不暴露 value）。"""
-        if not env_vars:
-            return "## 可用环境变量\n\n（当前工作区未配置任何自定义环境变量）"
-        lines = [
-            "## 可用环境变量",
-            "",
-            "以下环境变量已由 NekroAgent 注入到当前工作区，可在命令执行中直接使用（变量值已自动注入，无需手动设置）：",
-            "",
-            "| 变量名 | 说明 |",
-            "|--------|------|",
-        ]
-        for item in env_vars:
-            key = item.get("key", "").strip()
-            if not key:
-                continue
-            desc = item.get("description", "").strip() or "（无说明）"
-            lines.append(f"| `{key}` | {desc} |")
-        return "\n".join(lines)
-
     @staticmethod
     def _generate_claude_md_content(workspace: "DBWorkspace") -> str:
         """生成工作区 CLAUDE.md 的完整内容。"""
-        env_vars: List[Dict[str, Any]] = workspace.metadata.get("env_vars", [])
-        env_vars_section = WorkspaceService._generate_env_vars_section(env_vars)
+        resource_section = str(workspace.metadata.get("resource_prompt_cache") or "").strip()
         raw_extra = (workspace.metadata.get("claude_md_extra") or "").strip()
+        prompt_layers = workspace.metadata.get("prompt_layers", {})
+        shared_rules = ""
+        if isinstance(prompt_layers, dict):
+            shared_layer = prompt_layers.get("shared_manual_rules")
+            if isinstance(shared_layer, dict):
+                shared_rules = str(shared_layer.get("content") or "").strip()
+        shared_section = f"## 共享固定事实\n\n{shared_rules}" if shared_rules else ""
         extra_section = f"## 自定义附加指令\n\n{raw_extra}" if raw_extra else ""
         return (
             WorkspaceService._CLAUDE_MD_TEMPLATE
             .replace("{runtime_policy}", workspace.runtime_policy or "agent")
-            .replace("{env_vars_section}", env_vars_section)
+            .replace("{resource_section}", resource_section)
+            .replace("{shared_section}", shared_section)
             .replace("{extra_section}", extra_section)
         )
 
     @staticmethod
     def update_claude_md(workspace: "DBWorkspace") -> None:
         """（重新）生成并写入 CLAUDE.md，不触发完整 init_workspace_dir。
-        适用于 metadata 变更（env_vars / runtime_policy 等）后的即时刷新。"""
+        适用于 metadata 变更（runtime_policy 等）后的即时刷新。"""
         ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
         default_dir = ws_dir / "default"
         if not default_dir.exists():
@@ -272,6 +237,45 @@ updated: "YYYY-MM-DD"
                 encoding="utf-8",
             )
             logger.debug(f"热更新 .claude/settings.json: {claude_settings_path}")
+
+    @staticmethod
+    def get_effective_cc_preset_id(workspace: "DBWorkspace") -> Optional[int]:
+        """获取工作区当前生效的 CC 模型预设 ID（未显式绑定时回退默认预设）。"""
+        from nekro_agent.core.cc_model_presets import cc_presets_store
+
+        raw_preset_id = (workspace.metadata or {}).get("cc_model_preset_id")
+        if raw_preset_id is not None:
+            try:
+                return int(raw_preset_id)
+            except (TypeError, ValueError):
+                logger.warning(f"工作区 {workspace.id} 的 cc_model_preset_id 非法: {raw_preset_id!r}")
+                return None
+
+        default = cc_presets_store.get_default()
+        return default.id if default else None
+
+    @staticmethod
+    async def sync_workspace_settings_for_preset(
+        preset_id: int,
+        cc_preset: "CCModelPresetItem",
+    ) -> int:
+        """将预设变更反向同步到所有引用该预设的工作区磁盘配置。"""
+        workspaces = await DBWorkspace.all()
+        synced_count = 0
+
+        for workspace in workspaces:
+            if WorkspaceService.get_effective_cc_preset_id(workspace) != preset_id:
+                continue
+            try:
+                WorkspaceService.update_workspace_settings(workspace, cc_preset)
+                synced_count += 1
+            except Exception as e:
+                logger.warning(
+                    f"同步工作区 CC 模型预设失败: workspace_id={workspace.id}, preset_id={preset_id}, error={e}"
+                )
+
+        logger.info(f"CC 模型预设 {preset_id} 已同步到 {synced_count} 个工作区")
+        return synced_count
 
     @staticmethod
     def _parse_frontmatter(raw: str) -> "tuple[Dict[str, Any], str]":
@@ -432,6 +436,30 @@ updated: "YYYY-MM-DD"
         return body[:1800], str(meta.get("updated", ""))
 
     @staticmethod
+    def write_na_context(
+        workspace_id: int,
+        body: str,
+        *,
+        updated_by: str = "manual",
+        title: str = "协作现状摘要",
+    ) -> None:
+        """写入 _na_context.md，自动生成最小 frontmatter。"""
+        memory_root = WorkspaceService.get_memory_root(workspace_id)
+        memory_root.mkdir(parents=True, exist_ok=True)
+        na_context_path = memory_root / "_na_context.md"
+        updated = datetime.now(timezone.utc).isoformat()
+        frontmatter = "\n".join([
+            "---",
+            f'title: "{title}"',
+            'category: "coordination"',
+            f'updated: "{updated}"',
+            f'updated_by: "{updated_by}"',
+            "---",
+            "",
+        ])
+        na_context_path.write_text(frontmatter + body.strip() + "\n", encoding="utf-8")
+
+    @staticmethod
     def get_capability_summary(workspace: "DBWorkspace") -> str:
         """生成工作区 CC 能力摘要：选中 Skills 和 MCP 服务。"""
         lines: List[str] = []
@@ -460,7 +488,11 @@ updated: "YYYY-MM-DD"
         if mcp_servers:
             lines.append(f"MCP 服务: {', '.join(mcp_servers.keys())}")
 
-        return "\n\n".join(lines) if lines else "（无扩展技能或 MCP 服务）"
+        resource_summary = str(workspace.metadata.get("resource_summary_cache") or "").strip()
+        if resource_summary:
+            lines.append(f"工作区资源:\n{resource_summary}")
+
+        return "\n\n".join(lines) if lines else "（无扩展技能、MCP 服务或工作区资源）"
 
     @staticmethod
     async def init_workspace_dir(
@@ -509,14 +541,6 @@ updated: "YYYY-MM-DD"
             )
             logger.debug(f"写入 .claude/settings.json: {claude_settings_path}")
 
-        # 写入 .mcp.json（来自 metadata.mcp_config，若无则写空配置）
-        mcp_config = workspace.metadata.get("mcp_config", {})
-        if not mcp_config:
-            mcp_config = {"mcpServers": {}}
-        mcp_path = ws_dir / ".mcp.json"
-        mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
-        logger.debug(f"写入 .mcp.json: {mcp_path}")
-
         # 同步 skills 目录
         await WorkspaceService.sync_skills(workspace)
 
@@ -531,6 +555,15 @@ updated: "YYYY-MM-DD"
         claude_home.mkdir(exist_ok=True)
         # 确保容器内的 appuser 有写入权限（bind mount 跨越用户边界时宿主机 owner 可能不匹配）
         claude_home.chmod(0o777)
+
+        # 写入 .mcp.json 到 CC 工作目录（/workspace/default/.mcp.json）
+        # 注意：与 CLAUDE.md 同理，必须放在 /workspace/default/ 下，CC 只在项目根目录查找
+        mcp_config = workspace.metadata.get("mcp_config", {})
+        if not mcp_config:
+            mcp_config = {"mcpServers": {}}
+        mcp_path = ws_dir / "default" / ".mcp.json"
+        mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
+        logger.debug(f"写入 .mcp.json: {mcp_path}")
 
         # 写入 CLAUDE.md 到 CC 工作目录（/workspace/default/CLAUDE.md）
         # 注意：不能放在 /workspace/CLAUDE.md，否则当 /workspace/default/ 成为 git 根目录时
@@ -706,13 +739,119 @@ updated: "YYYY-MM-DD"
         await workspace.save(update_fields=["metadata", "update_time"])
 
         ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
-        mcp_path = ws_dir / ".mcp.json"
+        mcp_path = ws_dir / "default" / ".mcp.json"
         mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    @staticmethod
+    def list_mcp_servers(workspace: DBWorkspace) -> list[Any]:
+        """解析 metadata.mcp_config.mcpServers 为结构化服务器列表"""
+        from nekro_agent.services.mcp.schemas import McpServerConfig, McpServerType
+
+        mcp_config: Dict[str, Any] = (workspace.metadata or {}).get("mcp_config", {})
+        mcp_servers: Dict[str, Any] = mcp_config.get("mcpServers", {})
+        result: list[McpServerConfig] = []
+        for name, cfg in mcp_servers.items():
+            # 优先从显式 transport 字段派生类型，兼容旧配置
+            transport = cfg.get("transport")
+            if transport == "sse":
+                server_type = McpServerType.sse
+            elif transport == "http":
+                server_type = McpServerType.http
+            elif transport == "stdio":
+                server_type = McpServerType.stdio
+            elif "url" in cfg:
+                server_type = McpServerType.http
+            else:
+                server_type = McpServerType.stdio
+            result.append(
+                McpServerConfig(
+                    name=name,
+                    type=server_type,
+                    enabled=cfg.get("enabled", True),
+                    command=cfg.get("command"),
+                    args=cfg.get("args", []),
+                    env=cfg.get("env", {}),
+                    url=cfg.get("url"),
+                    headers=cfg.get("headers", {}),
+                )
+            )
+        return result
+
+    @staticmethod
+    async def add_mcp_server(workspace: DBWorkspace, server: Any) -> None:
+        """添加一个 MCP 服务器到 mcpServers"""
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+
+        if server.name in mcp_servers:
+            from nekro_agent.schemas.errors import ConflictError
+
+            raise ConflictError(resource=f"MCP 服务器 {server.name}")
+
+        mcp_servers[server.name] = WorkspaceService._server_to_raw(server)
+        mcp_config["mcpServers"] = mcp_servers
+        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+
+    @staticmethod
+    async def update_mcp_server(workspace: DBWorkspace, old_name: str, server: Any) -> None:
+        """更新指定的 MCP 服务器"""
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+
+        if old_name not in mcp_servers:
+            from nekro_agent.schemas.errors import NotFoundError
+
+            raise NotFoundError(resource=f"MCP 服务器 {old_name}")
+
+        # 如果改名，删除旧的
+        if server.name != old_name:
+            del mcp_servers[old_name]
+        mcp_servers[server.name] = WorkspaceService._server_to_raw(server)
+        mcp_config["mcpServers"] = mcp_servers
+        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+
+    @staticmethod
+    async def remove_mcp_server(workspace: DBWorkspace, name: str) -> None:
+        """删除指定的 MCP 服务器"""
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+
+        if name not in mcp_servers:
+            from nekro_agent.schemas.errors import NotFoundError
+
+            raise NotFoundError(resource=f"MCP 服务器 {name}")
+
+        del mcp_servers[name]
+        mcp_config["mcpServers"] = mcp_servers
+        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+
+    @staticmethod
+    def _server_to_raw(server: Any) -> Dict[str, Any]:
+        """将 McpServerConfig 转换为 .mcp.json 兼容的 raw dict"""
+        raw: Dict[str, Any] = {}
+        if not server.enabled:
+            raw["enabled"] = False
+        # 持久化 transport 类型，确保 sse/http 能正确往返
+        raw["transport"] = server.type if isinstance(server.type, str) else server.type.value
+        if server.url:
+            # sse/http 类型
+            raw["url"] = server.url
+            if server.headers:
+                raw["headers"] = dict(server.headers)
+        else:
+            # stdio 类型
+            if server.command:
+                raw["command"] = server.command
+            if server.args:
+                raw["args"] = list(server.args)
+            if server.env:
+                raw["env"] = dict(server.env)
+        return raw
 
     @staticmethod
     async def bind_channel(workspace: DBWorkspace, chat_key: str) -> None:
         """将频道绑定到工作区"""
-        channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+        channel = await DBChatChannel.filter(chat_key=chat_key).first()
         if channel is None:
             from nekro_agent.schemas.errors import NotFoundError
 
@@ -723,7 +862,7 @@ updated: "YYYY-MM-DD"
     @staticmethod
     async def unbind_channel(workspace: DBWorkspace, chat_key: str) -> None:
         """解除频道的工作区绑定，并同步清理工作区侧的频道注解。"""
-        channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+        channel = await DBChatChannel.filter(chat_key=chat_key).first()
         if channel is None:
             from nekro_agent.schemas.errors import NotFoundError
 

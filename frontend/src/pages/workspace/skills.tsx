@@ -3,7 +3,6 @@ import { useTheme } from '@mui/material/styles'
 import { Editor } from '@monaco-editor/react'
 import {
   Box,
-  Button,
   Card,
   Typography,
   Chip,
@@ -15,12 +14,8 @@ import {
   CircularProgress,
   Alert,
   Stack,
-  IconButton,
   Tooltip,
   TextField,
-  ToggleButtonGroup,
-  ToggleButton,
-  InputAdornment,
   Divider,
   Paper,
   Switch,
@@ -38,7 +33,6 @@ import {
   GitHub as GitHubIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
-  Search as SearchIcon,
   ViewModule as GridViewIcon,
   Upload as UploadIcon,
   Close as CloseIcon,
@@ -71,6 +65,11 @@ import {
 import { useNotification } from '../../hooks/useNotification'
 import { CARD_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import MarkdownRenderer from '../../components/common/MarkdownRenderer'
+import SegmentedControl from '../../components/common/SegmentedControl'
+import SearchField from '../../components/common/SearchField'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
+import StatCard from '../../components/common/StatCard'
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -211,60 +210,6 @@ function SkillContentPanel({ raw }: { raw: string }) {
   )
 }
 
-// ─── Stat Card ──────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
-  label: string
-  value: number
-  icon: React.ReactNode
-  color: string
-}) {
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        px: 2,
-        py: 1.5,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        borderRadius: 2,
-        minWidth: 140,
-        flex: '1 1 0',
-      }}
-    >
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: color,
-          color: '#fff',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-          {value}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-      </Box>
-    </Paper>
-  )
-}
-
 // ─── Main Page ──────────────────────────────────────────────
 
 export default function SkillsLibraryPage() {
@@ -272,7 +217,7 @@ export default function SkillsLibraryPage() {
   const notification = useNotification()
   const { t } = useTranslation('workspace')
   const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // View state
@@ -643,121 +588,103 @@ export default function SkillsLibraryPage() {
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 3 }}>
+    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: { xs: 1.5, sm: 2, md: 3 } }}>
       {/* Stat cards */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', flexShrink: 0 }}>
-        <StatCard label={t('skills.statBuiltin')} value={stats.builtin} icon={<BuiltinIcon sx={{ fontSize: 20 }} />} color="#5c6bc0" />
-        <StatCard label={t('skills.statUser')} value={stats.user} icon={<UserIcon sx={{ fontSize: 20 }} />} color="#26a69a" />
-        <StatCard label={t('skills.statRepo')} value={stats.repo} icon={<RepoIcon sx={{ fontSize: 20 }} />} color="#7e57c2" />
-        <StatCard label={t('skills.statAutoInject')} value={stats.autoInject} icon={<AutoInjectIcon sx={{ fontSize: 20 }} />} color="#ef6c00" />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: { xs: 1, sm: 2 }, mb: { xs: 1.5, sm: 3 }, flexShrink: 0 }}>
+        <StatCard label={t('skills.statBuiltin')} value={stats.builtin} icon={<BuiltinIcon sx={{ fontSize: 20 }} />} color={theme.palette.primary.main} />
+        <StatCard label={t('skills.statUser')} value={stats.user} icon={<UserIcon sx={{ fontSize: 20 }} />} color={theme.palette.success.main} />
+        <StatCard label={t('skills.statRepo')} value={stats.repo} icon={<RepoIcon sx={{ fontSize: 20 }} />} color={theme.palette.info.main} />
+        <StatCard label={t('skills.statAutoInject')} value={stats.autoInject} icon={<AutoInjectIcon sx={{ fontSize: 20 }} />} color={theme.palette.warning.main} />
       </Box>
 
       {/* Toolbar */}
-      <Box sx={{ mb: 2, flexShrink: 0 }}>
-        <Stack
-          direction={isMobile ? 'column' : 'row'}
-          spacing={1.25}
-          alignItems={isMobile ? 'stretch' : 'center'}
-          flexWrap="wrap"
-        >
-          <TextField
-            size="small"
-            placeholder={t('skills.search.placeholder')}
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            sx={{ width: { xs: '100%', sm: 280, md: 320 }, maxWidth: '100%', flexShrink: 0 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery ? (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearchQuery('')}>
-                    <CloseIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </InputAdornment>
-              ) : undefined,
-            }}
-          />
+      <Card sx={{ ...CARD_VARIANTS.default.styles, mb: 2, flexShrink: 0 }}>
+        <Box sx={{ px: { xs: 1.25, sm: 2 }, py: 1.25, display: 'flex', alignItems: { xs: 'stretch', md: 'center' }, gap: 1.25, flexWrap: 'wrap', flexDirection: { xs: 'column', md: 'row' } }}>
+          <Box sx={{ display: 'flex', alignItems: { xs: 'stretch', sm: 'center' }, gap: 1.25, flexWrap: 'wrap', flex: { xs: '1 1 auto', md: '1 1 520px' }, minWidth: 0 }}>
+            <SearchField
+              placeholder={t('skills.search.placeholder')}
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+              sx={{ width: { xs: '100%', sm: 280, md: 320 }, maxWidth: '100%', flexShrink: 0 }}
+            />
 
-          <ToggleButtonGroup
-            value={sourceFilter}
-            exclusive
-            onChange={(_, v: SourceFilter | null) => {
-              if (v !== null) setSourceFilter(v)
-            }}
-            size="small"
-          >
-            <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.all')}</ToggleButton>
-            <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.builtin')}</ToggleButton>
-            <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.user')}</ToggleButton>
-            <ToggleButton value="repo" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.repo')}</ToggleButton>
-          </ToggleButtonGroup>
+            <Box sx={{ maxWidth: '100%', overflowX: 'auto' }}>
+              <SegmentedControl
+                value={sourceFilter}
+                options={[
+                  { value: 'all', label: t('skills.filter.all') },
+                  { value: 'builtin', label: t('skills.filter.builtin') },
+                  { value: 'user', label: t('skills.filter.user') },
+                  { value: 'repo', label: t('skills.filter.repo') },
+                ]}
+                onChange={v => setSourceFilter(v)}
+              />
+            </Box>
 
-          <ToggleButtonGroup
-            value={viewMode}
-            exclusive
-            onChange={(_, v: ViewMode | null) => {
-              if (v !== null) setViewMode(v)
-            }}
-            size="small"
-          >
-            <ToggleButton value="card">
-              <Tooltip title={t('skills.toolbar.cardView')}>
-                <GridViewIcon fontSize="small" />
+            <SegmentedControl
+              value={viewMode}
+              options={[
+                {
+                  value: 'card',
+                  icon: <GridViewIcon fontSize="small" />,
+                  tooltip: t('skills.toolbar.cardView'),
+                  ariaLabel: t('skills.toolbar.cardView'),
+                  iconOnly: true,
+                },
+                {
+                  value: 'list',
+                  icon: <ListViewIcon fontSize="small" />,
+                  tooltip: t('skills.toolbar.listView'),
+                  ariaLabel: t('skills.toolbar.listView'),
+                  iconOnly: true,
+                },
+              ]}
+              onChange={v => setViewMode(v)}
+            />
+
+            {hasActiveFilters && (
+              <Tooltip title={t('skills.toolbar.clearFilters')}>
+                <IconActionButton size="small" onClick={handleClearFilters}>
+                  <FilterAltOffIcon fontSize="small" />
+                </IconActionButton>
               </Tooltip>
-            </ToggleButton>
-            <ToggleButton value="list">
-              <Tooltip title={t('skills.toolbar.listView')}>
-                <ListViewIcon fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
-          </ToggleButtonGroup>
+            )}
+          </Box>
 
-          {hasActiveFilters && (
-            <Tooltip title={t('skills.toolbar.clearFilters')}>
-              <IconButton size="small" onClick={handleClearFilters} color="default">
-                <FilterAltOffIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
-
-          <Box sx={{ flexGrow: 1 }} />
-
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', marginLeft: { xs: 0, md: 'auto' }, width: { xs: '100%', md: 'auto' }, justifyContent: { xs: 'space-between', sm: 'flex-start', md: 'flex-end' } }}>
             <Tooltip title={t('skills.toolbar.refresh')}>
-              <IconButton onClick={handleRefresh} disabled={isLoading} size="small">
+              <IconActionButton onClick={handleRefresh} disabled={isLoading} size="small">
                 <RefreshIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
 
             <input type="file" accept=".zip" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
             <Tooltip title={t('skills.toolbar.uploadTooltip')}>
-              <Button
-                variant="outlined"
+              <ActionButton
+                tone="secondary"
                 startIcon={uploadMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadMutation.isPending}
                 size="small"
+                sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}
               >
                 {t('skills.toolbar.uploadBtn')}
-              </Button>
+              </ActionButton>
             </Tooltip>
 
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCloneDialogOpen(true)} size="small">
+            <ActionButton tone="primary" startIcon={<AddIcon />} onClick={() => setCloneDialogOpen(true)} size="small" sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' } }}>
               {t('skills.toolbar.addBtn')}
-            </Button>
+            </ActionButton>
 
             <Tooltip title={t('skills.pageDesc')} arrow>
-              <IconButton size="small" sx={{ color: 'text.disabled' }}>
+              <IconActionButton size="small">
                 <HelpIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
-          </Stack>
-        </Stack>
-      </Box>
+          </Box>
+        </Box>
+      </Card>
 
       {/* Error */}
       {errorAll && (
@@ -787,7 +714,7 @@ export default function SkillsLibraryPage() {
       ) : viewMode === 'card' ? (
         /* ── Card View ── */
         <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', pr: 0.5 }}>
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(auto-fill, minmax(280px, 1fr))', md: 'repeat(auto-fill, minmax(320px, 1fr))' }, gap: { xs: 1.25, sm: 2 } }}>
             {filteredSkills.map(skill => (
               <Card
                 key={skill.name}
@@ -884,23 +811,23 @@ export default function SkillsLibraryPage() {
                 {skill.source === 'user' && skill.hasGit && (
                   <Tooltip title={t('skills.card.pullTooltip')}>
                     <span>
-                      <IconButton size="small" color="primary" onClick={() => handlePull(skill)} disabled={pullingName === skill.name}>
+                      <IconActionButton size="small" color="primary" onClick={() => handlePull(skill)} disabled={pullingName === skill.name}>
                         {pullingName === skill.name ? <CircularProgress size={14} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
-                      </IconButton>
+                      </IconActionButton>
                     </span>
                   </Tooltip>
                 )}
                 {skill.source === 'user' && (
                   <Tooltip title={t('skills.card.deleteTooltip')}>
-                    <IconButton size="small" color="error" onClick={() => setDeleteTarget(skill.name)}>
+                    <IconActionButton size="small" color="error" onClick={() => setDeleteTarget(skill.name)}>
                       <DeleteIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
+                    </IconActionButton>
                   </Tooltip>
                 )}
                 <Tooltip title={t('skills.card.viewTooltip')}>
-                  <IconButton size="small" onClick={() => openDrawer(skill)}>
+                  <IconActionButton size="small" onClick={() => openDrawer(skill)}>
                     <ViewIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
+                  </IconActionButton>
                 </Tooltip>
               </Box>
               </Card>
@@ -917,10 +844,11 @@ export default function SkillsLibraryPage() {
                 <Box
                   sx={{
                     display: 'flex',
-                    alignItems: 'center',
-                    px: 2,
+                    alignItems: { xs: 'stretch', sm: 'center' },
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    px: { xs: 1.25, sm: 2 },
                     py: 1.25,
-                    gap: 1.5,
+                    gap: { xs: 1, sm: 1.5 },
                     cursor: 'pointer',
                     ...UNIFIED_TABLE_STYLES.row,
                   }}
@@ -940,13 +868,13 @@ export default function SkillsLibraryPage() {
                 />
 
                 {/* Name + desc */}
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600, flexShrink: 0 }}>
+                <Box sx={{ flexGrow: 1, minWidth: 0, width: { xs: '100%', sm: 'auto' } }}>
+                  <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'baseline' }, flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 0.25, sm: 1 } }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, flexShrink: 0, maxWidth: '100%', overflowWrap: 'anywhere' }}>
                       {skill.displayName}
                     </Typography>
                     {skill.displayName !== skill.name && (
-                      <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0 }}>
+                      <Typography variant="caption" color="text.disabled" sx={{ flexShrink: 0, maxWidth: '100%', overflowWrap: 'anywhere' }}>
                         ({skill.name})
                       </Typography>
                     )}
@@ -954,7 +882,7 @@ export default function SkillsLibraryPage() {
                       <Typography
                         variant="caption"
                         color="text.secondary"
-                        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: { xs: 'normal', sm: 'nowrap' }, display: { xs: '-webkit-box', sm: 'block' }, WebkitLineClamp: { xs: 2, sm: 'unset' }, WebkitBoxOrient: 'vertical' }}
                       >
                         {skill.description}
                       </Typography>
@@ -975,7 +903,7 @@ export default function SkillsLibraryPage() {
                 {skill.hasGit && <GitHubIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />}
 
                 {/* Auto-inject toggle */}
-                <Box onClick={e => e.stopPropagation()} sx={{ flexShrink: 0 }}>
+                <Box onClick={e => e.stopPropagation()} sx={{ flexShrink: 0, alignSelf: { xs: 'flex-start', sm: 'center' } }}>
                   <Tooltip title={t('skills.autoInject.tooltip')}>
                     <Switch
                       size="small"
@@ -987,21 +915,21 @@ export default function SkillsLibraryPage() {
                 </Box>
 
                 {/* Actions */}
-                <Box sx={{ display: 'flex', gap: 0.25, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                <Box sx={{ display: 'flex', gap: 0.25, flexShrink: 0, alignSelf: { xs: 'flex-end', sm: 'center' } }} onClick={e => e.stopPropagation()}>
                   {skill.source === 'user' && skill.hasGit && (
                     <Tooltip title={t('skills.card.pullTooltip')}>
                       <span>
-                        <IconButton size="small" color="primary" onClick={() => handlePull(skill)} disabled={pullingName === skill.name}>
+                        <IconActionButton size="small" color="primary" onClick={() => handlePull(skill)} disabled={pullingName === skill.name}>
                           {pullingName === skill.name ? <CircularProgress size={14} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-                        </IconButton>
+                        </IconActionButton>
                       </span>
                     </Tooltip>
                   )}
                   {skill.source === 'user' && (
                     <Tooltip title={t('skills.card.deleteTooltip')}>
-                      <IconButton size="small" color="error" onClick={() => setDeleteTarget(skill.name)}>
+                      <IconActionButton size="small" color="error" onClick={() => setDeleteTarget(skill.name)}>
                         <DeleteIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
+                      </IconActionButton>
                     </Tooltip>
                   )}
                 </Box>
@@ -1029,9 +957,9 @@ export default function SkillsLibraryPage() {
         {drawerSkill && (
           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Drawer header */}
-            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box sx={{ px: { xs: 1.5, sm: 2 }, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, gap: { xs: 1, sm: 1.5 }, flexWrap: 'wrap' }}>
               <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }} noWrap>
                     {drawerSkill.displayName}
                   </Typography>
@@ -1063,13 +991,13 @@ export default function SkillsLibraryPage() {
               </Box>
               <Tooltip title={t('skills.drawer.syncToWorkspaces')}>
                 <span>
-                  <IconButton
+                  <IconActionButton
                     size="small"
                     onClick={() => handleSyncToWorkspaces(drawerSkill.name)}
                     disabled={syncingSkill === drawerSkill.name}
                   >
                     {syncingSkill === drawerSkill.name ? <CircularProgress size={16} /> : <SyncIcon fontSize="small" />}
-                  </IconButton>
+                  </IconActionButton>
                 </span>
               </Tooltip>
               <Tooltip title={t('skills.drawer.autoInject')}>
@@ -1080,25 +1008,27 @@ export default function SkillsLibraryPage() {
                   color="warning"
                 />
               </Tooltip>
-              <IconButton size="small" onClick={closeDrawer}>
+              <IconActionButton size="small" onClick={closeDrawer}>
                 <CloseIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Box>
 
             {/* Drawer body: file tree + content pane */}
-            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, overflow: 'hidden' }}>
               {/* ── Left: File tree ── */}
               <Box
                 sx={{
-                  width: 200,
-                  minWidth: 200,
-                  borderRight: '1px solid',
+                  width: { xs: '100%', sm: 200 },
+                  minWidth: { xs: 0, sm: 200 },
+                  maxHeight: { xs: 180, sm: 'none' },
+                  borderRight: { xs: 0, sm: '1px solid' },
+                  borderBottom: { xs: '1px solid', sm: 0 },
                   borderColor: 'divider',
                   overflow: 'auto',
                   bgcolor: theme => alpha(theme.palette.background.default, 0.5),
                 }}
               >
-                <Box sx={{ px: 1.5, py: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Box sx={{ px: 1.5, py: 1, display: 'flex', alignItems: 'center', gap: 0.5, position: { xs: 'sticky', sm: 'static' }, top: 0, bgcolor: theme => alpha(theme.palette.background.default, 0.88), zIndex: 1 }}>
                   <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
                     {t('skills.drawer.files')}
                   </Typography>
@@ -1172,22 +1102,23 @@ export default function SkillsLibraryPage() {
               </Box>
 
               {/* ── Right: Content pane ── */}
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, minHeight: { xs: 0, sm: 'auto' } }}>
                 {/* Content toolbar */}
                 {selectedFile && (
                   <Box
                     sx={{
-                      px: 1.5,
+                      px: { xs: 1, sm: 1.5 },
                       py: 0.75,
                       display: 'flex',
-                      alignItems: 'center',
+                      alignItems: { xs: 'stretch', sm: 'center' },
                       gap: 0.5,
+                      flexWrap: 'wrap',
                       borderBottom: '1px solid',
                       borderColor: 'divider',
                       bgcolor: theme => alpha(theme.palette.background.default, 0.3),
                     }}
                   >
-                    <Typography variant="caption" sx={{ fontWeight: 500, flex: 1 }} noWrap>
+                    <Typography variant="caption" sx={{ fontWeight: 500, flex: { xs: '1 1 100%', sm: 1 }, overflowWrap: 'anywhere' }} noWrap={!isMobile}>
                       {selectedFile}
                     </Typography>
 
@@ -1211,36 +1142,40 @@ export default function SkillsLibraryPage() {
 
                     {/* Source / Preview toggle */}
                     {isTextFile(selectedFile) && (
-                      <ToggleButtonGroup
-                        size="small"
+                      <SegmentedControl
+                        density="tight"
                         value={editing ? 'source' : drawerViewMode}
-                        exclusive
-                        onChange={(_, v) => {
+                        options={[
+                          {
+                            value: 'preview',
+                            icon: <PreviewIcon sx={{ fontSize: 16 }} />,
+                            tooltip: t('skills.drawer.preview'),
+                            ariaLabel: t('skills.drawer.preview'),
+                            iconOnly: true,
+                          },
+                          {
+                            value: 'source',
+                            icon: <CodeIcon sx={{ fontSize: 16 }} />,
+                            tooltip: t('skills.drawer.source_code'),
+                            ariaLabel: t('skills.drawer.source_code'),
+                            iconOnly: true,
+                          },
+                        ]}
+                        onChange={v => {
                           if (v === 'source' || v === 'preview') {
                             setDrawerViewMode(v)
                             if (v === 'preview') setEditing(false)
                           }
                         }}
                         disabled={editing}
-                      >
-                        <ToggleButton value="preview" sx={{ py: 0.25, px: 0.75 }}>
-                          <Tooltip title={t('skills.drawer.preview')}>
-                            <PreviewIcon sx={{ fontSize: 16 }} />
-                          </Tooltip>
-                        </ToggleButton>
-                        <ToggleButton value="source" sx={{ py: 0.25, px: 0.75 }}>
-                          <Tooltip title={t('skills.drawer.source_code')}>
-                            <CodeIcon sx={{ fontSize: 16 }} />
-                          </Tooltip>
-                        </ToggleButton>
-                      </ToggleButtonGroup>
+                      />
                     )}
 
                     {/* Edit / Save for user skills */}
                     {drawerSkill.source === 'user' && isTextFile(selectedFile) && (
                       editing ? (
-                        <Stack direction="row" spacing={0.5}>
-                          <Button
+                        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
+                          <ActionButton
                             size="small"
                             variant="contained"
                             startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <SaveIcon sx={{ fontSize: 14 }} />}
@@ -1249,8 +1184,8 @@ export default function SkillsLibraryPage() {
                             sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
                           >
                             {saving ? t('skills.drawer.saving') : t('skills.drawer.save')}
-                          </Button>
-                          <Button
+                          </ActionButton>
+                          <ActionButton
                             size="small"
                             variant="outlined"
                             onClick={() => {
@@ -1263,11 +1198,11 @@ export default function SkillsLibraryPage() {
                             sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
                           >
                             {t('skills.drawer.cancel_edit')}
-                          </Button>
+                          </ActionButton>
                         </Stack>
                       ) : (
                         <Tooltip title={t('skills.drawer.edit')}>
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             onClick={() => {
                               setEditing(true)
@@ -1277,7 +1212,7 @@ export default function SkillsLibraryPage() {
                             }}
                           >
                             <EditIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
+                          </IconActionButton>
                         </Tooltip>
                       )
                     )}
@@ -1285,7 +1220,7 @@ export default function SkillsLibraryPage() {
                 )}
 
                 {/* Content body */}
-                <Box sx={{ flex: 1, overflow: 'auto' }}>
+                <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
                   {!selectedFile ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 1 }}>
                       <ExtensionIcon sx={{ fontSize: 48, opacity: 0.15 }} />
@@ -1383,12 +1318,12 @@ export default function SkillsLibraryPage() {
           <DialogContentText>{t('skills.drawer.unsavedConfirm')}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setUnsavedDialogTarget(null)}>
+          <ActionButton onClick={() => setUnsavedDialogTarget(null)}>
             {t('skills.drawer.keepEditing')}
-          </Button>
-          <Button variant="contained" color="warning" onClick={handleDiscardAndSwitch}>
+          </ActionButton>
+          <ActionButton variant="contained" color="warning" onClick={handleDiscardAndSwitch}>
             {t('skills.drawer.discard')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1429,7 +1364,7 @@ export default function SkillsLibraryPage() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
             onClick={() => {
               setCloneDialogOpen(false)
               setCloneUrl('')
@@ -1439,15 +1374,15 @@ export default function SkillsLibraryPage() {
             disabled={cloneMutation.isPending}
           >
             {t('skills.cloneDialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             variant="contained"
             onClick={() => cloneMutation.mutate()}
             disabled={cloneMutation.isPending || !cloneUrl.trim() || !cloneTargetDir.trim()}
             startIcon={cloneMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
           >
             {cloneMutation.isPending ? t('skills.cloneDialog.cloning') : t('skills.cloneDialog.cloneBtn')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1460,17 +1395,17 @@ export default function SkillsLibraryPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
+          <ActionButton onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
             {t('skills.deleteDialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             variant="contained"
             color="error"
             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending ? <CircularProgress size={20} /> : t('skills.deleteDialog.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

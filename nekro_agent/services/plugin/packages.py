@@ -14,6 +14,7 @@ from packaging.requirements import Requirement
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import PLUGIN_DYNAMIC_PACKAGE_DIR
+from nekro_agent.services.network.proxy_manager import SystemProxyFeature, build_proxy_url, mask_proxy_url
 
 # ---------- 公开 API ----------
 
@@ -38,11 +39,7 @@ def dynamic_import_pkg(
         mirror = config.DYNAMIC_PLUGIN_INSTALL_MIRROR
 
     # 检查是否使用代理
-    proxy_url = (
-        config.DEFAULT_PROXY
-        if config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY
-        else None
-    )
+    proxy_url = build_proxy_url(SystemProxyFeature.DYNAMIC_PLUGIN_INSTALL)
 
     req = _parse_spec(package_spec)
     repo_dir = repo_dir or Path(PLUGIN_DYNAMIC_PACKAGE_DIR)
@@ -113,6 +110,7 @@ def _install_package(
 
     # 添加代理配置
     if proxy_url:
+        logger.info(f"动态安装插件依赖使用代理: {mask_proxy_url(proxy_url)}")
         cmd.extend(["--proxy", proxy_url])
 
     try:

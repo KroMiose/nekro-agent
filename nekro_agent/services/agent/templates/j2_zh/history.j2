@@ -1,0 +1,33 @@
+{% macro history_first_start(enable_cot) %}
+以上示例已经结束。
+接下来是真实的用户对话场景。
+除非真实对话明确要求，否则不要继续、提及或复用上方示例中的任何参与者、事件或输出。
+注意，在这之前的沙盒已经被清理，不要使用先前生成的资源。
+{% if enable_cot %}
+，但这一次请在思考内容中使用中文，并且逐步、谨慎、全面地进行思考
+{% endif %}
+{% endmacro %}
+
+{% macro history_data(plugin_injected_prompt, chat_key, current_time, lunar_time) %}
+{{ plugin_injected_prompt }}
+
+当前聊天键：{{ chat_key }}
+当前时间：{{ current_time }} | 农历：{{ lunar_time }}
+
+## 消息元信息字段说明
+
+部分消息可能携带以下括号前缀，例如：`(msg_id:123, ref:456, tome:true)`
+
+- **msg_id**：该消息的平台 ID，用于引用消息或插件处理特定消息时使用。
+- **ref**：该消息所引用（回复）的消息 ID。
+- **tome:true**：表示该消息通过固定规则（如 @ 提及当前 Bot）判断为明确指向你，应优先回应。未携带此标记的消息表示规则未检测到明确指向，但**不代表你不需要回应**——你被触发本身就说明当前情境需要参与。始终结合消息内容、上下文、对话走向综合判断：对明确指向他人（如 @ 了其他 Bot）的消息不主动插话；无明确指向时根据话题相关性灵活决定。
+{% endmacro %}
+
+{% macro history_debug_prompt(runout_reason, code_output) %}
+看起来代码执行被中断了。以下是详细信息：
+
+中断原因：{{ runout_reason }}
+代码输出：{{ code_output }}
+
+请分析以上信息，并且不要给出任何解释或道歉。
+{% endmacro %}

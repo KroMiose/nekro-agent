@@ -10,7 +10,6 @@ import {
   TableHead,
   TableRow,
   Chip,
-  IconButton,
   Collapse,
   Tooltip,
   Stack,
@@ -25,12 +24,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   alpha,
   TextField,
   InputAdornment,
-  ToggleButton,
-  ToggleButtonGroup,
   Select,
   MenuItem,
   FormControl,
@@ -63,6 +59,7 @@ import {
   Percent as PercentIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { sandboxApi, SandboxCodeExtData, SandboxLog, ExecStopType } from '../../services/api/sandbox'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -75,58 +72,12 @@ import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../../stores/locale'
 import { copyText } from '../../utils/clipboard'
-
-// ─── Stat Card Component ────────────────────────────────────
-
-interface StatCardProps {
-  label: string
-  value: number | string
-  icon: React.ReactNode
-  color: string
-  valueColor?: string
-}
-
-function StatCard({ label, value, icon, color, valueColor }: StatCardProps) {
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        px: 2,
-        py: 1.5,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        borderRadius: 2,
-        minWidth: 140,
-        flex: '1 1 0',
-      }}
-    >
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: color,
-          color: '#fff',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2, color: valueColor }}>
-          {value}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-      </Box>
-    </Paper>
-  )
-}
+import SegmentedControl from '../../components/common/SegmentedControl'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
+import StatCard from '../../components/common/StatCard'
+import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
+import { chatChannelPath } from '../../router/routes'
 
 // 添加共用的内容区样式
 const sharedContentStyles: SxProps<Theme> = {
@@ -319,13 +270,14 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
         {renderContent()}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t('dialog.close')}</Button>
+        <ActionButton onClick={onClose}>{t('dialog.close')}</ActionButton>
       </DialogActions>
     </Dialog>
   )
 }
 
 export default function SandboxPage() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
@@ -337,6 +289,7 @@ export default function SandboxPage() {
   const { devMode } = useDevModeStore()
   const { t } = useTranslation('sandbox')
   const { currentLocale } = useLocaleStore()
+  const { getChannel, getChannelName } = useChannelDirectoryContext()
   const isEnglish = currentLocale === 'en-US'
   const [logViewerOpen, setLogViewerOpen] = useState(false)
   const [selectedLogPath, setSelectedLogPath] = useState<string | null>(null)
@@ -432,6 +385,10 @@ export default function SandboxPage() {
       ...prev,
       [id]: !prev[id],
     }))
+  }
+
+  const handleOpenChannel = (chatKey: string) => {
+    navigate(chatChannelPath(chatKey, 'message-history'))
   }
 
   // 复制内容到剪贴板函数
@@ -551,34 +508,34 @@ export default function SandboxPage() {
       label: t('stats.total'),
       value: stats?.total || 0,
       icon: <AnalyticsIcon sx={{ fontSize: 20 }} />,
-      color: '#5c6bc0',
+      color: theme.palette.primary.main,
     },
     {
       label: t('stats.success'),
       value: stats?.success || 0,
       icon: <CheckCircleIcon sx={{ fontSize: 20 }} />,
-      color: '#66bb6a',
+      color: theme.palette.success.main,
       valueColor: 'success.main',
     },
     {
       label: t('stats.agentCount'),
       value: stats?.agent_count || 0,
       icon: <SmartToyIcon sx={{ fontSize: 20 }} />,
-      color: '#29b6f6',
+      color: theme.palette.info.main,
       valueColor: 'info.main',
     },
     {
       label: t('stats.failed'),
       value: stats?.failed || 0,
       icon: <ErrorIcon sx={{ fontSize: 20 }} />,
-      color: '#ef5350',
+      color: theme.palette.error.main,
       valueColor: 'error.main',
     },
     {
       label: t('stats.successRate'),
       value: `${stats?.success_rate || 0}%`,
       icon: <PercentIcon sx={{ fontSize: 20 }} />,
-      color: '#7e57c2',
+      color: theme.palette.warning.main,
     },
   ]
 
@@ -629,30 +586,29 @@ export default function SandboxPage() {
               ),
               endAdornment: searchInput ? (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearchInput('')}>
+                  <IconActionButton size="small" onClick={() => setSearchInput('')}>
                     <CloseIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
+                  </IconActionButton>
                 </InputAdornment>
               ) : undefined,
             }}
           />
 
           {/* 成功状态过滤 */}
-          <ToggleButtonGroup
-            size="small"
-            exclusive
+          <SegmentedControl
             value={filterSuccess === null ? 'all' : filterSuccess ? 'success' : 'failed'}
-            onChange={(_e, val) => {
+            options={[
+              { value: 'all', label: t('filter.allStatus') },
+              { value: 'success', label: t('filter.successStatus') },
+              { value: 'failed', label: t('filter.failedStatus') },
+            ]}
+            onChange={val => {
               if (val === 'all' || val === null) setFilterSuccess(null)
               else if (val === 'success') setFilterSuccess(true)
               else setFilterSuccess(false)
               setPage(0)
             }}
-          >
-            <ToggleButton value="all">{t('filter.allStatus')}</ToggleButton>
-            <ToggleButton value="success">{t('filter.successStatus')}</ToggleButton>
-            <ToggleButton value="failed">{t('filter.failedStatus')}</ToggleButton>
-          </ToggleButtonGroup>
+          />
 
           {/* 停止类型过滤 */}
           <FormControl size="small" sx={{ minWidth: 130 }}>
@@ -699,9 +655,9 @@ export default function SandboxPage() {
           {/* 清除过滤按钮 */}
           {hasActiveFilters && (
             <Tooltip title={t('filter.clearFilter')}>
-              <IconButton size="small" onClick={handleClearFilters} color="default">
+              <IconActionButton size="small" onClick={handleClearFilters} color="default">
                 <FilterAltOffIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
           )}
         </Stack>
@@ -979,7 +935,7 @@ export default function SandboxPage() {
                             ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
                           }}
                         >
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             onClick={e => {
                               e.stopPropagation() // 防止事件冒泡触发行点击
@@ -991,7 +947,7 @@ export default function SandboxPage() {
                             ) : (
                               <KeyboardArrowDownIcon fontSize={isSmall ? 'small' : 'medium'} />
                             )}
-                          </IconButton>
+                          </IconActionButton>
                         </TableCell>
                         <TableCell
                           sx={{
@@ -1049,17 +1005,24 @@ export default function SandboxPage() {
                             ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
                           }}
                         >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontFamily: 'monospace',
-                              fontSize: isSmall ? '0.65rem' : '0.75rem',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {log.chat_key}
-                          </Typography>
+                          <Tooltip title={log.chat_key} placement="top" arrow>
+                            <Typography
+                              variant="body2"
+                              onClick={() => handleOpenChannel(log.chat_key)}
+                              sx={{
+                                fontSize: isSmall ? '0.65rem' : '0.75rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                color: 'primary.main',
+                                textDecoration: 'underline',
+                                textDecorationStyle: 'dotted',
+                                cursor: 'pointer',
+                                fontWeight: getChannel(log.chat_key)?.channel_name ? 600 : 500,
+                              }}
+                            >
+                              {getChannelName(log.chat_key)}
+                            </Typography>
+                          </Tooltip>
                         </TableCell>
                         <TableCell
                           sx={{
@@ -1218,12 +1181,12 @@ export default function SandboxPage() {
                                       </Typography>
                                     </Box>
                                     <Tooltip title={t('detail.copyThoughtChain')}>
-                                      <IconButton
+                                      <IconActionButton
                                         size="small"
                                         onClick={() => copyToClipboard(log.thought_chain, t('detail.thoughtChain'))}
                                       >
                                         <ContentCopyIcon fontSize="small" />
-                                      </IconButton>
+                                      </IconActionButton>
                                     </Tooltip>
                                   </Stack>
                                   <Paper
@@ -1281,12 +1244,12 @@ export default function SandboxPage() {
                                     </Typography>
                                   </Box>
                                   <Tooltip title={t('detail.copyCode')}>
-                                    <IconButton
+                                    <IconActionButton
                                       size="small"
                                       onClick={() => copyToClipboard(log.code_text, t('detail.code'))}
                                     >
                                       <ContentCopyIcon fontSize="small" />
-                                    </IconButton>
+                                    </IconActionButton>
                                   </Tooltip>
                                 </Stack>
                                 <Paper variant="outlined" className="overflow-hidden w-full">
@@ -1378,12 +1341,12 @@ export default function SandboxPage() {
                                       </Typography>
                                     </Box>
                                     <Tooltip title={t('detail.copyOutput')}>
-                                      <IconButton
+                                      <IconActionButton
                                         size="small"
                                         onClick={() => copyToClipboard(log.outputs, t('detail.result'))}
                                       >
                                         <ContentCopyIcon fontSize="small" />
-                                      </IconButton>
+                                      </IconActionButton>
                                     </Tooltip>
                                   </Stack>
                                   <Paper variant="outlined" className="overflow-hidden w-full">
@@ -1602,7 +1565,7 @@ export default function SandboxPage() {
                               {devMode && extraData?.log_path && (
                                 <Box sx={{ my: 2 }}>
                                   <Stack direction="row" spacing={1} flexWrap="wrap">
-                                    <Button
+                                    <ActionButton
                                       variant="outlined"
                                       color="secondary"
                                       size="small"
@@ -1614,10 +1577,10 @@ export default function SandboxPage() {
                                       }}
                                     >
                                       {t('actions.viewLog')}
-                                    </Button>
+                                    </ActionButton>
                                     <Tooltip title={t('actions.downloadFullLogTooltip')}>
                                       <span>
-                                        <Button
+                                        <ActionButton
                                           variant="outlined"
                                           color="info"
                                           size="small"
@@ -1635,12 +1598,12 @@ export default function SandboxPage() {
                                           }}
                                         >
                                           {t('actions.downloadFullLog')}
-                                        </Button>
+                                        </ActionButton>
                                       </span>
                                     </Tooltip>
                                     <Tooltip title={t('actions.downloadSimplifiedLogTooltip')}>
                                       <span>
-                                        <Button
+                                        <ActionButton
                                           variant="outlined"
                                           color="success"
                                           size="small"
@@ -1658,7 +1621,7 @@ export default function SandboxPage() {
                                           }}
                                         >
                                           {t('actions.downloadSimplifiedLog')}
-                                        </Button>
+                                        </ActionButton>
                                       </span>
                                     </Tooltip>
                                   </Stack>

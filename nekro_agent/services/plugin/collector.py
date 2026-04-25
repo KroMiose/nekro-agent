@@ -24,6 +24,11 @@ from nekro_agent.core.os_env import BUILTIN_PLUGIN_DIR, PACKAGES_DIR, WORKDIR_PL
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.schemas.signal import MsgSignal
+from nekro_agent.services.network.proxy_manager import (
+    SystemProxyFeature,
+    build_subprocess_proxy_env,
+    mask_proxy_url,
+)
 
 from .base import NekroPlugin
 from .schema import SandboxMethod
@@ -315,11 +320,9 @@ class PluginCollector:
         if package_dir.exists():
             raise ValueError(f"云端插件 `{module_name}` 已存在")
 
-        env = {}
-        if config.PLUGIN_UPDATE_USE_PROXY and config.DEFAULT_PROXY:
-            env["HTTP_PROXY"] = config.DEFAULT_PROXY
-            env["HTTPS_PROXY"] = config.DEFAULT_PROXY
-            logger.info(f"使用代理 {config.DEFAULT_PROXY} 克隆云端插件 {module_name} 从 {git_url}")
+        env = build_subprocess_proxy_env(SystemProxyFeature.PLUGIN_UPDATE)
+        if env:
+            logger.info(f"使用代理 {mask_proxy_url(env.get('HTTPS_PROXY'))} 克隆云端插件 {module_name} 从 {git_url}")
 
         git.Repo.clone_from(git_url, package_dir, env=env)
         self.package_data.add_package(
@@ -341,11 +344,9 @@ class PluginCollector:
 
         try:
             repo = git.Repo(package_dir)
-            env = {}
-            if config.PLUGIN_UPDATE_USE_PROXY and config.DEFAULT_PROXY:
-                env["HTTP_PROXY"] = config.DEFAULT_PROXY
-                env["HTTPS_PROXY"] = config.DEFAULT_PROXY
-                logger.info(f"使用代理 {config.DEFAULT_PROXY} 更新云端插件 {module_name}")
+            env = build_subprocess_proxy_env(SystemProxyFeature.PLUGIN_UPDATE)
+            if env:
+                logger.info(f"使用代理 {mask_proxy_url(env.get('HTTPS_PROXY'))} 更新云端插件 {module_name}")
             # 使用 repo.git.pull 并传递 env
             repo.git.pull("origin", env=env)
         except Exception as e:

@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Chip,
-  IconButton,
   Stack,
   Tooltip,
 } from '@mui/material'
@@ -11,8 +10,10 @@ import {
   DeleteOutline as ClearIcon,
   Circle as CircleIcon,
 } from '@mui/icons-material'
+import CommandOutputSegments from '../../../../components/common/CommandOutputSegments'
 import { commandsApi, type CommandOutputEvent } from '../../../../services/api/commands'
 import { useTranslation } from 'react-i18next'
+import IconActionButton from '../../../../components/common/IconActionButton'
 
 interface CommandOutputLogProps {
   chatKey: string
@@ -114,9 +115,9 @@ export default function CommandOutputLog({ chatKey }: CommandOutputLogProps) {
           </Typography>
         </Stack>
         <Tooltip title={t('commandSidebar.clear')}>
-          <IconButton size="small" onClick={handleClear} disabled={events.length === 0}>
+          <IconActionButton size="small" onClick={handleClear} disabled={events.length === 0}>
             <ClearIcon fontSize="small" />
-          </IconButton>
+          </IconActionButton>
         </Tooltip>
       </Stack>
 
@@ -164,16 +165,26 @@ export default function CommandOutputLog({ chatKey }: CommandOutputLogProps) {
                   '& .MuiChip-label': { px: 0.5 },
                 }}
               />
-              <Typography
-                component="span"
-                sx={{
-                  fontSize: 'inherit',
-                  color: ev.status === 'error' ? 'error.main' : 'text.primary',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {ev.message}
-              </Typography>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                {ev.message ? (
+                  <Typography
+                    component="div"
+                    sx={{
+                      fontSize: 'inherit',
+                      color: ev.status === 'error' ? 'error.main' : 'text.primary',
+                      wordBreak: 'break-word',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {ev.message}
+                  </Typography>
+                ) : null}
+                <CommandOutputSegments
+                  segments={ev.output_segments}
+                  compact
+                  textColor={ev.status === 'error' ? 'error.main' : 'text.primary'}
+                />
+              </Box>
             </Box>
           ))
         )}

@@ -1,48 +1,34 @@
-import React, { useState, useEffect } from 'react'
+import { useDeferredValue, useMemo, useState, useEffect } from 'react'
 import {
   Box,
   Typography,
-  TextField,
-  InputAdornment,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Stack,
   Divider,
-  SelectChangeEvent,
   useTheme,
   useMediaQuery,
   Drawer,
   Fab,
   Card,
-  Button,
 } from '@mui/material'
 import {
-  Search as SearchIcon,
-  Clear as ClearIcon,
   List as ListIcon,
   Info as InfoIcon,
 } from '@mui/icons-material'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { chatChannelApi, type ChatChannelListResponse } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
-import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { CARD_VARIANTS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
-import { chatChannelPath } from '../../router/routes'
-
-const DEFAULT_PAGE = 1
-const DEFAULT_PAGE_SIZE = 25
-
-const parsePositiveInt = (value: string | null, fallback: number) => {
-  if (!value) return fallback
-  const parsed = Number(value)
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
-}
+import SearchField from '../../components/common/SearchField'
+import FilterSelect from '../../components/common/FilterSelect'
+import ActionButton from '../../components/common/ActionButton'
+import {
+  chatChannelPath,
+  DEFAULT_CHAT_CHANNEL_DETAIL_TAB,
+  isChatChannelDetailTab,
+  type ChatChannelDetailTab,
+} from '../../router/routes'
+import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
 
 export default function ChatChannelPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -51,16 +37,46 @@ export default function ChatChannelPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('chat-channel')
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { chatKey } = useParams<{ chatKey: string }>()
+  const { chatKey, tab } = useParams<{ chatKey: string; tab: string }>()
   const [searchParams] = useSearchParams()
   const selectedChatKey = chatKey ?? null
-  const search = searchParams.get('search') ?? ''
-  const chatType = searchParams.get('chat_type') ?? ''
-  const isActive = searchParams.get('is_active') ?? ''
-  const page = parsePositiveInt(searchParams.get('page'), DEFAULT_PAGE)
-  const pageSize = parsePositiveInt(searchParams.get('page_size'), DEFAULT_PAGE_SIZE)
+  const selectedTab = isChatChannelDetailTab(tab) ? tab : null
+
+  // 本地搜索 / 筛选状态（从 sessionStorage 恢复，保证路由重挂载后不丢失）
+  const [search, setSearch] = useState(() => sessionStorage.getItem('chatChannel.search') ?? '')
+  const [chatType, setChatType] = useState(() => sessionStorage.getItem('chatChannel.chatType') ?? '')
+  const [status, setStatus] = useState(() => sessionStorage.getItem('chatChannel.status') ?? '')
+
+  useEffect(() => { sessionStorage.setItem('chatChannel.search', search) }, [search])
+  useEffect(() => { sessionStorage.setItem('chatChannel.chatType', chatType) }, [chatType])
+  useEffect(() => { sessionStorage.setItem('chatChannel.status', status) }, [status])
+
+  // 使用全局频道目录
+  const { channels, isLoading } = useChannelDirectoryContext()
+
+  // 延迟搜索值，避免每次按键都触发全量过滤
+  const deferredSearch = useDeferredValue(search)
+
+  // 前端过滤
+  const filteredChannels = useMemo(() => {
+    let result = channels
+    if (deferredSearch) {
+      const lower = deferredSearch.toLowerCase()
+      result = result.filter(
+        ch =>
+          ch.chat_key.toLowerCase().includes(lower) ||
+          (ch.channel_name ?? '').toLowerCase().includes(lower),
+      )
+    }
+    if (chatType) {
+      result = result.filter(ch => ch.chat_type === chatType)
+    }
+    if (status) {
+      result = result.filter(ch => ch.status === status)
+    }
+    return result
+  }, [channels, deferredSearch, chatType, status])
 
   useEffect(() => {
     const legacyChatKey = searchParams.get('chat_key')
@@ -69,131 +85,34 @@ export default function ChatChannelPage() {
     const nextParams = new URLSearchParams(searchParams)
     nextParams.delete('chat_key')
     const nextQuery = nextParams.toString()
-    navigate(`${chatChannelPath(legacyChatKey)}${nextQuery ? `?${nextQuery}` : ''}`, { replace: true })
+    navigate(`${chatChannelPath(legacyChatKey, DEFAULT_CHAT_CHANNEL_DETAIL_TAB)}${nextQuery ? `?${nextQuery}` : ''}`, { replace: true })
   }, [navigate, searchParams])
 
-  const buildChannelUrl = (nextChatKey?: string | null, overrides?: Record<string, string | null>) => {
-    const nextParams = new URLSearchParams(searchParams)
-    if (overrides) {
-      Object.entries(overrides).forEach(([key, value]) => {
-        if (value === null || value === '') {
-          nextParams.delete(key)
-        } else {
-          nextParams.set(key, value)
-        }
-      })
-    }
-    const query = nextParams.toString()
-    const basePath = chatChannelPath(nextChatKey)
-    return query ? `${basePath}?${query}` : basePath
-  }
-
-  // 查询聊天列表
-  const { data: channelList, isLoading } = useQuery({
-    queryKey: ['chat-channels', search, chatType, isActive, page, pageSize],
-    queryFn: () =>
-      chatChannelApi.getList({
-        page,
-        page_size: pageSize,
-        search: search || undefined,
-        chat_type: chatType || undefined,
-        is_active: isActive === '' ? undefined : isActive === 'true',
-      }),
-  })
-
-  // 实时频道列表更新订阅 (SSE)
   useEffect(() => {
-    const handleChannelUpdate = (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => {
-      const { event_type, chat_key } = event
-
-      // 更新频道列表缓存
-      queryClient.setQueryData<ChatChannelListResponse | undefined>(['chat-channels', search, chatType, isActive, page, pageSize], (oldData) => {
-        if (!oldData?.items) return oldData
-
-        const newItems = [...oldData.items]
-        const idx = newItems.findIndex((ch) => ch.chat_key === chat_key)
-
-        if (event_type === 'deleted' && idx >= 0) {
-          // 删除频道
-          newItems.splice(idx, 1)
-        } else if (event_type === 'created' && idx < 0) {
-          // 新建频道（添加到列表顶部）
-          newItems.unshift({
-            id: 0,
-            chat_key,
-            channel_name: event.channel_name ?? null,
-            is_active: event.is_active ?? true,
-            chat_type: '',
-            message_count: 0,
-            create_time: new Date().toISOString(),
-            update_time: new Date().toISOString(),
-            last_message_time: null,
-          })
-        } else if ((event_type === 'updated' || event_type === 'activated' || event_type === 'deactivated')) {
-          if (idx >= 0) {
-            // 从原位置移除，创建新对象（保持不可变性）
-            const channel = { ...newItems[idx] }
-            newItems.splice(idx, 1)
-
-            if (event.channel_name != null) {
-              channel.channel_name = event.channel_name
-            }
-            if (event.is_active != null) {
-              channel.is_active = event.is_active
-            }
-            channel.update_time = new Date().toISOString()
-            channel.last_message_time = new Date().toISOString()
-
-            // 移到列表顶部（最新活动的频道）
-            newItems.unshift(channel)
-          }
-        }
-
-        return { ...oldData, items: newItems }
-      })
-    }
-
-    // 订阅频道列表更新
-    const cleanup = chatChannelApi.streamChannels(handleChannelUpdate, (error) => {
-      console.error('Channel stream error:', error)
-    })
-
-    return () => cleanup?.()
-  }, [queryClient, search, chatType, isActive, page, pageSize])
-
-  // 处理搜索
-  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    navigate(buildChannelUrl(selectedChatKey, { search: event.target.value, page: String(DEFAULT_PAGE) }), {
-      replace: true,
-    })
-  }
-
-  // 处理清除搜索
-  const handleClearSearch = () => {
-    navigate(buildChannelUrl(selectedChatKey, { search: null, page: String(DEFAULT_PAGE) }), {
-      replace: true,
-    })
-  }
-
-  // 处理类型筛选
-  const handleChatTypeChange = (event: SelectChangeEvent) => {
+    if (!selectedChatKey || selectedTab) return
+    const nextQuery = searchParams.toString()
     navigate(
-      buildChannelUrl(selectedChatKey, { chat_type: event.target.value, page: String(DEFAULT_PAGE) }),
-      { replace: true }
+      `${chatChannelPath(selectedChatKey, DEFAULT_CHAT_CHANNEL_DETAIL_TAB)}${nextQuery ? `?${nextQuery}` : ''}`,
+      { replace: true },
     )
+  }, [navigate, searchParams, selectedChatKey, selectedTab])
+
+  const buildChannelUrl = (
+    nextChatKey?: string | null,
+    nextTab?: ChatChannelDetailTab | null,
+  ) => {
+    const basePath = chatChannelPath(nextChatKey, nextChatKey ? (nextTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB) : null)
+    return basePath
   }
 
-  // 处理状态筛选
-  const handleActiveChange = (event: SelectChangeEvent) => {
-    navigate(
-      buildChannelUrl(selectedChatKey, { is_active: event.target.value, page: String(DEFAULT_PAGE) }),
-      { replace: true }
-    )
+  const handleDetailTabChange = (nextTab: ChatChannelDetailTab) => {
+    if (!selectedChatKey) return
+    navigate(buildChannelUrl(selectedChatKey, nextTab))
   }
 
   // 处理选择聊天
   const handleSelectChannel = (chatKey: string) => {
-    navigate(buildChannelUrl(chatKey))
+    navigate(buildChannelUrl(chatKey, selectedTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB))
     if (isMobile) {
       setDrawerOpen(false)
     }
@@ -207,49 +126,41 @@ export default function ChatChannelPage() {
   // 渲染聊天列表组件
   const renderChannelList = () => (
     <>
-      <Box className="p-2 flex-shrink-0">
+      <Box sx={{ p: { xs: 1.25, sm: 1.5 }, flexShrink: 0, bgcolor: 'background.paper' }}>
         <Stack spacing={1.5}>
           {/* 搜索框 */}
-          <TextField
+          <SearchField
             fullWidth
             size={isSmall ? 'small' : 'medium'}
             placeholder={t('search.placeholder')}
             value={search}
-            onChange={handleSearch}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-              endAdornment: search && (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={handleClearSearch}>
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
+            onChange={setSearch}
+            onClear={() => setSearch('')}
           />
 
           {/* 筛选选项 */}
           <Stack direction={isSmall ? 'column' : 'row'} spacing={1}>
-            <FormControl size="small" fullWidth>
-              <InputLabel>{t('filters.type')}</InputLabel>
-              <Select value={chatType} label={t('filters.type')} onChange={handleChatTypeChange}>
-                <MenuItem value="">{t('filters.all')}</MenuItem>
-                <MenuItem value="group">{t('filters.group')}</MenuItem>
-                <MenuItem value="private">{t('filters.private')}</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>{t('filters.status')}</InputLabel>
-              <Select value={isActive} label={t('filters.status')} onChange={handleActiveChange}>
-                <MenuItem value="">{t('filters.all')}</MenuItem>
-                <MenuItem value="true">{t('filters.active')}</MenuItem>
-                <MenuItem value="false">{t('filters.inactive')}</MenuItem>
-              </Select>
-            </FormControl>
+            <FilterSelect
+              label={t('filters.type')}
+              value={chatType}
+              onChange={setChatType}
+              options={[
+                { value: '', label: t('filters.all') },
+                { value: 'group', label: t('filters.group') },
+                { value: 'private', label: t('filters.private') },
+              ]}
+            />
+            <FilterSelect
+              label={t('filters.status')}
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: '', label: t('filters.all') },
+                { value: 'active', label: t('filters.active') },
+                { value: 'observe', label: t('filters.observe') },
+                { value: 'disabled', label: t('filters.inactive') },
+              ]}
+            />
           </Stack>
         </Stack>
       </Box>
@@ -257,41 +168,14 @@ export default function ChatChannelPage() {
       <Divider />
 
       {/* 聊天列表 */}
-      <Box className="flex-1 overflow-auto">
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', bgcolor: 'background.paper' }}>
         <ChatChannelList
-          channels={channelList?.items || []}
+          channels={filteredChannels}
           selectedChatKey={selectedChatKey}
           onSelectChannel={handleSelectChannel}
           isLoading={isLoading}
         />
       </Box>
-
-      {/* 分页器 */}
-      {channelList && channelList.items.length > 0 && (
-        <TablePaginationStyled
-          component="div"
-          count={channelList.total}
-          page={page - 1}
-          rowsPerPage={pageSize}
-          onPageChange={(_: React.MouseEvent<HTMLButtonElement> | null, newPage: number) =>
-            navigate(buildChannelUrl(selectedChatKey, { page: String(newPage + 1) }), { replace: true })
-          }
-          onRowsPerPageChange={(
-            event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-          ) => {
-            navigate(
-              buildChannelUrl(selectedChatKey, {
-                page_size: event.target.value,
-                page: String(DEFAULT_PAGE),
-              }),
-              { replace: true }
-            )
-          }}
-          loading={isLoading}
-          showFirstLastPageButtons={false}
-          rowsPerPageOptions={[10, 25]}
-        />
-      )}
     </>
   )
 
@@ -299,7 +183,12 @@ export default function ChatChannelPage() {
   const renderChannelDetail = () => (
     <>
       {selectedChatKey ? (
-        <ChatChannelDetail chatKey={selectedChatKey} onBack={handleBackToList} />
+        <ChatChannelDetail
+          chatKey={selectedChatKey}
+          currentTab={selectedTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB}
+          onTabChange={handleDetailTabChange}
+          onBack={handleBackToList}
+        />
       ) : (
         <Card
           sx={{
@@ -314,14 +203,14 @@ export default function ChatChannelPage() {
           <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
           <Typography color="textSecondary">{t('detail.selectChat')}</Typography>
           {isMobile && (
-            <Button
+            <ActionButton
               onClick={() => setDrawerOpen(true)}
               variant="outlined"
               startIcon={<ListIcon />}
               sx={{ mt: 2 }}
             >
               {t('actions.viewList')}
-            </Button>
+            </ActionButton>
           )}
         </Card>
       )}
@@ -329,14 +218,19 @@ export default function ChatChannelPage() {
   )
 
   return (
-    <Box className="h-full flex gap-2 overflow-hidden p-2">
+    <Box className="h-full flex gap-2 overflow-hidden p-2 box-border">
       {isMobile ? (
         // 移动端布局
         <>
           {/* 主内容区 - 根据是否选择聊天，显示详情或提示 */}
           <Box className="w-full flex-1 overflow-hidden">
             {selectedChatKey ? (
-              <ChatChannelDetail chatKey={selectedChatKey} onBack={handleBackToList} />
+              <ChatChannelDetail
+                chatKey={selectedChatKey}
+                currentTab={selectedTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB}
+                onTabChange={handleDetailTabChange}
+                onBack={handleBackToList}
+              />
             ) : (
               <Card
                 sx={{
@@ -350,14 +244,14 @@ export default function ChatChannelPage() {
               >
                 <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
                 <Typography color="textSecondary">{t('detail.selectChat')}</Typography>
-                <Button
+                <ActionButton
                   onClick={() => setDrawerOpen(true)}
                   variant="outlined"
                   startIcon={<ListIcon />}
                   sx={{ mt: 2 }}
                 >
                   {t('actions.viewList')}
-                </Button>
+                </ActionButton>
               </Card>
             )}
           </Box>
@@ -367,15 +261,20 @@ export default function ChatChannelPage() {
             anchor="left"
             open={drawerOpen}
             onClose={() => setDrawerOpen(false)}
+            ModalProps={{
+              keepMounted: true,
+            }}
             PaperProps={{
               sx: {
-                width: isSmall ? '85%' : '320px',
-                maxWidth: '100%',
-                backgroundColor: 'transparent',
-                backdropFilter: 'blur(20px)',
+                width: isSmall ? 'min(88vw, 360px)' : '360px',
+                maxWidth: '100vw',
+                backgroundColor: 'background.paper',
+                backgroundImage: 'none',
                 borderRight: `1px solid ${theme.palette.divider}`,
                 display: 'flex',
                 flexDirection: 'column',
+                overflow: 'hidden',
+                boxShadow: theme.shadows[12],
               },
             }}
           >
@@ -383,19 +282,21 @@ export default function ChatChannelPage() {
           </Drawer>
 
           {/* 浮动按钮 - 打开聊天列表 */}
-          <Fab
-            color="primary"
-            size={isSmall ? 'medium' : 'large'}
-            onClick={() => setDrawerOpen(true)}
-            sx={{
-              position: 'fixed',
-              bottom: 16,
-              right: 16,
-              zIndex: 1099,
-            }}
-          >
-            <ListIcon />
-          </Fab>
+          {!drawerOpen && (
+            <Fab
+              color="primary"
+              size={isSmall ? 'medium' : 'large'}
+              onClick={() => setDrawerOpen(true)}
+              sx={{
+                position: 'fixed',
+                bottom: 16,
+                right: 16,
+                zIndex: theme.zIndex.drawer - 1,
+              }}
+            >
+              <ListIcon />
+            </Fab>
+          )}
         </>
       ) : (
         // 桌面端布局

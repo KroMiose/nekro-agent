@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react'
 import {
   Box,
   Typography,
-  IconButton,
   Tooltip,
   FormControl,
   InputLabel,
@@ -12,7 +11,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   CircularProgress,
   Chip,
   Stack,
@@ -42,6 +40,8 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../../../stores/theme'
 import { Editor } from '@monaco-editor/react'
+import ActionButton from '../../../../components/common/ActionButton'
+import IconActionButton from '../../../../components/common/IconActionButton'
 
 interface PluginDataProps {
   chatKey: string
@@ -326,14 +326,14 @@ export default function PluginData({ chatKey }: PluginDataProps) {
             </Stack>
             <Stack direction="row" spacing={0.5}>
               <Tooltip title={t('pluginData.edit')}>
-                <IconButton size="small" onClick={() => handleOpenEdit(selectedItem)}>
+                <IconActionButton size="small" onClick={() => handleOpenEdit(selectedItem)}>
                   <EditIcon fontSize="small" />
-                </IconButton>
+                </IconActionButton>
               </Tooltip>
               <Tooltip title={t('pluginData.delete')}>
-                <IconButton size="small" color="error" onClick={() => handleOpenDelete(selectedItem)}>
+                <IconActionButton size="small" color="error" onClick={() => handleOpenDelete(selectedItem)}>
                   <DeleteIcon fontSize="small" />
-                </IconButton>
+                </IconActionButton>
               </Tooltip>
             </Stack>
           </Stack>
@@ -562,10 +562,10 @@ export default function PluginData({ chatKey }: PluginDataProps) {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>{t('pluginData.cancel')}</Button>
-          <Button onClick={handleSave} variant="contained" disabled={isUpdating}>
+          <ActionButton onClick={() => setEditDialogOpen(false)}>{t('pluginData.cancel')}</ActionButton>
+          <ActionButton onClick={handleSave} variant="contained" disabled={isUpdating}>
             {isUpdating ? <CircularProgress size={20} /> : t('pluginData.save')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -576,10 +576,10 @@ export default function PluginData({ chatKey }: PluginDataProps) {
           <Typography>{t('pluginData.deleteConfirmContent')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>{t('pluginData.cancel')}</Button>
-          <Button onClick={handleConfirmDelete} color="error" disabled={isDeleting}>
+          <ActionButton onClick={() => setDeleteDialogOpen(false)}>{t('pluginData.cancel')}</ActionButton>
+          <ActionButton onClick={handleConfirmDelete} color="error" disabled={isDeleting}>
             {isDeleting ? <CircularProgress size={20} /> : t('pluginData.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

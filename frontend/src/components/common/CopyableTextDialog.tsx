@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react'
-import { TextField, Button, Box, Stack } from '@mui/material'
+import { TextField, Box, Stack } from '@mui/material'
 import { useTranslation } from 'react-i18next'
 import { useNotification } from '../../hooks/useNotification'
 import { copyText } from '../../utils/clipboard'
 import NekroDialog from './NekroDialog'
+import ActionButton from './ActionButton'
 
 export interface CopyableTextDialogProps {
   open: boolean
@@ -57,12 +58,12 @@ const CopyableTextDialog: React.FC<CopyableTextDialogProps> = ({
       dividers={true}
       actions={
         <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 2, py: 1.5 }}>
-          <Button variant="outlined" onClick={onClose}>
+          <ActionButton variant="outlined" onClick={onClose}>
             {t('actions.close')}
-          </Button>
-          <Button variant="contained" onClick={handleCopy}>
+          </ActionButton>
+          <ActionButton variant="contained" onClick={handleCopy}>
             {t('actions.copy')}
-          </Button>
+          </ActionButton>
         </Stack>
       }
     >

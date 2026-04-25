@@ -1,12 +1,4 @@
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Alert,
-  useTheme,
-  CircularProgress,
-} from '@mui/material'
+import { Box, Card, CardContent, Typography, Alert, useTheme, CircularProgress } from '@mui/material'
 import { Description as DescriptionIcon } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { useOutletContext, useParams } from 'react-router-dom'
@@ -21,7 +13,7 @@ interface AdapterContextType {
 
 export default function AdapterHomePage() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
-  const { adapterInfo } = useOutletContext<AdapterContextType>()
+  useOutletContext<AdapterContextType>()
   const theme = useTheme()
   const { t } = useTranslation('adapter')
 
@@ -41,7 +33,7 @@ export default function AdapterHomePage() {
       sx={{
         height: '100%',
         overflow: 'auto',
-        p: 2,
+        p: { xs: 1.5, sm: 2 },
         '&::-webkit-scrollbar': { width: '6px' },
         '&::-webkit-scrollbar-thumb': {
           backgroundColor: theme.palette.divider,
@@ -49,28 +41,10 @@ export default function AdapterHomePage() {
         },
       }}
     >
-      {/* 适配器基本信息 */}
-      <Card sx={{ ...CARD_VARIANTS.default.styles, mb: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-            {adapterInfo.name}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            {adapterInfo.description}
-          </Typography>
-          {adapterInfo.version && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              {t('home.version')}: {adapterInfo.version}
-              {adapterInfo.author && ` • ${t('home.author')}: ${adapterInfo.author}`}
-            </Typography>
-          )}
-        </CardContent>
-      </Card>
-
       {/* 适配器文档 */}
       {docsLoading ? (
         <Card sx={CARD_VARIANTS.default.styles}>
-          <CardContent sx={{ p: 3, textAlign: 'center' }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 }, textAlign: 'center' }}>
             <CircularProgress size={32} />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
               {t('home.loadingDocs')}
@@ -83,8 +57,8 @@ export default function AdapterHomePage() {
         </Alert>
       ) : docs?.exists ? (
         <Card sx={CARD_VARIANTS.default.styles}>
-          <CardContent sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: { xs: 2, sm: 3 }, minWidth: 0 }}>
               <DescriptionIcon color="primary" />
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
                 {t('home.adapterDocs')}

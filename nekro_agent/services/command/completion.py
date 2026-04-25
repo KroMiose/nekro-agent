@@ -32,16 +32,22 @@ class CommandCompletionProvider:
         from nekro_agent.services.command.registry import command_registry
 
         entries = []
+        plugin_enabled_cache: dict[str, bool] = {}
         for meta in command_registry.list_all_commands():
-            if not command_manager.is_command_enabled(meta.name, chat_key):
+            if not command_manager.is_command_enabled_for_meta(
+                meta,
+                chat_key,
+                plugin_enabled_cache=plugin_enabled_cache,
+            ):
                 continue
+            effective_permission = command_manager.get_command_permission(meta.name, meta.permission, chat_key)
             entries.append(
                 CommandCompletionEntry(
                     name=meta.name,
                     description=meta.get_description(lang)[:100],
                     usage=meta.get_usage(lang),
                     category=meta.get_category(lang),
-                    permission=meta.permission,
+                    permission=effective_permission,
                     params_schema=meta.params_schema,
                 )
             )

@@ -4,7 +4,7 @@ import os
 import time
 from collections import deque
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Awaitable, Callable, Dict, List, Optional, Tuple
 
 from nekro_agent.core.config import CoreConfig, ModelConfigGroup
 from nekro_agent.core.logger import get_sub_logger
@@ -28,6 +28,17 @@ from .templates.plugin import render_plugins_prompt
 
 logger = get_sub_logger("agent_runtime")
 RECENT_ERR_LOGS = deque(maxlen=100)
+
+
+def _summarize_runtime_text(text: str, limit: int = 160) -> str:
+    compact = " ".join(text.strip().split())
+    if not compact:
+        return ""
+    return compact if len(compact) <= limit else compact[: limit - 1] + "…"
+
+
+class AllLLMRequestsFailedError(ValueError):
+    """All LLM API retries are exhausted for a single agent request."""
 
 
 async def run_agent(
@@ -68,6 +79,45 @@ async def run_agent(
     )
     logger.debug(f"[run_agent] {chat_key} | 插件 prompt 渲染完成，开始构建 system prompt")
 
+    from nekro_agent.services.system_broadcast import AgentRuntimeStatusEvent, publish_system_event
+
+    started_at = int(time.time() * 1000)
+    iteration_total = config.AI_SCRIPT_MAX_RETRY_TIMES + 1
+    llm_retry_total = config.AI_CHAT_LLM_API_MAX_RETRIES
+
+    async def publish_runtime_state(
+        *,
+        phase: str,
+        iteration_index: int,
+        llm_retry_index: int = 1,
+        model_name: Optional[str] = None,
+        sandbox_stop_type: Optional[int] = None,
+        error_summary: Optional[str] = None,
+    ) -> None:
+        try:
+            await publish_system_event(
+                AgentRuntimeStatusEvent(
+                    chat_key=chat_key,
+                    active=True,
+                    channel_name=db_chat_channel.channel_name,
+                    chat_type=db_chat_channel.channel_type,
+                    preset_id=getattr(preset, "id", None),
+                    preset_name=getattr(preset, "name", None),
+                    started_at=started_at,
+                    updated_at=int(time.time() * 1000),
+                    phase=phase,
+                    iteration_index=iteration_index,
+                    iteration_total=iteration_total,
+                    llm_retry_index=llm_retry_index,
+                    llm_retry_total=llm_retry_total,
+                    sandbox_stop_type=sandbox_stop_type,
+                    model_name=model_name,
+                    error_summary=error_summary,
+                )
+            )
+        except Exception as e:
+            logger.debug(f"[run_agent] {chat_key} | 运行阶段广播失败: {e}")
+
     prompt_compiler = PromptCompiler(
         platform_name=self_info.platform_name,
         bot_platform_id=self_info.user_id,
@@ -94,7 +144,33 @@ async def run_agent(
 
     logger.debug(f"[run_agent] {chat_key} | 历史记录渲染完成，发送 LLM 请求 (model={used_model_group.CHAT_MODEL})")
     history_render_until_time = time.time()
-    llm_response, used_model_group = await send_agent_request(messages=messages, config=config, chat_key=chat_key)
+    try:
+        llm_response, used_model_group = await send_agent_request(
+            messages=messages,
+            config=config,
+            chat_key=chat_key,
+            on_llm_retry=lambda retry_index, retry_total, model_name, error_summary: publish_runtime_state(
+                phase="llm_retrying",
+                iteration_index=1,
+                llm_retry_index=retry_index,
+                model_name=model_name,
+                error_summary=error_summary,
+            ),
+            on_llm_attempt=lambda retry_index, _retry_total, model_name: publish_runtime_state(
+                phase="llm_generating",
+                iteration_index=1,
+                llm_retry_index=retry_index,
+                model_name=model_name,
+            ),
+        )
+    except AllLLMRequestsFailedError as e:
+        await publish_runtime_state(
+            phase="failed",
+            iteration_index=1,
+            llm_retry_index=llm_retry_total,
+            error_summary=_summarize_runtime_text(str(e)),
+        )
+        raise
     logger.debug(f"[run_agent] {chat_key} | LLM 请求完成，开始解析响应")
     parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
@@ -102,9 +178,15 @@ async def run_agent(
         addition_prompt_message: List[OpenAIChatMessage] = []
         sandbox_output = ""
         raw_output = ""
+        current_iteration = i + 1
         if one_time_code in parsed_code_data.code_content:
             stop_type = ExecStopType.SECURITY
         else:
+            await publish_runtime_state(
+                phase="sandbox_running",
+                iteration_index=current_iteration,
+                model_name=llm_response.use_model,
+            )
             sandbox_output, raw_output, stop_type_value = await limited_run_code(
                 code_run_data=parsed_code_data,
                 from_chat_key=chat_key,
@@ -115,7 +197,20 @@ async def run_agent(
             stop_type = ExecStopType(stop_type_value)
 
         if stop_type == ExecStopType.NORMAL:
+            await publish_runtime_state(
+                phase="completed",
+                iteration_index=current_iteration,
+                model_name=llm_response.use_model,
+            )
             return
+
+        await publish_runtime_state(
+            phase="sandbox_stopped",
+            iteration_index=current_iteration,
+            model_name=llm_response.use_model,
+            sandbox_stop_type=stop_type.value,
+            error_summary=_summarize_runtime_text(sandbox_output),
+        )
 
         # 添加 AI 回复的原始内容到上下文
         addition_prompt_message.append(OpenAIChatMessage.from_text("assistant", llm_response.response_content))
@@ -212,13 +307,43 @@ async def run_agent(
         addition_prompt_message.append(msg.tidy())
         messages.extend(addition_prompt_message)
 
-        history_render_until_time = time.time()
-        llm_response, used_model_group = await send_agent_request(
-            messages=messages,
-            config=config,
-            is_debug_iteration=True,
-            chat_key=chat_key,
+        await publish_runtime_state(
+            phase="iterating",
+            iteration_index=i + 2,
+            model_name=llm_response.use_model,
+            sandbox_stop_type=stop_type.value,
+            error_summary=_summarize_runtime_text(sandbox_output),
         )
+
+        history_render_until_time = time.time()
+        try:
+            llm_response, used_model_group = await send_agent_request(
+                messages=messages,
+                config=config,
+                is_debug_iteration=True,
+                chat_key=chat_key,
+                on_llm_retry=lambda retry_index, retry_total, model_name, error_summary, iteration_index=i + 2: publish_runtime_state(
+                    phase="llm_retrying",
+                    iteration_index=iteration_index,
+                    llm_retry_index=retry_index,
+                    model_name=model_name,
+                    error_summary=error_summary,
+                ),
+                on_llm_attempt=lambda retry_index, _retry_total, model_name, iteration_index=i + 2: publish_runtime_state(
+                    phase="llm_generating",
+                    iteration_index=iteration_index,
+                    llm_retry_index=retry_index,
+                    model_name=model_name,
+                ),
+            )
+        except AllLLMRequestsFailedError as e:
+            await publish_runtime_state(
+                phase="failed",
+                iteration_index=i + 2,
+                llm_retry_index=llm_retry_total,
+                error_summary=_summarize_runtime_text(str(e)),
+            )
+            raise
         parsed_code_data = parse_chat_response(llm_response.response_content)
 
 
@@ -227,6 +352,8 @@ async def send_agent_request(
     config: CoreConfig,
     is_debug_iteration: bool = False,
     chat_key: str = "",
+    on_llm_attempt: Optional[Callable[[int, int, str], Awaitable[None]]] = None,
+    on_llm_retry: Optional[Callable[[int, int, str, str], Awaitable[None]]] = None,
 ) -> Tuple[OpenAIResponse, ModelConfigGroup]:
     model_group: ModelConfigGroup = (
         config.MODEL_GROUPS[config.DEBUG_MIGRATION_MODEL_GROUP]
@@ -249,6 +376,9 @@ async def send_agent_request(
 
     for i in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
         use_model_group: ModelConfigGroup = model_group if i < config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else fallback_model_group
+        retry_index = i + 1
+        if on_llm_attempt is not None:
+            await on_llm_attempt(retry_index, config.AI_CHAT_LLM_API_MAX_RETRIES, use_model_group.CHAT_MODEL)
 
         logger.info(
             f"[send_agent_request] {chat_key} | 发送 LLM 请求 model={use_model_group.CHAT_MODEL} retry={i}/{config.AI_CHAT_LLM_API_MAX_RETRIES}"
@@ -268,13 +398,17 @@ async def send_agent_request(
                 stream_mode=config.AI_REQUEST_STREAM_MODE,
                 proxy_url=use_model_group.CHAT_PROXY,
                 max_wait_time=config.AI_GENERATE_TIMEOUT,
+                first_token_timeout=config.AI_STREAM_FIRST_TOKEN_TIMEOUT,
                 log_path=log_path,
                 error_log_path=err_log_path,
             )
         except Exception as e:
+            error_summary = _summarize_runtime_text(str(e))
             logger.error(
                 f"LLM 请求失败: {e} ｜ 使用模型: {use_model_group.CHAT_MODEL} {'(fallback)' if i == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else ''}",
             )
+            if on_llm_retry is not None:
+                await on_llm_retry(retry_index, config.AI_CHAT_LLM_API_MAX_RETRIES, use_model_group.CHAT_MODEL, error_summary)
             # 避免重复添加，转换为Path对象并比较绝对路径
             err_log_path_obj = Path(err_log_path)
             if not any(str(log_path.absolute()) == str(err_log_path_obj.absolute()) for log_path in RECENT_ERR_LOGS):
@@ -290,12 +424,6 @@ async def send_agent_request(
             json.dumps([message.to_dict() for message in messages], indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        if chat_key and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
-            from nekro_agent.services.chat.universal_chat_service import (
-                universal_chat_service,
-            )
-
-            await universal_chat_service.send_operation_message(chat_key, "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ")
-        raise ValueError("所有 LLM 请求失败")
+        raise AllLLMRequestsFailedError("所有 LLM 请求失败")
 
     return llm_response, used_model_group

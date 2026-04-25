@@ -1,0 +1,12 @@
+{% macro system_prompt(stable_static, channel_static, runtime_dynamic, plugins_prompt) %}
+{{ stable_static }}
+
+{{ channel_static }}
+
+{{ runtime_dynamic }}
+
+### 你的插件：
+<plugins>
+{{ plugins_prompt }}
+</plugins>
+{% endmacro %}

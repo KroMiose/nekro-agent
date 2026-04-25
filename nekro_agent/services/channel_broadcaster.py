@@ -20,6 +20,7 @@ class ChannelEvent(BaseModel):
     chat_key: str
     channel_name: Optional[str] = None
     is_active: Optional[bool] = None
+    status: Optional[str] = None  # 'active', 'observe', 'disabled'
 
 
 class ChannelSubscription:
@@ -62,7 +63,7 @@ class ChannelBroadcaster:
 
         return ChannelSubscription(queue, cleanup)
 
-    async def publish_update(self, event_type: str, chat_key: str, channel_name: Optional[str] = None, is_active: Optional[bool] = None) -> None:
+    async def publish_update(self, event_type: str, chat_key: str, channel_name: Optional[str] = None, is_active: Optional[bool] = None, status: Optional[str] = None) -> None:
         """发布频道更新事件到所有订阅者
 
         Args:
@@ -76,6 +77,7 @@ class ChannelBroadcaster:
             chat_key=chat_key,
             channel_name=channel_name,
             is_active=is_active,
+            status=status,
         )
 
         logger.debug(f"广播频道事件 {event_type} 到 {len(self.queues)} 个订阅者, chat_key={chat_key}")

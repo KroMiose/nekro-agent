@@ -88,7 +88,7 @@ async def stream_logs(
                 try:
                     message = await asyncio.wait_for(queue.get(), timeout=1.0)
                 except asyncio.TimeoutError:
-                    yield ": ping"
+                    yield {"comment": "ping"}
                     continue
                 yield message
         finally:

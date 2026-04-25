@@ -20,7 +20,7 @@ services:
 
   # Qdrant 服务
   nekro_qdrant:
-    image: qdrant/qdrant
+    image: qdrant/qdrant:v1.17.1
     container_name: ${INSTANCE_NAME:-}nekro_qdrant
     environment:
       - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-}

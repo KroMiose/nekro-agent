@@ -9,6 +9,7 @@ import time
 from pydantic import BaseModel
 
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.services.command.schemas import CommandOutputSegment
 
 logger = get_sub_logger("command_output_broadcaster")
 
@@ -20,6 +21,7 @@ class CommandOutputEvent(BaseModel):
     command_name: str
     status: str  # CommandResponseStatus.value
     message: str
+    output_segments: list[CommandOutputSegment] | None = None
     timestamp: float
 
 
@@ -70,7 +72,14 @@ class CommandOutputBroadcaster:
 
         return CommandOutputSubscription(queue, cleanup)
 
-    async def publish(self, chat_key: str, command_name: str, status: str, message: str) -> None:
+    async def publish(
+        self,
+        chat_key: str,
+        command_name: str,
+        status: str,
+        message: str,
+        output_segments: list[CommandOutputSegment] | None = None,
+    ) -> None:
         """发布命令输出事件到指定频道的所有订阅者
 
         Args:
@@ -87,6 +96,7 @@ class CommandOutputBroadcaster:
             command_name=command_name,
             status=status,
             message=message,
+            output_segments=output_segments,
             timestamp=time.time(),
         )
 

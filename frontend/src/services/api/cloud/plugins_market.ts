@@ -20,12 +20,15 @@ export interface CloudPlugin {
   isOwner?: boolean // 标记是否为当前用户上传的插件
   minNaVersion?: string | null // 最低 NA 版本要求
   maxNaVersion?: string | null // 最高 NA 版本要求
+  favoriteCount?: number // 收藏数量
+  isFavorited?: boolean // 是否已收藏
 }
 
 export interface UserPlugin {
   id: string
   name: string
   moduleName: string
+  icon?: string
 }
 
 export interface RepoUser {
@@ -173,16 +176,16 @@ export const pluginsMarketApi = {
   /**
    * 下载云端插件到本地
    */
-  downloadPlugin: async (pluginId: string): Promise<ActionResponse> => {
-    const response = await axios.post<ActionResponse>(`/cloud/plugins-market/download/${pluginId}`)
+  downloadPlugin: async (moduleName: string): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/cloud/plugins-market/download/${moduleName}`)
     return response.data
   },
 
   /**
    * 更新本地插件
    */
-  updatePlugin: async (pluginId: string): Promise<ActionResponse> => {
-    const response = await axios.post<ActionResponse>(`/cloud/plugins-market/update/${pluginId}`)
+  updatePlugin: async (moduleName: string): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/cloud/plugins-market/update/${moduleName}`)
     return response.data
   },
 

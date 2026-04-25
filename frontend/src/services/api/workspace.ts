@@ -12,6 +12,7 @@ export interface WorkspaceSummary {
   name: string
   description: string
   status: 'active' | 'stopped' | 'failed' | 'deleting'
+  memory_system_enabled: boolean
   sandbox_image: string
   sandbox_version: string
   container_name: string | null
@@ -91,14 +92,37 @@ export interface CreateWorkspaceBody {
   runtime_policy?: 'agent' | 'relaxed' | 'strict'
 }
 
-export interface WorkspaceEnvVar {
+export interface PromptLayerItem {
   key: string
-  value: string
+  title: string
+  target: 'cc' | 'na' | 'shared'
+  maintainer: 'manual' | 'cc' | 'na' | 'manual+cc' | 'manual+na'
+  content: string
   description: string
+  editable_by_cc: boolean
+  auto_inject: boolean
+  updated_at: string | null
+  updated_by: string | null
 }
 
-export interface WorkspaceEnvVarsResponse {
-  env_vars: WorkspaceEnvVar[]
+export interface PromptComposerResponse {
+  claude_md_content: string
+  claude_md_extra: string
+  na_context: PromptLayerItem
+  shared_manual_rules: PromptLayerItem
+  na_manual_rules: PromptLayerItem
+}
+
+export interface WorkspaceOverviewStats {
+  memory_enabled: boolean
+  memory_paragraph_count: number
+  memory_entity_count: number
+  memory_relation_count: number
+  memory_reinforcement_7d: number
+  dynamic_skill_count: number
+  resource_binding_count: number
+  na_context_preview: string
+  na_context_updated_at: string | null
 }
 
 export interface UpdateWorkspaceBody {
@@ -111,6 +135,123 @@ export interface UpdateWorkspaceBody {
 export interface WorkspaceListResponse {
   total: number
   items: WorkspaceSummary[]
+}
+
+// ── MCP 结构化类型 ──
+
+export type McpServerType = 'stdio' | 'sse' | 'http'
+
+export interface McpServerConfig {
+  name: string
+  type: McpServerType
+  enabled: boolean
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
+  url?: string
+  headers?: Record<string, string>
+}
+
+export interface McpEnvKeyDef {
+  key: string
+  description: string
+  required: boolean
+}
+
+export interface McpRegistryItem {
+  id: string
+  name: string
+  description: string
+  icon?: string
+  type: McpServerType
+  command?: string
+  args?: string[]
+  env_keys?: McpEnvKeyDef[]
+  url?: string
+  tags?: string[]
+}
+
+export type ResourceFieldValueKind =
+  | 'text'
+  | 'password'
+  | 'host'
+  | 'port'
+  | 'private_key'
+  | 'username'
+  | 'database'
+  | 'json'
+
+export interface WorkspaceResourceField {
+  field_key: string
+  label: string
+  description: string
+  secret: boolean
+  value_kind: ResourceFieldValueKind
+  order: number
+  export_mode: 'env' | 'none'
+  fixed_aliases: string[]
+  value: string
+}
+
+export interface WorkspaceResourceTemplate {
+  key: string
+  name: string
+  summary: string
+  resource_note: string
+  resource_tags: string[]
+  resource_prompt: string
+  fields: WorkspaceResourceField[]
+}
+
+export interface WorkspaceResourceSummary {
+  id: number
+  resource_key: string
+  name: string
+  template_key?: string | null
+  resource_note: string
+  resource_tags: string[]
+  resource_prompt: string
+  field_count: number
+  fixed_aliases: string[]
+  enabled: boolean
+  bound_workspace_count: number
+  bound_workspaces: Array<{
+    id: number
+    name: string
+  }>
+  create_time: string
+  update_time: string
+}
+
+export interface WorkspaceResourceDetail extends WorkspaceResourceSummary {
+  fields: WorkspaceResourceField[]
+}
+
+export interface WorkspaceResourceBinding {
+  binding_id: number
+  resource_id: number
+  enabled: boolean
+  sort_order: number
+  note: string
+  resource: WorkspaceResourceSummary
+}
+
+export interface WorkspaceResourceConflict {
+  env_name: string
+  existing_resource_id: number
+  existing_resource_name: string
+  target_resource_id: number
+  target_resource_name: string
+}
+
+export interface WorkspaceResourceUpsertBody {
+  name: string
+  template_key?: string | null
+  resource_note: string
+  resource_tags: string[]
+  resource_prompt: string
+  fields: WorkspaceResourceField[]
+  enabled: boolean
 }
 
 export const workspaceApi = {
@@ -252,6 +393,87 @@ export const workspaceApi = {
     await axios.put(`/workspaces/${id}/mcp`, { mcp_config: mcpConfig })
   },
 
+  // MCP 结构化操作
+  getMcpServers: async (id: number): Promise<McpServerConfig[]> => {
+    const response = await axios.get<{ servers: McpServerConfig[] }>(`/workspaces/${id}/mcp/servers`)
+    return response.data.servers
+  },
+
+  addMcpServer: async (id: number, server: McpServerConfig): Promise<void> => {
+    await axios.post(`/workspaces/${id}/mcp/servers`, server)
+  },
+
+  updateMcpServer: async (id: number, oldName: string, server: McpServerConfig): Promise<void> => {
+    await axios.put(`/workspaces/${id}/mcp/servers/${encodeURIComponent(oldName)}`, server)
+  },
+
+  deleteMcpServer: async (id: number, name: string): Promise<void> => {
+    await axios.delete(`/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}`)
+  },
+
+  syncMcpToSandbox: async (id: number): Promise<void> => {
+    await axios.post(`/workspaces/${id}/mcp/sync`)
+  },
+
+  // Workspace Resources
+  getResourceTemplates: async (): Promise<WorkspaceResourceTemplate[]> => {
+    const response = await axios.get<{ items: WorkspaceResourceTemplate[] }>('/resources/templates')
+    return response.data.items
+  },
+
+  getResources: async (): Promise<WorkspaceResourceSummary[]> => {
+    const response = await axios.get<{ items: WorkspaceResourceSummary[] }>('/resources')
+    return response.data.items
+  },
+
+  getResourceDetail: async (resourceId: number): Promise<WorkspaceResourceDetail> => {
+    const response = await axios.get<{ item: WorkspaceResourceDetail }>(`/resources/${resourceId}`)
+    return response.data.item
+  },
+
+  createResource: async (body: WorkspaceResourceUpsertBody): Promise<WorkspaceResourceDetail> => {
+    const response = await axios.post<{ item: WorkspaceResourceDetail }>('/resources', body)
+    return response.data.item
+  },
+
+  updateResourceDetail: async (resourceId: number, body: WorkspaceResourceUpsertBody): Promise<WorkspaceResourceDetail> => {
+    const response = await axios.patch<{ item: WorkspaceResourceDetail }>(`/resources/${resourceId}`, body)
+    return response.data.item
+  },
+
+  deleteResourceDetail: async (resourceId: number, removeBindings = false): Promise<void> => {
+    await axios.delete(`/resources/${resourceId}`, {
+      params: removeBindings ? { remove_bindings: true } : undefined,
+    })
+  },
+
+  getWorkspaceResources: async (id: number): Promise<WorkspaceResourceBinding[]> => {
+    const response = await axios.get<{ items: WorkspaceResourceBinding[] }>(`/workspaces/${id}/resources`)
+    return response.data.items
+  },
+
+  checkWorkspaceResourceBind: async (id: number, resourceId: number): Promise<WorkspaceResourceConflict[]> => {
+    const response = await axios.post<{ ok: boolean; conflicts: WorkspaceResourceConflict[] }>(
+      `/workspaces/${id}/resources/check-bind`,
+      { resource_id: resourceId },
+    )
+    return response.data.conflicts
+  },
+
+  bindWorkspaceResource: async (id: number, resourceId: number, note = ''): Promise<void> => {
+    await axios.post(`/workspaces/${id}/resources/${resourceId}`, { note })
+  },
+
+  unbindWorkspaceResource: async (id: number, resourceId: number): Promise<void> => {
+    await axios.delete(`/workspaces/${id}/resources/${resourceId}`)
+  },
+
+  reorderWorkspaceResources: async (id: number, bindingIds: number[]): Promise<void> => {
+    await axios.put(`/workspaces/${id}/resources/reorder`, {
+      items: bindingIds.map((bindingId, index) => ({ binding_id: bindingId, sort_order: index * 10 + 10 })),
+    })
+  },
+
   // CC 模型预设
   getCCModelPreset: async (id: number): Promise<{ preset_id: number | null; config_json: Record<string, unknown> | null }> => {
     const response = await axios.get<{ preset_id: number | null; config_json: Record<string, unknown> | null }>(
@@ -264,16 +486,6 @@ export const workspaceApi = {
     await axios.put(`/workspaces/${id}/cc-model-preset`, { cc_model_preset_id: presetId })
   },
 
-  // 环境变量
-  getEnvVars: async (id: number): Promise<WorkspaceEnvVar[]> => {
-    const response = await axios.get<WorkspaceEnvVarsResponse>(`/workspaces/${id}/env-vars`)
-    return response.data.env_vars
-  },
-
-  updateEnvVars: async (id: number, envVars: WorkspaceEnvVar[]): Promise<void> => {
-    await axios.put(`/workspaces/${id}/env-vars`, { env_vars: envVars })
-  },
-
   // CLAUDE.md
   getClaudeMd: async (id: number): Promise<{ content: string; extra: string }> => {
     const response = await axios.get<{ content: string; extra: string }>(`/workspaces/${id}/claude-md`)
@@ -282,6 +494,45 @@ export const workspaceApi = {
 
   updateClaudeMdExtra: async (id: number, extra: string): Promise<void> => {
     await axios.put(`/workspaces/${id}/claude-md-extra`, { extra })
+  },
+
+  getPromptComposer: async (id: number): Promise<PromptComposerResponse> => {
+    const response = await axios.get<PromptComposerResponse>(`/workspaces/${id}/prompt-composer`)
+    return response.data
+  },
+
+  updatePromptComposerNaContext: async (id: number, content: string): Promise<void> => {
+    await axios.put(`/workspaces/${id}/prompt-composer/na-context`, { content })
+  },
+
+  updatePromptComposerSharedRules: async (id: number, content: string): Promise<void> => {
+    await axios.put(`/workspaces/${id}/prompt-composer/shared-manual-rules`, { content })
+  },
+
+  updatePromptComposerNaRules: async (id: number, content: string): Promise<void> => {
+    await axios.put(`/workspaces/${id}/prompt-composer/na-manual-rules`, { content })
+  },
+
+  getOverviewStats: async (id: number): Promise<WorkspaceOverviewStats> => {
+    const response = await axios.get<WorkspaceOverviewStats>(`/workspaces/${id}/overview-stats`)
+    return response.data
+  },
+}
+
+// MCP 注册表 API
+export const mcpApi = {
+  getRegistry: async (): Promise<McpRegistryItem[]> => {
+    const response = await axios.get<McpRegistryItem[]>('/mcp/registry')
+    return response.data
+  },
+
+  getAutoInject: async (): Promise<McpServerConfig[]> => {
+    const response = await axios.get<{ servers: McpServerConfig[] }>('/mcp/auto-inject')
+    return response.data.servers
+  },
+
+  setAutoInject: async (servers: McpServerConfig[]): Promise<void> => {
+    await axios.put('/mcp/auto-inject', { servers })
   },
 }
 
@@ -510,62 +761,336 @@ export const builtinSkillApi = {
 }
 
 // 记忆系统 API
-export interface MemoryFileMeta {
-  path: string
-  title: string
-  category: string
-  tags: string[]
-  shared: boolean
-  updated: string
+export interface MemoryDataStats {
+  paragraph_count: number
+  episodic_count: number
+  semantic_count: number
+  entity_count: number
+  relation_count: number
+  reinforcement_count_7d: number
 }
 
-export interface MemoryTreeNode {
-  name: string
-  type: 'file' | 'dir'
-  path: string
-  meta: MemoryFileMeta | null
-  children: MemoryTreeNode[] | null
-}
-
-export interface MemoryFileContent {
-  path: string
-  raw: string
+export interface MemoryParagraphData {
+  id: number
+  summary: string
   content: string
-  meta: MemoryFileMeta
+  memory_source: string
+  cognitive_type: string
+  knowledge_type: string
+  base_weight: number
+  effective_weight: number
+  event_time: string | null
+  origin_kind: string
+  origin_chat_key: string | null
+  create_time: string
+}
+
+export interface MemoryEntityData {
+  id: number
+  entity_type: string
+  canonical_name: string
+  appearance_count: number
+  source_hint: string
+  update_time: string
+}
+
+export interface MemoryRelationData {
+  id: number
+  subject_entity_id: number
+  subject_name: string
+  predicate: string
+  object_entity_id: number
+  object_name: string
+  memory_source: string
+  cognitive_type: string
+  base_weight: number
+  effective_weight: number
+  paragraph_id: number | null
+  update_time: string
+}
+
+export interface MemoryDataResponse {
+  stats: MemoryDataStats
+  paragraphs: MemoryParagraphData[]
+  entities: MemoryEntityData[]
+  relations: MemoryRelationData[]
+}
+
+export interface MemoryListItem {
+  id: number
+  memory_type: 'paragraph' | 'entity' | 'relation' | 'episode'
+  title: string
+  subtitle: string
+  status: string
+  cognitive_type: string | null
+  base_weight: number | null
+  effective_weight: number | null
+  event_time: string | null
+  create_time: string
+  update_time: string
+}
+
+export interface MemoryListResponse {
+  total: number
+  items: MemoryListItem[]
+}
+
+export interface MemoryDetailResponse {
+  memory_type: 'paragraph' | 'entity' | 'relation' | 'episode'
+  data: Record<string, unknown>
+}
+
+export interface MemoryTraceMessage {
+  id: number
+  message_id: string
+  sender_nickname: string
+  content_text: string
+  send_timestamp: number
+}
+
+export interface MemoryTraceResponse {
+  paragraph: Record<string, unknown>
+  messages: MemoryTraceMessage[]
+  entities: MemoryEntityData[]
+  relations: MemoryRelationData[]
+}
+
+export interface MemoryPruneResponse {
+  paragraphs_pruned: number
+  relations_pruned: number
+  entities_pruned: number
+}
+
+export interface MemoryRebuildChannelStatus {
+  chat_key: string
+  status: string
+  upper_bound_message_db_id: number
+  initial_cursor_db_id: number
+  last_cursor_db_id: number
+  message_count_total: number
+  messages_processed: number
+  completed: boolean
+  progress_ratio: number
+  last_error?: string | null
+}
+
+export interface MemoryRebuildStartResponse {
+  job_id: string
+  reused: boolean
+  status: string
+  message: string
+}
+
+export interface MemoryRebuildStatus {
+  workspace_id: number
+  job_id?: string | null
+  is_running: boolean
+  status: 'idle' | 'running' | 'completed' | 'failed' | string
+  phase?: string | null
+  started_at: string | null
+  finished_at: string | null
+  cutoff: string | null
+  semantic_replayed: boolean
+  cancel_requested: boolean
+  current_chat_key?: string | null
+  last_heartbeat_at?: string | null
+  failure_code?: string | null
+  failure_reason?: string | null
+  overall_progress_percent: number
+  total_channels: number
+  completed_channels: number
+  total_messages_processed: number
+  channels: MemoryRebuildChannelStatus[]
+}
+
+export interface MemoryGraphNode {
+  id: string
+  memory_type: 'paragraph' | 'entity' | 'relation' | 'episode'
+  ref_id: number
+  label: string
+  subtitle: string
+  status: 'active' | 'inactive'
+  cognitive_type: string | null
+  weight: number
+  size: number
+  importance: number
+  paragraph_id: number | null
+  metadata: Record<string, unknown>
+}
+
+export interface MemoryGraphEdge {
+  id: string
+  source: string
+  target: string
+  edge_type: 'relation_subject' | 'relation_object' | 'relation_paragraph' | 'paragraph_entity' | 'episode_paragraph' | 'episode_entity'
+  label: string
+  weight: number
+  strength: number
+  status: 'active' | 'inactive'
+  cognitive_type: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface MemoryGraphResponse {
+  generated_at: string
+  node_count: number
+  edge_count: number
+  nodes: MemoryGraphNode[]
+  edges: MemoryGraphEdge[]
+}
+
+export interface MemoryListParams {
+  memory_type?: 'paragraph' | 'entity' | 'relation' | 'episode'
+  status?: 'active' | 'inactive'
+  cognitive_type?: 'episodic' | 'semantic'
+  time_from?: string
+  time_to?: string
+  sort_by?: 'event_time' | 'update_time' | 'create_time' | 'effective_weight'
+  order?: 'asc' | 'desc'
+  limit?: number
+  offset?: number
 }
 
 export const memoryApi = {
-  getTree: async (workspaceId: number): Promise<MemoryTreeNode[]> => {
-    const response = await axios.get<{ nodes: MemoryTreeNode[] }>(`/workspaces/${workspaceId}/memory/tree`)
-    return response.data.nodes
-  },
-
-  getFile: async (workspaceId: number, path: string): Promise<MemoryFileContent> => {
-    const response = await axios.get<MemoryFileContent>(`/workspaces/${workspaceId}/memory/file`, {
-      params: { path },
+  getData: async (workspaceId: number, limit = 20): Promise<MemoryDataResponse> => {
+    const response = await axios.get<MemoryDataResponse>(`/workspaces/${workspaceId}/memory/data`, {
+      params: { limit },
     })
     return response.data
   },
 
-  putFile: async (workspaceId: number, path: string, raw: string): Promise<void> => {
-    await axios.put(`/workspaces/${workspaceId}/memory/file`, { path, raw })
+  getGraph: async (
+    workspaceId: number,
+    limit = 240,
+    includeInactive = false,
+    timeFrom?: string,
+    timeTo?: string,
+  ): Promise<MemoryGraphResponse> => {
+    const response = await axios.get<MemoryGraphResponse>(`/workspaces/${workspaceId}/memory/graph`, {
+      params: { limit, include_inactive: includeInactive, time_from: timeFrom, time_to: timeTo },
+    })
+    return response.data
   },
 
-  deleteFile: async (workspaceId: number, path: string): Promise<void> => {
-    await axios.delete(`/workspaces/${workspaceId}/memory/file`, { params: { path } })
+  list: async (workspaceId: number, params: MemoryListParams = {}): Promise<MemoryListResponse> => {
+    const response = await axios.get<MemoryListResponse>(`/workspaces/${workspaceId}/memory/list`, {
+      params: {
+        memory_type: params.memory_type,
+        status: params.status,
+        cognitive_type: params.cognitive_type,
+        time_from: params.time_from,
+        time_to: params.time_to,
+        sort_by: params.sort_by,
+        order: params.order,
+        limit: params.limit ?? 100,
+        offset: params.offset ?? 0,
+      },
+    })
+    return response.data
   },
 
-  getNaContext: async (workspaceId: number): Promise<string> => {
-    const response = await axios.get<{ content: string }>(`/workspaces/${workspaceId}/memory/na-context`)
-    return response.data.content
+  detail: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+  ): Promise<MemoryDetailResponse> => {
+    const response = await axios.get<MemoryDetailResponse>(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}`)
+    return response.data
   },
 
-  putNaContext: async (workspaceId: number, content: string): Promise<void> => {
-    await axios.put(`/workspaces/${workspaceId}/memory/na-context`, { content })
+  reinforce: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+    boost = 0.2,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/reinforce`, null, {
+      params: { boost },
+    })
+  },
+
+  demote: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+    delta = 0.2,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/demote`, null, {
+      params: { delta },
+    })
+  },
+
+  freeze: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/freeze`)
+  },
+
+  unfreeze: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/unfreeze`)
+  },
+
+  protect: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+    protectedFlag = true,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/protect`, null, {
+      params: { protected: protectedFlag },
+    })
+  },
+
+  trace: async (workspaceId: number, memoryId: number): Promise<MemoryTraceResponse> => {
+    const response = await axios.get<MemoryTraceResponse>(`/workspaces/${workspaceId}/memory/paragraph/${memoryId}/trace`)
+    return response.data
+  },
+
+  remove: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+  ): Promise<void> => {
+    await axios.delete(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}`)
   },
 
   resetMemory: async (workspaceId: number): Promise<void> => {
     await axios.post(`/workspaces/${workspaceId}/memory/reset`)
+  },
+
+  rebuildMemory: async (workspaceId: number): Promise<MemoryRebuildStartResponse> => {
+    const response = await axios.post<MemoryRebuildStartResponse>(`/workspaces/${workspaceId}/memory/rebuild`)
+    return response.data
+  },
+
+  cancelRebuildMemory: async (workspaceId: number): Promise<MemoryRebuildStartResponse> => {
+    const response = await axios.post<MemoryRebuildStartResponse>(`/workspaces/${workspaceId}/memory/rebuild/cancel`)
+    return response.data
+  },
+
+  getRebuildStatus: async (workspaceId: number): Promise<MemoryRebuildStatus> => {
+    const response = await axios.get<MemoryRebuildStatus>(`/workspaces/${workspaceId}/memory/rebuild/status`)
+    return response.data
+  },
+
+  prune: async (workspaceId: number): Promise<MemoryPruneResponse> => {
+    const response = await axios.post<MemoryPruneResponse>(`/workspaces/${workspaceId}/memory/prune`)
+    return response.data
+  },
+
+  edit: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+    payload: { summary?: string; content?: string },
+  ): Promise<void> => {
+    await axios.put(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}`, payload)
   },
 }
 
@@ -600,12 +1125,21 @@ export const getSandboxTerminalWsUrl = (id: number): string => {
 
 export type CommDirection = 'NA_TO_CC' | 'CC_TO_NA' | 'USER_TO_CC' | 'SYSTEM' | 'TOOL_CALL' | 'TOOL_RESULT' | 'CC_STATUS'
 
+export interface CcPromptMeta {
+  current_time: string
+  source_chat_key: string
+  memory_count: number
+  has_context_overflow: boolean
+  has_manual_context_note: boolean
+}
+
 export interface CommLogEntry {
   id: number
   workspace_id: number
   direction: CommDirection
   source_chat_key: string
   content: string
+  extra_data: string
   is_streaming: boolean
   task_id: string | null
   create_time: string
@@ -614,6 +1148,19 @@ export interface CommLogEntry {
 export interface CommHistoryResponse {
   total: number
   items: CommLogEntry[]
+}
+
+export interface WorkspaceCommQueueTask {
+  task_id: string | null
+  source_chat_key: string | null
+  started_at: number | null
+  enqueued_at: number | null
+}
+
+export interface WorkspaceCommQueueResponse {
+  current_task: WorkspaceCommQueueTask | null
+  queued_tasks: WorkspaceCommQueueTask[]
+  queue_length: number
 }
 
 export const commApi = {
@@ -629,8 +1176,8 @@ export const commApi = {
     return r.data
   },
 
-  getQueue: async (wsId: number): Promise<{ current_task: Record<string, unknown> | null; queue_length: number }> => {
-    const r = await axios.get<{ current_task: Record<string, unknown> | null; queue_length: number }>(
+  getQueue: async (wsId: number): Promise<WorkspaceCommQueueResponse> => {
+    const r = await axios.get<WorkspaceCommQueueResponse>(
       `/workspaces/${wsId}/comm/queue`,
     )
     return r.data

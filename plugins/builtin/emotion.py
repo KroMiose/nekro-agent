@@ -20,7 +20,7 @@
 
 - `emo_search <关键词>`: 语义搜索表情包。
 - `emo_stats`: 查看表情包统计信息。
-- `emo_list [页码]`: 分页列出所有表情包。
+- `emo_list [页码]`: 分页列出所有表情包，并默认预览图片。
 - `emo_migrate`: 迁移旧的绝对路径到相对路径格式（适用于数据目录迁移后）。
 - `emo_reindex -y`: 重建索引（高级功能，一般无需使用）。
 
@@ -55,7 +55,13 @@ from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_embeddings
 from nekro_agent.services.command.base import CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
-from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
+from nekro_agent.services.command.schemas import (
+    Arg,
+    CommandExecutionContext,
+    CommandOutputSegment,
+    CommandOutputSegmentType,
+    CommandResponse,
+)
 from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import copy_to_upload_dir
 from nekro_agent.tools.path_convertor import (
@@ -650,7 +656,7 @@ async def find_duplicate_emotion(file_path: Path) -> Optional[str]:
 @plugin.mount_command(
     name="emo_search",
     description="语义搜索表情包",
-    aliases=["emo-search"],
+    aliases=[],
     usage="emo_search <关键词>",
     permission=CommandPermission.SUPER_USER,
     category="表情包",
@@ -690,8 +696,7 @@ async def emo_search_cmd(
     # 加载表情包存储
     emotion_store = await load_emotion_store()
 
-    # 构建文本结果
-    result_lines = [f"和「{keyword}」相关的表情包："]
+    output_segments: list[CommandOutputSegment] = []
     found_count = 0
 
     for i, result in enumerate(search_results, 1):
@@ -709,19 +714,36 @@ async def emo_search_cmd(
             continue
 
         tags_str = "、".join(metadata.tags) if metadata.tags else "暂无标签"
-        result_lines.append(f"\n{i}. ID: {emotion_id}\n   描述: {metadata.description}\n   标签: {tags_str}")
+        output_segments.append(
+            CommandOutputSegment(
+                type=CommandOutputSegmentType.TEXT,
+                text=f"{i}. ID: {emotion_id}\n描述: {metadata.description}\n标签: {tags_str}",
+            )
+        )
+        output_segments.append(
+            CommandOutputSegment(
+                type=CommandOutputSegmentType.IMAGE,
+                file_path=str(file_path),
+            )
+        )
         found_count += 1
 
     if not found_count:
         return CmdCtl.failed(f"没有找到和「{keyword}」相关的可用表情包")
 
-    return CmdCtl.success("\n".join(result_lines))
+    return CmdCtl.success([
+        CommandOutputSegment(
+            type=CommandOutputSegmentType.TEXT,
+            text=f"和「{keyword}」相关的表情包，共 {found_count} 个",
+        ),
+        *output_segments,
+    ])
 
 
 @plugin.mount_command(
     name="emo_stats",
     description="查看表情包统计信息",
-    aliases=["emo-stats"],
+    aliases=[],
     permission=CommandPermission.SUPER_USER,
     category="表情包",
 )
@@ -750,23 +772,48 @@ async def emo_stats_cmd(context: CommandExecutionContext) -> CommandResponse:
         return CmdCtl.failed(f"统计失败: {e!s}")
 
 
+def _parse_emo_list_page(args_str: str) -> int:
+    """解析 emo_list 的页码。
+
+    兼容旧版 `-i/--image` 预览参数，但现在默认就会带图片。
+    """
+    page = 1
+
+    for token in args_str.split():
+        if token in {"-i", "--image", "--images", "--preview"}:
+            continue
+        if token.lstrip("-").isdigit():
+            page = max(1, int(token))
+            continue
+        raise ValueError(f"不支持的参数: {token}")
+
+    return page
+
+
 @plugin.mount_command(
     name="emo_list",
     description="分页列出所有表情包",
-    aliases=["emo-list", "emo_ls", "emo-ls"],
+    aliases=["emo_ls"],
     usage="emo_list [页码]",
     permission=CommandPermission.SUPER_USER,
     category="表情包",
 )
 async def emo_list_cmd(
     context: CommandExecutionContext,
-    page: Annotated[int, Arg("页码", positional=True)] = 1,
+    args_str: Annotated[str, Arg("参数", positional=True, greedy=True)] = "",
 ) -> CommandResponse:
     emotion_store = await load_emotion_store()
 
-    page = max(1, page)
+    try:
+        page = _parse_emo_list_page(args_str)
+    except ValueError as e:
+        return CmdCtl.failed(str(e))
+
     page_size = 10
     total_count = len(emotion_store.emotions)
+    if total_count == 0:
+        return CmdCtl.success("当前还没有收藏任何表情包")
+
     total_pages = (total_count + page_size - 1) // page_size
 
     if page > total_pages:
@@ -775,27 +822,52 @@ async def emo_list_cmd(
     start_idx = (page - 1) * page_size
     end_idx = min(start_idx + page_size, total_count)
 
-    lines = [f"第 {page}/{total_pages} 页的表情包列表：\n"]
-
     sorted_emotions = sorted(
         emotion_store.emotions.items(),
         key=lambda x: x[1].added_time,
         reverse=True,
     )[start_idx:end_idx]
 
+    output_segments: list[CommandOutputSegment] = []
+    preview_count = 0
+
     for emotion_id, metadata in sorted_emotions:
+        file_path = resolve_emotion_file_path(metadata.file_path)
+        if not file_path.exists():
+            logger.warning(f"表情包文件不存在: {emotion_id}, {file_path}")
+            continue
+
         tags_str = "、".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
-        lines.append(f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}\n")
+        output_segments.append(
+            CommandOutputSegment(
+                type=CommandOutputSegmentType.TEXT,
+                text=f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}",
+            )
+        )
+        output_segments.append(
+            CommandOutputSegment(
+                type=CommandOutputSegmentType.IMAGE,
+                file_path=str(file_path),
+            )
+        )
+        preview_count += 1
 
-    lines.append("使用 emo_list <页码> 查看其他页面")
+    if preview_count == 0:
+        return CmdCtl.failed(f"第 {page}/{total_pages} 页没有可预览的表情包图片")
 
-    return CmdCtl.success("\n".join(lines))
+    return CmdCtl.success([
+        CommandOutputSegment(
+            type=CommandOutputSegmentType.TEXT,
+            text=f"第 {page}/{total_pages} 页表情包预览，共 {preview_count} 个，使用 emo_list <页码> 查看其他页面",
+        ),
+        *output_segments,
+    ])
 
 
 @plugin.mount_command(
     name="emo_migrate",
     description="迁移表情包路径到新格式",
-    aliases=["emo-migrate"],
+    aliases=[],
     permission=CommandPermission.SUPER_USER,
     category="表情包",
 )
@@ -807,7 +879,7 @@ async def emo_migrate_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="emo_reindex",
     description="重建表情包索引",
-    aliases=["emo-reindex"],
+    aliases=[],
     usage="emo_reindex -y",
     permission=CommandPermission.SUPER_USER,
     category="表情包",

@@ -33,6 +33,9 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
             return
         self.client = DiscordClient(
             token=self.config.BOT_TOKEN,
+            proxy_url=self.config.PROXY_URL,
+            proxy_username=self.config.PROXY_USERNAME,
+            proxy_password=self.config.PROXY_PASSWORD,
             adapter=self,
         )
 
@@ -54,7 +57,7 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
             name="Discord",
             description="连接到 Discord 平台的适配器，允许通过 Bot 与服务器和用户进行交互。",
             version="1.0.0",
-            author="KroMiose",
+            author="NekroAI",
             homepage="https://github.com/KroMiose/nekro-agent",
             tags=["discord", "chat", "im"],
         )
@@ -68,6 +71,8 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
         try:
             _, channel_id = self.parse_chat_key(request.chat_key)
             channel = self.client.get_channel(int(channel_id))
+            if channel is None:
+                channel = await self.client.fetch_channel(int(channel_id))
 
             if not isinstance(channel, discord.abc.Messageable):
                 error_msg = f"Channel {channel_id} is not a messageable channel."

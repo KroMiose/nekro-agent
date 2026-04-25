@@ -37,8 +37,16 @@ async def stream_system_events(
     - type=workspace_cc_active: ``{type, workspace_id, active, max_duration_ms}``
     """
 
+    q = subscribe_system_events()
+
+    def cleanup_subscription() -> None:
+        if q is not None:
+            unsubscribe_system_events(q)
+
+    async def handle_client_disconnect(_: object) -> None:
+        cleanup_subscription()
+
     async def event_generator() -> AsyncGenerator[str, None]:
-        q = subscribe_system_events()
         if q is None:
             yield '{"type":"error","message":"连接数已达上限，请稍后重试"}'
             return
@@ -47,11 +55,14 @@ async def stream_system_events(
                 if await request.is_disconnected():
                     return
                 try:
-                    payload = await asyncio.wait_for(q.get(), timeout=25.0)
-                    yield payload
+                    payload = await asyncio.wait_for(q.get(), timeout=1.0)
+                    yield {"data": payload}
                 except asyncio.TimeoutError:
-                    yield ": ping"  # SSE keep-alive
+                    yield {"comment": "ping"}  # SSE keep-alive
         finally:
-            unsubscribe_system_events(q)
+            cleanup_subscription()
 
-    return EventSourceResponse(event_generator())
+    return EventSourceResponse(
+        event_generator(),
+        client_close_handler_callable=handle_client_disconnect,
+    )

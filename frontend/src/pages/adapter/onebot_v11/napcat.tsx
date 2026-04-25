@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Alert, CircularProgress, Typography, Stack, Button } from '@mui/material'
+import { Box, Alert, CircularProgress, Typography, Stack } from '@mui/material'
 import { LoadingButton } from '@mui/lab'
 import { useQuery } from '@tanstack/react-query'
 import { oneBotV11Api } from '../../../services/api/adapters/onebot_v11'
@@ -9,6 +9,7 @@ import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
 import { copyText } from '../../../utils/clipboard'
+import ActionButton from '../../../components/common/ActionButton'
 
 export default function OneBotV11NapCatPage() {
   const [iframeLoaded, setIframeLoaded] = useState(false)
@@ -73,7 +74,7 @@ export default function OneBotV11NapCatPage() {
   }
 
   return (
-    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       {(onebotToken || napcatToken) && (
         <Stack
           direction={{ xs: 'column', md: 'row' }}
@@ -126,7 +127,7 @@ export default function OneBotV11NapCatPage() {
             </Alert>
           )}
           {napCatConfig && (
-            <Button
+            <ActionButton
               variant="contained"
               startIcon={<OpenInNewIcon />}
               onClick={handleOpenNapcat}
@@ -137,7 +138,7 @@ export default function OneBotV11NapCatPage() {
               }}
             >
               {t('napcat.goToNapcat')}
-            </Button>
+            </ActionButton>
           )}
         </Stack>
       )}

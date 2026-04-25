@@ -1,14 +1,13 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react'
 import {
   Box,
-  Button,
   Typography,
   CircularProgress,
-  IconButton,
   Tooltip,
   TextField,
   alpha,
   Collapse,
+  Chip,
 } from '@mui/material'
 import {
   Build as BuildIcon,
@@ -19,20 +18,24 @@ import {
   StopCircle as StopCircleIcon,
   HourglassBottom as HourglassIcon,
   ExpandMore as ExpandMoreIcon,
+  Memory as MemoryIcon,
 } from '@mui/icons-material'
-import { useQuery } from '@tanstack/react-query'
 import {
   WorkspaceDetail,
   commApi,
   streamCommLog,
   CommLogEntry,
+  CcPromptMeta,
 } from '../../../services/api/workspace'
-import { chatChannelApi } from '../../../services/api/chat-channel'
+import { useNavigate } from 'react-router-dom'
 import { useNotification } from '../../../hooks/useNotification'
 import { SCROLLBAR_VARIANTS } from '../../../theme/variants'
 import MarkdownRenderer from '../../../components/common/MarkdownRenderer'
 import { useTheme } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
+import { useChannelDirectoryContext } from '../../../contexts/ChannelDirectoryContext'
 
 // ──────────────────────────────────────────
 // 通讯气泡内紧凑 Markdown 样式（模块级，避免每次渲染重建）
@@ -122,8 +125,10 @@ type DisplayItem =
 
 export default function CommTab({ workspace, prefill, ccRunning }: { workspace: WorkspaceDetail; prefill?: string; ccRunning: boolean }) {
   const theme = useTheme()
+  const navigate = useNavigate()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
+  const { channelMap } = useChannelDirectoryContext()
   const [messages, setMessages] = useState<CommLogEntry[]>([])
   const [hasMore, setHasMore] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -142,14 +147,6 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
   useEffect(() => {
     if (prefill) setInput(prefill)
   }, [prefill])
-
-  // 加载频道列表用于 chat_key 显示转换
-  const { data: channelList } = useQuery({
-    queryKey: ['chat-channels-comm'],
-    queryFn: () => chatChannelApi.getList({ page: 1, page_size: 200 }),
-    staleTime: 60000,
-  })
-  const allChannels = channelList?.items ?? []
 
   // 初始加载历史记录（最近50条）
   useEffect(() => {
@@ -319,23 +316,25 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
     })
   }
 
-  // 将 chat_key 渲染为频道名称（带下划线），悬浮显示原始 key
+  // 将 chat_key 渲染为频道名称，点击跳转到频道管理页
   const renderChatKey = (chatKey: string) => {
     if (!chatKey || chatKey === '__user__') return null
-    const ch = allChannels.find(c => c.chat_key === chatKey)
+    const ch = channelMap.get(chatKey)
     const displayName = ch?.channel_name ?? chatKey
     return (
-      <Tooltip title={chatKey} placement="top" arrow>
+      <Tooltip title={`${chatKey}（点击查看频道）`} placement="top" arrow>
         <Typography
           component="span"
           variant="caption"
+          onClick={(e) => { e.stopPropagation(); navigate(`/chat-channel/${encodeURIComponent(chatKey)}`) }}
           sx={{
             fontSize: '0.68rem',
-            color: 'text.secondary',
+            color: 'primary.main',
             textDecoration: 'underline',
             textDecorationStyle: 'dotted',
-            cursor: 'help',
+            cursor: 'pointer',
             fontWeight: ch?.channel_name ? 500 : 400,
+            '&:hover': { opacity: 0.75 },
           }}
         >
           {displayName}
@@ -346,6 +345,70 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
 
   const isLight = theme.palette.mode === 'light'
   const tcColor = theme.palette.secondary.main
+
+  // 解析 extra_data 为 CcPromptMeta，失败时返回 null
+  const parsePromptMeta = (extraData: string): CcPromptMeta | null => {
+    if (!extraData) return null
+    try {
+      return JSON.parse(extraData) as CcPromptMeta
+    } catch {
+      return null
+    }
+  }
+
+  // 渲染结构化元信息条（仅 NA_TO_CC / USER_TO_CC 且有 extra_data 时）
+  const renderPromptMetaBar = (meta: CcPromptMeta) => {
+    const tags: { icon: ReactNode; label: string; tooltip?: string }[] = []
+
+    if (meta.memory_count > 0) {
+      tags.push({
+        icon: <MemoryIcon sx={{ fontSize: 11 }} />,
+        label: `${meta.memory_count} 条记忆`,
+        tooltip: `注入了 ${meta.memory_count} 条历史记忆`,
+      })
+    }
+
+    if (meta.has_context_overflow) {
+      tags.push({
+        icon: null,
+        label: '上下文超限',
+        tooltip: '_na_context.md 超限，已附加整理指令',
+      })
+    }
+
+    if (meta.has_manual_context_note) {
+      tags.push({
+        icon: null,
+        label: '手动修订',
+        tooltip: '_na_context.md 存在手动修订注记',
+      })
+    }
+
+    if (tags.length === 0) return null
+
+    return (
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 0.75 }}>
+        {tags.map((tag, i) => (
+          <Tooltip key={i} title={tag.tooltip ?? ''} placement="top">
+            <Chip
+              icon={tag.icon ? <Box sx={{ display: 'flex', alignItems: 'center', ml: '6px !important' }}>{tag.icon}</Box> : undefined}
+              label={tag.label}
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.62rem',
+                bgcolor: alpha(theme.palette.primary.main, isLight ? 0.08 : 0.12),
+                color: 'text.secondary',
+                border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                '& .MuiChip-label': { px: 0.75, lineHeight: 1 },
+                '& .MuiChip-icon': { color: 'text.disabled', fontSize: 11 },
+              }}
+            />
+          </Tooltip>
+        ))}
+      </Box>
+    )
+  }
 
   // ── 合并后的工具调用卡片 ───────────────────────────────────────────
   const renderToolCard = (group: ToolCallGroup) => {
@@ -477,13 +540,14 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             {/* 完整参数 JSON（二级展开） */}
             {Object.keys(toolInput).length > 1 && (
               <>
-                <Button
+                <ActionButton
+                  tone="ghost"
                   size="small" variant="text"
                   onClick={(e) => { e.stopPropagation(); toggleExpand(`args-${group.toolUseId}`) }}
                   sx={{ mt: 0.25, fontSize: '0.66rem', p: 0, minWidth: 0, color: alpha(tcColor, 0.6) }}
                 >
                   {expandedIds.has(`args-${group.toolUseId}`) ? t('detail.comm.collapseArgs') : t('detail.comm.expandArgs')}
-                </Button>
+                </ActionButton>
                 <Collapse in={expandedIds.has(`args-${group.toolUseId}`)} timeout={150}>
                   <Box component="pre" sx={{
                     fontSize: '0.66rem', mt: 0.5, mb: 0, p: 0.75,
@@ -533,7 +597,8 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                       )}
                     </Box>
                     {resultContent.length > 200 && (
-                      <Button
+                      <ActionButton
+                        tone="ghost"
                         size="small" variant="text"
                         onClick={(e) => { e.stopPropagation(); toggleExpand(`result-${group.toolUseId}`) }}
                         sx={{ mt: 0.25, fontSize: '0.66rem', p: 0, minWidth: 0, color: 'text.disabled' }}
@@ -541,7 +606,7 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                         {expandedIds.has(`result-${group.toolUseId}`)
                           ? t('detail.comm.collapse')
                           : t('detail.comm.expand', { chars: resultContent.length.toLocaleString() })}
-                      </Button>
+                      </ActionButton>
                     )}
                   </>
                 )}
@@ -678,18 +743,23 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
               {timeStr}
             </Typography>
           </Box>
+          {isRight && (() => {
+            const meta = parsePromptMeta(msg.extra_data)
+            return meta ? renderPromptMetaBar(meta) : null
+          })()}
           <MarkdownRenderer sx={COMM_BUBBLE_MD_SX} enableHtml={false}>
             {displayContent}
           </MarkdownRenderer>
           {isLong && (
-            <Button
+            <ActionButton
+              tone="ghost"
               size="small"
               variant="text"
               onClick={() => toggleExpand(`msg-${msg.id}`)}
               sx={{ mt: 0.5, fontSize: '0.72rem', p: 0, minWidth: 0, color }}
             >
               {expanded ? t('detail.comm.collapse') : t('detail.comm.expand', { chars: msg.content.length.toLocaleString() })}
-            </Button>
+            </ActionButton>
           )}
         </Box>
       </Box>
@@ -721,14 +791,15 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             {loadingMore ? (
               <CircularProgress size={18} thickness={4} />
             ) : hasMore ? (
-              <Button
+              <ActionButton
+                tone="ghost"
                 size="small"
                 variant="text"
                 onClick={loadMore}
                 sx={{ fontSize: '0.72rem', color: 'text.secondary', py: 0.25 }}
               >
                 {t('detail.comm.loadMore')}
-              </Button>
+              </ActionButton>
             ) : (
               <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
                 {t('detail.comm.noMoreMessages')}
@@ -758,39 +829,6 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
           px: 0.5,
         }}
       >
-        {/* CC 工作中：统一状态条（替代原先的警告+指示条双层设计） */}
-        {ccRunning && (
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.75,
-            mb: 0.5,
-            py: 0.4,
-            px: 1,
-            bgcolor: alpha(theme.palette.success.main, 0.08),
-            border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
-            borderRadius: 1,
-          }}>
-            <CircularProgress size={11} thickness={5} sx={{ color: 'success.main', flexShrink: 0 }} />
-            <Typography variant="caption" sx={{ color: 'success.main', fontSize: '0.72rem', fontWeight: 500 }}>
-              {t('detail.comm.ccRunning')}
-            </Typography>
-            <Tooltip title={t('detail.comm.forceCancel')}>
-              <span style={{ marginLeft: 'auto' }}>
-                <IconButton
-                  size="small"
-                  onClick={handleForceCancel}
-                  disabled={cancelling}
-                  sx={{ color: 'error.main', p: 0.25 }}
-                >
-                  {cancelling
-                    ? <CircularProgress size={14} sx={{ color: 'error.main' }} />
-                    : <StopCircleIcon sx={{ fontSize: 16 }} />}
-                </IconButton>
-              </span>
-            </Tooltip>
-          </Box>
-        )}
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
           <TextField
             value={input}
@@ -801,11 +839,7 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                 handleSend()
               }
             }}
-            placeholder={
-              ccRunning
-                ? t('detail.comm.ccRunning')
-                : (isMac ? t('detail.comm.inputPlaceholderMac') : t('detail.comm.inputPlaceholderWin'))
-            }
+            placeholder={isMac ? t('detail.comm.inputPlaceholderMac') : t('detail.comm.inputPlaceholderWin')}
             multiline
             maxRows={5}
             fullWidth
@@ -817,18 +851,50 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
               },
             }}
           />
-          <Tooltip title={ccRunning ? t('detail.comm.ccRunning') : t('detail.comm.sendTooltip')}>
-            <span>
-              <IconButton
-                color="primary"
-                onClick={handleSend}
-                disabled={sending || ccRunning || !input.trim()}
-                size="medium"
-              >
-                {sending ? <CircularProgress size={20} /> : <SendIcon />}
-              </IconButton>
-            </span>
-          </Tooltip>
+          {ccRunning ? (
+            /* CC 处理中：左侧旋转动画按钮（不可点击），右侧强制终止按钮 */
+            <>
+              <Tooltip title={t('detail.comm.ccRunning')}>
+                <span>
+                  <IconActionButton
+                    tone="primary"
+                    size="medium"
+                    disabled
+                    sx={{ opacity: 0.6 }}
+                  >
+                    <CircularProgress size={20} thickness={4} sx={{ color: 'primary.main' }} />
+                  </IconActionButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('detail.comm.forceCancel')}>
+                <span>
+                  <IconActionButton
+                    tone="danger"
+                    size="medium"
+                    onClick={handleForceCancel}
+                    disabled={cancelling}
+                  >
+                    {cancelling
+                      ? <CircularProgress size={20} sx={{ color: 'error.main' }} />
+                      : <StopCircleIcon />}
+                  </IconActionButton>
+                </span>
+              </Tooltip>
+            </>
+          ) : (
+            <Tooltip title={t('detail.comm.sendTooltip')}>
+              <span>
+                <IconActionButton
+                  tone="primary"
+                  onClick={handleSend}
+                  disabled={sending || !input.trim()}
+                  size="medium"
+                >
+                  {sending ? <CircularProgress size={20} /> : <SendIcon />}
+                </IconActionButton>
+              </span>
+            </Tooltip>
+          )}
         </Box>
       </Box>
     </Box>
