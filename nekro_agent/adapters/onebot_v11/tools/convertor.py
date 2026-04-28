@@ -496,7 +496,7 @@ def _extract_detail_from_meta(json_data: dict) -> dict | None:
 async def convert_chat_message(
     ob_event: Union[MessageEvent, GroupMessageEvent, GroupUploadNoticeEvent],
     msg_to_me: bool,
-    bot: Bot,  # noqa: ARG001
+    bot: Bot,
     db_chat_channel: DBChatChannel,
     adapter: BaseAdapter,
 ) -> Tuple[List[ChatMessageSegment], bool, str]:
@@ -658,13 +658,50 @@ async def convert_chat_message(
                 file_path = seg.data["file"]
                 if file_path.startswith("file:"):
                     file_path = file_path[len("file:") :]
-                ret_list.append(
-                    await ChatMessageSegmentFile.create_form_local_path(
-                        local_path=file_path,
-                        from_chat_key=db_chat_channel.chat_key,
-                        file_name=seg.data.get("name", ""),
-                    ),
-                )
+
+                local_path = Path(file_path)
+                if not local_path.exists():
+                    local_path = Path(NAPCAT_TEMPFILE_DIR) / local_path.name
+
+                if local_path.exists():
+                    ret_list.append(
+                        await ChatMessageSegmentFile.create_form_local_path(
+                            local_path=str(local_path),
+                            from_chat_key=db_chat_channel.chat_key,
+                            file_name=seg.data.get("name", ""),
+                        ),
+                    )
+                elif "file_id" in seg.data:
+                    try:
+                        file_data = await asyncio.wait_for(
+                            bot.call_api("get_file", file_id=seg.data["file_id"]),
+                            timeout=30.0,
+                        )
+                        file_url = file_data.get("url", "")
+                        napcat_path = Path(NAPCAT_TEMPFILE_DIR) / file_data.get("file_name", "")
+                        if napcat_path.exists():
+                            ret_list.append(
+                                await ChatMessageSegmentFile.create_form_local_path(
+                                    local_path=str(napcat_path),
+                                    from_chat_key=db_chat_channel.chat_key,
+                                    file_name=file_data.get("file_name", ""),
+                                ),
+                            )
+                        elif file_url and file_url.startswith("http"):
+                            ret_list.append(
+                                await ChatMessageSegmentFile.create_from_url(
+                                    url=file_url,
+                                    from_chat_key=db_chat_channel.chat_key,
+                                    file_name=seg.data.get("name", ""),
+                                ),
+                            )
+                        else:
+                            logger.warning(f"无法获取文件下载链接: {seg}")
+                    except Exception as e:
+                        logger.warning(f"通过 API 获取文件失败: {e}")
+                else:
+                    logger.warning(f"文件不存在且无 file_id: {seg}")
+                    continue
             else:
                 logger.warning(f"OneBot file message without url or file: {seg}")
                 continue
