@@ -2,7 +2,7 @@ import asyncio
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 
 from nonebot.adapters.onebot.v11 import (
