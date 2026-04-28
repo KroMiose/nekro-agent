@@ -384,6 +384,8 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
                 await bot.send_group_msg(group_id=chat_id, message=msg)
             elif db_chat_channel.chat_type == ChatType.PRIVATE:
                 await bot.send_private_msg(user_id=chat_id, message=msg)
+            else:
+                logger.warning(f"不支持的聊天类型，文件发送跳过: {db_chat_channel.chat_type}")
 
     async def _send_to_chat(self, chat_key: str, message: Message) -> str:
         """发送消息到指定聊天"""
