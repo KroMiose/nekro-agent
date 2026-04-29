@@ -62,19 +62,62 @@ class DBChatChannel(Model):
         table = "chat_channel"
 
     @classmethod
+    def _resolve_default_channel_status(
+        cls,
+        channel_type: ChatType,
+        adapter: Optional["BaseAdapter"] = None,
+    ) -> ChannelStatus:
+        """解析新频道的默认状态
+
+        优先级：适配器覆盖 > 全局配置
+
+        Args:
+            channel_type: 频道类型
+            adapter: 适配器实例（可选）
+
+        Returns:
+            ChannelStatus 枚举值
+        """
+        # 1. 检查适配器覆盖
+        if adapter is not None:
+            adapter_status = adapter.get_default_channel_status(channel_type)
+            if adapter_status is not None:
+                try:
+                    return ChannelStatus(adapter_status)
+                except ValueError:
+                    logger.warning(
+                        f"适配器 {adapter.key} 返回了无效的默认频道状态: {adapter_status}，回退到全局配置",
+                    )
+
+        # 2. 回退到全局配置
+        if channel_type == ChatType.GROUP:
+            default_value = config.SESSION_GROUP_ACTIVE_DEFAULT
+        elif channel_type == ChatType.PRIVATE:
+            default_value = config.SESSION_PRIVATE_ACTIVE_DEFAULT
+        else:
+            return ChannelStatus.ACTIVE
+
+        try:
+            return ChannelStatus(default_value)
+        except ValueError:
+            logger.warning(f"无效的频道默认状态配置值: {default_value}，回退到 active")
+            return ChannelStatus.ACTIVE
+
+    @classmethod
     async def get_or_create(
         cls,
         adapter_key: str,
         channel_id: str,
         channel_type: ChatType,
         channel_name: str = "",
+        adapter: Optional["BaseAdapter"] = None,
     ) -> "DBChatChannel":
         """获取或创建聊天频道"""
         channel = await cls.get_or_none(adapter_key=adapter_key, channel_id=channel_id)
         if not channel:
-            is_active = (channel_type == ChatType.GROUP and config.SESSION_GROUP_ACTIVE_DEFAULT) or (
-                channel_type == ChatType.PRIVATE and config.SESSION_PRIVATE_ACTIVE_DEFAULT
-            )
+            default_status = cls._resolve_default_channel_status(channel_type, adapter)
+            is_active = default_status != ChannelStatus.DISABLED
+            observe_mode = default_status == ChannelStatus.OBSERVE
             channel = await cls.create(
                 adapter_key=adapter_key,
                 channel_id=channel_id,
@@ -82,6 +125,7 @@ class DBChatChannel(Model):
                 channel_name=channel_name,
                 chat_key=f"{adapter_key}-{channel_id}",
                 is_active=is_active,
+                observe_mode=observe_mode,
                 data=json.dumps({}),
             )
         else:

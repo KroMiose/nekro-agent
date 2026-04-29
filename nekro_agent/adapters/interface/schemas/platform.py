@@ -32,6 +32,7 @@ class PlatformChannel(BaseModel):
             adapter_key=adapter.key,
             channel_id=self.channel_id,
             channel_type=self.channel_type,
+            adapter=adapter,
         )
 
     async def get_preset(self, adapter: "BaseAdapter") -> Union[DBPreset, DefaultPreset]:

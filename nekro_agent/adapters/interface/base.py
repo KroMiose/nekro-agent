@@ -270,6 +270,19 @@ class BaseAdapter(ABC, Generic[TConfig]):
         """获取频道信息"""
         raise NotImplementedError
 
+    def get_default_channel_status(self, channel_type: "ChatType") -> Optional[str]:
+        """获取新频道的默认状态（适配器可覆盖）
+
+        子类可重写此方法，为不同频道类型返回不同的默认状态。
+
+        Args:
+            channel_type: 频道类型（ChatType.GROUP / ChatType.PRIVATE）
+
+        Returns:
+            ChannelStatus 值 ("active"/"observe"/"disabled") 或 None（使用全局配置）
+        """
+        return None
+
     @property
     def supports_webui_send(self) -> bool:
         """是否支持从 WebUI 发送消息（默认不支持，适配器可按需覆盖）"""
