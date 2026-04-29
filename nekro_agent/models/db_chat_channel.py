@@ -74,10 +74,10 @@ class DBChatChannel(Model):
         """
         # 兼容旧版布尔值格式
         if value.lower() in ("true", "1"):
-            logger.info(f"{source} 检测到旧版布尔值 '{value}'，自动转换为 'active'")
+            logger.debug(f"{source} 检测到旧版布尔值 '{value}'，自动转换为 'active'")
             return ChannelStatus.ACTIVE
         if value.lower() in ("false", "0"):
-            logger.info(f"{source} 检测到旧版布尔值 '{value}'，自动转换为 'disabled'")
+            logger.debug(f"{source} 检测到旧版布尔值 '{value}'，自动转换为 'disabled'")
             return ChannelStatus.DISABLED
 
         try:
@@ -107,12 +107,7 @@ class DBChatChannel(Model):
         if adapter is not None:
             adapter_status = adapter.get_default_channel_status(channel_type)
             if adapter_status is not None:
-                try:
-                    return ChannelStatus(adapter_status)
-                except ValueError:
-                    logger.warning(
-                        f"适配器 {adapter.key} 返回了无效的默认频道状态: {adapter_status}，回退到全局配置",
-                    )
+                return cls._normalize_status_value(str(adapter_status), f"适配器 {adapter.key}")
 
         # 2. 回退到全局配置
         if channel_type == ChatType.GROUP:
