@@ -62,6 +62,31 @@ class DBChatChannel(Model):
         table = "chat_channel"
 
     @classmethod
+    def _normalize_status_value(cls, value: str, source: str) -> ChannelStatus:
+        """将配置值标准化为 ChannelStatus，兼容旧版布尔值格式
+
+        Args:
+            value: 配置值（可能是 "active"/"observe"/"disabled" 或旧版 "true"/"false"）
+            source: 来源描述（用于日志）
+
+        Returns:
+            ChannelStatus 枚举值
+        """
+        # 兼容旧版布尔值格式
+        if value.lower() in ("true", "1"):
+            logger.info(f"{source} 检测到旧版布尔值 '{value}'，自动转换为 'active'")
+            return ChannelStatus.ACTIVE
+        if value.lower() in ("false", "0"):
+            logger.info(f"{source} 检测到旧版布尔值 '{value}'，自动转换为 'disabled'")
+            return ChannelStatus.DISABLED
+
+        try:
+            return ChannelStatus(value)
+        except ValueError:
+            logger.warning(f"{source} 无效的频道状态值: {value}，回退到 active")
+            return ChannelStatus.ACTIVE
+
+    @classmethod
     def _resolve_default_channel_status(
         cls,
         channel_type: ChatType,
@@ -91,17 +116,16 @@ class DBChatChannel(Model):
 
         # 2. 回退到全局配置
         if channel_type == ChatType.GROUP:
-            default_value = config.SESSION_GROUP_ACTIVE_DEFAULT
-        elif channel_type == ChatType.PRIVATE:
-            default_value = config.SESSION_PRIVATE_ACTIVE_DEFAULT
-        else:
-            return ChannelStatus.ACTIVE
+            return cls._normalize_status_value(
+                config.SESSION_GROUP_ACTIVE_DEFAULT, "SESSION_GROUP_ACTIVE_DEFAULT",
+            )
+        if channel_type == ChatType.PRIVATE:
+            return cls._normalize_status_value(
+                config.SESSION_PRIVATE_ACTIVE_DEFAULT, "SESSION_PRIVATE_ACTIVE_DEFAULT",
+            )
 
-        try:
-            return ChannelStatus(default_value)
-        except ValueError:
-            logger.warning(f"无效的频道默认状态配置值: {default_value}，回退到 active")
-            return ChannelStatus.ACTIVE
+        logger.warning(f"未知的频道类型: {channel_type}，使用默认状态 active")
+        return ChannelStatus.ACTIVE
 
     @classmethod
     async def get_or_create(

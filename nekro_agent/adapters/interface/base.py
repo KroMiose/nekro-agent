@@ -279,7 +279,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
             channel_type: 频道类型（ChatType.GROUP / ChatType.PRIVATE）
 
         Returns:
-            ChannelStatus 值 ("active"/"observe"/"disabled") 或 None（使用全局配置）
+            表示默认状态名称的字符串（"active" / "observe" / "disabled"）或 None（使用全局配置）
         """
         return None
 
