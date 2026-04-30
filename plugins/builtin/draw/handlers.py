@@ -2,7 +2,7 @@ import base64
 import json
 import random
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiofiles
 import magic
@@ -21,6 +21,60 @@ from .utils import extract_image_from_content
 
 # 保存上次成功的模式
 last_successful_mode: Optional[str] = None
+OPENAI_IMAGE_PLACEHOLDER = "data:image/webp;base64, XXX"
+
+
+def _use_gpt_image_native() -> bool:
+    """判断当前是否启用 GPT-Image 原生接口适配。"""
+    return config.GPT_IMAGE_NATIVE
+
+
+def _supports_multi_image_draw() -> bool:
+    """判断当前配置下是否支持多图输入。"""
+    if config.USE_DRAW_MODEL_GROUP not in global_config.MODEL_GROUPS:
+        return False
+
+    return config.MODEL_MODE == "聊天模式" or _use_gpt_image_native()
+
+
+def _decode_data_uri(data_uri: str) -> Tuple[str, bytes]:
+    """将 data URI 解码为 MIME 类型和二进制内容。"""
+    if not data_uri.startswith("data:") or "base64," not in data_uri:
+        raise ValueError("无效的 data URI 图片数据")
+
+    header, encoded = data_uri.split("base64,", 1)
+    mime_type = header[5:].split(";", 1)[0] or "application/octet-stream"
+    return mime_type, base64.b64decode(encoded.strip())
+
+
+def _extension_from_mime(mime_type: str) -> str:
+    """根据 MIME 类型推断扩展名。"""
+    return {
+        "image/jpeg": "jpg",
+        "image/jpg": "jpg",
+        "image/png": "png",
+        "image/webp": "webp",
+        "image/gif": "gif",
+    }.get(mime_type.lower(), "bin")
+
+
+def _extract_generated_image(data: Dict[str, Any], default_format: str = "png") -> str:
+    """从 OpenAI 图像接口响应中提取图片内容。"""
+    image_items = data.get("data", [])
+    if image_items and isinstance(image_items[0], dict):
+        first_image = image_items[0]
+        image_url = first_image.get("url")
+        if image_url:
+            return image_url
+
+        image_b64 = first_image.get("b64_json")
+        if image_b64:
+            return f"data:image/{default_format};base64,{image_b64}"
+
+    logger.error(f"绘图响应中未找到图片信息: {data}")
+    raise Exception(
+        "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
+    )
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, name="绘图", description="支持文生图和图生图")
@@ -121,8 +175,8 @@ async def draw_with_multiple_images(
     if not config.ENABLE_MULTI_IMAGE:
         raise Exception("多图输入功能已禁用，请在插件配置中启用")
     
-    if config.MODEL_MODE != "聊天模式":
-        raise Exception("多图输入功能仅在聊天模式下可用，请切换到聊天模式")
+    if not _supports_multi_image_draw():
+        raise Exception("多图输入功能仅在聊天模式或启用 GPT-Image 原生API适配时可用")
     
     def _validate_reference_images(ref_images: List[Dict[str, Any]]) -> List[ImageReference]:
         """验证并转换参考图片数据"""
@@ -200,7 +254,7 @@ async def collect_available_methods(_ctx: AgentCtx) -> List[Any]:
     methods = [draw]  # 基础绘图方法始终可用
     
     # 只有在聊天模式且启用多图功能时才提供多图绘制方法
-    if config.MODEL_MODE == "聊天模式" and config.ENABLE_MULTI_IMAGE:
+    if config.ENABLE_MULTI_IMAGE and _supports_multi_image_draw():
         methods.append(draw_with_multiple_images)
     
     return methods
@@ -233,9 +287,9 @@ async def generate_image_api(
         "guidance_scale": guidance_scale,
     }
 
-    # 如果source_image_data != "data:image/webp;base64, XXX"(根据前面refer_image)则在json_data中填入image
+    # 如果 source_image_data 不是占位图，则在请求中填入 image
     # 防止siliconcloud在image填入错误数据会失败
-    if source_image_data != "data:image/webp;base64, XXX":
+    if source_image_data != OPENAI_IMAGE_PLACEHOLDER:
         json_data["image"] = source_image_data
 
     # 检测negative_prompt删去所有空格字符是否为空
@@ -264,6 +318,106 @@ async def generate_image_api(
     raise Exception(
         "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
     )
+
+
+async def generate_openai_image_api(
+    model_group,
+    prompt: str,
+    size: str,
+    source_image_data: str,
+) -> str:
+    """使用 OpenAI 官方图像接口生成或编辑图片。"""
+    timeout = Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10)
+    auth_headers = {
+        "Accept": "application/json",
+        "Authorization": f"Bearer {model_group.API_KEY}",
+    }
+
+    async with AsyncClient() as client:
+        if source_image_data != OPENAI_IMAGE_PLACEHOLDER:
+            mime_type, image_bytes = _decode_data_uri(source_image_data)
+            extension = _extension_from_mime(mime_type)
+            response = await client.post(
+                f"{model_group.BASE_URL}/images/edits",
+                headers=auth_headers,
+                data={
+                    "model": model_group.CHAT_MODEL,
+                    "prompt": prompt,
+                    "size": size,
+                    "n": "1",
+                },
+                files=[("image", (f"reference.{extension}", image_bytes, mime_type))],
+                timeout=timeout,
+            )
+        else:
+            response = await client.post(
+                f"{model_group.BASE_URL}/images/generations",
+                headers={
+                    **auth_headers,
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model_group.CHAT_MODEL,
+                    "prompt": prompt,
+                    "size": size,
+                    "n": 1,
+                },
+                timeout=timeout,
+            )
+
+    response.raise_for_status()
+    return _extract_generated_image(response.json())
+
+
+async def generate_openai_multi_image_api(
+    model_group,
+    multi_request: MultiImageDrawRequest,
+    chat_key: str,
+    container_key: str,
+) -> str:
+    """使用 OpenAI 官方图像编辑接口处理多图参考。"""
+    image_data_list = await prepare_multiple_reference_images(
+        multi_request.reference_images,
+        chat_key,
+        container_key,
+    )
+
+    prompt_lines = [
+        "Create a new image by combining the provided reference images and the target description.",
+    ]
+    for index, image_ref in enumerate(multi_request.reference_images, 1):
+        weight_hint = f" (importance: {image_ref.weight})" if image_ref.weight != 1.0 else ""
+        prompt_lines.append(f"Image {index}: {image_ref.description}{weight_hint}")
+    prompt_lines.append(f"Target description: {multi_request.target_prompt}")
+    prompt_lines.append(
+        f"Generate a final image with size {multi_request.size}. Preserve important visual traits from the references while following the target description.",
+    )
+
+    files = []
+    for index, image_data in enumerate(image_data_list, 1):
+        mime_type, image_bytes = _decode_data_uri(image_data)
+        extension = _extension_from_mime(mime_type)
+        files.append(("image", (f"reference_{index}.{extension}", image_bytes, mime_type)))
+
+    async with AsyncClient() as client:
+        response = await client.post(
+            f"{model_group.BASE_URL}/images/edits",
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {model_group.API_KEY}",
+            },
+            data={
+                "model": model_group.CHAT_MODEL,
+                "prompt": "\n".join(prompt_lines),
+                "size": multi_request.size,
+                "n": "1",
+            },
+            files=files,
+            timeout=Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10),
+        )
+
+    response.raise_for_status()
+    return _extract_generated_image(response.json())
 
 
 async def generate_chat_response_with_image_support(
@@ -565,7 +719,7 @@ async def prepare_reference_image(refer_image: str, chat_key: str, container_key
             mime_type = magic.from_buffer(image_data, mime=True)
             image_data = base64.b64encode(image_data).decode("utf-8")
         return f"data:{mime_type};base64,{image_data}"
-    return "data:image/webp;base64, XXX"
+    return OPENAI_IMAGE_PLACEHOLDER
 
 
 async def prepare_multiple_reference_images(
@@ -595,8 +749,8 @@ async def generate_multi_image(
     container_key: str,
 ) -> str:
     """生成多图输入的图片"""
-    if config.MODEL_MODE != "聊天模式":
-        raise Exception("多图输入功能仅在聊天模式下可用")
+    if not _supports_multi_image_draw():
+        raise Exception("多图输入功能仅在聊天模式或支持多图编辑的 GPT-Image 模型下可用")
     
     logger.info(f"使用多图绘制模式，参考图片数量: {len(multi_request.reference_images)}")
     
@@ -604,6 +758,14 @@ async def generate_multi_image(
         raise Exception(f"绘图模型组 `{config.USE_DRAW_MODEL_GROUP}` 未配置")
     
     model_group = global_config.MODEL_GROUPS[config.USE_DRAW_MODEL_GROUP]
+
+    if _use_gpt_image_native():
+        return await generate_openai_multi_image_api(
+            model_group=model_group,
+            multi_request=multi_request,
+            chat_key=chat_key,
+            container_key=container_key,
+        )
     
     # 准备所有参考图片数据
     image_data_list = await prepare_multiple_reference_images(
@@ -673,6 +835,15 @@ async def generate_image(
         raise Exception(f"绘图模型组 `{model_group_name}` 未配置")
 
     model_group = global_config.MODEL_GROUPS[model_group_name]
+
+    if _use_gpt_image_native():
+        source_image_data = await prepare_reference_image(refer_image, chat_key, container_key)
+        return await generate_openai_image_api(
+            model_group=model_group,
+            prompt=prompt,
+            size=size,
+            source_image_data=source_image_data,
+        )
 
     # 准备参考图片数据
     source_image_data = await prepare_reference_image(refer_image, chat_key, container_key)
