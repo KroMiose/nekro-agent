@@ -352,55 +352,40 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         return None
 
     async def _send_files(self, chat_key: str, file_segments: List) -> None:
-        """发送文件（文件上传模式）"""
+        """发送文件（物化模式）"""
         bot: Bot = get_bot()
-        files: List[Path] = []
-
-        # 收集所有文件路径
-        for segment in file_segments:
-            if segment.file_path:
-                file_path = Path(segment.file_path)
-                if file_path.exists():
-                    files.append(file_path)
-                else:
-                    logger.warning(f"File not found: {segment.file_path}")
-
-        if not files:
-            logger.warning("No valid files to send")
-            return
-
-        # 获取聊天频道信息
         db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
-        chat_type = db_chat_channel.chat_type
-
-        # 从channel_id中提取真实的ID
         chat_id = int(db_chat_channel.channel_id.split("_")[1])
 
-        # 如果配置了 OneBot 服务器挂载目录，需要转换路径
-        def get_onebot_path(file_path: Path) -> Path:
-            if config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
-                return Path(config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR) / file_path.relative_to(Path(OsEnv.DATA_DIR))
-            return file_path
+        from nekro_agent.tools.common_util import copy_to_upload_dir
 
-        if chat_type is ChatType.GROUP:
-            for file in files:
-                logger.info(f"Sending file: {file}")
-                onebot_path = get_onebot_path(file)
-                await bot.upload_group_file(
-                    group_id=chat_id,
-                    file=str(onebot_path),
-                    name=file.name,
-                )
-        elif chat_type is ChatType.PRIVATE:
-            for file in files:
-                onebot_path = get_onebot_path(file)
-                await bot.upload_private_file(
-                    user_id=chat_id,
-                    file=str(onebot_path),
-                    name=file.name,
-                )
-        else:
-            raise ValueError("Invalid chat type")
+        for segment in file_segments:
+            if not segment.file_path:
+                continue
+
+            src_path = Path(segment.file_path)
+            if not src_path.exists():
+                logger.warning(f"File not found: {segment.file_path}")
+                continue
+
+            # 物化到 uploads 目录
+            copied_path, copied_name = await copy_to_upload_dir(
+                file_path=str(src_path),
+                file_name=src_path.name,
+                from_chat_key=chat_key,
+            )
+            logger.info(f"文件已物化至: {copied_path}")
+
+            # 发送物化后的文件
+            # 协议端(NapCat)会读取该绝对路径并发送
+            msg = MessageSegment.file(file=str(copied_path))
+
+            if db_chat_channel.chat_type == ChatType.GROUP:
+                await bot.send_group_msg(group_id=chat_id, message=msg)
+            elif db_chat_channel.chat_type == ChatType.PRIVATE:
+                await bot.send_private_msg(user_id=chat_id, message=msg)
+            else:
+                logger.warning(f"不支持的聊天类型，文件发送跳过: {db_chat_channel.chat_type}")
 
     async def _send_to_chat(self, chat_key: str, message: Message) -> str:
         """发送消息到指定聊天"""
