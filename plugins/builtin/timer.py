@@ -159,8 +159,11 @@ async def timer_prompt(_ctx: AgentCtx) -> str:
         if len(desc) > config.MAX_DISPLAY_DESC_LENGTH:
             desc = desc[: config.MAX_DISPLAY_DESC_LENGTH // 2] + "..." + desc[-config.MAX_DISPLAY_DESC_LENGTH // 2 :]
 
-        # 格式化触发时间
-        trigger_time_str = datetime.fromtimestamp(t.trigger_time).strftime("%Y-%m-%d %H:%M:%S")
+        # 格式化触发时间。跳过非法时间戳，避免单条脏 timer 中断整个 prompt 渲染。
+        try:
+            trigger_time_str = datetime.fromtimestamp(t.trigger_time).strftime("%Y-%m-%d %H:%M:%S")
+        except (OverflowError, OSError, ValueError):
+            continue
 
         # 格式化剩余时间 - 更简洁的表示
         hours, remainder = divmod(remain_seconds, 3600)
