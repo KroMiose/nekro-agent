@@ -31,6 +31,7 @@ class TimerService:
 
     _PERSIST_VERSION = 2
     _MISFIRE_GRACE_SECONDS = 300
+    _MAX_TIMER_FUTURE_SECONDS = 10 * 365 * 24 * 60 * 60
 
     def __init__(self):
         self.tasks: Dict[str, List[TimerTask]] = {}  # chat_key -> [TimerTask]
@@ -41,6 +42,28 @@ class TimerService:
         path = Path(TIMER_ONE_SHOT_PERSIST_PATH)
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
+
+    def _validate_trigger_time(self, trigger_time: int, *, now: Optional[int] = None) -> datetime:
+        """校验并转换定时器触发时间。
+
+        trigger_time 必须是 Unix 秒级时间戳，且不能超过合理的未来范围。
+        这可以避免模型或插件把 `20260430106805` 这类日期拼接值误传为时间戳，
+        导致 datetime.fromtimestamp() 溢出并污染内存/持久化数据。
+        """
+        if not isinstance(trigger_time, int):
+            raise ValueError(
+                f"trigger_time must be an integer Unix timestamp, got {type(trigger_time).__name__}",
+            )
+
+        now = int(time.time()) if now is None else now
+        max_trigger_time = now + self._MAX_TIMER_FUTURE_SECONDS
+        if trigger_time > max_trigger_time:
+            raise ValueError(f"trigger_time is too far in the future: {trigger_time}")
+
+        try:
+            return datetime.fromtimestamp(trigger_time)
+        except (OverflowError, OSError, ValueError) as e:
+            raise ValueError(f"invalid trigger_time: {trigger_time}") from e
 
     async def _load_persisted_tasks(self) -> None:
         """从数据目录恢复一次性/临时定时器。
@@ -84,6 +107,16 @@ class TimerService:
             if not isinstance(chat_key, str) or not isinstance(trigger_time, int) or not isinstance(event_desc, str):
                 continue
 
+            try:
+                self._validate_trigger_time(trigger_time, now=now)
+            except ValueError:
+                logger.warning(
+                    "丢弃非法持久化定时器: "
+                    f"task_id={task_id}, chat_key={chat_key}, trigger_time={trigger_time}",
+                )
+                dropped += 1
+                continue
+
             # 已过期：在宽限期内补发一次，否则丢弃
             if trigger_time <= now:
                 lag = now - trigger_time
@@ -106,6 +139,9 @@ class TimerService:
             task.callback = None
             self.tasks.setdefault(chat_key, []).append(task)
             restored += 1
+
+        if dropped:
+            await self._persist_tasks()
 
         logger.info(
             f"持久化定时器恢复完成: restored={restored}, triggered={triggered}, dropped={dropped}",
@@ -210,8 +246,15 @@ class TimerService:
             await message_service.schedule_agent_task(chat_key)
             return True
 
+        now = int(time.time())
         # 检查触发时间是否已过
-        if trigger_time <= int(time.time()):
+        if trigger_time <= now:
+            return False
+
+        try:
+            trigger_dt = self._validate_trigger_time(trigger_time, now=now)
+        except ValueError as e:
+            logger.warning(f"设置定时器失败: chat_key={chat_key}, trigger_time={trigger_time}, error={e}")
             return False
 
         if chat_key not in self.tasks:
@@ -226,7 +269,7 @@ class TimerService:
         task.callback = callback
         self.tasks[chat_key].append(task)
         if not silent:
-            logger.info(f"定时器设置成功: {chat_key} | 触发时间: {datetime.fromtimestamp(trigger_time)}")
+            logger.info(f"定时器设置成功: {chat_key} | 触发时间: {trigger_dt}")
 
         # 仅普通/临时定时器持久化；带 callback 的系统定时器不写磁盘
         if callback is None:
