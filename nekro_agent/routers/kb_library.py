@@ -1,0 +1,469 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi.responses import FileResponse
+from tortoise.exceptions import IntegrityError
+from tortoise.transactions import in_transaction
+
+from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.models.db_kb_asset import DBKBAsset
+from nekro_agent.models.db_user import DBUser
+from nekro_agent.models.db_workspace import DBWorkspace
+from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
+from nekro_agent.schemas.kb import (
+    KBActionResponse,
+    KBAddReferenceBody,
+    KBAssetBindingsResponse,
+    KBAssetBindingsUpdateBody,
+    KBAssetDetailResponse,
+    KBAssetListResponse,
+    KBAssetReferences,
+    KBAssetUploadResponse,
+    KBCreateTextDocumentBody,
+    KBFullTextResponse,
+    KBUpdateAssetBody,
+    KBUpdateReferenceBody,
+)
+from nekro_agent.services.kb.library_index_service import (
+    cancel_rebuild_asset,
+    delete_asset_chunk_rows,
+    delete_asset_files,
+    delete_asset_vector_points,
+    ensure_kb_library_collection,
+    list_asset_chunk_ids,
+    schedule_rebuild_asset,
+    sync_asset_index_metadata,
+)
+from nekro_agent.services.kb.library_service import (
+    TEXT_LIBRARY_FORMATS,
+    add_asset_reference,
+    asset_to_list_item,
+    assets_to_list_items,
+    bind_asset_workspace,
+    create_asset_from_upload,
+    create_text_asset,
+    get_asset,
+    get_asset_references,
+    list_asset_bound_workspaces,
+    list_assets,
+    read_asset_normalized_content_async,
+    read_asset_source_content_async,
+    remove_asset_reference,
+    resolve_kb_library_source_path,
+    unbind_asset_workspace,
+    update_asset_bindings,
+    update_asset_metadata,
+)
+from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.perm import Role, require_role
+
+router = APIRouter(prefix="/kb-library", tags=["Knowledge Base Library"])
+logger = get_sub_logger("kb.library_router")
+
+ALLOWED_KB_LIBRARY_EXTENSIONS = {
+    ".md",
+    ".txt",
+    ".html",
+    ".htm",
+    ".json",
+    ".yaml",
+    ".yml",
+    ".csv",
+    ".xlsx",
+    ".pdf",
+    ".docx",
+}
+KB_LIBRARY_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
+def _is_asset_index_ready(asset: DBKBAsset) -> bool:
+    return bool(asset.extract_status == "ready" and asset.sync_status == "ready")
+
+
+async def _get_asset_or_404(asset_id: int) -> DBKBAsset:
+    asset = await get_asset(asset_id)
+    if asset is None:
+        raise NotFoundError(resource=f"全局知识库文件 {asset_id}")
+    return asset
+
+
+async def _ensure_workspace_exists(workspace_id: int) -> None:
+    if not await DBWorkspace.filter(id=workspace_id).exists():
+        raise ValidationError(reason="存在无效的工作区 ID，无法更新绑定")
+
+
+@router.get("/assets", summary="获取全局知识库文件列表", response_model=KBAssetListResponse)
+@require_role(Role.Admin)
+async def list_kb_library_assets(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetListResponse:
+    assets = await list_assets()
+    items = await assets_to_list_items(assets)
+    return KBAssetListResponse(total=len(items), items=items)
+
+
+@router.get("/assets/{asset_id}", summary="获取全局知识库文件详情", response_model=KBAssetDetailResponse)
+@require_role(Role.Admin)
+async def get_kb_library_asset(
+    asset_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetDetailResponse:
+    asset = await _get_asset_or_404(asset_id)
+    source_content = await read_asset_source_content_async(asset) if asset.format in TEXT_LIBRARY_FORMATS else None
+    normalized_content = await read_asset_normalized_content_async(asset) if _is_asset_index_ready(asset) else ""
+    return KBAssetDetailResponse(
+        asset=await asset_to_list_item(asset),
+        source_content=source_content,
+        normalized_content=normalized_content or None,
+    )
+
+
+@router.post("/assets", summary="创建文本类全局知识库文件", response_model=KBAssetUploadResponse)
+@require_role(Role.Admin)
+async def create_kb_library_asset(
+    body: KBCreateTextDocumentBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetUploadResponse:
+    if body.format not in {"markdown", "text"}:
+        raise ValidationError(reason="仅支持创建 markdown 或 text 类型的文本知识")
+    await ensure_kb_library_collection()
+    try:
+        asset, reused_existing = await create_text_asset(
+            title=body.title,
+            content=body.content,
+            source_path=body.source_path,
+            file_name=body.file_name,
+            format=body.format,
+            category=body.category,
+            tags=body.tags,
+            summary=body.summary,
+            is_enabled=body.is_enabled,
+        )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"全局知识库路径 '{e}'") from e
+    except IntegrityError as e:
+        raise ConflictError(resource=f"全局知识库路径 '{body.source_path or body.file_name}'") from e
+    except ValueError as e:
+        raise ValidationError(reason=str(e)) from e
+
+    refreshed = await _get_asset_or_404(asset.id)
+    if not reused_existing:
+        await schedule_rebuild_asset(refreshed)
+    return KBAssetUploadResponse(asset=await asset_to_list_item(refreshed), reused_existing=reused_existing)
+
+
+@router.post("/assets/files", summary="上传全局知识库文件", response_model=KBAssetUploadResponse)
+@require_role(Role.Admin)
+async def upload_kb_library_asset(
+    file: UploadFile = File(...),
+    title: str = Form(default=""),
+    source_path: str = Form(default=""),
+    category: str = Form(default=""),
+    tags: str = Form(default=""),
+    summary: str = Form(default=""),
+    is_enabled: bool = Form(default=True),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetUploadResponse:
+    file_name = file.filename or ""
+    if Path(file_name).suffix.lower() not in ALLOWED_KB_LIBRARY_EXTENSIONS:
+        raise ValidationError(reason=f"暂不支持的全局知识库文件类型: {file_name or 'unknown'}")
+    if file.size is not None and file.size > KB_LIBRARY_MAX_UPLOAD_SIZE:
+        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_LIBRARY_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+    if file.size is None:
+        content_bytes = await file.read()
+        if len(content_bytes) > KB_LIBRARY_MAX_UPLOAD_SIZE:
+            raise ValidationError(reason=f"文件大小超出限制（最大 {KB_LIBRARY_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+        await file.seek(0)
+    await ensure_kb_library_collection()
+    parsed_tags = [item.strip() for item in tags.split(",") if item.strip()]
+    try:
+        asset, reused_existing = await create_asset_from_upload(
+            upload_file=file,
+            source_path=source_path,
+            title=title,
+            category=category,
+            tags=parsed_tags,
+            summary=summary,
+            is_enabled=is_enabled,
+        )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"全局知识库路径 '{e}'") from e
+    except IntegrityError as e:
+        raise ConflictError(resource=f"全局知识库路径 '{source_path or file_name}'") from e
+    except ValueError as e:
+        raise ValidationError(reason=str(e)) from e
+
+    refreshed = await _get_asset_or_404(asset.id)
+    if not reused_existing:
+        await schedule_rebuild_asset(refreshed)
+    return KBAssetUploadResponse(asset=await asset_to_list_item(refreshed), reused_existing=reused_existing)
+
+
+@router.put("/assets/{asset_id}", summary="更新全局知识库文件", response_model=KBAssetDetailResponse)
+@require_role(Role.Admin)
+async def update_kb_library_asset(
+    asset_id: int,
+    body: KBUpdateAssetBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetDetailResponse:
+    asset = await _get_asset_or_404(asset_id)
+    updated = await update_asset_metadata(
+        asset,
+        title=body.title,
+        category=body.category,
+        tags=body.tags,
+        summary=body.summary,
+        is_enabled=body.is_enabled,
+    )
+
+    metadata_changed = body.category is not None or body.tags is not None or body.is_enabled is not None
+    reference_changed = body.title is not None or body.category is not None or body.is_enabled is not None
+    if metadata_changed:
+        await sync_asset_index_metadata(updated)
+    if reference_changed:
+        await detect_and_sync_asset_references(asset_id)
+
+    refreshed = await _get_asset_or_404(asset_id)
+    source_content = await read_asset_source_content_async(refreshed) if refreshed.format in TEXT_LIBRARY_FORMATS else None
+    normalized_content = await read_asset_normalized_content_async(refreshed) if _is_asset_index_ready(refreshed) else None
+    return KBAssetDetailResponse(
+        asset=await asset_to_list_item(refreshed),
+        source_content=source_content,
+        normalized_content=normalized_content,
+    )
+
+
+@router.delete("/assets/{asset_id}", summary="删除全局知识库文件", response_model=KBActionResponse)
+@require_role(Role.Admin)
+async def delete_kb_library_asset(
+    asset_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBActionResponse:
+    from nekro_agent.models.db_kb_asset_reference import DBKBAssetReference
+
+    asset = await _get_asset_or_404(asset_id)
+    await cancel_rebuild_asset(asset.id)
+    bound_workspaces = await list_asset_bound_workspaces(asset.id)
+    if bound_workspaces:
+        raise ConflictError(resource=f"全局知识库文件 {asset.id} 仍被 {len(bound_workspaces)} 个工作区绑定")
+    chunk_ids = await list_asset_chunk_ids(asset.id)
+
+    async with in_transaction() as db:
+        await DBKBAssetReference.filter(source_asset_id=asset_id).using_db(db).delete()
+        await DBKBAssetReference.filter(target_asset_id=asset_id).using_db(db).delete()
+        await delete_asset_chunk_rows(asset.id, using_db=db)
+        await asset.delete(using_db=db)
+
+    cleanup_warnings: list[str] = []
+    try:
+        await delete_asset_vector_points(chunk_ids)
+    except Exception as e:
+        logger.warning(f"删除全局知识库向量索引失败: asset_id={asset_id}, error={e}")
+        cleanup_warnings.append("vector_index")
+    try:
+        await delete_asset_files(asset)
+    except Exception as e:
+        logger.warning(f"删除全局知识库文件失败: asset_id={asset_id}, error={e}")
+        cleanup_warnings.append("files")
+
+    return KBActionResponse(
+        ok=True,
+        message="资产记录已删除，但部分外部资源清理失败" if cleanup_warnings else None,
+    )
+
+
+@router.post("/assets/{asset_id}/reindex", summary="重建全局知识库文件索引", response_model=KBActionResponse)
+@require_role(Role.Admin)
+async def reindex_kb_library_asset(
+    asset_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBActionResponse:
+    await ensure_kb_library_collection()
+    asset = await _get_asset_or_404(asset_id)
+    await schedule_rebuild_asset(asset)
+    return KBActionResponse(ok=True)
+
+
+@router.get("/assets/{asset_id}/raw", summary="下载全局知识库原始文件")
+@require_role(Role.Admin)
+async def get_kb_library_raw_file(
+    asset_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
+    asset = await _get_asset_or_404(asset_id)
+    source_file = resolve_kb_library_source_path(asset.source_path)
+    if not source_file.exists():
+        raise NotFoundError(resource=f"全局知识库源文件 {asset.source_path}")
+    return FileResponse(source_file, media_type=asset.mime_type, filename=asset.file_name)
+
+
+@router.get("/assets/{asset_id}/fulltext", summary="获取全局知识库规范化全文", response_model=KBFullTextResponse)
+@require_role(Role.Admin)
+async def get_kb_library_fulltext(
+    asset_id: int,
+    max_chars: int = Query(default=20000, ge=200, le=200000),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBFullTextResponse:
+    asset = await _get_asset_or_404(asset_id)
+    if not _is_asset_index_ready(asset):
+        raise ValidationError(reason="全局知识库规范化全文尚未就绪，请等待索引完成后再读取")
+    content = await read_asset_normalized_content_async(asset)
+    truncated = len(content) > max_chars
+    if truncated:
+        content = content[:max_chars]
+    return KBFullTextResponse(
+        document_id=asset.id,
+        title=asset.title,
+        source_path=asset.source_path,
+        source_workspace_path=None,
+        normalized_text_path=asset.normalized_text_path,
+        normalized_workspace_path=None,
+        content=content,
+        truncated=truncated,
+    )
+
+
+@router.get("/assets/{asset_id}/bindings", summary="获取全局知识库文件绑定", response_model=KBAssetBindingsResponse)
+@require_role(Role.Admin)
+async def get_kb_library_asset_bindings(
+    asset_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetBindingsResponse:
+    await _get_asset_or_404(asset_id)
+    items = await list_asset_bound_workspaces(asset_id)
+    return KBAssetBindingsResponse(asset_id=asset_id, binding_count=len(items), items=items)
+
+
+@router.put("/assets/{asset_id}/bindings", summary="更新全局知识库文件绑定", response_model=KBAssetBindingsResponse)
+@require_role(Role.Admin)
+async def update_kb_library_asset_bindings(
+    asset_id: int,
+    body: KBAssetBindingsUpdateBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetBindingsResponse:
+    await _get_asset_or_404(asset_id)
+    normalized_ids = sorted({int(workspace_id) for workspace_id in body.workspace_ids})
+    if normalized_ids:
+        existing_count = await DBWorkspace.filter(id__in=normalized_ids).count()
+        if existing_count != len(normalized_ids):
+            raise ValidationError(reason="存在无效的工作区 ID，无法更新绑定")
+    items = await update_asset_bindings(asset_id, normalized_ids)
+    return KBAssetBindingsResponse(asset_id=asset_id, binding_count=len(items), items=items)
+
+
+@router.put(
+    "/assets/{asset_id}/bindings/{workspace_id}",
+    summary="为工作区绑定全局知识库文件",
+    response_model=KBAssetBindingsResponse,
+)
+@require_role(Role.Admin)
+async def bind_kb_library_asset_workspace(
+    asset_id: int,
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetBindingsResponse:
+    await _get_asset_or_404(asset_id)
+    await _ensure_workspace_exists(workspace_id)
+    items = await bind_asset_workspace(asset_id, workspace_id)
+    return KBAssetBindingsResponse(asset_id=asset_id, binding_count=len(items), items=items)
+
+
+@router.delete(
+    "/assets/{asset_id}/bindings/{workspace_id}",
+    summary="解绑工作区与全局知识库文件",
+    response_model=KBAssetBindingsResponse,
+)
+@require_role(Role.Admin)
+async def unbind_kb_library_asset_workspace(
+    asset_id: int,
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetBindingsResponse:
+    await _get_asset_or_404(asset_id)
+    await _ensure_workspace_exists(workspace_id)
+    items = await unbind_asset_workspace(asset_id, workspace_id)
+    return KBAssetBindingsResponse(asset_id=asset_id, binding_count=len(items), items=items)
+
+
+@router.get(
+    "/assets/{asset_id}/references",
+    summary="获取资产引用关系（双向）",
+    response_model=KBAssetReferences,
+)
+@require_role(Role.Admin)
+async def get_kb_library_asset_references(
+    asset_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetReferences:
+    await _get_asset_or_404(asset_id)
+    return await get_asset_references(asset_id)
+
+
+@router.post(
+    "/assets/{asset_id}/references",
+    summary="添加资产引用关系",
+    response_model=KBAssetReferences,
+)
+@require_role(Role.Admin)
+async def add_kb_library_asset_reference(
+    asset_id: int,
+    body: KBAddReferenceBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetReferences:
+    await _get_asset_or_404(asset_id)
+    await _get_asset_or_404(body.target_id)
+    try:
+        await add_asset_reference(
+            source_asset_id=asset_id,
+            target_asset_id=body.target_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    except IntegrityError as e:
+        raise ConflictError("该引用关系已存在") from e
+    return await get_asset_references(asset_id)
+
+
+@router.put(
+    "/assets/{asset_id}/references/{target_id}",
+    summary="更新资产引用说明",
+    response_model=KBAssetReferences,
+)
+@require_role(Role.Admin)
+async def update_kb_library_asset_reference(
+    asset_id: int,
+    target_id: int,
+    body: KBUpdateReferenceBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetReferences:
+    await _get_asset_or_404(asset_id)
+    await _get_asset_or_404(target_id)
+    try:
+        await add_asset_reference(
+            source_asset_id=asset_id,
+            target_asset_id=target_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    return await get_asset_references(asset_id)
+
+
+@router.delete(
+    "/assets/{asset_id}/references/{target_id}",
+    summary="删除资产引用关系",
+    response_model=KBAssetReferences,
+)
+@require_role(Role.Admin)
+async def remove_kb_library_asset_reference(
+    asset_id: int,
+    target_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetReferences:
+    await _get_asset_or_404(asset_id)
+    await remove_asset_reference(source_asset_id=asset_id, target_asset_id=target_id)
+    return await get_asset_references(asset_id)

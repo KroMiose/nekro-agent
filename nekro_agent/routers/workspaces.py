@@ -603,6 +603,40 @@ async def delete_workspace(
     except Exception as e:
         logger.warning(f"清理工作区记忆失败（非致命）: workspace_id={workspace_id}, error={e}")
 
+    # 清理工作区知识库数据（文档、chunk、向量索引、引用、全局资产绑定）
+    try:
+        from nekro_agent.models.db_kb_asset_binding import DBKBAssetBinding
+        from nekro_agent.models.db_kb_chunk import DBKBChunk
+        from nekro_agent.models.db_kb_document import DBKBDocument
+        from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
+        from nekro_agent.services.kb.index_service import cancel_rebuild_document, delete_document_files
+        from nekro_agent.services.kb.qdrant_manager import kb_qdrant_manager
+
+        kb_docs = await DBKBDocument.filter(workspace_id=workspace_id).all()
+        for doc in kb_docs:
+            await cancel_rebuild_document(doc.id)
+        chunk_ids = [
+            int(cid)
+            for cid in await DBKBChunk.filter(workspace_id=workspace_id).values_list("id", flat=True)
+        ]
+        await DBKBDocumentReference.filter(workspace_id=workspace_id).delete()
+        await DBKBChunk.filter(workspace_id=workspace_id).delete()
+        await DBKBDocument.filter(workspace_id=workspace_id).delete()
+        await DBKBAssetBinding.filter(workspace_id=workspace_id).delete()
+        if chunk_ids:
+            try:
+                await kb_qdrant_manager.delete_chunk_points(chunk_ids)
+            except Exception as e:
+                logger.warning(f"清理工作区知识库向量索引失败（非致命）: workspace_id={workspace_id}, error={e}")
+        for doc in kb_docs:
+            try:
+                await delete_document_files(doc)
+            except Exception as e:
+                logger.warning(f"清理知识库文档文件失败（非致命）: workspace_id={workspace_id}, doc_id={doc.id}, error={e}")
+        logger.info(f"工作区 {workspace_id} 的知识库数据已清理（文档 {len(kb_docs)}，chunk {len(chunk_ids)}）")
+    except Exception as e:
+        logger.warning(f"清理工作区知识库失败（非致命）: workspace_id={workspace_id}, error={e}")
+
     await ws.delete()
     return ActionOkResponse(ok=True)
 
