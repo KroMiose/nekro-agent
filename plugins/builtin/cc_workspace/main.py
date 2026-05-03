@@ -120,6 +120,40 @@ def _summarize_runtime_block_text(value: str, max_length: int = 48) -> str:
     return f"{normalized[: max_length - 1]}…"
 
 
+def _get_prompt_layer_content(metadata: dict, layer_key: str) -> str:
+    """从 workspace metadata.prompt_layers 中读取指定层的纯文本内容。"""
+    prompt_layers = metadata.get("prompt_layers")
+    if not isinstance(prompt_layers, dict):
+        return ""
+    layer = prompt_layers.get(layer_key)
+    if not isinstance(layer, dict):
+        return ""
+    return str(layer.get("content") or "").strip()
+
+
+def _build_markdown_fence(content: str) -> str:
+    """生成足够长的反引号围栏，避免和正文中的代码块冲突。"""
+    longest = 0
+    current = 0
+    for ch in content:
+        if ch == "`":
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 0
+    return "`" * max(3, longest + 1)
+
+
+def _format_prompt_layer_block(title: str, content: str, *, suffix: str = "") -> str:
+    """将可变文本包裹进 fenced code block，避免和外层 prompt 结构混淆。"""
+    normalized = content.strip()
+    if not normalized:
+        return ""
+    fence = _build_markdown_fence(normalized)
+    suffix_text = f"{suffix}" if suffix else ""
+    return f"\n[{title}]{suffix_text}\n{fence}md\n{normalized}\n{fence}\n"
+
+
 async def _get_agent_ctx_from_command(context: CommandExecutionContext) -> schemas.AgentCtx:
     return await schemas.AgentCtx.create_by_chat_key(context.chat_key)
 
@@ -805,7 +839,7 @@ async def _cc_delegate_task(
                 yield TaskCtl.fail(
                     f"CC Sandbox 执行超时（{_cc_data_timeout:.0f}s 内无任何响应），任务已被中止。\n"
                     "这通常表示 CC 模型服务暂时不可用（API 超时/网络异常/服务过载）。\n"
-                    "请告知用户 CC 当前不可用，建议稍后重试。不要立即自动重试，连续重试只会浪费时间。"
+                    "请告知用户 CC 当前不可用，建议稍后重试。不要立即自动重试！"
                 )
                 return
 
@@ -990,6 +1024,20 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
             "For special requirements such as custom images or runtime policies, guide the user to create it manually in the workspace management page.\n"
         )
 
+    metadata = workspace.metadata or {}
+    shared_manual_rules = _get_prompt_layer_content(metadata, "shared_manual_rules")
+    na_manual_rules = _get_prompt_layer_content(metadata, "na_manual_rules")
+    shared_rules_hint = _format_prompt_layer_block(
+        "Shared Fixed Facts",
+        shared_manual_rules,
+        suffix=" Stable facts and confirmed constraints shared by NA and CC.",
+    )
+    na_rules_hint = _format_prompt_layer_block(
+        "NA-only Rules",
+        na_manual_rules,
+        suffix=" Long-lived rules for NA's own reasoning and decision-making.",
+    )
+
     # ── 状态2：已绑定工作区，但沙盒未运行 ──────────────────────────────────
     if workspace.status != "active":
         status_label = {"stopped": "Stopped", "failed": "Start failed", "deleting": "Deleting"}.get(workspace.status, workspace.status)
@@ -997,6 +1045,8 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         return (
             f"[CC Workspace] {workspace.name} - {status_label}{error_hint}\n"
             f"{'Ask the user to check the workspace management page.' if workspace.last_error else 'It can be started with `start_cc_sandbox`.'}\n"
+            f"{shared_rules_hint}"
+            f"{na_rules_hint}"
         )
 
     # ── 状态3：工作区正常运行 ────────────────────────────────────────────────
@@ -1024,6 +1074,8 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         return (
             f"[CC Workspace] {workspace.name} - Connection error\n"
             f"The container is unreachable. Ask the user to check the workspace management page and restart the container. CC tools are currently unavailable.\n"
+            f"{shared_rules_hint}"
+            f"{na_rules_hint}"
         )
 
     # CC 应用状态：仅在异常时提示
@@ -1034,9 +1086,9 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     # 能力摘要（skills + MCP）— 只列名称，不列描述
     capability_hint = ""
     try:
-        selected_skills: List[str] = workspace.metadata.get("skills", [])
+        selected_skills: List[str] = metadata.get("skills", [])
         dynamic_skills = await asyncio.to_thread(WorkspaceService.list_dynamic_skills, workspace.id)
-        mcp_servers = (workspace.metadata.get("mcp_config") or {}).get("mcpServers", {})
+        mcp_servers = (metadata.get("mcp_config") or {}).get("mcpServers", {})
         parts = []
         if selected_skills:
             parts.append(f"Skills: {', '.join(selected_skills)}")
@@ -1058,9 +1110,17 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
             time_str = f" (updated at {updated})" if updated else ""
             if len(na_context) > max_len:
                 short_context = na_context[:max_len] + "..."
-                memory_hint = f"\n[CC Workspace Memory Summary]{time_str}\n{short_context}\n"
+                memory_hint = _format_prompt_layer_block(
+                    "CC Workspace Memory Summary",
+                    short_context,
+                    suffix=f"{time_str} Editable coordination summary from `_na_context.md`.",
+                )
             else:
-                memory_hint = f"\n[CC Workspace Memory Summary]{time_str}\n{na_context}\n"
+                memory_hint = _format_prompt_layer_block(
+                    "CC Workspace Memory Summary",
+                    na_context,
+                    suffix=f"{time_str} Editable coordination summary from `_na_context.md`.",
+                )
     except Exception:
         pass
 
@@ -1075,7 +1135,7 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
             src = current_task.get("source_chat_key", "")
             elapsed = current_task.get("elapsed_seconds", 0)
             preview = current_task.get("prompt_preview", "")
-            preview_str = (preview[:50] + "...") if len(preview) > 50 else preview
+            preview_str = (preview[:256] + "...") if len(preview) > 256 else preview
             is_mine = is_running and src == _ctx.from_chat_key
 
             if is_mine:
@@ -1136,7 +1196,7 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
                 desc = f": {ann.description}" if ann and ann.description else ""
                 role = "Primary" if ch.chat_key == primary_key else "Collaborative"
                 marker = " <- current" if ch.chat_key == current_chat_key else ""
-                channel_lines.append(f"  [{role}] {ch.channel_name or ch.chat_key}{desc}{marker}")
+                channel_lines.append(f"  [{role}] {ch.channel_name or '-'}(chat_key: {ch.chat_key}){desc}{marker}")
 
             multi_channel_hint = (
                 f"\n[Multi-channel Workspace] {len(bound_channels)} channels are bound:\n"
@@ -1152,6 +1212,8 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"Runtime policy: {workspace.runtime_policy}\n"
         f"{status_hint}"
         f"{capability_hint}"
+        f"{shared_rules_hint}"
+        f"{na_rules_hint}"
         f"{memory_hint}"
         f"{multi_channel_hint}"
         f"{task_hint}"
