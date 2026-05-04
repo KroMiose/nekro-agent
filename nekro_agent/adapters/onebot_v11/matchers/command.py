@@ -280,11 +280,29 @@ async def reset_command_guard(
             )
         await matcher.finish()
 
+    # 私聊用户必须验证超级用户身份（原逻辑直接放行，已修复）
     if chat_type == ChatType.PRIVATE:
-        return username, cmd_content, chat_key, chat_type
+        logger.warning(f"用户 {username} 在私聊中尝试执行 reset 但不是超级用户")
+        if getattr(config, "ENABLE_COMMAND_UNAUTHORIZED_OUTPUT", False):
+            await matcher.finish(
+                message=f"用户 [{event.get_user_id()}]{username} 不在允许的管理用户中",
+                status=CommandResponseStatus.UNAUTHORIZED,
+            )
+        await matcher.finish()
+        raise RuntimeError("reset_command_guard 无法继续执行")
 
+    # 群聊管理员也必须验证超级用户身份（原逻辑只检查群管身份，已修复）
     if chat_type == ChatType.GROUP and await _is_group_admin_or_owner(event, bot):
-        return username, cmd_content, chat_key, chat_type
+        if _is_legacy_super_user(event.context):
+            return username, cmd_content, chat_key, chat_type
+        logger.warning(f"用户 {username} 是群管但不是超级用户，尝试执行 reset")
+        if getattr(config, "ENABLE_COMMAND_UNAUTHORIZED_OUTPUT", False):
+            await matcher.finish(
+                message=f"用户 [{event.get_user_id()}]{username} 不在允许的管理用户中",
+                status=CommandResponseStatus.UNAUTHORIZED,
+            )
+        await matcher.finish()
+        raise RuntimeError("reset_command_guard 无法继续执行")
 
     logger.warning(f"用户 {username} 不在允许的管理用户中")
     if getattr(config, "ENABLE_COMMAND_UNAUTHORIZED_OUTPUT", False):
