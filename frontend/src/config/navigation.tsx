@@ -168,6 +168,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'workspace',
       },
       {
+        path: '/workspace/kb-library',
+        text: t('menu.kbLibrary'),
+        translationKey: 'menu.kbLibrary',
+        icon: <StorageIcon />,
+        parent: 'workspace',
+      },
+      {
         path: '/workspace/timers',
         text: t('menu.timers'),
         translationKey: 'menu.timers',
