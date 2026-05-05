@@ -1611,31 +1611,39 @@ class CoreConfig(ConfigBase):
     )
 
     """聊天设置"""
-    SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(
-        default=True,
-        title="新群聊默认启用聊天",
+    SESSION_GROUP_ACTIVE_DEFAULT: str = Field(
+        default="active",
+        title="新群聊默认状态",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
                 zh_CN="聊天配置",
                 en_US="Chat Configuration",
             ),
             i18n_title=i18n_text(
-                zh_CN="新群聊默认启用聊天",
-                en_US="Enable Chat for New Groups by Default",
+                zh_CN="新群聊默认状态",
+                en_US="Default Status for New Group Chats",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="新群聊创建时的默认状态：active（激活）、observe（旁观）、disabled（停用）",
+                en_US="Default status when a new group chat is created: active, observe, or disabled",
             ),
         ).model_dump(),
     )
-    SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(
-        default=True,
-        title="新私聊默认启用聊天",
+    SESSION_PRIVATE_ACTIVE_DEFAULT: str = Field(
+        default="active",
+        title="新私聊默认状态",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
                 zh_CN="聊天配置",
                 en_US="Chat Configuration",
             ),
             i18n_title=i18n_text(
-                zh_CN="新私聊默认启用聊天",
-                en_US="Enable Chat for New Private Chats by Default",
+                zh_CN="新私聊默认状态",
+                en_US="Default Status for New Private Chats",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="新私聊创建时的默认状态：active（激活）、observe（旁观）、disabled（停用）",
+                en_US="Default status when a new private chat is created: active, observe, or disabled",
             ),
         ).model_dump(),
     )

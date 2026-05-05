@@ -32,6 +32,7 @@ async def collect_message(
         channel_id=platform_channel.channel_id,
         channel_type=platform_channel.channel_type,
         channel_name=platform_channel.channel_name,
+        adapter=adapter,
     )
 
     # 命令检测与执行（在 is_active 检查之前，确保 na_on 等命令在频道关闭时仍可用）

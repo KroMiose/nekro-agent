@@ -435,6 +435,7 @@ class WxWorkCorpAppAdapter(BaseAdapter[WxWorkCorpAppConfig]):
             channel_id=parsed.channel.channel_id,
             channel_type=parsed.channel.channel_type,
             channel_name=parsed.channel.channel_name,
+            adapter=self,
         )
         channel_data = json.loads(db_chat_channel.data or "{}")
         channel_data["kf_open_kfid"] = open_kfid
