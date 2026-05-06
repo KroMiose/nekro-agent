@@ -1,6 +1,7 @@
 """沙盒环境下的扩展方法调用代理"""
 
 import importlib
+import json as _json
 import pickle as _pickle
 import subprocess
 import sys
@@ -30,13 +31,13 @@ def __extension_method_proxy(method: Callable):
     def acutely_call_method(*args: Tuple[Any], **kwargs: Dict[str, Any]):
         """Agent 执行沙盒扩展方法时实际调用的方法"""
 
-        body = {"method": method.__name__, "args": args, "kwargs": kwargs}
-        data: bytes = _pickle.dumps(body)
+        body = {"method": method.__name__, "args": list(args), "kwargs": dict(kwargs)}
+        data: bytes = _json.dumps(body, default=str).encode("utf-8")
         response = _requests.post(
             f"{CHAT_API}/ext/rpc_exec?container_key={CONTAINER_KEY}&from_chat_key={FROM_CHAT_KEY}",
             data=data,
             headers={
-                "Content-Type": "application/octet-stream",
+                "Content-Type": "application/json",
                 "X-RPC-Token": RPC_SECRET_KEY,
             },
         )
