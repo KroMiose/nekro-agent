@@ -4,15 +4,19 @@ Imports the rpc_service module by file path so the heavy package __init__
 (nonebot, FastAPI, etc.) is not required to run the security regression test.
 """
 import importlib.util
+import json
 import os
 import pickle
 import sys
 import tempfile
 import types
+from pathlib import Path
 
 import pytest
 
-ROOT = "/Users/sebastion/projects/audits/KroMiose-nekro-agent-worktrees/cwe502-rpc-service-pickle-1c7e"
+# Derive the project root from this test file's location so the test is
+# portable across checkouts and CI environments.
+ROOT = str(Path(__file__).resolve().parents[1])
 
 
 def _load_module(name: str, path: str):
@@ -57,9 +61,29 @@ def test_pickle_payload_does_not_execute():
 
 
 def test_valid_json_request_is_accepted():
-    import json
     body = json.dumps({"method": "foo", "args": [1, "x"], "kwargs": {"a": 1}}).encode()
     req = decode_rpc_request(body)
     assert req.method == "foo"
     assert req.args == [1, "x"]
     assert req.kwargs == {"a": 1}
+
+
+def test_structurally_invalid_json_is_rejected():
+    """Syntactically valid JSON that does not match the RPCRequest schema must be rejected."""
+    # Missing required `method` field and `args` is not a list.
+    raw = json.dumps({"args": "not-a-list"}).encode("utf-8")
+    with pytest.raises(ValidationError):
+        decode_rpc_request(raw)
+
+
+def test_non_json_bytes_are_rejected():
+    """Arbitrary non-JSON bytes must raise ValidationError, not crash with JSONDecodeError."""
+    with pytest.raises(ValidationError):
+        decode_rpc_request(b"not json at all")
+
+
+def test_invalid_utf8_bytes_are_rejected():
+    """Bytes that are not valid UTF-8 must raise ValidationError, not UnicodeDecodeError."""
+    # 0xff is invalid as a UTF-8 start byte.
+    with pytest.raises(ValidationError):
+        decode_rpc_request(b"\xff\xfe\xfd")
