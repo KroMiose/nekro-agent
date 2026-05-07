@@ -559,6 +559,7 @@ async def gen_openai_chat_response(
                     model=model,
                     messages=messages,
                     **gen_kwargs,
+                    stream=False,
                 )
                 if not res.choices or len(res.choices) == 0 or not res.choices[0].message.content:
                     raise ValueError(f"非流式响应内容为空，供应商未返回可用消息。原始响应: {res}")  # noqa: TRY301
