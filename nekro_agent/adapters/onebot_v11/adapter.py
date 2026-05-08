@@ -352,12 +352,18 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         return None
 
     async def _send_files(self, chat_key: str, file_segments: List) -> None:
-        """发送文件（物化模式）"""
+        """发送文件（物化到 uploads 目录后通过 OneBot 文件上传 API 发送）"""
         bot: Bot = get_bot()
         db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
         chat_id = int(db_chat_channel.channel_id.split("_")[1])
 
         from nekro_agent.tools.common_util import copy_to_upload_dir
+
+        def _get_onebot_path(local_path: Path) -> Path:
+            """若配置了协议端挂载目录，将本地路径转换为协议端可访问路径"""
+            if config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
+                return Path(config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR) / local_path.relative_to(Path(OsEnv.DATA_DIR))
+            return local_path
 
         for segment in file_segments:
             if not segment.file_path:
@@ -368,7 +374,6 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
                 logger.warning(f"File not found: {segment.file_path}")
                 continue
 
-            # 物化到 uploads 目录
             copied_path, copied_name = await copy_to_upload_dir(
                 file_path=str(src_path),
                 file_name=src_path.name,
@@ -376,14 +381,19 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
             )
             logger.info(f"文件已物化至: {copied_path}")
 
-            # 发送物化后的文件
-            # 协议端(NapCat)会读取该绝对路径并发送
-            msg = MessageSegment.file(file=str(copied_path))
-
+            onebot_path = _get_onebot_path(Path(copied_path))
             if db_chat_channel.chat_type == ChatType.GROUP:
-                await bot.send_group_msg(group_id=chat_id, message=msg)
+                await bot.upload_group_file(
+                    group_id=chat_id,
+                    file=str(onebot_path),
+                    name=copied_name,
+                )
             elif db_chat_channel.chat_type == ChatType.PRIVATE:
-                await bot.send_private_msg(user_id=chat_id, message=msg)
+                await bot.upload_private_file(
+                    user_id=chat_id,
+                    file=str(onebot_path),
+                    name=copied_name,
+                )
             else:
                 logger.warning(f"不支持的聊天类型，文件发送跳过: {db_chat_channel.chat_type}")
 
