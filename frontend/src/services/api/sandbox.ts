@@ -15,6 +15,8 @@ export interface SandboxCodeExtData {
   generation_time_ms: number
   stream_mode: boolean
   log_path: string
+  llm_retry_count: number
+  llm_retry_errors: string[]
 }
 
 export interface SandboxLog {

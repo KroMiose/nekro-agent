@@ -183,7 +183,12 @@
       "sectionPreview": "生成的配置 JSON 预览",
       "cancel": "取消",
       "save": "保存",
-      "create": "创建"
+      "create": "创建",
+      "test": "测试模型",
+      "testNeedsConfig": "请先填写 Base URL、Auth Token 和至少一个模型名称",
+      "fetchModels": "获取模型列表",
+      "fetchingModels": "获取中…",
+      "fetchModelsNeedConfig": "请先填写 Base URL 和 Auth Token"
     },
     "deleteDialog": {
       "title": "确认删除模型组",

@@ -106,6 +106,7 @@ async def limited_run_code(
     llm_response: Optional[OpenAIResponse] = None,
     chat_message: Optional[ChatMessage] = None,
     ctx: Optional[AgentCtx] = None,
+    llm_retry_errors: Optional[list[str]] = None,
 ) -> Tuple[str, str, int]:
     """限制并发运行代码
 
@@ -113,9 +114,10 @@ async def limited_run_code(
         code_run_data: 代码执行数据
         from_chat_key: 频道键
         output_limit: 输出限制
-        generation_time: 生成时间
         llm_response: LLM 响应
         chat_message: 聊天消息
+        ctx: Agent 上下文
+        llm_retry_errors: LLM 重试过程中产生的错误信息列表
 
     Returns:
         Tuple[str, str, int]: 最终输出结果、原始输出结果和退出类型
@@ -129,6 +131,7 @@ async def limited_run_code(
             llm_response=llm_response,
             chat_message=chat_message,
             ctx=ctx,
+            llm_retry_errors=llm_retry_errors,
         )
 
 
@@ -139,6 +142,7 @@ async def run_code_in_sandbox(
     llm_response: Optional[OpenAIResponse] = None,
     chat_message: Optional[ChatMessage] = None,
     ctx: Optional[AgentCtx] = None,
+    llm_retry_errors: Optional[list[str]] = None,
 ) -> Tuple[str, str, int]:
     """在沙盒容器中运行代码并获取输出"""
 
@@ -298,7 +302,7 @@ async def run_code_in_sandbox(
         total_time_ms=total_time,
         trigger_user_id=str(chat_message.sender_id or "0") if chat_message else "",
         trigger_user_name=chat_message.sender_name if chat_message else "System",
-        extra_data=SandboxCodeExtData.create_from_llm_response(llm_response).model_dump_json() if llm_response else "",
+        extra_data=SandboxCodeExtData.create_from_llm_response(llm_response, llm_retry_errors=llm_retry_errors).model_dump_json() if llm_response else "",
     )
 
     return final_output, output_text, stop_type.value

@@ -183,7 +183,12 @@
       "sectionPreview": "Generated Config JSON Preview",
       "cancel": "Cancel",
       "save": "Save",
-      "create": "Create"
+      "create": "Create",
+      "test": "Test Model",
+      "testNeedsConfig": "Please fill in Base URL, Auth Token and at least one model name first",
+      "fetchModels": "Fetch Models",
+      "fetchingModels": "Fetching…",
+      "fetchModelsNeedConfig": "Please fill in Base URL and Auth Token first"
     },
     "deleteDialog": {
       "title": "Confirm Delete Group",

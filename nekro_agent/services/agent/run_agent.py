@@ -144,8 +144,9 @@ async def run_agent(
 
     logger.debug(f"[run_agent] {chat_key} | 历史记录渲染完成，发送 LLM 请求 (model={used_model_group.CHAT_MODEL})")
     history_render_until_time = time.time()
+    llm_retry_errors: list[str] = []
     try:
-        llm_response, used_model_group = await send_agent_request(
+        llm_response, used_model_group, llm_retry_errors = await send_agent_request(
             messages=messages,
             config=config,
             chat_key=chat_key,
@@ -193,6 +194,7 @@ async def run_agent(
                 chat_message=chat_message,
                 llm_response=llm_response,
                 ctx=ctx,
+                llm_retry_errors=llm_retry_errors,
             )
             stop_type = ExecStopType(stop_type_value)
 
@@ -317,7 +319,7 @@ async def run_agent(
 
         history_render_until_time = time.time()
         try:
-            llm_response, used_model_group = await send_agent_request(
+            llm_response, used_model_group, llm_retry_errors = await send_agent_request(
                 messages=messages,
                 config=config,
                 is_debug_iteration=True,
@@ -354,7 +356,7 @@ async def send_agent_request(
     chat_key: str = "",
     on_llm_attempt: Optional[Callable[[int, int, str], Awaitable[None]]] = None,
     on_llm_retry: Optional[Callable[[int, int, str, str], Awaitable[None]]] = None,
-) -> Tuple[OpenAIResponse, ModelConfigGroup]:
+) -> Tuple[OpenAIResponse, ModelConfigGroup, list[str]]:
     model_group: ModelConfigGroup = (
         config.MODEL_GROUPS[config.DEBUG_MIGRATION_MODEL_GROUP]
         if is_debug_iteration and config.DEBUG_MIGRATION_MODEL_GROUP
@@ -373,6 +375,7 @@ async def send_agent_request(
     )
 
     used_model_group: ModelConfigGroup = model_group  # 记录实际使用的模型组
+    retry_errors: list[str] = []
 
     for i in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
         use_model_group: ModelConfigGroup = model_group if i < config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else fallback_model_group
@@ -404,6 +407,7 @@ async def send_agent_request(
             )
         except Exception as e:
             error_summary = _summarize_runtime_text(str(e))
+            retry_errors.append(str(e))
             logger.error(
                 f"LLM 请求失败: {e} ｜ 使用模型: {use_model_group.CHAT_MODEL} {'(fallback)' if i == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else ''}",
             )
@@ -426,4 +430,4 @@ async def send_agent_request(
         )
         raise AllLLMRequestsFailedError("所有 LLM 请求失败")
 
-    return llm_response, used_model_group
+    return llm_response, used_model_group, retry_errors

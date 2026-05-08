@@ -466,15 +466,6 @@ async def gen_openai_chat_response(
     async def _apply_stream_chunk(chunk: ChatCompletionChunk) -> bool:
         nonlocal output, thought_chain, token_consumption, token_input, token_output, first_token_time
 
-        if chunk.usage:
-            # include_usage 返回的是整次流式响应的最终统计值，而不是当前 chunk 的增量。
-            if chunk.usage.total_tokens is not None:
-                token_consumption = chunk.usage.total_tokens
-            if chunk.usage.prompt_tokens is not None:
-                token_input = chunk.usage.prompt_tokens
-            if chunk.usage.completion_tokens is not None:
-                token_output = chunk.usage.completion_tokens
-
         delta = _extract_valid_delta(chunk)
         if delta is None:
             return False
@@ -487,6 +478,14 @@ async def gen_openai_chat_response(
             output += chunk_text
         current_thought_chain = getattr(delta, thought_chain_field_name, "") or ""
         thought_chain += current_thought_chain
+
+        if chunk.usage:
+            if chunk.usage.total_tokens is not None:
+                token_consumption = chunk.usage.total_tokens
+            if chunk.usage.prompt_tokens is not None:
+                token_input = chunk.usage.prompt_tokens
+            if chunk.usage.completion_tokens is not None:
+                token_output = chunk.usage.completion_tokens
 
         if chunk_callback and await chunk_callback(
             OpenAIStreamChunk(
@@ -554,6 +553,8 @@ async def gen_openai_chat_response(
                     async for chunk in res_stream:
                         if await _apply_stream_chunk(chunk):
                             break
+                if not first_token_time and not output:
+                    raise ValueError("流式响应未返回任何有效内容（未收到有效 choices 数据块）")  # noqa: TRY301
             else:
                 res: ChatCompletion = await client.chat.completions.create(
                     model=model,

@@ -12,7 +12,7 @@
     "statusAll": "All Statuses",
     "emptyTitle": "No adapters match the current filters",
     "emptyDescription": "Try a different keyword or status filter.",
-    "open": "Open Adapter",
+    "open": "Configure",
     "configClass": "Config Class",
     "ruleCount": "Channel Rules",
     "rules": "{{count}} rules",
