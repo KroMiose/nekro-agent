@@ -294,14 +294,14 @@ export const ACTION_BUTTON_VARIANTS = {
         color: palette.error,
         backgroundColor:
           mode === 'light'
-            ? alpha(palette.error, 0.08)
-            : alpha(palette.error, 0.16),
+            ? alpha(palette.background.paper, 0.94)
+            : alpha(palette.background.paper, 0.72),
         border: `1px solid ${alpha(palette.error, mode === 'light' ? 0.18 : 0.26)}`,
         '&:hover': {
           backgroundColor:
             mode === 'light'
-              ? alpha(palette.error, 0.12)
-              : alpha(palette.error, 0.22),
+              ? alpha(palette.error, 0.08)
+              : alpha(palette.error, 0.16),
           borderColor: alpha(palette.error, mode === 'light' ? 0.26 : 0.34),
         },
       }

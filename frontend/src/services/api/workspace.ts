@@ -137,6 +137,245 @@ export interface WorkspaceListResponse {
   items: WorkspaceSummary[]
 }
 
+export type KBFormat = 'markdown' | 'text' | 'html' | 'json' | 'yaml' | 'csv' | 'xlsx' | 'pdf' | 'docx'
+export type KBStatus = 'pending' | 'extracting' | 'indexing' | 'ready' | 'failed'
+export type KBSearchSourceKind = 'document' | 'asset'
+
+export interface KBDocumentListItem {
+  id: number
+  workspace_id: number
+  title: string
+  category: string
+  tags: string[]
+  summary: string
+  file_name: string
+  file_ext: string
+  mime_type: string
+  format: KBFormat
+  source_path: string
+  source_workspace_path: string
+  normalized_text_path: string | null
+  normalized_workspace_path: string | null
+  is_enabled: boolean
+  extract_status: KBStatus
+  sync_status: KBStatus
+  chunk_count: number
+  file_size: number
+  last_error: string | null
+  last_indexed_at: string | null
+  update_time: string
+  create_time: string
+}
+
+export interface KBDocumentListResponse {
+  total: number
+  items: KBDocumentListItem[]
+}
+
+export interface KBDocumentDetailResponse {
+  document: KBDocumentListItem
+  source_content: string | null
+  normalized_content: string | null
+}
+
+export interface KBFullTextResponse {
+  document_id: number
+  title: string
+  source_path: string
+  source_workspace_path: string | null
+  normalized_text_path: string | null
+  normalized_workspace_path: string | null
+  content: string
+  truncated: boolean
+}
+
+export interface KBSearchItem {
+  document_id: number
+  source_kind: KBSearchSourceKind
+  chunk_id: number
+  title: string
+  file_name: string
+  format: KBFormat
+  source_path: string
+  source_workspace_path: string
+  normalized_text_path: string | null
+  normalized_workspace_path: string | null
+  heading_path: string
+  category: string
+  tags: string[]
+  content_preview: string
+  score: number
+}
+
+export interface KBSearchSnippet {
+  chunk_id: number
+  heading_path: string
+  content_preview: string
+  score: number
+}
+
+export interface KBSearchDocument {
+  document_id: number
+  source_kind: KBSearchSourceKind
+  title: string
+  file_name: string
+  format: KBFormat
+  source_path: string
+  source_workspace_path: string
+  normalized_text_path: string | null
+  normalized_workspace_path: string | null
+  category: string
+  tags: string[]
+  document_score: number
+  matched_chunk_count: number
+  headings: string[]
+  best_match_excerpt: string
+  snippets: KBSearchSnippet[]
+  referenced_sources: Array<{
+    source_kind: KBSearchSourceKind
+    document_id: number
+  }>
+}
+
+export interface KBSearchResponse {
+  workspace_id: number
+  query: string
+  total: number
+  items: KBSearchItem[]
+  document_total: number
+  documents: KBSearchDocument[]
+  suggested_document_ids: number[]
+  next_action_hint: string
+  reference_expanded_items: KBSearchItem[]
+}
+
+export interface KBReferenceItem {
+  ref_id: number
+  document_id: number
+  title: string
+  category: string
+  format: KBFormat
+  summary: string
+  description: string
+  is_auto: boolean
+}
+
+export interface KBDocumentReferences {
+  references_to: KBReferenceItem[]
+  referenced_by: KBReferenceItem[]
+}
+
+export type KBAssetReferences = KBDocumentReferences
+
+export interface KBCreateTextDocumentBody {
+  title: string
+  content: string
+  source_path?: string
+  file_name?: string
+  format: 'markdown' | 'text'
+  category?: string
+  tags?: string[]
+  summary?: string
+  is_enabled?: boolean
+}
+
+export interface KBUpdateDocumentBody {
+  title?: string
+  category?: string
+  tags?: string[]
+  summary?: string
+  is_enabled?: boolean
+  source_path?: string
+  content?: string
+}
+
+export interface KBUpdateAssetBody {
+  title?: string
+  category?: string
+  tags?: string[]
+  summary?: string
+  is_enabled?: boolean
+}
+
+export interface KBSearchRequest {
+  query: string
+  limit?: number
+  max_chunks_per_document?: number
+  category?: string
+  tags?: string[]
+}
+
+export interface KBReindexResponse {
+  ok: boolean
+  total: number
+  success: number
+  failed: number
+}
+
+export interface KBUploadFilePayload {
+  file: File
+  title?: string
+  source_path?: string
+  category?: string
+  tags?: string[]
+  summary?: string
+  is_enabled?: boolean
+}
+
+export type UploadProgressCallback = (percent: number) => void
+
+export interface KBAssetBoundWorkspace {
+  workspace_id: number
+  workspace_name: string
+  workspace_status: string
+}
+
+export interface KBAssetListItem {
+  id: number
+  title: string
+  category: string
+  tags: string[]
+  summary: string
+  file_name: string
+  file_ext: string
+  mime_type: string
+  format: KBFormat
+  source_path: string
+  is_enabled: boolean
+  extract_status: KBStatus
+  sync_status: KBStatus
+  chunk_count: number
+  file_size: number
+  last_error: string | null
+  last_indexed_at: string | null
+  binding_count: number
+  bound_workspaces: KBAssetBoundWorkspace[]
+  update_time: string
+  create_time: string
+}
+
+export interface KBAssetListResponse {
+  total: number
+  items: KBAssetListItem[]
+}
+
+export interface KBAssetDetailResponse {
+  asset: KBAssetListItem
+  source_content: string | null
+  normalized_content: string | null
+}
+
+export interface KBAssetUploadResponse {
+  asset: KBAssetListItem
+  reused_existing: boolean
+}
+
+export interface KBAssetBindingsResponse {
+  asset_id: number
+  binding_count: number
+  items: KBAssetBoundWorkspace[]
+}
+
 // ── MCP 结构化类型 ──
 
 export type McpServerType = 'stdio' | 'sse' | 'http'
@@ -515,6 +754,254 @@ export const workspaceApi = {
 
   getOverviewStats: async (id: number): Promise<WorkspaceOverviewStats> => {
     const response = await axios.get<WorkspaceOverviewStats>(`/workspaces/${id}/overview-stats`)
+    return response.data
+  },
+}
+
+export const knowledgeBaseApi = {
+  list: async (workspaceId: number): Promise<KBDocumentListItem[]> => {
+    const response = await axios.get<KBDocumentListResponse>(`/workspaces/${workspaceId}/kb/documents`)
+    return response.data.items
+  },
+
+  getDocument: async (workspaceId: number, documentId: number): Promise<KBDocumentDetailResponse> => {
+    const response = await axios.get<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}`)
+    return response.data
+  },
+
+  createText: async (workspaceId: number, body: KBCreateTextDocumentBody): Promise<KBDocumentDetailResponse> => {
+    const response = await axios.post<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/documents`, body)
+    return response.data
+  },
+
+  uploadFile: async (
+    workspaceId: number,
+    payload: KBUploadFilePayload,
+    onProgress?: UploadProgressCallback,
+  ): Promise<KBDocumentDetailResponse> => {
+    const formData = new FormData()
+    formData.append('file', payload.file)
+    if (payload.title) formData.append('title', payload.title)
+    if (payload.source_path) formData.append('source_path', payload.source_path)
+    if (payload.category) formData.append('category', payload.category)
+    if (payload.tags?.length) formData.append('tags', payload.tags.join(','))
+    if (payload.summary) formData.append('summary', payload.summary)
+    formData.append('is_enabled', String(payload.is_enabled ?? true))
+    const response = await axios.post<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/files`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: event => {
+        if (!onProgress || !event.total) return
+        onProgress(Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100))))
+      },
+    })
+    return response.data
+  },
+
+  updateDocument: async (
+    workspaceId: number,
+    documentId: number,
+    body: KBUpdateDocumentBody
+  ): Promise<KBDocumentDetailResponse> => {
+    const response = await axios.put<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}`, body)
+    return response.data
+  },
+
+  deleteDocument: async (workspaceId: number, documentId: number): Promise<void> => {
+    await axios.delete(`/workspaces/${workspaceId}/kb/documents/${documentId}`)
+  },
+
+  getFulltext: async (workspaceId: number, documentId: number, maxChars = 20000): Promise<KBFullTextResponse> => {
+    const response = await axios.get<KBFullTextResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}/fulltext`, {
+      params: { max_chars: maxChars },
+    })
+    return response.data
+  },
+
+  search: async (workspaceId: number, body: KBSearchRequest): Promise<KBSearchResponse> => {
+    const response = await axios.post<KBSearchResponse>(`/workspaces/${workspaceId}/kb/search`, body)
+    return response.data
+  },
+
+  reindexDocument: async (workspaceId: number, documentId: number): Promise<KBReindexResponse> => {
+    const response = await axios.post<KBReindexResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}/reindex`)
+    return response.data
+  },
+
+  reindexAll: async (workspaceId: number): Promise<KBReindexResponse> => {
+    const response = await axios.post<KBReindexResponse>(`/workspaces/${workspaceId}/kb/reindex`)
+    return response.data
+  },
+
+  downloadRawFile: async (
+    workspaceId: number,
+    documentId: number,
+  ): Promise<{ blob: Blob; filename: string | null; contentType: string | null }> => {
+    const response = await axios.get<Blob>(`/workspaces/${workspaceId}/kb/documents/${documentId}/raw`, {
+      responseType: 'blob',
+    })
+    const disposition = response.headers['content-disposition'] as string | undefined
+    const match = disposition?.match(/filename="?([^"]+)"?/)
+    return {
+      blob: response.data,
+      filename: match?.[1] ?? null,
+      contentType: response.headers['content-type'] as string | null,
+    }
+  },
+
+  getReferences: async (workspaceId: number, documentId: number): Promise<KBDocumentReferences> => {
+    const response = await axios.get<KBDocumentReferences>(
+      `/workspaces/${workspaceId}/kb/documents/${documentId}/references`,
+    )
+    return response.data
+  },
+
+  addReference: async (
+    workspaceId: number,
+    documentId: number,
+    targetId: number,
+    description: string,
+  ): Promise<KBDocumentReferences> => {
+    const response = await axios.post<KBDocumentReferences>(
+      `/workspaces/${workspaceId}/kb/documents/${documentId}/references`,
+      { target_id: targetId, description },
+    )
+    return response.data
+  },
+
+  updateReference: async (
+    workspaceId: number,
+    documentId: number,
+    targetId: number,
+    description: string,
+  ): Promise<KBDocumentReferences> => {
+    const response = await axios.put<KBDocumentReferences>(
+      `/workspaces/${workspaceId}/kb/documents/${documentId}/references/${targetId}`,
+      { description },
+    )
+    return response.data
+  },
+
+  removeReference: async (
+    workspaceId: number,
+    documentId: number,
+    targetId: number,
+  ): Promise<KBDocumentReferences> => {
+    const response = await axios.delete<KBDocumentReferences>(
+      `/workspaces/${workspaceId}/kb/documents/${documentId}/references/${targetId}`,
+    )
+    return response.data
+  },
+}
+
+export const kbLibraryApi = {
+  list: async (): Promise<KBAssetListItem[]> => {
+    const response = await axios.get<KBAssetListResponse>('/kb-library/assets')
+    return response.data.items
+  },
+
+  getAsset: async (assetId: number): Promise<KBAssetDetailResponse> => {
+    const response = await axios.get<KBAssetDetailResponse>(`/kb-library/assets/${assetId}`)
+    return response.data
+  },
+
+  updateAsset: async (assetId: number, body: KBUpdateAssetBody): Promise<KBAssetDetailResponse> => {
+    const response = await axios.put<KBAssetDetailResponse>(`/kb-library/assets/${assetId}`, body)
+    return response.data
+  },
+
+  createText: async (body: KBCreateTextDocumentBody): Promise<KBAssetUploadResponse> => {
+    const response = await axios.post<KBAssetUploadResponse>('/kb-library/assets', body)
+    return response.data
+  },
+
+  uploadFile: async (
+    payload: KBUploadFilePayload,
+    onProgress?: UploadProgressCallback,
+  ): Promise<KBAssetUploadResponse> => {
+    const formData = new FormData()
+    formData.append('file', payload.file)
+    if (payload.title) formData.append('title', payload.title)
+    if (payload.source_path) formData.append('source_path', payload.source_path)
+    if (payload.category) formData.append('category', payload.category)
+    if (payload.summary) formData.append('summary', payload.summary)
+    if (payload.tags?.length) formData.append('tags', payload.tags.join(','))
+    formData.append('is_enabled', String(payload.is_enabled ?? true))
+
+    const response = await axios.post<KBAssetUploadResponse>('/kb-library/assets/files', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: event => {
+        if (!onProgress || !event.total) return
+        onProgress(Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100))))
+      },
+    })
+    return response.data
+  },
+
+  deleteAsset: async (assetId: number): Promise<void> => {
+    await axios.delete(`/kb-library/assets/${assetId}`)
+  },
+
+  reindexAsset: async (assetId: number): Promise<void> => {
+    await axios.post(`/kb-library/assets/${assetId}/reindex`)
+  },
+
+  getBindings: async (assetId: number): Promise<KBAssetBindingsResponse> => {
+    const response = await axios.get<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings`)
+    return response.data
+  },
+
+  updateBindings: async (assetId: number, workspaceIds: number[]): Promise<KBAssetBindingsResponse> => {
+    const response = await axios.put<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings`, {
+      workspace_ids: workspaceIds,
+    })
+    return response.data
+  },
+
+  bindWorkspace: async (assetId: number, workspaceId: number): Promise<KBAssetBindingsResponse> => {
+    const response = await axios.put<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings/${workspaceId}`)
+    return response.data
+  },
+
+  unbindWorkspace: async (assetId: number, workspaceId: number): Promise<KBAssetBindingsResponse> => {
+    const response = await axios.delete<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings/${workspaceId}`)
+    return response.data
+  },
+
+  downloadRawFile: async (assetId: number): Promise<{ blob: Blob; filename: string | null; contentType: string | null }> => {
+    const response = await axios.get<Blob>(`/kb-library/assets/${assetId}/raw`, {
+      responseType: 'blob',
+    })
+    const disposition = response.headers['content-disposition'] as string | undefined
+    const match = disposition?.match(/filename="?([^"]+)"?/)
+    return {
+      blob: response.data,
+      filename: match?.[1] ?? null,
+      contentType: response.headers['content-type'] as string | null,
+    }
+  },
+
+  getReferences: async (assetId: number): Promise<KBAssetReferences> => {
+    const response = await axios.get<KBAssetReferences>(`/kb-library/assets/${assetId}/references`)
+    return response.data
+  },
+
+  addReference: async (assetId: number, targetId: number, description: string): Promise<KBAssetReferences> => {
+    const response = await axios.post<KBAssetReferences>(`/kb-library/assets/${assetId}/references`, {
+      target_id: targetId,
+      description,
+    })
+    return response.data
+  },
+
+  updateReference: async (assetId: number, targetId: number, description: string): Promise<KBAssetReferences> => {
+    const response = await axios.put<KBAssetReferences>(`/kb-library/assets/${assetId}/references/${targetId}`, {
+      description,
+    })
+    return response.data
+  },
+
+  removeReference: async (assetId: number, targetId: number): Promise<KBAssetReferences> => {
+    const response = await axios.delete<KBAssetReferences>(`/kb-library/assets/${assetId}/references/${targetId}`)
     return response.data
   },
 }
