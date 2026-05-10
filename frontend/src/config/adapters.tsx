@@ -81,6 +81,7 @@ const ADAPTER_ICON_ASSETS: Partial<Record<string, string>> = {
   discord: discordIcon,
   sse: sseIcon,
   wechatpad: wechatIcon,
+  wechat_openilink: wechatIcon,
   telegram: telegramIcon,
   email: emailIcon,
   feishu: feishuIcon,
@@ -322,6 +323,48 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
       navIcon: <ChatIcon />,
       description: 'WeChatPad 微信适配器，支持微信消息收发和群聊管理',
       tags: ['微信', 'WeChat', '聊天', 'IM'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
+  // WeChat OpenILink 适配器配置
+  wechat_openilink: {
+    key: 'wechat_openilink',
+    visual: {
+      displayName: 'names.wechat_openilink',
+      iconText: '微信',
+      navIcon: <ChatIcon />,
+      description: '基于 OpenILink SDK 的微信适配器（MVP: 文本收发）',
+      tags: ['微信', 'OpenILink', '聊天', 'IM'],
     },
     tabs: [
       {

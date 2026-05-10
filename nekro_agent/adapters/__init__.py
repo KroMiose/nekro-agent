@@ -78,6 +78,14 @@ ADAPTER_REGISTRY: Dict[str, AdapterSpec] = {
         description="WeChatPad 微信适配器",
         tags=("wechat", "wechatpad"),
     ),
+    "wechat_openilink": AdapterSpec(
+        key="wechat_openilink",
+        adapter_path="nekro_agent.adapters.wechat_openilink.adapter.WeChatOpenILinkAdapter",
+        config_path="nekro_agent.adapters.wechat_openilink.config.WeChatOpenILinkConfig",
+        name="WeChat OpenILink",
+        description="基于 OpenILink SDK 的微信适配器",
+        tags=("wechat", "openilink"),
+    ),
     "telegram": AdapterSpec(
         key="telegram",
         adapter_path="nekro_agent.adapters.telegram.adapter.TelegramAdapter",
