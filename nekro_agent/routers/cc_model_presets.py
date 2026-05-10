@@ -42,6 +42,22 @@ class CCModelPresetTestResponse(BaseModel):
     items: list[CCModelPresetTestItem]
 
 
+class CCModelPresetInlineTestRequest(BaseModel):
+    base_url: str
+    auth_token: str
+    model: str
+    api_timeout_ms: str | None = None
+
+
+class CCModelPresetFetchModelsRequest(BaseModel):
+    base_url: str
+    auth_token: str
+
+
+class CCModelPresetFetchModelsResponse(BaseModel):
+    models: list[str]
+
+
 def _to_info(item) -> CCModelPresetInfo:
     return CCModelPresetInfo(
         id=item.id,
@@ -69,6 +85,74 @@ def _to_info(item) -> CCModelPresetInfo:
 async def list_presets(_current_user: DBUser = Depends(get_current_active_user)):
     items = cc_presets_store.list_all()
     return CCModelPresetListResponse(total=len(items), items=[_to_info(p) for p in items])
+
+
+@router.post("/test-inline", response_model=CCModelPresetTestItem)
+@require_role(Role.Admin)
+async def test_preset_inline(
+    body: CCModelPresetInlineTestRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> CCModelPresetTestItem:
+    """使用临时参数直接测试 Anthropic 模型（不需要先保存预设）。"""
+    from nekro_agent.services.agent.anthropic import test_anthropic_messages
+
+    if not body.base_url.strip():
+        return CCModelPresetTestItem(
+            preset_id=0, preset_name="inline-test", model_name=body.model,
+            success=False, latency_ms=0, error_message="Base URL 不能为空",
+        )
+    if not body.auth_token.strip():
+        return CCModelPresetTestItem(
+            preset_id=0, preset_name="inline-test", model_name=body.model,
+            success=False, latency_ms=0, error_message="Auth Token 不能为空",
+        )
+    if not body.model.strip():
+        return CCModelPresetTestItem(
+            preset_id=0, preset_name="inline-test", model_name="",
+            success=False, latency_ms=0, error_message="模型名称不能为空",
+        )
+
+    started = time.perf_counter()
+    try:
+        result = await test_anthropic_messages(
+            base_url=body.base_url,
+            auth_token=body.auth_token,
+            model=body.model.strip(),
+            api_timeout_ms=body.api_timeout_ms,
+        )
+        latency_ms = max(1, int((time.perf_counter() - started) * 1000))
+        return CCModelPresetTestItem(
+            preset_id=0, preset_name="inline-test", model_name=body.model.strip(),
+            success=True, latency_ms=latency_ms,
+            used_model=result.model, response_text=result.response_text,
+            input_tokens=result.input_tokens, output_tokens=result.output_tokens,
+        )
+    except Exception as e:
+        latency_ms = max(1, int((time.perf_counter() - started) * 1000))
+        return CCModelPresetTestItem(
+            preset_id=0, preset_name="inline-test", model_name=body.model.strip(),
+            success=False, latency_ms=latency_ms, error_message=str(e),
+        )
+
+
+@router.post("/fetch-models", response_model=CCModelPresetFetchModelsResponse)
+@require_role(Role.Admin)
+async def fetch_cc_models(
+    body: CCModelPresetFetchModelsRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> CCModelPresetFetchModelsResponse:
+    """通过 Anthropic API 拉取可用模型列表。"""
+    from nekro_agent.services.agent.anthropic import list_anthropic_models
+
+    try:
+        models = await list_anthropic_models(
+            base_url=body.base_url,
+            auth_token=body.auth_token,
+        )
+    except Exception as e:
+        raise OperationFailedError(operation="拉取 Anthropic 模型列表", detail=str(e)) from e
+
+    return CCModelPresetFetchModelsResponse(models=models)
 
 
 @router.post("/test", response_model=CCModelPresetTestResponse)

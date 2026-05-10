@@ -1,0 +1,574 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi.responses import FileResponse
+from tortoise.exceptions import IntegrityError
+from tortoise.transactions import in_transaction
+
+from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.models.db_kb_document import DBKBDocument
+from nekro_agent.models.db_user import DBUser
+from nekro_agent.models.db_workspace import DBWorkspace
+from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
+from nekro_agent.schemas.kb import (
+    KBActionResponse,
+    KBAddReferenceBody,
+    KBCreateTextDocumentBody,
+    KBDocumentDetailResponse,
+    KBDocumentListResponse,
+    KBDocumentReferences,
+    KBFullTextResponse,
+    KBReindexResponse,
+    KBSearchRequest,
+    KBSearchResponse,
+    KBSourceFileResponse,
+    KBTreeNode,
+    KBTreeResponse,
+    KBUpdateDocumentBody,
+    KBUpdateReferenceBody,
+)
+from nekro_agent.services.kb.document_service import (
+    add_document_reference,
+    create_file_document,
+    create_text_document,
+    document_to_list_item,
+    get_document,
+    get_document_references,
+    list_documents,
+    normalize_tags,
+    read_normalized_content_async,
+    read_source_content_async,
+    remove_document_reference,
+    update_document_metadata,
+)
+from nekro_agent.services.kb.index_service import (
+    cancel_rebuild_document,
+    delete_document_chunk_rows,
+    delete_document_files,
+    delete_document_vector_points,
+    ensure_kb_collection,
+    list_document_chunk_ids,
+    rebuild_workspace_documents,
+    schedule_rebuild_document,
+    sync_document_index_metadata,
+)
+from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
+from nekro_agent.services.kb.search_service import search_workspace_kb
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.perm import Role, require_role
+from nekro_agent.services.workspace.manager import WorkspaceService
+
+router = APIRouter(prefix="/workspaces", tags=["Workspace Knowledge Base"])
+logger = get_sub_logger("kb.workspace_router")
+
+ALLOWED_KB_EXTENSIONS = {".md", ".txt", ".html", ".htm", ".json", ".yaml", ".yml", ".csv", ".xlsx", ".pdf", ".docx"}
+KB_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
+
+def _is_document_index_ready(document: DBKBDocument) -> bool:
+    return bool(document.extract_status == "ready" and document.sync_status == "ready")
+
+
+async def _get_workspace_or_404(workspace_id: int) -> DBWorkspace:
+    workspace = await DBWorkspace.get_or_none(id=workspace_id)
+    if workspace is None:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    return workspace
+
+
+async def _get_document_or_404(workspace_id: int, document_id: int) -> DBKBDocument:
+    document = await get_document(workspace_id, document_id)
+    if document is None:
+        raise NotFoundError(resource=f"知识库文档 {document_id}")
+    return document
+
+
+def _parse_tags_text(raw_tags: str) -> list[str]:
+    if not raw_tags.strip():
+        return []
+    return normalize_tags([item for item in raw_tags.split(",")])
+
+
+def _build_tree_nodes(paths: list[tuple[int, str]]) -> list[KBTreeNode]:
+    root: dict[str, dict] = {}
+
+    for document_id, raw_path in paths:
+        parts = [part for part in raw_path.split("/") if part]
+        current = root
+        rel_parts: list[str] = []
+        for index, part in enumerate(parts):
+            rel_parts.append(part)
+            is_last = index == len(parts) - 1
+            if part not in current:
+                current[part] = {
+                    "name": part,
+                    "path": "/".join(rel_parts),
+                    "type": "file" if is_last else "dir",
+                    "document_id": document_id if is_last else None,
+                    "children": {},
+                }
+            else:
+                # 已有节点：如果当前层不是最后一层，说明该节点需要作为目录使用
+                if not is_last and current[part]["type"] == "file":
+                    current[part]["type"] = "dir"
+            current = current[part]["children"]
+
+    def _convert(tree: dict[str, dict]) -> list[KBTreeNode]:
+        nodes: list[KBTreeNode] = []
+        for key in sorted(tree.keys()):
+            value = tree[key]
+            children = _convert(value["children"]) if value["children"] else None
+            nodes.append(
+                KBTreeNode(
+                    name=value["name"],
+                    path=value["path"],
+                    type=value["type"],
+                    document_id=value["document_id"],
+                    children=children,
+                )
+            )
+        return nodes
+
+    return _convert(root)
+
+
+@router.get("/{workspace_id}/kb/documents", summary="获取工作区知识库文档列表", response_model=KBDocumentListResponse)
+@require_role(Role.Admin)
+async def list_workspace_kb_documents(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentListResponse:
+    await _get_workspace_or_404(workspace_id)
+    documents = await list_documents(workspace_id)
+    items = [document_to_list_item(document) for document in documents]
+    return KBDocumentListResponse(total=len(items), items=items)
+
+
+@router.get("/{workspace_id}/kb/tree", summary="获取工作区知识库目录树", response_model=KBTreeResponse)
+@require_role(Role.Admin)
+async def get_workspace_kb_tree(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBTreeResponse:
+    await _get_workspace_or_404(workspace_id)
+    documents = await list_documents(workspace_id)
+    return KBTreeResponse(nodes=_build_tree_nodes([(document.id, document.source_path) for document in documents]))
+
+
+@router.get(
+    "/{workspace_id}/kb/documents/{document_id}", summary="获取知识库文档详情", response_model=KBDocumentDetailResponse
+)
+@require_role(Role.Admin)
+async def get_workspace_kb_document(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentDetailResponse:
+    document = await _get_document_or_404(workspace_id, document_id)
+    source_content = (
+        await read_source_content_async(document)
+        if document.format in {"markdown", "text", "html", "json", "yaml", "csv"}
+        else None
+    )
+    normalized_content = await read_normalized_content_async(document) if _is_document_index_ready(document) else ""
+    return KBDocumentDetailResponse(
+        document=document_to_list_item(document),
+        source_content=source_content,
+        normalized_content=normalized_content or None,
+    )
+
+
+@router.post("/{workspace_id}/kb/documents", summary="创建文本类知识库文档", response_model=KBDocumentDetailResponse)
+@require_role(Role.Admin)
+async def create_workspace_kb_document(
+    workspace_id: int,
+    body: KBCreateTextDocumentBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentDetailResponse:
+    await _get_workspace_or_404(workspace_id)
+    if body.format not in {"markdown", "text"}:
+        raise ValidationError(reason="仅支持创建 markdown 或 text 类型的文本知识")
+    await ensure_kb_collection()
+    try:
+        document = await create_text_document(
+            workspace_id=workspace_id,
+            title=body.title,
+            content=body.content,
+            source_path=body.source_path,
+            file_name=body.file_name,
+            format=body.format,
+            category=body.category,
+            tags=body.tags,
+            summary=body.summary,
+            is_enabled=body.is_enabled,
+        )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"知识库路径 '{e}'") from e
+    except IntegrityError as e:
+        raise ConflictError(resource=f"知识库路径 '{body.source_path or body.file_name}'") from e
+    except ValueError as e:
+        raise ValidationError(reason=str(e)) from e
+
+    refreshed = await _get_document_or_404(workspace_id, document.id)
+    await schedule_rebuild_document(refreshed)
+    return KBDocumentDetailResponse(
+        document=document_to_list_item(refreshed),
+        source_content=await read_source_content_async(refreshed),
+        normalized_content=None,
+    )
+
+
+@router.post("/{workspace_id}/kb/files", summary="上传多格式知识库文件", response_model=KBDocumentDetailResponse)
+@require_role(Role.Admin)
+async def upload_workspace_kb_file(
+    workspace_id: int,
+    file: UploadFile = File(...),
+    title: str = Form(default=""),
+    source_path: str = Form(default=""),
+    category: str = Form(default=""),
+    tags: str = Form(default=""),
+    summary: str = Form(default=""),
+    is_enabled: bool = Form(default=True),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentDetailResponse:
+    await _get_workspace_or_404(workspace_id)
+    file_name = file.filename or ""
+    if Path(file_name).suffix.lower() not in ALLOWED_KB_EXTENSIONS:
+        raise ValidationError(reason=f"暂不支持的知识库文件类型: {file_name or 'unknown'}")
+    if file.size is not None and file.size > KB_MAX_UPLOAD_SIZE:
+        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+    # 当 Content-Length 缺失时 file.size 为 None，读取后在 service 层无二次检查，
+    # 此处先读取内容做大小校验（SpooledTemporaryFile seek 回起点后 service 层可正常重读）
+    if file.size is None:
+        content_bytes = await file.read()
+        if len(content_bytes) > KB_MAX_UPLOAD_SIZE:
+            raise ValidationError(reason=f"文件大小超出限制（最大 {KB_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+        await file.seek(0)
+    await ensure_kb_collection()
+    try:
+        document = await create_file_document(
+            workspace_id=workspace_id,
+            upload_file=file,
+            source_path=source_path,
+            title=title,
+            category=category,
+            tags=_parse_tags_text(tags),
+            summary=summary,
+            is_enabled=is_enabled,
+        )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"知识库路径 '{e}'") from e
+    except IntegrityError as e:
+        raise ConflictError(resource=f"知识库路径 '{source_path or file_name}'") from e
+    except ValueError as e:
+        raise ValidationError(reason=str(e)) from e
+
+    refreshed = await _get_document_or_404(workspace_id, document.id)
+    await schedule_rebuild_document(refreshed)
+    return KBDocumentDetailResponse(
+        document=document_to_list_item(refreshed),
+        source_content=await read_source_content_async(refreshed)
+        if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
+        else None,
+        normalized_content=None,
+    )
+
+
+@router.put(
+    "/{workspace_id}/kb/documents/{document_id}", summary="更新知识库文档", response_model=KBDocumentDetailResponse
+)
+@require_role(Role.Admin)
+async def update_workspace_kb_document(
+    workspace_id: int,
+    document_id: int,
+    body: KBUpdateDocumentBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentDetailResponse:
+    document = await _get_document_or_404(workspace_id, document_id)
+    original_source_path = document.source_path
+    try:
+        updated = await update_document_metadata(
+            document,
+            title=body.title,
+            category=body.category,
+            tags=body.tags,
+            summary=body.summary,
+            is_enabled=body.is_enabled,
+            source_path=body.source_path,
+            content=body.content,
+        )
+    except FileExistsError as e:
+        raise ConflictError(resource=f"知识库路径 '{e}'") from e
+    except IntegrityError as e:
+        raise ConflictError(resource=f"知识库路径 '{body.source_path}'") from e
+    except ValueError as e:
+        raise ValidationError(reason=str(e)) from e
+
+    source_path_changed = body.source_path is not None and bool(body.source_path.strip()) and updated.source_path != original_source_path
+    content_changed = body.content is not None
+    metadata_changed = body.category is not None or body.tags is not None or body.is_enabled is not None
+    reference_changed = body.title is not None or body.category is not None or body.is_enabled is not None
+
+    if content_changed or source_path_changed:
+        await schedule_rebuild_document(updated)
+    else:
+        if metadata_changed:
+            await sync_document_index_metadata(updated)
+        if reference_changed:
+            await detect_and_sync_document_references(workspace_id, document_id)
+
+    refreshed = await _get_document_or_404(workspace_id, document_id)
+    return KBDocumentDetailResponse(
+        document=document_to_list_item(refreshed),
+        source_content=await read_source_content_async(refreshed)
+        if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
+        else None,
+        normalized_content=await read_normalized_content_async(refreshed) if _is_document_index_ready(refreshed) else None,
+    )
+
+
+@router.delete("/{workspace_id}/kb/documents/{document_id}", summary="删除知识库文档", response_model=KBActionResponse)
+@require_role(Role.Admin)
+async def delete_workspace_kb_document(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBActionResponse:
+    from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
+
+    document = await _get_document_or_404(workspace_id, document_id)
+    await cancel_rebuild_document(document.id)
+    chunk_ids = await list_document_chunk_ids(document.id)
+
+    async with in_transaction() as db:
+        await DBKBDocumentReference.filter(source_document_id=document_id).using_db(db).delete()
+        await DBKBDocumentReference.filter(target_document_id=document_id).using_db(db).delete()
+        await delete_document_chunk_rows(document.id, using_db=db)
+        await document.delete(using_db=db)
+
+    cleanup_warnings: list[str] = []
+    try:
+        await delete_document_vector_points(chunk_ids)
+    except Exception as e:
+        logger.warning(f"删除知识库文档向量索引失败: document_id={document_id}, error={e}")
+        cleanup_warnings.append("vector_index")
+    try:
+        await delete_document_files(document)
+    except Exception as e:
+        logger.warning(f"删除知识库文档文件失败: document_id={document_id}, error={e}")
+        cleanup_warnings.append("files")
+
+    return KBActionResponse(
+        ok=True,
+        message="文档记录已删除，但部分外部资源清理失败" if cleanup_warnings else None,
+    )
+
+
+@router.get("/{workspace_id}/kb/documents/{document_id}/raw", summary="下载知识库原始文件")
+@require_role(Role.Admin)
+async def get_workspace_kb_raw_file(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
+    document = await _get_document_or_404(workspace_id, document_id)
+    source_file = WorkspaceService.resolve_kb_source_path(workspace_id, document.source_path)
+    if not source_file.exists():
+        raise NotFoundError(resource=f"知识库源文件 {document.source_path}")
+    return FileResponse(source_file, media_type=document.mime_type, filename=document.file_name)
+
+
+@router.get(
+    "/{workspace_id}/kb/documents/{document_id}/fulltext",
+    summary="获取知识库规范化全文",
+    response_model=KBFullTextResponse,
+)
+@require_role(Role.Admin)
+async def get_workspace_kb_fulltext(
+    workspace_id: int,
+    document_id: int,
+    max_chars: int = Query(default=20000, ge=200, le=200000),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBFullTextResponse:
+    document = await _get_document_or_404(workspace_id, document_id)
+    if not _is_document_index_ready(document):
+        raise ValidationError(reason="知识库规范化全文尚未就绪，请等待索引完成后再读取")
+    content = await read_normalized_content_async(document)
+    truncated = len(content) > max_chars
+    if truncated:
+        content = content[:max_chars]
+    return KBFullTextResponse(
+        document_id=document.id,
+        title=document.title,
+        source_path=document.source_path,
+        source_workspace_path=WorkspaceService.get_kb_source_workspace_path(document.source_path),
+        normalized_text_path=document.normalized_text_path,
+        normalized_workspace_path=(
+            WorkspaceService.get_kb_normalized_workspace_path(document.normalized_text_path)
+            if document.normalized_text_path
+            else None
+        ),
+        content=content,
+        truncated=truncated,
+    )
+
+
+@router.post(
+    "/{workspace_id}/kb/documents/{document_id}/reindex",
+    summary="重建单个知识库文档索引",
+    response_model=KBReindexResponse,
+)
+@require_role(Role.Admin)
+async def reindex_workspace_kb_document(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBReindexResponse:
+    await ensure_kb_collection()
+    document = await _get_document_or_404(workspace_id, document_id)
+    scheduled = await schedule_rebuild_document(document)
+    return KBReindexResponse(ok=True, total=1, success=1 if scheduled else 0, failed=0)
+
+
+@router.post("/{workspace_id}/kb/reindex", summary="重建工作区知识库索引", response_model=KBReindexResponse)
+@require_role(Role.Admin)
+async def reindex_workspace_kb(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBReindexResponse:
+    await _get_workspace_or_404(workspace_id)
+    await ensure_kb_collection()
+    scheduled, skipped = await rebuild_workspace_documents(workspace_id)
+    return KBReindexResponse(ok=True, total=scheduled + skipped, success=scheduled, failed=0)
+
+
+@router.post("/{workspace_id}/kb/search", summary="搜索工作区知识库", response_model=KBSearchResponse)
+@require_role(Role.Admin)
+async def search_workspace_kb_route(
+    workspace_id: int,
+    body: KBSearchRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBSearchResponse:
+    await _get_workspace_or_404(workspace_id)
+    return await search_workspace_kb(
+        workspace_id=workspace_id,
+        query=body.query,
+        limit=body.limit,
+        max_chunks_per_document=body.max_chunks_per_document,
+        category=body.category,
+        tags=body.tags,
+    )
+
+
+@router.get(
+    "/{workspace_id}/kb/documents/{document_id}/references",
+    summary="获取文档引用关系（双向）",
+    response_model=KBDocumentReferences,
+)
+@require_role(Role.Admin)
+async def get_document_references_route(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentReferences:
+    await _get_document_or_404(workspace_id, document_id)
+    return await get_document_references(workspace_id, document_id)
+
+
+@router.post(
+    "/{workspace_id}/kb/documents/{document_id}/references",
+    summary="添加文档引用关系",
+    response_model=KBDocumentReferences,
+)
+@require_role(Role.Admin)
+async def add_document_reference_route(
+    workspace_id: int,
+    document_id: int,
+    body: KBAddReferenceBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentReferences:
+    await _get_document_or_404(workspace_id, document_id)
+    await _get_document_or_404(workspace_id, body.target_id)
+    try:
+        await add_document_reference(
+            workspace_id=workspace_id,
+            source_document_id=document_id,
+            target_document_id=body.target_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    except IntegrityError as e:
+        raise ConflictError("该引用关系已存在") from e
+    return await get_document_references(workspace_id, document_id)
+
+
+@router.put(
+    "/{workspace_id}/kb/documents/{document_id}/references/{target_id}",
+    summary="更新文档引用说明",
+    response_model=KBDocumentReferences,
+)
+@require_role(Role.Admin)
+async def update_document_reference_route(
+    workspace_id: int,
+    document_id: int,
+    target_id: int,
+    body: KBUpdateReferenceBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentReferences:
+    await _get_document_or_404(workspace_id, document_id)
+    await _get_document_or_404(workspace_id, target_id)
+    try:
+        await add_document_reference(
+            workspace_id=workspace_id,
+            source_document_id=document_id,
+            target_document_id=target_id,
+            description=body.description,
+        )
+    except ValueError as e:
+        raise ValidationError(str(e)) from e
+    return await get_document_references(workspace_id, document_id)
+
+
+@router.delete(
+    "/{workspace_id}/kb/documents/{document_id}/references/{target_id}",
+    summary="删除文档引用关系",
+    response_model=KBDocumentReferences,
+)
+@require_role(Role.Admin)
+async def remove_document_reference_route(
+    workspace_id: int,
+    document_id: int,
+    target_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBDocumentReferences:
+    await _get_document_or_404(workspace_id, document_id)
+    await remove_document_reference(
+        workspace_id=workspace_id,
+        source_document_id=document_id,
+        target_document_id=target_id,
+    )
+    return await get_document_references(workspace_id, document_id)
+
+
+@router.get(
+    "/{workspace_id}/kb/documents/{document_id}/source-file",
+    summary="获取源文件路径信息",
+    response_model=KBSourceFileResponse,
+)
+@require_role(Role.Admin)
+async def get_workspace_kb_source_file_info(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBSourceFileResponse:
+    document = await _get_document_or_404(workspace_id, document_id)
+    return KBSourceFileResponse(
+        document_id=document.id,
+        title=document.title,
+        source_path=document.source_path,
+        source_workspace_path=WorkspaceService.get_kb_source_workspace_path(document.source_path),
+        sandbox_file_path=None,
+    )

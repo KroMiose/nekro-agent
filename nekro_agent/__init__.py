@@ -57,6 +57,50 @@ async def _init_memory_scheduler() -> None:
     await memory_scheduler.start()
 
 
+async def _init_kb_collection() -> None:
+    """初始化知识库向量 Collection（工作区 + 全局）。"""
+    try:
+        from nekro_agent.services.kb.index_service import ensure_kb_collection
+
+        await ensure_kb_collection()
+    except Exception as e:
+        logger.warning(f"知识库 Qdrant Collection 初始化失败（可能 Qdrant 未启用）: {e}")
+
+    try:
+        from nekro_agent.services.kb.library_index_service import ensure_kb_library_collection
+
+        await ensure_kb_library_collection()
+    except Exception as e:
+        logger.warning(f"全局知识库 Qdrant Collection 初始化失败（可能 Qdrant 未启用）: {e}")
+
+
+async def _recover_stale_kb_tasks() -> None:
+    """恢复因服务重启而卡在非终态的知识库文档/资产，重新调度索引。"""
+    try:
+        from nekro_agent.models.db_kb_asset import DBKBAsset
+        from nekro_agent.models.db_kb_document import DBKBDocument
+        from nekro_agent.services.kb.index_service import schedule_rebuild_document
+        from nekro_agent.services.kb.library_index_service import schedule_rebuild_asset
+
+        stale_statuses = ["extracting", "indexing", "pending"]
+
+        stale_docs = await DBKBDocument.filter(sync_status__in=stale_statuses).exclude(extract_status="failed").all()
+        for doc in stale_docs:
+            logger.info(f"恢复非终态知识库文档索引: document_id={doc.id}, status={doc.sync_status}")
+            await schedule_rebuild_document(doc)
+
+        stale_assets = await DBKBAsset.filter(sync_status__in=stale_statuses).exclude(extract_status="failed").all()
+        for asset in stale_assets:
+            logger.info(f"恢复非终态全局知识库资产索引: asset_id={asset.id}, status={asset.sync_status}")
+            await schedule_rebuild_asset(asset)
+
+        total = len(stale_docs) + len(stale_assets)
+        if total:
+            logger.info(f"共恢复 {total} 个非终态知识库索引任务（文档 {len(stale_docs)}，资产 {len(stale_assets)}）")
+    except Exception as e:
+        logger.warning(f"恢复非终态知识库索引任务失败: {e}")
+
+
 class _Config(BaseModel):
     pass
 
@@ -133,6 +177,13 @@ if _driver is not None:
         # 初始化记忆调度器
         await _init_memory_scheduler()
         logger.info("Memory scheduler initialized")
+
+        # 初始化知识库 Collection
+        await _init_kb_collection()
+        logger.info("Knowledge base collection initialized")
+
+        # 恢复因重启而卡在非终态的知识库索引任务
+        await _recover_stale_kb_tasks()
 
         # 遥测任务
         start_telemetry_task()

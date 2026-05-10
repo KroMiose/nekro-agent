@@ -1682,6 +1682,7 @@ export default function ConfigTable({
                 disabled={!hasUnsavedChanges}
               >
                 {t('configTable.saveChanges')}
+                {dirtyKeys.size > 0 && ` (${dirtyKeys.size})`}
               </Button>
               <Button
                 variant="outlined"

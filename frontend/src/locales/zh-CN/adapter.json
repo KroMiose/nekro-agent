@@ -12,7 +12,7 @@
     "statusAll": "全部状态",
     "emptyTitle": "没有符合条件的适配器",
     "emptyDescription": "调整搜索词或状态筛选后再试。",
-    "open": "进入适配器",
+    "open": "配置",
     "configClass": "配置类",
     "ruleCount": "频道规则",
     "rules": "{{count}} 条",

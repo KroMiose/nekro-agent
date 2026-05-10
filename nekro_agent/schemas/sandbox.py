@@ -20,11 +20,14 @@ class SandboxCodeExtData(BaseModel):
     generation_time_ms: int
     stream_mode: bool
     log_path: str = ""
+    llm_retry_count: int = 0
+    llm_retry_errors: list[str] = []
 
     @classmethod
     def create_from_llm_response(
         cls,
         llm_response: OpenAIResponse,
+        llm_retry_errors: list[str] | None = None,
     ) -> "SandboxCodeExtData":
         speed_chars_per_second = (
             len(llm_response.response_content) / (llm_response.generation_time_ms / 1000)
@@ -64,6 +67,8 @@ class SandboxCodeExtData(BaseModel):
             generation_time_ms=llm_response.generation_time_ms,
             stream_mode=llm_response.stream_mode,
             log_path=str(llm_response.log_path) if llm_response.log_path else "",
+            llm_retry_count=len(llm_retry_errors) if llm_retry_errors else 0,
+            llm_retry_errors=llm_retry_errors or [],
         )
 
     def model_dump_json(self) -> str:

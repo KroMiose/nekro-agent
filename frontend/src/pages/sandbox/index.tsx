@@ -57,6 +57,7 @@ import {
   Analytics as AnalyticsIcon,
   SmartToy as SmartToyIcon,
   Percent as PercentIcon,
+  ErrorOutline as ErrorOutlineIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -1007,12 +1008,18 @@ export default function SandboxPage() {
                         >
                           <Tooltip title={log.chat_key} placement="top" arrow>
                             <Typography
+                              component="span"
                               variant="body2"
-                              onClick={() => handleOpenChannel(log.chat_key)}
+                              onClick={e => {
+                                e.stopPropagation()
+                                handleOpenChannel(log.chat_key)
+                              }}
                               sx={{
                                 fontSize: isSmall ? '0.65rem' : '0.75rem',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
+                                display: 'inline-block',
+                                maxWidth: '100%',
                                 color: 'primary.main',
                                 textDecoration: 'underline',
                                 textDecorationStyle: 'dotted',
@@ -1032,25 +1039,58 @@ export default function SandboxPage() {
                             ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
                           }}
                         >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontSize: isSmall ? '0.7rem' : '0.875rem',
-                              overflow: 'hidden',
-                              textOverflow: isMobile ? 'clip' : 'ellipsis',
-                              whiteSpace: isMobile ? 'normal' : 'nowrap',
-                              wordBreak: isMobile ? 'break-word' : 'normal',
-                              maxWidth: '100%',
-                              fontFamily: 'monospace',
-                              lineHeight: isMobile ? 1.2 : 'normal',
-                              display: '-webkit-box',
-                              WebkitLineClamp: isMobile ? 3 : 1,
-                              WebkitBoxOrient: 'vertical',
-                              pr: isMobile ? 0.5 : 0,
-                            }}
-                          >
-                            {log.use_model || t('table.unknown')}
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontSize: isSmall ? '0.7rem' : '0.875rem',
+                                overflow: 'hidden',
+                                textOverflow: isMobile ? 'clip' : 'ellipsis',
+                                whiteSpace: isMobile ? 'normal' : 'nowrap',
+                                wordBreak: isMobile ? 'break-word' : 'normal',
+                                maxWidth: '100%',
+                                fontFamily: 'monospace',
+                                lineHeight: isMobile ? 1.2 : 'normal',
+                                display: '-webkit-box',
+                                WebkitLineClamp: isMobile ? 3 : 1,
+                                WebkitBoxOrient: 'vertical',
+                                pr: isMobile ? 0.5 : 0,
+                              }}
+                            >
+                              {log.use_model || t('table.unknown')}
+                            </Typography>
+                            {extraData && extraData.llm_retry_count > 0 && (
+                              <Tooltip
+                                title={t('detail.retryCount', { count: extraData.llm_retry_count })}
+                                arrow
+                              >
+                                <Chip
+                                  icon={<ErrorOutlineIcon sx={{ fontSize: '0.8rem !important' }} />}
+                                  label={extraData.llm_retry_count}
+                                  size="small"
+                                  sx={{
+                                    height: 18,
+                                    minWidth: 'auto',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 600,
+                                    flexShrink: 0,
+                                    color: 'warning.main',
+                                    borderColor: theme => alpha(theme.palette.warning.main, 0.3),
+                                    bgcolor: theme => alpha(theme.palette.warning.main, 0.08),
+                                    '& .MuiChip-icon': {
+                                      color: 'warning.main',
+                                      ml: '2px',
+                                      mr: '-2px',
+                                    },
+                                    '& .MuiChip-label': {
+                                      px: '4px',
+                                    },
+                                  }}
+                                  variant="outlined"
+                                />
+                              </Tooltip>
+                            )}
+                          </Box>
                         </TableCell>
                         <TableCell
                           sx={{
@@ -1220,6 +1260,67 @@ export default function SandboxPage() {
                                     </Box>
                                   </Paper>
                                 </Box>
+                              )}
+
+                              {/* LLM 重试错误 */}
+                              {extraData && extraData.llm_retry_count > 0 && extraData.llm_retry_errors?.length > 0 && (
+                                <Alert
+                                  severity="warning"
+                                  variant="outlined"
+                                  icon={<ErrorOutlineIcon fontSize={isSmall ? 'small' : 'medium'} />}
+                                  sx={{
+                                    mb: 3,
+                                    '& .MuiAlert-message': {
+                                      width: '100%',
+                                      overflow: 'hidden',
+                                    },
+                                  }}
+                                >
+                                  <Typography
+                                    variant={isSmall ? 'subtitle2' : 'subtitle1'}
+                                    sx={{ fontWeight: 600, mb: 1 }}
+                                  >
+                                    {t('detail.retryErrors')}
+                                    <Typography
+                                      component="span"
+                                      color="text.secondary"
+                                      sx={{ ml: 1, fontSize: '0.85em', fontWeight: 400 }}
+                                    >
+                                      ({t('detail.retryCount', { count: extraData.llm_retry_count })})
+                                    </Typography>
+                                  </Typography>
+                                  <Stack spacing={0.75} sx={{ width: '100%' }}>
+                                    {extraData.llm_retry_errors.map((err, idx) => (
+                                      <Box
+                                        key={idx}
+                                        sx={{
+                                          pl: 1.5,
+                                          borderLeft: 2,
+                                          borderColor: 'warning.main',
+                                        }}
+                                      >
+                                        <Typography
+                                          variant="caption"
+                                          color="text.secondary"
+                                          sx={{ fontWeight: 600 }}
+                                        >
+                                          {t('detail.retryErrorItem', { index: idx + 1 })}
+                                        </Typography>
+                                        <Typography
+                                          variant="body2"
+                                          sx={{
+                                            wordBreak: 'break-word',
+                                            whiteSpace: 'pre-wrap',
+                                            fontSize: isSmall ? '0.75rem' : '0.8125rem',
+                                            fontFamily: 'monospace',
+                                          }}
+                                        >
+                                          {err}
+                                        </Typography>
+                                      </Box>
+                                    ))}
+                                  </Stack>
+                                </Alert>
                               )}
 
                               {/* 执行代码 */}

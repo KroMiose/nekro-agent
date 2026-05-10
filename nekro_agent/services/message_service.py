@@ -25,7 +25,7 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegmentType,
     convert_agent_message_to_prompt,
 )
-from nekro_agent.schemas.chat_message import ChatMessage, ChatType
+from nekro_agent.schemas.chat_message import ChatMessage, ChatMessageSegmentType, ChatType
 from nekro_agent.schemas.errors import AdapterUnavailableError
 from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.channel_broadcaster import channel_broadcaster
@@ -379,6 +379,14 @@ class MessageService:
         content_triggered = check_content_trigger(message.content_text, config)
         should_trigger = explicit_triggered or random_triggered or content_triggered
         should_notify_quota_exhausted = explicit_triggered or content_triggered
+
+        # 纯媒体消息（无文本内容）不触发 AI 回复，仅记录
+        _MEDIA_TYPES = {"file", "image", "voice", "video"}
+        _MEDIA_OR_AT_TYPES = _MEDIA_TYPES | {"at"}
+        if should_trigger and all(seg.type in _MEDIA_OR_AT_TYPES for seg in message.content_data):
+            if any(seg.type in _MEDIA_TYPES for seg in message.content_data):
+                logger.info(f"纯媒体消息，仅记录不触发: {message.content_text[:32]}...")
+                should_trigger = False
 
         if not should_ignore and should_trigger:
             if not db_chat_channel.is_active:
