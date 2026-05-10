@@ -46,6 +46,7 @@
   },
   "tabs": {
     "home": "Home",
+    "login": "Login",
     "config": "Config",
     "overrides": "Overrides",
     "advanced": "Advanced",
@@ -89,6 +90,41 @@
     "goToNapcat": "Go to NapCat",
     "cannotGetAddress": "Cannot get NapCat access address",
     "serviceNotRunning": "NapCat service is not running"
+  },
+  "openilinkLogin": {
+    "title": "WeChat QR Login",
+    "description": "Scan the QR code with WeChat and confirm on your phone so the OpenILink adapter can start sending and receiving messages.",
+    "loading": "Loading",
+    "unknownAccount": "Current account",
+    "loggedInMessage": "Logged in as {{name}}",
+    "waitingQr": "Waiting for OpenILink to generate a login QR code. Make sure the adapter is enabled and starting.",
+    "noQrLoggedIn": "The account is already logged in. No scan is required.",
+    "copyLink": "Copy login link",
+    "openLink": "Open login link",
+    "copySuccess": "Login link copied to clipboard",
+    "copyFailed": "Copy failed, please copy manually",
+    "states": {
+      "idle": "Not started",
+      "waiting": "Waiting for QR",
+      "qr": "Waiting for scan",
+      "scanned": "Scanned",
+      "expired": "Expired",
+      "error": "Login error",
+      "logged_in": "Logged in",
+      "stopped": "Stopped",
+      "unavailable": "Unavailable",
+      "unknown": "Unknown"
+    },
+    "messages": {
+      "idle": "The adapter has not started the login flow yet.",
+      "waiting": "Waiting for the QR code to be generated.",
+      "qr": "Scan the QR code below with WeChat.",
+      "scanned": "Scanned. Confirm login on your phone.",
+      "expired": "The QR code has expired. Wait for the adapter to refresh it.",
+      "error": "An error occurred during login.",
+      "stopped": "The adapter is stopped. Enable it and restart the service.",
+      "unavailable": "The adapter instance is currently unavailable."
+    }
   },
   "logs": {
     "restarting": "Restarting container...",

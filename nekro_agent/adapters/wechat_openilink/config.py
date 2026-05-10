@@ -50,34 +50,6 @@ class WeChatOpenILinkConfig(BaseAdapterConfig):
         ).model_dump(),
     )
 
-    TREAT_PRIVATE_AS_TOME: bool = Field(
-        default=True,
-        title="私聊默认触发",
-        description="私聊消息是否默认视为 @ 机器人并触发 AI",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(zh_CN="交互", en_US="Interaction"),
-            i18n_title=i18n_text(zh_CN="私聊默认触发", en_US="Treat Private as To-Me"),
-            i18n_description=i18n_text(
-                zh_CN="私聊消息是否默认视为 @ 机器人并触发 AI",
-                en_US="Whether private messages should be treated as to-me by default.",
-            ),
-        ).model_dump(),
-    )
-
-    GROUP_REQUIRE_MENTION: bool = Field(
-        default=True,
-        title="群聊仅 @ 触发",
-        description="群聊消息仅在识别到 @ 机器人时触发 AI",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(zh_CN="交互", en_US="Interaction"),
-            i18n_title=i18n_text(zh_CN="群聊仅 @ 触发", en_US="Group Requires Mention"),
-            i18n_description=i18n_text(
-                zh_CN="群聊消息仅在识别到 @ 机器人时触发 AI",
-                en_US="Only trigger AI in group chats when the bot is mentioned.",
-            ),
-        ).model_dump(),
-    )
-
     DEDUP_WINDOW_SECONDS: int = Field(
         default=120,
         title="消息去重窗口",

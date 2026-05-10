@@ -181,9 +181,6 @@ class OpenILinkMessageProcessor:
 
     def _is_tome(self, *, raw_message: Any, text: str, is_group: bool) -> bool:
         if not is_group:
-            return self.config.TREAT_PRIVATE_AS_TOME
-
-        if not self.config.GROUP_REQUIRE_MENTION:
             return True
 
         mention_flag = bool(self._get_raw_field(raw_message, "is_mention_bot"))

@@ -16,6 +16,7 @@ import {
   QuestionAnswer as QuestionAnswerIcon,
   Chat as ChatIcon,
   Send as SendIcon,
+  QrCode2 as QrCodeIcon,
   Email as EmailIcon,
 } from '@mui/icons-material'
 import i18next from './i18n'
@@ -40,6 +41,7 @@ import AdapterAdvancedPage from '../pages/adapter/AdapterAdvancedPage'
 import AdapterOverrideConfigPage from '../pages/adapter/AdapterOverrideConfigPage'
 import OneBotV11NapCatPage from '../pages/adapter/onebot_v11/napcat'
 import OneBotV11LogsPage from '../pages/adapter/onebot_v11/logs'
+import WechatOpenILinkLoginPage from '../pages/adapter/wechat_openilink/login'
 import EmailsPage from '../pages/adapter/email/emails'
 
 export interface AdapterTabConfig {
@@ -373,6 +375,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.login',
+        value: 'login',
+        icon: <QrCodeIcon fontSize="small" />,
+        path: 'login',
+        component: <WechatOpenILinkLoginPage />,
       },
       {
         label: 'tabs.config',

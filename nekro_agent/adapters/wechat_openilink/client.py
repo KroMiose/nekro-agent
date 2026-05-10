@@ -1,4 +1,5 @@
 import asyncio
+import time
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
@@ -18,6 +19,10 @@ class WeChatOpenILinkClient:
         self._running = False
         self._self_user_id = ""
         self._self_user_name = ""
+        self._login_state = "idle"
+        self._login_url = ""
+        self._login_error = ""
+        self._login_updated_at = 0.0
 
     @property
     def is_running(self) -> bool:
@@ -31,6 +36,33 @@ class WeChatOpenILinkClient:
     def self_user_name(self) -> str:
         return self._self_user_name
 
+    def get_login_status(self) -> dict[str, Any]:
+        return {
+            "state": self._login_state,
+            "logged_in": self._login_state == "logged_in",
+            "login_url": self._login_url or None,
+            "error_message": self._login_error or None,
+            "updated_at": self._login_updated_at or None,
+            "self_user_id": self._self_user_id or None,
+            "self_user_name": self._self_user_name or None,
+        }
+
+    def _set_login_state(
+        self,
+        state: str,
+        *,
+        login_url: str | None = None,
+        error_message: str | None = None,
+        clear_url: bool = False,
+    ) -> None:
+        self._login_state = state
+        if login_url is not None:
+            self._login_url = login_url
+        elif clear_url:
+            self._login_url = ""
+        self._login_error = error_message or ""
+        self._login_updated_at = time.time()
+
     async def start(self, on_message: Callable[[Any], Awaitable[Any]]) -> None:
         if self._running:
             return
@@ -43,10 +75,12 @@ class WeChatOpenILinkClient:
             await on_message(message)
 
         self._running = True
+        self._set_login_state("waiting")
         self._login_task = asyncio.create_task(self._login_and_start_polling())
 
     async def stop(self) -> None:
         self._running = False
+        self._set_login_state("stopped", clear_url=True)
 
         if self._login_task and not self._login_task.done():
             self._login_task.cancel()
@@ -165,14 +199,17 @@ class WeChatOpenILinkClient:
 
             await login_task
             self._refresh_self_info_from_client()
+            self._set_login_state("logged_in", clear_url=True)
             self._polling_task = asyncio.create_task(self._run_polling())
         except asyncio.CancelledError:
             raise
         except asyncio.TimeoutError:
             self._running = False
+            self._set_login_state("expired", error_message="登录超时")
             logger.error("WeChatBot 登录超时")
         except Exception as e:
             self._running = False
+            self._set_login_state("error", error_message=str(e))
             logger.error(f"WeChatBot 登录失败: {e}")
         finally:
             self._login_task = None
@@ -233,15 +270,19 @@ class WeChatOpenILinkClient:
 
     async def _handle_login_event(self, event: str, payload: str | None) -> None:
         if event == "qr" and payload:
+            self._set_login_state("qr", login_url=payload)
             logger.info(f"WeChatBot 登录二维码网址: {payload}")
             return
         if event == "scanned":
+            self._set_login_state("scanned")
             logger.info("WeChatBot 已扫码，请在手机上确认...")
             return
         if event == "expired":
+            self._set_login_state("expired")
             logger.info("WeChatBot 二维码已过期，等待刷新...")
             return
         if event == "error" and payload:
+            self._set_login_state("error", error_message=payload)
             logger.warning(f"WeChatBot 登录异常: {payload}")
 
     def _refresh_self_info_from_client(self) -> None:

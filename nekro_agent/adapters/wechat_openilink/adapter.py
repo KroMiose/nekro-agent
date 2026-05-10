@@ -1,6 +1,8 @@
 import time
 from typing import Any, Optional, Type
 
+from fastapi import APIRouter
+
 from nekro_agent.adapters.interface.base import AdapterMetadata, BaseAdapter
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.platform import (
@@ -53,6 +55,14 @@ class WeChatOpenILinkAdapter(BaseAdapter[WeChatOpenILinkConfig]):
             "群聊: `wechat_openilink-group_{group_id}`",
             "私聊: `wechat_openilink-private_{user_id}`",
         ]
+
+    def get_adapter_router(self) -> APIRouter:
+        from .routers import create_router
+
+        return create_router(lambda: self.client.get_login_status() if self.client is not None else {
+            "state": "unavailable",
+            "logged_in": False,
+        })
 
     async def init(self) -> None:
         if self.client is None:

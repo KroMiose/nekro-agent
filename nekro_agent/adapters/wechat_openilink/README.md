@@ -20,8 +20,6 @@
 - `BASE_URL`：微信 iLink API 地址（默认 `https://ilinkai.weixin.qq.com`）
 - `CRED_PATH`：登录凭据文件保存路径（默认 `data/nekro_agent/configs/wechat_openilink/credentials.json`）
 - `LOGIN_TIMEOUT_SECONDS`：二维码登录超时秒数
-- `TREAT_PRIVATE_AS_TOME`：私聊是否默认触发
-- `GROUP_REQUIRE_MENTION`：群聊是否必须 @ 触发
 - `DEDUP_WINDOW_SECONDS`：消息去重窗口
 
 ## 重要说明

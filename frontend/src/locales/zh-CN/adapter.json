@@ -46,6 +46,7 @@
   },
   "tabs": {
     "home": "主页",
+    "login": "登录",
     "config": "配置",
     "overrides": "覆盖配置",
     "advanced": "高级",
@@ -89,6 +90,41 @@
     "goToNapcat": "前往 NapCat",
     "cannotGetAddress": "无法获取 NapCat 访问地址",
     "serviceNotRunning": "NapCat 服务未运行"
+  },
+  "openilinkLogin": {
+    "title": "微信扫码登录",
+    "description": "使用微信扫描二维码并在手机上确认后，OpenILink 适配器即可开始收发消息。",
+    "loading": "加载中",
+    "unknownAccount": "当前账号",
+    "loggedInMessage": "已登录：{{name}}",
+    "waitingQr": "等待 OpenILink 生成登录二维码，请确认适配器已启用并正在启动。",
+    "noQrLoggedIn": "当前账号已登录，无需扫码。",
+    "copyLink": "复制登录链接",
+    "openLink": "打开登录链接",
+    "copySuccess": "登录链接已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制",
+    "states": {
+      "idle": "未开始",
+      "waiting": "等待二维码",
+      "qr": "待扫码",
+      "scanned": "已扫码",
+      "expired": "已过期",
+      "error": "登录异常",
+      "logged_in": "已登录",
+      "stopped": "已停止",
+      "unavailable": "不可用",
+      "unknown": "未知"
+    },
+    "messages": {
+      "idle": "适配器尚未开始登录流程。",
+      "waiting": "正在等待二维码生成。",
+      "qr": "请使用微信扫描下方二维码。",
+      "scanned": "已扫码，请在手机上确认登录。",
+      "expired": "二维码已过期，请等待适配器刷新。",
+      "error": "登录过程中发生异常。",
+      "stopped": "适配器已停止，请启用适配器并重启服务。",
+      "unavailable": "当前适配器实例不可用。"
+    }
   },
   "logs": {
     "restarting": "正在重启容器...",
