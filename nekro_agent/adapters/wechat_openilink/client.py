@@ -1,13 +1,17 @@
 import asyncio
 import time
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Literal, Optional
 
 from nekro_agent.core.logger import get_sub_logger
 
 from .config import WeChatOpenILinkConfig
 
 logger = get_sub_logger("adapter.wechat_openilink")
+
+LoginEvent = Literal["qr", "scanned", "expired", "error"]
+MESSAGE_ID_KEYS = ("message_id", "msg_id", "id")
+
 
 class WeChatOpenILinkClient:
     def __init__(self, config: WeChatOpenILinkConfig):
@@ -258,32 +262,27 @@ class WeChatOpenILinkClient:
         setattr(bot_cls, "_log", _nekro_log)
         setattr(bot_cls, "_nekro_log_hooked", True)
 
-    def _dispatch_login_event(self, event: str, payload: str | None) -> None:
+    def _dispatch_login_event(self, event: LoginEvent, payload: str | None) -> None:
         loop = self._loop
         if loop is None or loop.is_closed():
             return
 
-        def _schedule() -> None:
-            asyncio.create_task(self._handle_login_event(event, payload))
+        asyncio.run_coroutine_threadsafe(self._handle_login_event(event, payload), loop)
 
-        loop.call_soon_threadsafe(_schedule)
-
-    async def _handle_login_event(self, event: str, payload: str | None) -> None:
-        if event == "qr" and payload:
-            self._set_login_state("qr", login_url=payload)
-            logger.info(f"WeChatBot 登录二维码网址: {payload}")
-            return
-        if event == "scanned":
-            self._set_login_state("scanned")
-            logger.info("WeChatBot 已扫码，请在手机上确认...")
-            return
-        if event == "expired":
-            self._set_login_state("expired")
-            logger.info("WeChatBot 二维码已过期，等待刷新...")
-            return
-        if event == "error" and payload:
-            self._set_login_state("error", error_message=payload)
-            logger.warning(f"WeChatBot 登录异常: {payload}")
+    async def _handle_login_event(self, event: LoginEvent, payload: str | None) -> None:
+        match event:
+            case "qr" if payload:
+                self._set_login_state("qr", login_url=payload)
+                logger.info(f"WeChatBot 登录二维码网址: {payload}")
+            case "scanned":
+                self._set_login_state("scanned")
+                logger.info("WeChatBot 已扫码，请在手机上确认...")
+            case "expired":
+                self._set_login_state("expired")
+                logger.info("WeChatBot 二维码已过期，等待刷新...")
+            case "error" if payload:
+                self._set_login_state("error", error_message=payload)
+                logger.warning(f"WeChatBot 登录异常: {payload}")
 
     def _refresh_self_info_from_client(self) -> None:
         if self._client is None:
@@ -295,13 +294,8 @@ class WeChatOpenILinkClient:
     def _extract_message_id(self, result: Any) -> str:
         if result is None:
             return ""
-        for key in ("message_id", "msg_id", "id"):
-            value = getattr(result, key, None)
+        for key in MESSAGE_ID_KEYS:
+            value = result.get(key) if isinstance(result, dict) else getattr(result, key, None)
             if value:
                 return str(value)
-        if isinstance(result, dict):
-            for key in ("message_id", "msg_id", "id"):
-                value = result.get(key)
-                if value:
-                    return str(value)
         return ""

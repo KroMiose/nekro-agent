@@ -3,7 +3,7 @@ import axios from '../axios'
 export type OpenILinkLoginState = 'idle' | 'waiting' | 'qr' | 'scanned' | 'expired' | 'error' | 'logged_in' | 'stopped' | 'unavailable'
 
 export interface WechatOpenILinkLoginStatus {
-  state: OpenILinkLoginState | string
+  state: OpenILinkLoginState
   logged_in: boolean
   login_url: string | null
   error_message: string | null

@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useTranslation } from 'react-i18next'
 import ActionButton from '../../../components/common/ActionButton'
 import { useNotification } from '../../../hooks/useNotification'
-import type { WechatOpenILinkLoginStatus } from '../../../services/api/adapters/wechat_openilink'
+import type { OpenILinkLoginState, WechatOpenILinkLoginStatus } from '../../../services/api/adapters/wechat_openilink'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { copyText } from '../../../utils/clipboard'
 
@@ -13,7 +13,7 @@ interface OpenILinkLoginCardProps {
   isLoading: boolean
 }
 
-const getSeverity = (state?: string) => {
+const getSeverity = (state?: OpenILinkLoginState) => {
   if (state === 'logged_in') {
     return 'success'
   }
