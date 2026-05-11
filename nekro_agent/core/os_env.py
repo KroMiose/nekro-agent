@@ -52,7 +52,8 @@ class OsEnv:
     STATIC_DIR: str = OsEnvTypes.Str("STATIC_DIR", default="./static")
 
     """WebUI 管理员密码"""
-    ADMIN_PASSWORD: str = OsEnvTypes.Str("ADMIN_PASSWORD", default="")
+    # 优先读取 NEKRO_ADMIN_PASSWORD（docker-compose.yml 使用的变量名），fallback 到 ADMIN_PASSWORD
+    ADMIN_PASSWORD: str = OsEnvTypes.Str("ADMIN_PASSWORD", default="") or os.environ.get("NEKRO_ADMIN_PASSWORD", "")
 
     """Nekro Cloud API"""
     NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://cloud.nekro.ai")
