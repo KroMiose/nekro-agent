@@ -201,7 +201,7 @@ async def run_code_in_sandbox(
             if "404" in str(e):
                 logger.debug(f"沙盒容器已不存在: {from_chat_key} | {container_name}")
             else:
-                logger.error(f"清理过期沙盒失败: {e}")
+                logger.warning(f"清理过期沙盒失败: {e}")
         del chat_key_sandbox_container_map[from_chat_key]
 
     # 启动容器
