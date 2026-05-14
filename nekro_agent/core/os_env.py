@@ -52,7 +52,7 @@ class OsEnv:
     STATIC_DIR: str = OsEnvTypes.Str("STATIC_DIR", default="./static")
 
     """WebUI 管理员密码"""
-    ADMIN_PASSWORD: str = OsEnvTypes.Str("ADMIN_PASSWORD", default="")
+    ADMIN_PASSWORD: str = os.environ.get("NEKRO_ADMIN_PASSWORD") or os.environ.get("ADMIN_PASSWORD", "")
 
     """Nekro Cloud API"""
     NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://cloud.nekro.ai")
