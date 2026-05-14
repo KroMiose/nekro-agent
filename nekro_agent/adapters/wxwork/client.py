@@ -41,6 +41,7 @@ class WxWorkLongConnectionClient:
         self._bot_id = bot_id
         self._secret = secret
         self._adapter = adapter
+        self._http_client: Optional[httpx.AsyncClient] = None
         self._ws: Optional[ClientConnection] = None
         self._runner_task: Optional[asyncio.Task[None]] = None
         self._receiver_task: Optional[asyncio.Task[None]] = None
@@ -85,6 +86,7 @@ class WxWorkLongConnectionClient:
             self._ws = None
 
         await self._cancel_callback_tasks()
+        await self._close_http_client()
         self._fail_pending(RuntimeError("企业微信长连接已停止"))
 
     async def send_text_message(
@@ -203,11 +205,9 @@ class WxWorkLongConnectionClient:
         if not aeskey:
             raise ValueError("企业微信 AI Bot 媒体下载缺少 aeskey")
 
-        timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            encrypted_bytes = response.content
+        response = await self._get_http_client().get(url)
+        response.raise_for_status()
+        encrypted_bytes = response.content
 
         return self._decrypt_media_bytes(encrypted_bytes=encrypted_bytes, aeskey=aeskey)
 
@@ -437,6 +437,18 @@ class WxWorkLongConnectionClient:
         if secret:
             masked["secret"] = f"{secret[:3]}***{secret[-2:]}" if len(secret) > 5 else "***"
         return masked
+
+    def _get_http_client(self) -> httpx.AsyncClient:
+        if self._http_client is None:
+            timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
+            self._http_client = httpx.AsyncClient(timeout=timeout)
+        return self._http_client
+
+    async def _close_http_client(self) -> None:
+        if self._http_client is None:
+            return
+        await self._http_client.aclose()
+        self._http_client = None
 
     def _escape_markdown_link_definition_lines(self, content: str) -> str:
         """避免 `[label]: xxx` 在 Markdown 中被识别为引用定义而不可见。"""

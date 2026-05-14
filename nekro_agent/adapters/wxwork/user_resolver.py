@@ -1,10 +1,11 @@
+import asyncio
 import hashlib
 import hmac
 import json
 import threading
 import time
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Coroutine
 
 import httpx
 
@@ -62,6 +63,14 @@ class WxWorkUserResolver:
         self._cache = _TTLCache()
         self._access_token: str = ""
         self._access_token_expire_at: float = 0.0
+        self._http_client: httpx.AsyncClient | None = None
+        self._background_tasks: set[asyncio.Task[None]] = set()
+
+    async def aclose(self) -> None:
+        await self._cancel_background_tasks()
+        if self._http_client is not None:
+            await self._http_client.aclose()
+            self._http_client = None
 
     def is_lookup_configured(self) -> bool:
         mode = self._adapter.config.USER_INFO_LOOKUP_MODE
@@ -143,7 +152,8 @@ class WxWorkUserResolver:
             ext_data[USER_INFO_SOURCE_KEY] = source
             user.ext_data = ext_data
             await user.save()
-            await self._backfill_chat_message_names(user_id=user_id, user_name=user_name)
+            # 历史消息回填不阻塞当前消息收集链路。
+            self._schedule_background_task(self._backfill_chat_message_names(user_id=user_id, user_name=user_name))
 
     async def _backfill_chat_message_names(self, *, user_id: str, user_name: str) -> None:
         await DBChatMessage.filter(
@@ -169,16 +179,14 @@ class WxWorkUserResolver:
         if self._access_token and time.time() < self._access_token_expire_at:
             return self._access_token
 
-        timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
         url = f"{WXWORK_OFFICIAL_API_BASE_URL}/cgi-bin/gettoken"
         params = {
             "corpid": self._adapter.config.USER_INFO_CORP_ID,
             "corpsecret": self._adapter.config.USER_INFO_APP_SECRET,
         }
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+        response = await self._get_http_client().get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
 
         if data.get("errcode", 0) != 0:
             raise RuntimeError(f"获取企业微信通讯录 access_token 失败: {data.get('errmsg', 'unknown error')}")
@@ -193,34 +201,30 @@ class WxWorkUserResolver:
         return self._access_token
 
     async def _get_user_info_payload(self, *, access_token: str, user_id: str) -> dict:
-        timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
         url = f"{WXWORK_OFFICIAL_API_BASE_URL}/cgi-bin/user/get"
         params = {
             "access_token": access_token,
             "userid": user_id,
         }
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+        response = await self._get_http_client().get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
 
         if data.get("errcode", 0) == 40014:
             self._access_token = ""
             self._access_token_expire_at = 0.0
             refreshed_token = await self._get_access_token()
             params["access_token"] = refreshed_token
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.get(url, params=params)
-                response.raise_for_status()
-                data = response.json()
+            response = await self._get_http_client().get(url, params=params)
+            response.raise_for_status()
+            data = response.json()
 
         if data.get("errcode", 0) != 0:
             raise RuntimeError(f"读取企业微信成员失败: {data.get('errmsg', 'unknown error')} ({data.get('errcode')})")
         return data
 
     async def _get_proxy_user_info_payload(self, *, user_id: str) -> dict:
-        timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
         request_body = {"user_id": user_id}
         request_body_json = json.dumps(request_body, ensure_ascii=False, separators=(",", ":"))
         timestamp = str(int(time.time()))
@@ -236,14 +240,13 @@ class WxWorkUserResolver:
             "X-Nekro-Timestamp": timestamp,
             "X-Nekro-Signature": signature,
         }
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                self._adapter.config.USER_INFO_PROXY_URL.strip(),
-                content=request_body_json,
-                headers=headers,
-            )
-            response.raise_for_status()
-            data = response.json()
+        response = await self._get_http_client().post(
+            self._adapter.config.USER_INFO_PROXY_URL.strip(),
+            content=request_body_json,
+            headers=headers,
+        )
+        response.raise_for_status()
+        data = response.json()
 
         if not data.get("ok", False):
             raise RuntimeError(str(data.get("error") or "用户名代理返回失败"))
@@ -261,3 +264,32 @@ class WxWorkUserResolver:
 
     def _set_cache(self, user_id: str, user_name: str, ttl_seconds: int) -> None:
         self._cache.set(user_id, user_name, ttl_seconds)
+
+    def _get_http_client(self) -> httpx.AsyncClient:
+        if self._http_client is None:
+            timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
+            self._http_client = httpx.AsyncClient(timeout=timeout)
+        return self._http_client
+
+    def _schedule_background_task(self, coro: Coroutine[object, object, None]) -> None:
+        task = asyncio.create_task(coro)
+        self._background_tasks.add(task)
+        task.add_done_callback(self._on_background_task_done)
+
+    def _on_background_task_done(self, task: asyncio.Task[None]) -> None:
+        self._background_tasks.discard(task)
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            logger.opt(exception=exc).error("WeCom 用户名历史消息回填后台任务执行失败")
+
+    async def _cancel_background_tasks(self) -> None:
+        if not self._background_tasks:
+            return
+
+        tasks = list(self._background_tasks)
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self._background_tasks.clear()
