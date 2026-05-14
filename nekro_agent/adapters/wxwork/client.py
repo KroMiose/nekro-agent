@@ -234,7 +234,10 @@ class WxWorkLongConnectionClient:
         try:
             key = base64.b64decode(padded_aeskey)
         except Exception as exc:
-            raise ValueError(f"企业微信 AI Bot 媒体 aeskey 不是合法的 base64: {aeskey}") from exc
+            raise ValueError(
+                "企业微信 AI Bot 媒体 aeskey 不是合法的 base64: "
+                f"{self._mask_value(aeskey)}"
+            ) from exc
 
         if len(key) != 32:
             raise ValueError(f"企业微信 AI Bot 媒体 aeskey 长度非法: {len(key)}")
@@ -435,8 +438,14 @@ class WxWorkLongConnectionClient:
         masked = dict(body)
         secret = str(masked.get("secret", ""))
         if secret:
-            masked["secret"] = f"{secret[:3]}***{secret[-2:]}" if len(secret) > 5 else "***"
+            masked["secret"] = self._mask_value(secret)
         return masked
+
+    def _mask_value(self, value: str) -> str:
+        value = str(value or "").strip()
+        if not value:
+            return "***"
+        return f"{value[:3]}***{value[-2:]}" if len(value) > 5 else "***"
 
     def _get_http_client(self) -> httpx.AsyncClient:
         if self._http_client is None:

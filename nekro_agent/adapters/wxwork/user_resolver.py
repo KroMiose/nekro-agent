@@ -280,9 +280,10 @@ class WxWorkUserResolver:
         self._background_tasks.discard(task)
         if task.cancelled():
             return
-        exc = task.exception()
-        if exc is not None:
-            logger.opt(exception=exc).error("WeCom 用户名历史消息回填后台任务执行失败")
+        try:
+            task.result()
+        except Exception:
+            logger.exception("WeCom 用户名历史消息回填后台任务执行失败")
 
     async def _cancel_background_tasks(self) -> None:
         if not self._background_tasks:
