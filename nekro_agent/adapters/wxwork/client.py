@@ -239,6 +239,9 @@ class WxWorkLongConnectionClient:
         if len(key) != 32:
             raise ValueError(f"企业微信 AI Bot 媒体 aeskey 长度非法: {len(key)}")
 
+        if len(encrypted_bytes) == 0 or len(encrypted_bytes) % 16 != 0:
+            raise ValueError(f"企业微信 AI Bot 媒体密文长度非法: {len(encrypted_bytes)}")
+
         cipher = AES.new(key, AES.MODE_CBC, key[:16])
         plain_bytes = cipher.decrypt(encrypted_bytes)
         padding_len = plain_bytes[-1]

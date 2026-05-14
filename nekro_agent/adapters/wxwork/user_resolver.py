@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import threading
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -30,10 +31,35 @@ class _CacheEntry:
     expires_at: float
 
 
+class _TTLCache:
+    """进程内 TTL 缓存，使用线程锁保护单进程并发访问；多进程间不共享状态。"""
+
+    def __init__(self, default_min_ttl: int = 60) -> None:
+        self._store: dict[str, _CacheEntry] = {}
+        self._default_min_ttl = default_min_ttl
+        self._lock = threading.Lock()
+
+    def get(self, key: str) -> str:
+        now = time.time()
+        with self._lock:
+            entry = self._store.get(key)
+            if not entry:
+                return ""
+            if now >= entry.expires_at:
+                self._store.pop(key, None)
+                return ""
+            return entry.user_name
+
+    def set(self, key: str, user_name: str, ttl_seconds: int) -> None:
+        expires_at = time.time() + max(ttl_seconds, self._default_min_ttl)
+        with self._lock:
+            self._store[key] = _CacheEntry(user_name=user_name, expires_at=expires_at)
+
+
 class WxWorkUserResolver:
     def __init__(self, adapter: "WxWorkAdapter"):
         self._adapter = adapter
-        self._cache: dict[str, _CacheEntry] = {}
+        self._cache = _TTLCache()
         self._access_token: str = ""
         self._access_token_expire_at: float = 0.0
 
@@ -49,13 +75,37 @@ class WxWorkUserResolver:
         )
 
     async def resolve_user_name(self, user_id: str, fallback_name: str = "") -> str:
-        candidate = (fallback_name or "").strip()
-        if candidate and candidate != user_id:
-            await self._persist_resolved_name(user_id=user_id, user_name=candidate, source="callback")
-            self._set_cache(user_id, candidate, self._adapter.config.USER_INFO_CACHE_TTL_SECONDS)
+        candidate = self._normalize_candidate(user_id, fallback_name)
+        if candidate:
+            await self._apply_resolution(user_id=user_id, user_name=candidate, source="callback")
             logger.info(f"WeCom 用户名解析命中回调字段: user_id={user_id}, user_name={candidate}")
             return candidate
 
+        cached_or_db_name = await self._resolve_from_cache_or_db(user_id)
+        if cached_or_db_name:
+            return cached_or_db_name
+
+        if not self.is_lookup_configured():
+            logger.info(f"WeCom 用户名解析未配置自建应用通讯录查询，退回 userid: user_id={user_id}")
+            return user_id
+
+        resolved_name = await self._fetch_user_name(user_id)
+        if resolved_name and resolved_name != user_id:
+            await self._apply_resolution(user_id=user_id, user_name=resolved_name, source="directory")
+            logger.info(f"WeCom 用户名解析命中自建应用通讯录: user_id={user_id}, user_name={resolved_name}")
+            return resolved_name
+
+        self._set_cache(user_id, user_id, FAILED_LOOKUP_BACKOFF_SECONDS)
+        logger.info(f"WeCom 用户名解析失败，短期退回 userid: user_id={user_id}")
+        return user_id
+
+    def _normalize_candidate(self, user_id: str, fallback_name: str) -> str:
+        candidate = (fallback_name or "").strip()
+        if candidate and candidate != user_id:
+            return candidate
+        return ""
+
+    async def _resolve_from_cache_or_db(self, user_id: str) -> str:
         cached_name = self._get_cache(user_id)
         if cached_name:
             logger.info(f"WeCom 用户名解析命中内存缓存: user_id={user_id}, user_name={cached_name}")
@@ -67,20 +117,11 @@ class WxWorkUserResolver:
             logger.info(f"WeCom 用户名解析命中数据库缓存: user_id={user_id}, user_name={db_name}")
             return db_name
 
-        if not self.is_lookup_configured():
-            logger.info(f"WeCom 用户名解析未配置自建应用通讯录查询，退回 userid: user_id={user_id}")
-            return user_id
+        return ""
 
-        resolved_name = await self._fetch_user_name(user_id)
-        if resolved_name and resolved_name != user_id:
-            await self._persist_resolved_name(user_id=user_id, user_name=resolved_name, source="directory")
-            self._set_cache(user_id, resolved_name, self._adapter.config.USER_INFO_CACHE_TTL_SECONDS)
-            logger.info(f"WeCom 用户名解析命中自建应用通讯录: user_id={user_id}, user_name={resolved_name}")
-            return resolved_name
-
-        self._set_cache(user_id, user_id, FAILED_LOOKUP_BACKOFF_SECONDS)
-        logger.info(f"WeCom 用户名解析失败，短期退回 userid: user_id={user_id}")
-        return user_id
+    async def _apply_resolution(self, *, user_id: str, user_name: str, source: str) -> None:
+        await self._persist_resolved_name(user_id=user_id, user_name=user_name, source=source)
+        self._set_cache(user_id, user_name, self._adapter.config.USER_INFO_CACHE_TTL_SECONDS)
 
     async def _get_db_cached_name(self, user_id: str) -> str:
         user = await DBUser.get_by_union_id(adapter_key=self._adapter.key, platform_userid=user_id)
@@ -216,14 +257,7 @@ class WxWorkUserResolver:
         return hmac.new(secret, message, hashlib.sha256).hexdigest()
 
     def _get_cache(self, user_id: str) -> str:
-        entry = self._cache.get(user_id)
-        if not entry:
-            return ""
-        if time.time() >= entry.expires_at:
-            self._cache.pop(user_id, None)
-            return ""
-        return entry.user_name
+        return self._cache.get(user_id)
 
     def _set_cache(self, user_id: str, user_name: str, ttl_seconds: int) -> None:
-        expires_at = time.time() + max(ttl_seconds, 60)
-        self._cache[user_id] = _CacheEntry(user_name=user_name, expires_at=expires_at)
+        self._cache.set(user_id, user_name, ttl_seconds)

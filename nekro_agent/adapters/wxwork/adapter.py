@@ -25,7 +25,7 @@ from nekro_agent.schemas.chat_message import (
 
 from .client import WxWorkLongConnectionClient
 from .config import WxWorkConfig
-from .parser import ParsedWxWorkMessage, dump_frame_for_log, parse_message_frame
+from .parser import ParsedWxWorkAttachment, ParsedWxWorkMessage, dump_frame_for_log, parse_message_frame
 from .tools import SegAt, parse_at_from_text
 from .user_resolver import WxWorkUserResolver
 
@@ -287,39 +287,65 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
 
         attachment_segments: list[ChatMessageSegment] = []
         for index, attachment in enumerate(parsed.attachments, start=1):
-            if not attachment.url or not attachment.aeskey:
-                logger.warning(
-                    f"WeCom AI Bot 入站附件缺少下载字段，已跳过: type={attachment.media_type}, url={bool(attachment.url)}, aeskey={bool(attachment.aeskey)}"
-                )
-                continue
-
-            try:
-                raw_bytes = await self.client.download_media(url=attachment.url, aeskey=attachment.aeskey)
-                segment = await self._build_attachment_segment(
-                    parsed=parsed,
-                    segment_type=attachment.segment_type,
-                    raw_bytes=raw_bytes,
-                    file_name=attachment.file_name,
-                    fallback_index=index,
-                )
-            except Exception as exc:
-                logger.exception(f"下载或解密企业微信 AI Bot 入站附件失败: type={attachment.media_type}, error={exc}")
-                continue
-
-            attachment_segments.append(segment)
+            segment = await self._build_attachment_segment_safe(
+                parsed=parsed,
+                attachment=attachment,
+                fallback_index=index,
+            )
+            if segment is not None:
+                attachment_segments.append(segment)
 
         if not attachment_segments:
             return
 
-        if parsed.message.content_data and parsed.message.content_data[0].type == ChatMessageSegmentType.TEXT:
-            if parsed.message.content_text:
-                parsed.message.content_data[0].text = parsed.message.content_text
-            else:
-                parsed.message.content_data = []
+        self._merge_attachment_segments_into_message(parsed, attachment_segments)
 
-        parsed.message.content_data.extend(attachment_segments)
-        if not parsed.message.content_text:
-            parsed.message.content_text = "\n".join(seg.text for seg in attachment_segments if seg.text).strip()
+    async def _build_attachment_segment_safe(
+        self,
+        *,
+        parsed: ParsedWxWorkMessage,
+        attachment: ParsedWxWorkAttachment,
+        fallback_index: int,
+    ) -> ChatMessageSegment | None:
+        if self.client is None:
+            return None
+
+        if not attachment.url or not attachment.aeskey:
+            logger.warning(
+                "WeCom AI Bot 入站附件缺少下载字段，已跳过: "
+                f"type={attachment.media_type}, url={bool(attachment.url)}, aeskey={bool(attachment.aeskey)}"
+            )
+            return None
+
+        try:
+            raw_bytes = await self.client.download_media(url=attachment.url, aeskey=attachment.aeskey)
+            return await self._build_attachment_segment(
+                parsed=parsed,
+                segment_type=attachment.segment_type,
+                raw_bytes=raw_bytes,
+                file_name=attachment.file_name,
+                fallback_index=fallback_index,
+            )
+        except Exception as exc:
+            logger.exception(f"下载或解密企业微信 AI Bot 入站附件失败: type={attachment.media_type}, error={exc}")
+            return None
+
+    def _merge_attachment_segments_into_message(
+        self,
+        parsed: ParsedWxWorkMessage,
+        attachment_segments: list[ChatMessageSegment],
+    ) -> None:
+        message = parsed.message
+
+        if message.content_data and message.content_data[0].type == ChatMessageSegmentType.TEXT:
+            if message.content_text:
+                message.content_data[0].text = message.content_text
+            else:
+                message.content_data = []
+
+        message.content_data.extend(attachment_segments)
+        if not message.content_text:
+            message.content_text = "\n".join(segment.text for segment in attachment_segments if segment.text).strip()
 
     async def _build_attachment_segment(
         self,
@@ -359,9 +385,12 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
 
     async def _resolve_message_user_name(self, parsed: ParsedWxWorkMessage) -> None:
         resolved_name = await self.user_resolver.resolve_user_name(parsed.user.user_id, parsed.user.user_name)
-        parsed.user.user_name = resolved_name
-        parsed.message.sender_name = resolved_name
-        parsed.message.sender_nickname = resolved_name
+        self._apply_resolved_user_name(parsed, resolved_name)
+
+    def _apply_resolved_user_name(self, parsed: ParsedWxWorkMessage, user_name: str) -> None:
+        parsed.user.user_name = user_name
+        parsed.message.sender_name = user_name
+        parsed.message.sender_nickname = user_name
 
     def _build_attachment_filename(
         self,
@@ -373,11 +402,12 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
     ) -> str:
         original_name = original_file_name.strip()
         suffix = Path(original_name).suffix.lower() if original_name else ""
+        if original_name and suffix:
+            return original_name
+
         digest = hashlib.sha1(raw_bytes).hexdigest()[:12]
-        if suffix:
-            return original_name or f"wxwork_{segment_type.value}_{digest}{suffix}"
         default_suffix = ".jpg" if segment_type == ChatMessageSegmentType.IMAGE else ""
-        return f"wxwork_{segment_type.value}_{fallback_index}_{digest}{default_suffix}"
+        return f"wxwork_{segment_type.value}_{fallback_index}_{digest}{suffix or default_suffix}"
 
     def _normalize_incoming_image(self, *, raw_bytes: bytes, file_name: str) -> tuple[bytes, str]:
         try:
@@ -391,40 +421,75 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
 
         working = image.convert("RGB")
         width, height = working.size
-        quality = WXWORK_INBOUND_IMAGE_INITIAL_QUALITY
-        scale = 1.0
+        normalized_file_name = f"{Path(file_name).stem}.jpg"
         best_bytes = raw_bytes
 
-        while True:
-            resized = working
-            if scale < 0.999:
-                resized = working.resize(
-                    (max(int(width * scale), WXWORK_INBOUND_IMAGE_MIN_EDGE), max(int(height * scale), WXWORK_INBOUND_IMAGE_MIN_EDGE)),
-                    Image.Resampling.LANCZOS,
-                )
-
-            buffer = io.BytesIO()
-            resized.save(buffer, format="JPEG", quality=quality, optimize=True)
-            candidate = buffer.getvalue()
+        for quality in range(
+            WXWORK_INBOUND_IMAGE_INITIAL_QUALITY,
+            WXWORK_INBOUND_IMAGE_MIN_QUALITY - 1,
+            -10,
+        ):
+            candidate = self._encode_jpeg(working, quality)
             best_bytes = candidate
             if len(candidate) <= WXWORK_INBOUND_IMAGE_TARGET_MAX_BYTES:
-                logger.info(
-                    f"WeCom 入站图片已压缩用于视觉请求: original={len(raw_bytes)}B compressed={len(candidate)}B quality={quality} scale={scale:.2f}"
+                self._log_image_compression(
+                    raw_bytes=raw_bytes,
+                    compressed_bytes=candidate,
+                    quality=quality,
+                    scale=1.0,
                 )
-                return candidate, f"{Path(file_name).stem}.jpg"
+                return candidate, normalized_file_name
 
-            if quality > WXWORK_INBOUND_IMAGE_MIN_QUALITY:
-                quality = max(quality - 10, WXWORK_INBOUND_IMAGE_MIN_QUALITY)
-                continue
-
-            if min(int(width * scale), int(height * scale)) <= WXWORK_INBOUND_IMAGE_MIN_EDGE:
-                logger.info(
-                    f"WeCom 入站图片压缩达到下限，使用当前最优结果: original={len(raw_bytes)}B compressed={len(best_bytes)}B"
-                )
-                return best_bytes, f"{Path(file_name).stem}.jpg"
-
+        scale = 1.0
+        while True:
             scale *= 0.85
-            quality = WXWORK_INBOUND_IMAGE_INITIAL_QUALITY
+            resized = working.resize(
+                (
+                    max(int(width * scale), WXWORK_INBOUND_IMAGE_MIN_EDGE),
+                    max(int(height * scale), WXWORK_INBOUND_IMAGE_MIN_EDGE),
+                ),
+                Image.Resampling.LANCZOS,
+            )
+            for quality in range(
+                WXWORK_INBOUND_IMAGE_INITIAL_QUALITY,
+                WXWORK_INBOUND_IMAGE_MIN_QUALITY - 1,
+                -10,
+            ):
+                candidate = self._encode_jpeg(resized, quality)
+                best_bytes = candidate
+                if len(candidate) <= WXWORK_INBOUND_IMAGE_TARGET_MAX_BYTES:
+                    self._log_image_compression(
+                        raw_bytes=raw_bytes,
+                        compressed_bytes=candidate,
+                        quality=quality,
+                        scale=scale,
+                    )
+                    return candidate, normalized_file_name
+
+            if min(resized.size) <= WXWORK_INBOUND_IMAGE_MIN_EDGE:
+                logger.info(
+                    "WeCom 入站图片压缩达到下限，使用当前最优结果: "
+                    f"original={len(raw_bytes)}B compressed={len(best_bytes)}B"
+                )
+                return best_bytes, normalized_file_name
+
+    def _encode_jpeg(self, image: Image.Image, quality: int) -> bytes:
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=quality, optimize=True)
+        return buffer.getvalue()
+
+    def _log_image_compression(
+        self,
+        *,
+        raw_bytes: bytes,
+        compressed_bytes: bytes,
+        quality: int,
+        scale: float,
+    ) -> None:
+        logger.info(
+            "WeCom 入站图片已压缩用于视觉请求: "
+            f"original={len(raw_bytes)}B compressed={len(compressed_bytes)}B quality={quality} scale={scale:.2f}"
+        )
 
     def _split_text_message_chunks(self, content: str) -> list[str]:
         if not content:

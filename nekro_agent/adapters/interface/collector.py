@@ -64,7 +64,8 @@ async def collect_message(
 
         user = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
         assert user
-    elif platform_user.user_name and user.username != platform_user.user_name:
+
+    if platform_user.user_name and user.username != platform_user.user_name:
         user.username = platform_user.user_name
         await user.save()
 
