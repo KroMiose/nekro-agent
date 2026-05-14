@@ -29,6 +29,16 @@ def get_memory_embedding_model_group() -> str:
     return config.MEMORY_EMBEDDING_MODEL_GROUP
 
 
+def get_kb_embedding_dimension() -> int:
+    """获取知识库当前配置的 embedding 维度"""
+    return max(1, int(config.KB_EMBEDDING_DIMENSION))
+
+
+def get_kb_embedding_model_group() -> str:
+    """获取知识库当前配置的 embedding 模型组"""
+    return config.KB_EMBEDDING_MODEL_GROUP.strip()
+
+
 class EmbeddingService:
     """Embedding 服务
 
@@ -209,3 +219,19 @@ async def embed_text(text: str) -> list[float]:
 async def embed_batch(texts: list[str]) -> list[list[float] | None]:
     """便捷函数：批量生成文本向量"""
     return await embedding_service.embed_batch(texts)
+
+
+async def embed_kb_text(text: str) -> list[float]:
+    """便捷函数：使用知识库独立配置生成文本向量"""
+    return await EmbeddingService(
+        model_group=get_kb_embedding_model_group(),
+        dimension=get_kb_embedding_dimension(),
+    ).embed_text(text)
+
+
+async def embed_kb_batch(texts: list[str]) -> list[list[float] | None]:
+    """便捷函数：使用知识库独立配置批量生成文本向量"""
+    return await EmbeddingService(
+        model_group=get_kb_embedding_model_group(),
+        dimension=get_kb_embedding_dimension(),
+    ).embed_batch(texts)

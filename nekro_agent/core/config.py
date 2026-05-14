@@ -430,6 +430,36 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    KB_EMBEDDING_MODEL_GROUP: str = Field(
+        default="",
+        title="知识库 Embedding 模型组",
+        description="用于知识库向量化与检索的 embedding 模型组。必须选择 MODEL_TYPE 为 embedding 的模型组，并与知识库向量维度配置保持一致",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            ref_model_groups=True,
+            model_type="embedding",
+            required=True,
+            i18n_title=i18n_text(zh_CN="知识库 Embedding 模型组", en_US="Knowledge Base Embedding Model Group"),
+            i18n_description=i18n_text(
+                zh_CN="用于知识库向量化与检索的 embedding 模型组。必须选择 MODEL_TYPE 为 embedding 的模型组，并与知识库向量维度配置保持一致",
+                en_US="Embedding model group used for knowledge base vectorization and retrieval. It must use a model group with MODEL_TYPE set to embedding and match the configured knowledge base vector dimension",
+            ),
+            placeholder="例: text-embedding",
+        ).model_dump(),
+    )
+    KB_EMBEDDING_DIMENSION: int = Field(
+        default=1024,
+        title="知识库 Embedding 维度",
+        description="知识库向量化使用的维度，需要与所选 embedding 模型和 Qdrant 索引保持一致",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            i18n_title=i18n_text(zh_CN="知识库 Embedding 维度", en_US="Knowledge Base Embedding Dimension"),
+            i18n_description=i18n_text(
+                zh_CN="知识库向量化使用的维度，需要与所选 embedding 模型和 Qdrant 索引保持一致",
+                en_US="Embedding dimension used by the knowledge base, which must match the selected embedding model and Qdrant index",
+            ),
+        ).model_dump(),
+    )
     MEMORY_CONSOLIDATION_FORCE_JSON_OUTPUT: bool = Field(
         default=True,
         title="强制沉淀模型输出 JSON",

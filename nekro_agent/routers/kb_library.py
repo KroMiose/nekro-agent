@@ -11,7 +11,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.models.db_workspace import DBWorkspace
-from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
+from nekro_agent.schemas.errors import ConfigInvalidError, ConflictError, NotFoundError, ValidationError
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
@@ -57,6 +57,7 @@ from nekro_agent.services.kb.library_service import (
     update_asset_metadata,
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
+from nekro_agent.services.memory.embedding_service import get_kb_embedding_model_group
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -95,6 +96,15 @@ async def _ensure_workspace_exists(workspace_id: int) -> None:
         raise ValidationError(reason="存在无效的工作区 ID，无法更新绑定")
 
 
+def _ensure_kb_embedding_configured() -> None:
+    if get_kb_embedding_model_group():
+        return
+    raise ConfigInvalidError(
+        key="KB_EMBEDDING_MODEL_GROUP",
+        reason="知识库 Embedding 模型组未配置，暂不允许创建、上传或重建知识库索引",
+    )
+
+
 @router.get("/assets", summary="获取全局知识库文件列表", response_model=KBAssetListResponse)
 @require_role(Role.Admin)
 async def list_kb_library_assets(
@@ -127,6 +137,7 @@ async def create_kb_library_asset(
     body: KBCreateTextDocumentBody,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBAssetUploadResponse:
+    _ensure_kb_embedding_configured()
     if body.format not in {"markdown", "text"}:
         raise ValidationError(reason="仅支持创建 markdown 或 text 类型的文本知识")
     await ensure_kb_library_collection()
@@ -167,6 +178,7 @@ async def upload_kb_library_asset(
     is_enabled: bool = Form(default=True),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBAssetUploadResponse:
+    _ensure_kb_embedding_configured()
     file_name = file.filename or ""
     if Path(file_name).suffix.lower() not in ALLOWED_KB_LIBRARY_EXTENSIONS:
         raise ValidationError(reason=f"暂不支持的全局知识库文件类型: {file_name or 'unknown'}")
@@ -281,6 +293,7 @@ async def reindex_kb_library_asset(
     asset_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBActionResponse:
+    _ensure_kb_embedding_configured()
     await ensure_kb_library_collection()
     asset = await _get_asset_or_404(asset_id)
     await schedule_rebuild_asset(asset)
