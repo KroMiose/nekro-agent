@@ -3,6 +3,8 @@
 提供文本向量化功能，复用项目现有的 OpenAI 兼容 API。
 """
 
+from __future__ import annotations
+
 import asyncio
 from typing import Any
 
@@ -56,6 +58,12 @@ def validate_kb_embedding_model_group() -> ModelConfigGroup:
         )
 
     return model_group
+
+
+def ensure_kb_embedding_available() -> tuple[str, int]:
+    """校验并返回知识库 embedding 当前配置"""
+    validate_kb_embedding_model_group()
+    return get_kb_embedding_model_group(), get_kb_embedding_dimension()
 
 
 class EmbeddingService:
@@ -228,6 +236,25 @@ class EmbeddingService:
 
 # 全局单例
 embedding_service = EmbeddingService()
+_kb_embedding_service_cache: tuple[str, int, EmbeddingService] | None = None
+
+
+def get_kb_embedding_service() -> EmbeddingService:
+    """获取知识库 embedding 服务单例，配置变更时自动刷新"""
+    global _kb_embedding_service_cache
+
+    model_group, dimension = ensure_kb_embedding_available()
+    if _kb_embedding_service_cache is not None:
+        cached_group, cached_dimension, cached_service = _kb_embedding_service_cache
+        if cached_group == model_group and cached_dimension == dimension:
+            return cached_service
+
+    service = EmbeddingService(
+        model_group=model_group,
+        dimension=dimension,
+    )
+    _kb_embedding_service_cache = (model_group, dimension, service)
+    return service
 
 
 async def embed_text(text: str) -> list[float]:
@@ -242,15 +269,9 @@ async def embed_batch(texts: list[str]) -> list[list[float] | None]:
 
 async def embed_kb_text(text: str) -> list[float]:
     """便捷函数：使用知识库独立配置生成文本向量"""
-    return await EmbeddingService(
-        model_group=get_kb_embedding_model_group(),
-        dimension=get_kb_embedding_dimension(),
-    ).embed_text(text)
+    return await get_kb_embedding_service().embed_text(text)
 
 
 async def embed_kb_batch(texts: list[str]) -> list[list[float] | None]:
     """便捷函数：使用知识库独立配置批量生成文本向量"""
-    return await EmbeddingService(
-        model_group=get_kb_embedding_model_group(),
-        dimension=get_kb_embedding_dimension(),
-    ).embed_batch(texts)
+    return await get_kb_embedding_service().embed_batch(texts)

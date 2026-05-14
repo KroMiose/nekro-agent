@@ -35,10 +35,17 @@ WXWORK_MAX_TEXT_LINES_PER_MESSAGE = 2000
 class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
     client: Optional[WxWorkLongConnectionClient]
     user_resolver: WxWorkUserResolver
+    image_normalize_options: wxwork_media.WxWorkImageNormalizeOptions
 
     def __init__(self, config_cls: Type[WxWorkConfig] = WxWorkConfig):
         super().__init__(config_cls)
         self.user_resolver = WxWorkUserResolver(self)
+        self.image_normalize_options = wxwork_media.WxWorkImageNormalizeOptions(
+            target_max_kb=self.config.INBOUND_IMAGE_TARGET_MAX_KB,
+            min_quality=self.config.INBOUND_IMAGE_MIN_QUALITY,
+            initial_quality=self.config.INBOUND_IMAGE_INITIAL_QUALITY,
+            min_edge=self.config.INBOUND_IMAGE_MIN_EDGE,
+        )
         if self.config.BOT_ID and self.config.BOT_SECRET:
             self.client = WxWorkLongConnectionClient(
                 bot_id=self.config.BOT_ID,
@@ -360,7 +367,11 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
         from_chat_key = f"{self.key}-{parsed.channel.channel_id}"
 
         if segment_type == ChatMessageSegmentType.IMAGE:
-            image_bytes, normalized_file_name = wxwork_media.normalize_incoming_image(raw_bytes, normalized_file_name)
+            image_bytes, normalized_file_name = wxwork_media.normalize_incoming_image(
+                raw_bytes,
+                normalized_file_name,
+                options=self.image_normalize_options,
+            )
             segment = await ChatMessageSegmentImage.create_from_bytes(
                 image_bytes,
                 from_chat_key=from_chat_key,

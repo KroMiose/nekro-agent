@@ -9,10 +9,21 @@ from nekro_agent.schemas.chat_message import ChatMessageSegmentType
 
 
 logger = get_sub_logger("adapter.wxwork.media")
-WXWORK_INBOUND_IMAGE_TARGET_MAX_BYTES = 180 * 1024
-WXWORK_INBOUND_IMAGE_MIN_QUALITY = 45
-WXWORK_INBOUND_IMAGE_INITIAL_QUALITY = 85
-WXWORK_INBOUND_IMAGE_MIN_EDGE = 320
+
+
+class WxWorkImageNormalizeOptions:
+    def __init__(
+        self,
+        *,
+        target_max_kb: int = 180,
+        min_quality: int = 45,
+        initial_quality: int = 85,
+        min_edge: int = 320,
+    ):
+        self.target_max_bytes = max(1, int(target_max_kb)) * 1024
+        self.min_quality = max(1, min(100, int(min_quality)))
+        self.initial_quality = max(self.min_quality, min(100, int(initial_quality)))
+        self.min_edge = max(1, int(min_edge))
 
 
 def build_attachment_filename(
@@ -32,14 +43,20 @@ def build_attachment_filename(
     return f"wxwork_{segment_type.value}_{fallback_index}_{digest}{suffix or default_suffix}"
 
 
-def normalize_incoming_image(raw_bytes: bytes, file_name: str) -> tuple[bytes, str]:
+def normalize_incoming_image(
+    raw_bytes: bytes,
+    file_name: str,
+    *,
+    options: WxWorkImageNormalizeOptions | None = None,
+) -> tuple[bytes, str]:
+    resolved_options = options or WxWorkImageNormalizeOptions()
     try:
         image = Image.open(io.BytesIO(raw_bytes))
     except Exception:
         logger.warning("WeCom 入站图片无法被 Pillow 识别，保留原始字节")
         return raw_bytes, file_name
 
-    if len(raw_bytes) <= WXWORK_INBOUND_IMAGE_TARGET_MAX_BYTES:
+    if len(raw_bytes) <= resolved_options.target_max_bytes:
         return raw_bytes, file_name
 
     working = image.convert("RGB")
@@ -48,7 +65,7 @@ def normalize_incoming_image(raw_bytes: bytes, file_name: str) -> tuple[bytes, s
 
     best_bytes, candidate, quality = _try_compress_with_qualities(
         working,
-        WXWORK_INBOUND_IMAGE_TARGET_MAX_BYTES,
+        resolved_options,
     )
     if candidate is not None:
         _log_image_compression(
@@ -64,14 +81,14 @@ def normalize_incoming_image(raw_bytes: bytes, file_name: str) -> tuple[bytes, s
         scale *= 0.85
         resized = working.resize(
             (
-                max(int(width * scale), WXWORK_INBOUND_IMAGE_MIN_EDGE),
-                max(int(height * scale), WXWORK_INBOUND_IMAGE_MIN_EDGE),
+                max(int(width * scale), resolved_options.min_edge),
+                max(int(height * scale), resolved_options.min_edge),
             ),
             Image.Resampling.LANCZOS,
         )
         best_bytes, candidate, quality = _try_compress_with_qualities(
             resized,
-            WXWORK_INBOUND_IMAGE_TARGET_MAX_BYTES,
+            resolved_options,
         )
         if candidate is not None:
             _log_image_compression(
@@ -82,7 +99,7 @@ def normalize_incoming_image(raw_bytes: bytes, file_name: str) -> tuple[bytes, s
             )
             return candidate, normalized_file_name
 
-        if min(resized.size) <= WXWORK_INBOUND_IMAGE_MIN_EDGE:
+        if min(resized.size) <= resolved_options.min_edge:
             logger.info(
                 "WeCom 入站图片压缩达到下限，使用当前最优结果: "
                 f"original={len(raw_bytes)}B compressed={len(best_bytes)}B"
@@ -92,19 +109,19 @@ def normalize_incoming_image(raw_bytes: bytes, file_name: str) -> tuple[bytes, s
 
 def _try_compress_with_qualities(
     image: Image.Image,
-    target_bytes: int,
+    options: WxWorkImageNormalizeOptions,
 ) -> tuple[bytes, bytes | None, int]:
     best_bytes = b""
     for quality in range(
-        WXWORK_INBOUND_IMAGE_INITIAL_QUALITY,
-        WXWORK_INBOUND_IMAGE_MIN_QUALITY - 1,
+        options.initial_quality,
+        options.min_quality - 1,
         -10,
     ):
         candidate = _encode_jpeg(image, quality)
         best_bytes = candidate
-        if len(candidate) <= target_bytes:
+        if len(candidate) <= options.target_max_bytes:
             return best_bytes, candidate, quality
-    return best_bytes, None, WXWORK_INBOUND_IMAGE_MIN_QUALITY
+    return best_bytes, None, options.min_quality
 
 
 def _encode_jpeg(image: Image.Image, quality: int) -> bytes:

@@ -1164,7 +1164,7 @@
       }
     },
     "config": {
-      "embeddingRequired": "The knowledge base embedding model group is not configured. Configure `KB_EMBEDDING_MODEL_GROUP` in system settings before creating, uploading, or reindexing knowledge."
+      "embeddingRequired": "The knowledge base embedding model group is missing or invalid. Make sure `KB_EMBEDDING_MODEL_GROUP` exists and its model type is `embedding` before creating, uploading, or reindexing knowledge."
     },
     "form": {
       "title": "Title",
@@ -1387,7 +1387,7 @@
       }
     },
     "config": {
-      "embeddingRequired": "The knowledge base embedding model group is not configured. Configure `KB_EMBEDDING_MODEL_GROUP` in system settings before creating, uploading, or reindexing global knowledge."
+      "embeddingRequired": "The knowledge base embedding model group is missing or invalid. Make sure `KB_EMBEDDING_MODEL_GROUP` exists and its model type is `embedding` before creating, uploading, or reindexing global knowledge."
     },
     "form": {
       "title": "Title",

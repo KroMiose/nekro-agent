@@ -1164,7 +1164,7 @@
       }
     },
     "config": {
-      "embeddingRequired": "知识库 Embedding 模型组尚未配置。请先前往系统设置填写 `KB_EMBEDDING_MODEL_GROUP`，再创建、上传或重建知识库索引。"
+      "embeddingRequired": "知识库 Embedding 模型组尚未配置或配置无效。请先前往系统设置确认 `KB_EMBEDDING_MODEL_GROUP` 存在且类型为 embedding，再创建、上传或重建知识库索引。"
     },
     "form": {
       "title": "标题",
@@ -1387,7 +1387,7 @@
       }
     },
     "config": {
-      "embeddingRequired": "知识库 Embedding 模型组尚未配置。请先前往系统设置填写 `KB_EMBEDDING_MODEL_GROUP`，再创建、上传或重建全局知识库索引。"
+      "embeddingRequired": "知识库 Embedding 模型组尚未配置或配置无效。请先前往系统设置确认 `KB_EMBEDDING_MODEL_GROUP` 存在且类型为 embedding，再创建、上传或重建全局知识库索引。"
     },
     "form": {
       "title": "标题",

@@ -214,6 +214,62 @@ class WxWorkConfig(BaseAdapterConfig):
         ).model_dump(),
     )
 
+    INBOUND_IMAGE_TARGET_MAX_KB: int = Field(
+        default=180,
+        title="入站图片目标大小",
+        description="企业微信入站图片归一化后的目标体积上限（KB），超过后会尝试压缩或缩放",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="媒体处理", en_US="Media Processing"),
+            i18n_title=i18n_text(zh_CN="入站图片目标大小", en_US="Inbound Image Target Size"),
+            i18n_description=i18n_text(
+                zh_CN="企业微信入站图片归一化后的目标体积上限（KB），超过后会尝试压缩或缩放",
+                en_US="Target size limit in KB for normalized inbound WeCom images. Images exceeding it will be compressed or scaled down.",
+            ),
+        ).model_dump(),
+    )
+
+    INBOUND_IMAGE_MIN_QUALITY: int = Field(
+        default=45,
+        title="入站图片最低质量",
+        description="企业微信入站图片 JPEG 压缩时允许降到的最低质量",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="媒体处理", en_US="Media Processing"),
+            i18n_title=i18n_text(zh_CN="入站图片最低质量", en_US="Inbound Image Min Quality"),
+            i18n_description=i18n_text(
+                zh_CN="企业微信入站图片 JPEG 压缩时允许降到的最低质量",
+                en_US="Lowest JPEG quality allowed when compressing inbound WeCom images.",
+            ),
+        ).model_dump(),
+    )
+
+    INBOUND_IMAGE_INITIAL_QUALITY: int = Field(
+        default=85,
+        title="入站图片初始质量",
+        description="企业微信入站图片 JPEG 压缩时的起始质量",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="媒体处理", en_US="Media Processing"),
+            i18n_title=i18n_text(zh_CN="入站图片初始质量", en_US="Inbound Image Initial Quality"),
+            i18n_description=i18n_text(
+                zh_CN="企业微信入站图片 JPEG 压缩时的起始质量",
+                en_US="Starting JPEG quality used when compressing inbound WeCom images.",
+            ),
+        ).model_dump(),
+    )
+
+    INBOUND_IMAGE_MIN_EDGE: int = Field(
+        default=320,
+        title="入站图片最短边下限",
+        description="企业微信入站图片缩放时允许保留的最短边像素下限",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="媒体处理", en_US="Media Processing"),
+            i18n_title=i18n_text(zh_CN="入站图片最短边下限", en_US="Inbound Image Min Edge"),
+            i18n_description=i18n_text(
+                zh_CN="企业微信入站图片缩放时允许保留的最短边像素下限",
+                en_US="Minimum allowed shorter edge in pixels when scaling inbound WeCom images.",
+            ),
+        ).model_dump(),
+    )
+
     ENABLE_EVENT_LOGGING: bool = Field(
         default=True,
         title="记录事件回调",

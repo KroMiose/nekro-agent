@@ -11,7 +11,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.models.db_workspace import DBWorkspace
-from nekro_agent.schemas.errors import ConfigInvalidError, ConflictError, NotFoundError, ValidationError
+from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
@@ -29,6 +29,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateDocumentBody,
     KBUpdateReferenceBody,
 )
+from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.document_service import (
     add_document_reference,
     create_file_document,
@@ -56,7 +57,6 @@ from nekro_agent.services.kb.index_service import (
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
 from nekro_agent.services.kb.search_service import search_workspace_kb
-from nekro_agent.services.memory.embedding_service import validate_kb_embedding_model_group
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -90,17 +90,6 @@ def _parse_tags_text(raw_tags: str) -> list[str]:
     if not raw_tags.strip():
         return []
     return normalize_tags([item for item in raw_tags.split(",")])
-
-
-def _ensure_kb_embedding_configured() -> None:
-    try:
-        validate_kb_embedding_model_group()
-        return
-    except ValueError as e:
-        raise ConfigInvalidError(
-            key="KB_EMBEDDING_MODEL_GROUP",
-            reason=f"{e}，暂不允许创建、上传或重建知识库索引",
-        ) from e
 
 
 def _build_tree_nodes(paths: list[tuple[int, str]]) -> list[KBTreeNode]:
@@ -200,7 +189,7 @@ async def create_workspace_kb_document(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBDocumentDetailResponse:
     await _get_workspace_or_404(workspace_id)
-    _ensure_kb_embedding_configured()
+    ensure_kb_embedding_configured()
     if body.format not in {"markdown", "text"}:
         raise ValidationError(reason="仅支持创建 markdown 或 text 类型的文本知识")
     await ensure_kb_collection()
@@ -247,7 +236,7 @@ async def upload_workspace_kb_file(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBDocumentDetailResponse:
     await _get_workspace_or_404(workspace_id)
-    _ensure_kb_embedding_configured()
+    ensure_kb_embedding_configured()
     file_name = file.filename or ""
     if Path(file_name).suffix.lower() not in ALLOWED_KB_EXTENSIONS:
         raise ValidationError(reason=f"暂不支持的知识库文件类型: {file_name or 'unknown'}")
@@ -326,7 +315,7 @@ async def update_workspace_kb_document(
     reference_changed = body.title is not None or body.category is not None or body.is_enabled is not None
 
     if content_changed or source_path_changed:
-        _ensure_kb_embedding_configured()
+        ensure_kb_embedding_configured()
         await schedule_rebuild_document(updated)
     else:
         if metadata_changed:
@@ -441,7 +430,7 @@ async def reindex_workspace_kb_document(
     document_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBReindexResponse:
-    _ensure_kb_embedding_configured()
+    ensure_kb_embedding_configured()
     await ensure_kb_collection()
     document = await _get_document_or_404(workspace_id, document_id)
     scheduled = await schedule_rebuild_document(document)
@@ -455,7 +444,7 @@ async def reindex_workspace_kb(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBReindexResponse:
     await _get_workspace_or_404(workspace_id)
-    _ensure_kb_embedding_configured()
+    ensure_kb_embedding_configured()
     await ensure_kb_collection()
     scheduled, skipped = await rebuild_workspace_documents(workspace_id)
     return KBReindexResponse(ok=True, total=scheduled + skipped, success=scheduled, failed=0)
