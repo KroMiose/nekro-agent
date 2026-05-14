@@ -57,7 +57,7 @@ def parse_message_frame(frame: Mapping[str, Any], *, treat_all_as_tome: bool = T
     chat_type = ChatType.GROUP if chat_type_value == "group" else ChatType.PRIVATE
     if chat_type == ChatType.GROUP:
         content_text = _strip_group_mention_prefix(content_text)
-        if not content_text:
+        if not content_text and not attachments:
             return None
 
     sender = body.get("from")
@@ -237,28 +237,10 @@ def _extract_content_text_and_attachments(
     msg_type = _get_str(body, "msgtype")
     if msg_type == "text":
         return _get_str(_safe_mapping(body, "text"), "content"), []
-    if msg_type == "image":
-        image = _safe_mapping(body, "image")
-        return "[图片]", [
-            ParsedWxWorkAttachment(
-                segment_type=ChatMessageSegmentType.IMAGE,
-                media_type="image",
-                url=_get_str(image, "url"),
-                aeskey=_get_str(image, "aeskey"),
-                file_name=_get_str(image, "filename") or _get_str(image, "name"),
-            )
-        ]
-    if msg_type == "file":
-        file_info = _safe_mapping(body, "file")
-        return "[文件]", [
-            ParsedWxWorkAttachment(
-                segment_type=ChatMessageSegmentType.FILE,
-                media_type="file",
-                url=_get_str(file_info, "url"),
-                aeskey=_get_str(file_info, "aeskey"),
-                file_name=_get_str(file_info, "filename") or _get_str(file_info, "name") or _get_str(file_info, "title"),
-            )
-        ]
+    attachment = _build_attachment(body, msg_type=msg_type)
+    if attachment is not None:
+        placeholder = "[图片]" if attachment.segment_type == ChatMessageSegmentType.IMAGE else "[文件]"
+        return placeholder, [attachment]
     if msg_type == "voice":
         voice = _safe_mapping(body, "voice")
         return _get_str(voice, "recognition") or _get_str(voice, "text"), []
@@ -267,15 +249,48 @@ def _extract_content_text_and_attachments(
         items = mixed.get("msg_item") or mixed.get("items") or mixed.get("msgItems")
         if isinstance(items, list):
             texts: list[str] = []
+            attachments: list[ParsedWxWorkAttachment] = []
             for item in items:
                 if not isinstance(item, Mapping):
                     continue
-                if _get_str(item, "msgtype") == "text":
+                item_msg_type = _get_str(item, "msgtype")
+                if item_msg_type == "text":
                     text = _get_str(_safe_mapping(item, "text"), "content")
                     if text:
                         texts.append(text)
-            return "\n".join(texts).strip(), []
+                    continue
+
+                attachment = _build_attachment(item, msg_type=item_msg_type)
+                if attachment is not None:
+                    attachments.append(attachment)
+            return "\n".join(texts).strip(), attachments
     return "", []
+
+
+def _build_attachment(data: Mapping[str, Any], *, msg_type: str) -> ParsedWxWorkAttachment | None:
+    if msg_type not in {"image", "file"}:
+        return None
+
+    payload = _safe_mapping(data, msg_type)
+    if not payload:
+        payload = data
+
+    if msg_type == "image":
+        return ParsedWxWorkAttachment(
+            segment_type=ChatMessageSegmentType.IMAGE,
+            media_type="image",
+            url=_get_str(payload, "url"),
+            aeskey=_get_str(payload, "aeskey"),
+            file_name=_get_str(payload, "filename") or _get_str(payload, "name"),
+        )
+
+    return ParsedWxWorkAttachment(
+        segment_type=ChatMessageSegmentType.FILE,
+        media_type="file",
+        url=_get_str(payload, "url"),
+        aeskey=_get_str(payload, "aeskey"),
+        file_name=_get_str(payload, "filename") or _get_str(payload, "name") or _get_str(payload, "title"),
+    )
 
 
 def _build_text_segments(content_text: str) -> list[ChatMessageSegment]:
