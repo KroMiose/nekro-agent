@@ -389,7 +389,7 @@ class EpisodicConsolidator:
         lines = []
         for msg in messages:
             time_str = datetime.fromtimestamp(msg.send_timestamp).strftime("%H:%M")
-            sender = msg.sender_nickname or msg.sender_name or f"User_{msg.sender_id}"
+            sender = msg.sender_nickname or msg.sender_name or str(msg.platform_userid or msg.sender_id) or "UnknownUser"
 
             # 标记 bot 消息
             if msg.sender_id == "-1" and self.persona_context:

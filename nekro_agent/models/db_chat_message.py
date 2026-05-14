@@ -53,6 +53,7 @@ class DBChatMessage(Model):
         content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code, config, ref_mode)
         content = limited_text_output(content, config.AI_CONTEXT_LENGTH_PER_MESSAGE, placeholder="(content too long, omitted)")
         time_str = datetime.datetime.fromtimestamp(self.send_timestamp).strftime("%m-%d %H:%M:%S")
+        sender_label = self.sender_nickname or self.sender_name or self.platform_userid or str(self.sender_id) or "UnknownUser"
 
         # 消息引用前缀生成
         additional_info: str = f"msg_id:{self.message_id}" if ref_mode and self.message_id else ""
@@ -70,7 +71,7 @@ class DBChatMessage(Model):
         parts: List[str] = [p for p in [additional_info, ref_str, tome_str] if p]
         prefix_str: str = f"({', '.join(parts)})" if parts else ""
 
-        return f'{prefix_str}[{time_str} id:{self.platform_userid}] "{self.sender_nickname}" 说: {content or self.content_text}'
+        return f'{prefix_str}[{time_str}] "{sender_label}" 说: {content or self.content_text}'
 
     def parse_content_data(self) -> List[ChatMessageSegment]:
         """解析内容数据"""
