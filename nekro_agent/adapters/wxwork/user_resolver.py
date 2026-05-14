@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import json
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -7,6 +10,7 @@ import httpx
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.tools.telemetry_util import generate_instance_id
 
 
 if TYPE_CHECKING:
@@ -17,6 +21,7 @@ logger = get_sub_logger("adapter.wxwork.user_resolver")
 USER_INFO_FETCHED_AT_KEY = "wxwork_user_name_fetched_at"
 USER_INFO_SOURCE_KEY = "wxwork_user_name_source"
 FAILED_LOOKUP_BACKOFF_SECONDS = 600
+WXWORK_OFFICIAL_API_BASE_URL = "https://qyapi.weixin.qq.com"
 
 
 @dataclass(slots=True)
@@ -33,6 +38,12 @@ class WxWorkUserResolver:
         self._access_token_expire_at: float = 0.0
 
     def is_lookup_configured(self) -> bool:
+        mode = self._adapter.config.USER_INFO_LOOKUP_MODE
+        if mode == "proxy":
+            return bool(
+                self._adapter.config.USER_INFO_PROXY_URL.strip()
+                and self._adapter.config.USER_INFO_PROXY_SHARED_SECRET.strip()
+            )
         return bool(
             self._adapter.config.USER_INFO_CORP_ID.strip() and self._adapter.config.USER_INFO_APP_SECRET.strip()
         )
@@ -101,8 +112,11 @@ class WxWorkUserResolver:
 
     async def _fetch_user_name(self, user_id: str) -> str:
         try:
-            access_token = await self._get_access_token()
-            payload = await self._get_user_info_payload(access_token=access_token, user_id=user_id)
+            if self._adapter.config.USER_INFO_LOOKUP_MODE == "proxy":
+                payload = await self._get_proxy_user_info_payload(user_id=user_id)
+            else:
+                access_token = await self._get_access_token()
+                payload = await self._get_user_info_payload(access_token=access_token, user_id=user_id)
         except Exception as exc:
             logger.warning(f"企业微信用户名补查失败，将暂时退回 userid: user_id={user_id}, error={exc}")
             return ""
@@ -115,7 +129,7 @@ class WxWorkUserResolver:
             return self._access_token
 
         timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
-        url = f"{self._adapter.config.USER_INFO_API_BASE_URL.rstrip('/')}/cgi-bin/gettoken"
+        url = f"{WXWORK_OFFICIAL_API_BASE_URL}/cgi-bin/gettoken"
         params = {
             "corpid": self._adapter.config.USER_INFO_CORP_ID,
             "corpsecret": self._adapter.config.USER_INFO_APP_SECRET,
@@ -139,7 +153,7 @@ class WxWorkUserResolver:
 
     async def _get_user_info_payload(self, *, access_token: str, user_id: str) -> dict:
         timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
-        url = f"{self._adapter.config.USER_INFO_API_BASE_URL.rstrip('/')}/cgi-bin/user/get"
+        url = f"{WXWORK_OFFICIAL_API_BASE_URL}/cgi-bin/user/get"
         params = {
             "access_token": access_token,
             "userid": user_id,
@@ -163,6 +177,43 @@ class WxWorkUserResolver:
         if data.get("errcode", 0) != 0:
             raise RuntimeError(f"读取企业微信成员失败: {data.get('errmsg', 'unknown error')} ({data.get('errcode')})")
         return data
+
+    async def _get_proxy_user_info_payload(self, *, user_id: str) -> dict:
+        timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
+        request_body = {"user_id": user_id}
+        request_body_json = json.dumps(request_body, ensure_ascii=False, separators=(",", ":"))
+        timestamp = str(int(time.time()))
+        instance_id = generate_instance_id()
+        signature = self._build_proxy_signature(
+            instance_id=instance_id,
+            timestamp=timestamp,
+            body=request_body_json,
+        )
+        headers = {
+            "Content-Type": "application/json",
+            "X-Nekro-Instance-Id": instance_id,
+            "X-Nekro-Timestamp": timestamp,
+            "X-Nekro-Signature": signature,
+        }
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(
+                self._adapter.config.USER_INFO_PROXY_URL.strip(),
+                content=request_body_json,
+                headers=headers,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        if not data.get("ok", False):
+            raise RuntimeError(str(data.get("error") or "用户名代理返回失败"))
+
+        user_name = str(data.get("user_name") or "").strip()
+        return {"name": user_name}
+
+    def _build_proxy_signature(self, *, instance_id: str, timestamp: str, body: str) -> str:
+        secret = self._adapter.config.USER_INFO_PROXY_SHARED_SECRET.strip().encode("utf-8")
+        message = f"{instance_id}\n{timestamp}\n{body}".encode("utf-8")
+        return hmac.new(secret, message, hashlib.sha256).hexdigest()
 
     def _get_cache(self, user_id: str) -> str:
         entry = self._cache.get(user_id)

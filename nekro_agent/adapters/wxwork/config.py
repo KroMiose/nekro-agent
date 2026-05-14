@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 
 from nekro_agent.adapters.interface.base import BaseAdapterConfig
@@ -43,14 +45,28 @@ class WxWorkConfig(BaseAdapterConfig):
     USER_INFO_CORP_ID: str = Field(
         default="",
         title="User Info Corp ID",
-        description="用于查询企业通讯录成员姓名的自建应用 CorpID，可选；配置后可稳定将 userid 解析为用户名",
+        description="用于查询企业通讯录成员姓名的企业 ID（CorpID），可选；配置后可稳定将 userid 解析为用户名",
         json_schema_extra=ExtraField(
             placeholder="wwxxxxxxxxxxxxxxxx",
             i18n_category=i18n_text(zh_CN="用户名解析", en_US="User Name Resolution"),
-            i18n_title=i18n_text(zh_CN="自建应用 Corp ID", en_US="Corp App Corp ID"),
+            i18n_title=i18n_text(zh_CN="企业 ID", en_US="Enterprise Corp ID"),
             i18n_description=i18n_text(
-                zh_CN="用于查询企业通讯录成员姓名的自建应用 CorpID，可选；配置后可稳定将 userid 解析为用户名",
-                en_US="Optional CorpID of a self-built app used to query member names from the enterprise directory. When configured, userid can be stably resolved to display names.",
+                zh_CN="用于查询企业通讯录成员姓名的企业 ID（CorpID），可选；配置后可稳定将 userid 解析为用户名",
+                en_US="Optional enterprise CorpID used to query member names from the directory. When configured, userid can be stably resolved to display names.",
+            ),
+        ).model_dump(),
+    )
+
+    USER_INFO_LOOKUP_MODE: Literal["direct", "proxy"] = Field(
+        default="direct",
+        title="User Info Lookup Mode",
+        description="企业微信用户名查询模式。默认 direct 直连官方接口；配置为 proxy 时通过独立代理服务查询。若使用 proxy，则企业 ID 与自建应用 Secret 只需配置在代理服务端。",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="用户名解析", en_US="User Name Resolution"),
+            i18n_title=i18n_text(zh_CN="用户名查询模式", en_US="User Name Lookup Mode"),
+            i18n_description=i18n_text(
+                zh_CN="企业微信用户名查询模式。默认 direct 直连官方接口；配置为 proxy 时通过独立代理服务查询。若使用 proxy，则企业 ID 与自建应用 Secret 只需配置在代理服务端。",
+                en_US="WeCom user name lookup mode. Default is direct official API access; set to proxy to resolve names through a dedicated proxy service. In proxy mode, the enterprise CorpID and self-built app Secret only need to be configured on the proxy server.",
             ),
         ).model_dump(),
     )
@@ -70,17 +86,32 @@ class WxWorkConfig(BaseAdapterConfig):
         ).model_dump(),
     )
 
-    USER_INFO_API_BASE_URL: str = Field(
-        default="https://qyapi.weixin.qq.com",
-        title="User Info API Base URL",
-        description="企业微信自建应用通讯录查询 API 地址，默认使用官方地址",
+    USER_INFO_PROXY_URL: str = Field(
+        default="",
+        title="User Info Proxy URL",
+        description="企业微信用户名查询代理地址，仅在 lookup mode=proxy 时使用，例如 https://example.com/api/wxwork/user/resolve",
         json_schema_extra=ExtraField(
-            placeholder="https://qyapi.weixin.qq.com",
+            placeholder="https://example.com/api/wxwork/user/resolve",
             i18n_category=i18n_text(zh_CN="用户名解析", en_US="User Name Resolution"),
-            i18n_title=i18n_text(zh_CN="自建应用 API 地址", en_US="Corp App API Base URL"),
+            i18n_title=i18n_text(zh_CN="用户名代理地址", en_US="User Name Proxy URL"),
             i18n_description=i18n_text(
-                zh_CN="企业微信自建应用通讯录查询 API 地址，默认使用官方地址",
-                en_US="API base URL for self-built app directory lookup. The official URL is used by default.",
+                zh_CN="企业微信用户名查询代理地址，仅在 lookup mode=proxy 时使用，例如 https://example.com/api/wxwork/user/resolve",
+                en_US="Proxy endpoint used for WeCom user name lookup when lookup mode=proxy, for example https://example.com/api/wxwork/user/resolve",
+            ),
+        ).model_dump(),
+    )
+
+    USER_INFO_PROXY_SHARED_SECRET: str = Field(
+        default="",
+        title="User Info Proxy Shared Secret",
+        description="企业微信用户名查询代理共享密钥，仅在 lookup mode=proxy 时使用。本地实例与代理服务端需配置为相同值，用于 HMAC 签名鉴权。",
+        json_schema_extra=ExtraField(
+            is_secret=True,
+            i18n_category=i18n_text(zh_CN="用户名解析", en_US="User Name Resolution"),
+            i18n_title=i18n_text(zh_CN="用户名代理共享密钥", en_US="User Name Proxy Shared Secret"),
+            i18n_description=i18n_text(
+                zh_CN="企业微信用户名查询代理共享密钥，仅在 lookup mode=proxy 时使用。本地实例与代理服务端需配置为相同值，用于 HMAC 签名鉴权。",
+                en_US="Shared secret used for WeCom user name proxy lookup when lookup mode=proxy. The local instance and proxy server must use the same value for HMAC signature authentication.",
             ),
         ).model_dump(),
     )
