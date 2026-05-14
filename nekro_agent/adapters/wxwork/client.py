@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Coroutine, Dict, Optional
 
+import httpx
 from websockets import connect
 from websockets.asyncio.client import ClientConnection
 
@@ -196,6 +197,20 @@ class WxWorkLongConnectionClient:
         logger.info(f"企业微信 AI Bot 媒体上传完成: filename={filename}, type={media_type}")
         return finish_response
 
+    async def download_media(self, *, url: str, aeskey: str) -> bytes:
+        if not url:
+            raise ValueError("企业微信 AI Bot 媒体下载缺少 url")
+        if not aeskey:
+            raise ValueError("企业微信 AI Bot 媒体下载缺少 aeskey")
+
+        timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            encrypted_bytes = response.content
+
+        return self._decrypt_media_bytes(encrypted_bytes=encrypted_bytes, aeskey=aeskey)
+
     def _prepare_media_upload(self, *, file_path: str, media_type: str) -> tuple[str, bytes]:
         file = Path(file_path)
         if not file.exists() or not file.is_file():
@@ -210,6 +225,26 @@ class WxWorkLongConnectionClient:
         raise ValueError(
             f"企业微信 AI Bot 暂不支持发送 {file.suffix.lower() or '未知'} 格式图片，仅支持 jpg/jpeg/png: {file.name}"
         )
+
+    def _decrypt_media_bytes(self, *, encrypted_bytes: bytes, aeskey: str) -> bytes:
+        from Crypto.Cipher import AES
+
+        padded_aeskey = aeskey.strip()
+        padded_aeskey += "=" * (-len(padded_aeskey) % 4)
+        try:
+            key = base64.b64decode(padded_aeskey)
+        except Exception as exc:
+            raise ValueError(f"企业微信 AI Bot 媒体 aeskey 不是合法的 base64: {aeskey}") from exc
+
+        if len(key) != 32:
+            raise ValueError(f"企业微信 AI Bot 媒体 aeskey 长度非法: {len(key)}")
+
+        cipher = AES.new(key, AES.MODE_CBC, key[:16])
+        plain_bytes = cipher.decrypt(encrypted_bytes)
+        padding_len = plain_bytes[-1]
+        if padding_len <= 0 or padding_len > 32:
+            raise ValueError(f"企业微信 AI Bot 媒体解密填充非法: {padding_len}")
+        return plain_bytes[:-padding_len]
 
     async def _run_forever(self) -> None:
         attempt = 0

@@ -64,6 +64,9 @@ async def collect_message(
 
         user = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
         assert user
+    elif platform_user.user_name and user.username != platform_user.user_name:
+        user.username = platform_user.user_name
+        await user.save()
 
     if not user.is_active:
         logger.info(f"用户 {platform_user.user_id} 被封禁，封禁结束时间: {user.ban_until}")

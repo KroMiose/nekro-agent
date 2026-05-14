@@ -40,6 +40,65 @@ class WxWorkConfig(BaseAdapterConfig):
         ).model_dump(),
     )
 
+    USER_INFO_CORP_ID: str = Field(
+        default="",
+        title="User Info Corp ID",
+        description="用于查询企业通讯录成员姓名的自建应用 CorpID，可选；配置后可稳定将 userid 解析为用户名",
+        json_schema_extra=ExtraField(
+            placeholder="wwxxxxxxxxxxxxxxxx",
+            i18n_category=i18n_text(zh_CN="用户名解析", en_US="User Name Resolution"),
+            i18n_title=i18n_text(zh_CN="自建应用 Corp ID", en_US="Corp App Corp ID"),
+            i18n_description=i18n_text(
+                zh_CN="用于查询企业通讯录成员姓名的自建应用 CorpID，可选；配置后可稳定将 userid 解析为用户名",
+                en_US="Optional CorpID of a self-built app used to query member names from the enterprise directory. When configured, userid can be stably resolved to display names.",
+            ),
+        ).model_dump(),
+    )
+
+    USER_INFO_APP_SECRET: str = Field(
+        default="",
+        title="User Info App Secret",
+        description="具备通讯录读取权限的企业微信自建应用 Secret，可选；配置后可稳定将 userid 解析为用户名",
+        json_schema_extra=ExtraField(
+            is_secret=True,
+            i18n_category=i18n_text(zh_CN="用户名解析", en_US="User Name Resolution"),
+            i18n_title=i18n_text(zh_CN="自建应用 Secret", en_US="Corp App Secret"),
+            i18n_description=i18n_text(
+                zh_CN="具备通讯录读取权限的企业微信自建应用 Secret，可选；配置后可稳定将 userid 解析为用户名",
+                en_US="Optional Secret of a self-built WeCom app with directory read permission. When configured, userid can be stably resolved to display names.",
+            ),
+        ).model_dump(),
+    )
+
+    USER_INFO_API_BASE_URL: str = Field(
+        default="https://qyapi.weixin.qq.com",
+        title="User Info API Base URL",
+        description="企业微信自建应用通讯录查询 API 地址，默认使用官方地址",
+        json_schema_extra=ExtraField(
+            placeholder="https://qyapi.weixin.qq.com",
+            i18n_category=i18n_text(zh_CN="用户名解析", en_US="User Name Resolution"),
+            i18n_title=i18n_text(zh_CN="自建应用 API 地址", en_US="Corp App API Base URL"),
+            i18n_description=i18n_text(
+                zh_CN="企业微信自建应用通讯录查询 API 地址，默认使用官方地址",
+                en_US="API base URL for self-built app directory lookup. The official URL is used by default.",
+            ),
+        ).model_dump(),
+    )
+
+    USER_INFO_CACHE_TTL_SECONDS: int = Field(
+        default=86400,
+        title="User Info Cache TTL",
+        description="企业微信用户名缓存时长（秒），包含本地内存缓存与失败后的短期退避",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="用户名解析", en_US="User Name Resolution"),
+            i18n_title=i18n_text(zh_CN="用户名缓存时长", en_US="User Name Cache TTL"),
+            i18n_description=i18n_text(
+                zh_CN="企业微信用户名缓存时长（秒），包含本地内存缓存与失败后的短期退避",
+                en_US="TTL for WeCom user name cache in seconds, including in-memory cache and short backoff after lookup failures.",
+            ),
+        ).model_dump(),
+    )
+
     HEARTBEAT_INTERVAL_SECONDS: int = Field(
         default=30,
         title="心跳间隔",
