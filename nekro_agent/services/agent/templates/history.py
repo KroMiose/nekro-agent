@@ -185,7 +185,7 @@ async def _build_enhanced_memory_recall_plan(recent_messages: List[DBChatMessage
     for msg in recent_messages[-12:]:
         if not msg.content_text or not msg.content_text.strip():
             continue
-        sender = msg.sender_nickname or msg.sender_name or str(msg.platform_userid or msg.sender_id) or "UnknownUser"
+        sender = msg.sender_nickname or msg.sender_name or f"User_{msg.sender_id}"
         if msg.sender_id == "-1":
             sender = "Assistant"
         content = msg.content_text.strip()[:400]
