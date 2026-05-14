@@ -73,6 +73,7 @@ import {
   kbLibraryApi,
   workspaceApi,
 } from '../../services/api/workspace'
+import { unifiedConfigApi } from '../../services/api/unified-config'
 import { useNotification } from '../../hooks/useNotification'
 import { CARD_VARIANTS, CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import SearchField from '../../components/common/SearchField'
@@ -237,9 +238,28 @@ export default function KbLibraryPage() {
     queryKey: ['workspaces-list'],
     queryFn: () => workspaceApi.getList(),
   })
+  const systemConfigQuery = useQuery({
+    queryKey: ['system-configs'],
+    queryFn: () => unifiedConfigApi.getConfigList('system'),
+    staleTime: 60_000,
+  })
+  const modelGroupsQuery = useQuery({
+    queryKey: ['model-groups'],
+    queryFn: () => unifiedConfigApi.getModelGroups(),
+    staleTime: 60_000,
+  })
 
   const assets = assetsQuery.data ?? EMPTY_ASSETS
   const workspaces = workspacesQuery.data ?? EMPTY_WORKSPACES
+  const kbEmbeddingModelGroupValid = useMemo(() => {
+    const item = systemConfigQuery.data?.find(config => config.key === 'KB_EMBEDDING_MODEL_GROUP')
+    const groupName = typeof item?.value === 'string' ? item.value.trim() : ''
+    if (!groupName) return false
+    const group = modelGroupsQuery.data?.[groupName]
+    return group?.MODEL_TYPE === 'embedding'
+  }, [modelGroupsQuery.data, systemConfigQuery.data])
+  const kbEmbeddingConfigMessage = t('kbLibrary.config.embeddingRequired')
+  const kbEmbeddingActionsDisabled = !kbEmbeddingModelGroupValid
 
   useEffect(() => {
     batchQueueRef.current = batchQueue
@@ -1181,7 +1201,7 @@ export default function KbLibraryPage() {
               </Tooltip>
               <KBBatchActionsButton
                 label={t('kbLibrary.actions.batchActions', { count: selectedAssetIdList.length })}
-                disabled={selectedAssetIdList.length === 0 || batchActionPending}
+                disabled={kbEmbeddingActionsDisabled || selectedAssetIdList.length === 0 || batchActionPending}
                 actions={[
                   {
                     key: 'delete',
@@ -1193,7 +1213,7 @@ export default function KbLibraryPage() {
                     key: 'reindex',
                     label: t('kbLibrary.actions.bulkReindexSelected', { count: selectedAssetIdList.length }),
                     onClick: () => bulkReindexMutation.mutate(selectedAssetIdList),
-                    disabled: selectedAssetIdList.length === 0 || batchActionPending,
+                    disabled: kbEmbeddingActionsDisabled || selectedAssetIdList.length === 0 || batchActionPending,
                   },
                 ]}
               />
@@ -1203,6 +1223,7 @@ export default function KbLibraryPage() {
                 startIcon={<AddIcon />}
                 endIcon={<ArrowDropDownIcon />}
                 onClick={handleAddMenuOpen}
+                disabled={kbEmbeddingActionsDisabled}
               >
                 {t('kbLibrary.actions.addFile')}
               </ActionButton>
@@ -1213,13 +1234,19 @@ export default function KbLibraryPage() {
                 anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 transformOrigin={{ vertical: 'top', horizontal: 'right' }}
               >
-                <MenuItem onClick={handleOpenUploadDialog}>{t('kbLibrary.actions.upload')}</MenuItem>
-                <MenuItem onClick={handleOpenBatchUploadDialog}>{t('kbLibrary.actions.batchUpload')}</MenuItem>
-                <MenuItem onClick={handleOpenCreateDialog}>{t('kbLibrary.actions.createText')}</MenuItem>
+                <MenuItem onClick={handleOpenUploadDialog} disabled={kbEmbeddingActionsDisabled}>{t('kbLibrary.actions.upload')}</MenuItem>
+                <MenuItem onClick={handleOpenBatchUploadDialog} disabled={kbEmbeddingActionsDisabled}>{t('kbLibrary.actions.batchUpload')}</MenuItem>
+                <MenuItem onClick={handleOpenCreateDialog} disabled={kbEmbeddingActionsDisabled}>{t('kbLibrary.actions.createText')}</MenuItem>
               </Menu>
             </Box>
           </Box>
         </Card>
+
+        {kbEmbeddingActionsDisabled && (
+          <Alert severity="warning" sx={{ flexShrink: 0 }}>
+            {kbEmbeddingConfigMessage}
+          </Alert>
+        )}
 
         {assetsQuery.isLoading ? (
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -1489,6 +1516,7 @@ export default function KbLibraryPage() {
                 startIcon={<ReindexIcon />}
                 sx={compactActionSx}
                 onClick={() => reindexMutation.mutate(detail.asset.id)}
+                disabled={kbEmbeddingActionsDisabled || reindexMutation.isPending}
               >
                 {t('kbLibrary.actions.reindex')}
               </ActionButton>
@@ -1546,6 +1574,9 @@ export default function KbLibraryPage() {
         <DialogTitle>{t('kbLibrary.dialogs.createTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {kbEmbeddingActionsDisabled && (
+              <Alert severity="warning">{kbEmbeddingConfigMessage}</Alert>
+            )}
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
                 label={t('kbLibrary.form.title')}
@@ -1613,7 +1644,7 @@ export default function KbLibraryPage() {
           <ActionButton
             tone="primary"
             onClick={handleCreateSubmit}
-            disabled={createMutation.isPending || !createForm.title.trim() || !createForm.content.trim()}
+            disabled={kbEmbeddingActionsDisabled || createMutation.isPending || !createForm.title.trim() || !createForm.content.trim()}
           >
             {createMutation.isPending ? t('kbLibrary.actions.creating') : t('kbLibrary.actions.create')}
           </ActionButton>
@@ -1694,13 +1725,16 @@ export default function KbLibraryPage() {
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {kbEmbeddingActionsDisabled && (
+              <Alert severity="warning">{kbEmbeddingConfigMessage}</Alert>
+            )}
             {batchQueue.length === 0 ? (
               <Stack spacing={1.5}>
-                <ActionButton tone="secondary" startIcon={<FolderOpenIcon />} onClick={() => batchInputRef.current?.click()}>
+                <ActionButton tone="secondary" startIcon={<FolderOpenIcon />} onClick={() => batchInputRef.current?.click()} disabled={kbEmbeddingActionsDisabled}>
                   {t('kbLibrary.actions.chooseFiles')}
                 </ActionButton>
                 <Divider>{t('knowledge.actions.or')}</Divider>
-                <ActionButton tone="secondary" startIcon={<ImportFolderIcon />} onClick={() => dirInputRef.current?.click()}>
+                <ActionButton tone="secondary" startIcon={<ImportFolderIcon />} onClick={() => dirInputRef.current?.click()} disabled={kbEmbeddingActionsDisabled}>
                   {t('knowledge.actions.importFolder')}
                 </ActionButton>
                 <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
@@ -1809,11 +1843,11 @@ export default function KbLibraryPage() {
                 </Stack>
                 {batchQueue.every(i => i.status === 'waiting') && (
                   batchFromFolder ? (
-                    <ActionButton tone="secondary" startIcon={<ImportFolderIcon />} onClick={() => dirInputRef.current?.click()}>
+                    <ActionButton tone="secondary" startIcon={<ImportFolderIcon />} onClick={() => dirInputRef.current?.click()} disabled={kbEmbeddingActionsDisabled}>
                       {t('knowledge.actions.reChooseFolder')}
                     </ActionButton>
                   ) : (
-                    <ActionButton tone="secondary" startIcon={<FolderOpenIcon />} onClick={() => batchInputRef.current?.click()}>
+                    <ActionButton tone="secondary" startIcon={<FolderOpenIcon />} onClick={() => batchInputRef.current?.click()} disabled={kbEmbeddingActionsDisabled}>
                       {t('kbLibrary.actions.reChooseFiles')}
                     </ActionButton>
                   )
@@ -1849,6 +1883,7 @@ export default function KbLibraryPage() {
             <ActionButton
               tone="primary"
               onClick={() => startBatchUpload(batchQueue.filter(i => i.status === 'waiting'))}
+              disabled={kbEmbeddingActionsDisabled}
             >
               {t('kbLibrary.actions.startUpload', { count: batchQueue.filter(i => i.status === 'waiting').length })}
             </ActionButton>
@@ -1991,7 +2026,10 @@ export default function KbLibraryPage() {
         <DialogTitle>{t('kbLibrary.dialogs.uploadTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <ActionButton component="label" tone="secondary" startIcon={<FileUploadIcon />}>
+            {kbEmbeddingActionsDisabled && (
+              <Alert severity="warning">{kbEmbeddingConfigMessage}</Alert>
+            )}
+            <ActionButton component="label" tone="secondary" startIcon={<FileUploadIcon />} disabled={kbEmbeddingActionsDisabled}>
               {uploadPayload?.file?.name ?? t('kbLibrary.actions.chooseFile')}
               <input hidden type="file" accept={SUPPORTED_UPLOAD_EXTENSIONS.join(',')} onChange={handleFileChange} />
             </ActionButton>
@@ -2012,7 +2050,11 @@ export default function KbLibraryPage() {
         </DialogContent>
         <DialogActions>
           <ActionButton onClick={() => setUploadOpen(false)}>{t('kbLibrary.actions.cancel')}</ActionButton>
-          <ActionButton tone="primary" onClick={handleUploadSubmit} disabled={!uploadPayload?.file || uploadMutation.isPending}>
+          <ActionButton
+            tone="primary"
+            onClick={handleUploadSubmit}
+            disabled={kbEmbeddingActionsDisabled || !uploadPayload?.file || uploadMutation.isPending}
+          >
             {t('kbLibrary.actions.upload')}
           </ActionButton>
         </DialogActions>

@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from nekro_agent.core.config import config
+from nekro_agent.core.config import ModelConfigGroup, config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.services.agent.openai import gen_openai_embeddings
 
@@ -37,6 +37,25 @@ def get_kb_embedding_dimension() -> int:
 def get_kb_embedding_model_group() -> str:
     """获取知识库当前配置的 embedding 模型组"""
     return config.KB_EMBEDDING_MODEL_GROUP.strip()
+
+
+def validate_kb_embedding_model_group() -> ModelConfigGroup:
+    """校验知识库 embedding 模型组存在且类型正确"""
+    group_name = get_kb_embedding_model_group()
+    if not group_name:
+        raise ValueError("知识库 Embedding 模型组未配置")
+
+    try:
+        model_group = config.get_model_group_info(group_name)
+    except KeyError as e:
+        raise ValueError(f"知识库 Embedding 模型组 '{group_name}' 不存在") from e
+
+    if model_group.MODEL_TYPE != "embedding":
+        raise ValueError(
+            f"知识库 Embedding 模型组 '{group_name}' 类型不是 embedding，当前为 {model_group.MODEL_TYPE}",
+        )
+
+    return model_group
 
 
 class EmbeddingService:

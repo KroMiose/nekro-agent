@@ -56,7 +56,7 @@ from nekro_agent.services.kb.index_service import (
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
 from nekro_agent.services.kb.search_service import search_workspace_kb
-from nekro_agent.services.memory.embedding_service import get_kb_embedding_model_group
+from nekro_agent.services.memory.embedding_service import validate_kb_embedding_model_group
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -93,12 +93,14 @@ def _parse_tags_text(raw_tags: str) -> list[str]:
 
 
 def _ensure_kb_embedding_configured() -> None:
-    if get_kb_embedding_model_group():
+    try:
+        validate_kb_embedding_model_group()
         return
-    raise ConfigInvalidError(
-        key="KB_EMBEDDING_MODEL_GROUP",
-        reason="知识库 Embedding 模型组未配置，暂不允许创建、上传或重建知识库索引",
-    )
+    except ValueError as e:
+        raise ConfigInvalidError(
+            key="KB_EMBEDDING_MODEL_GROUP",
+            reason=f"{e}，暂不允许创建、上传或重建知识库索引",
+        ) from e
 
 
 def _build_tree_nodes(paths: list[tuple[int, str]]) -> list[KBTreeNode]:

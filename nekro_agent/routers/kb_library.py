@@ -57,7 +57,7 @@ from nekro_agent.services.kb.library_service import (
     update_asset_metadata,
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
-from nekro_agent.services.memory.embedding_service import get_kb_embedding_model_group
+from nekro_agent.services.memory.embedding_service import validate_kb_embedding_model_group
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -97,12 +97,14 @@ async def _ensure_workspace_exists(workspace_id: int) -> None:
 
 
 def _ensure_kb_embedding_configured() -> None:
-    if get_kb_embedding_model_group():
+    try:
+        validate_kb_embedding_model_group()
         return
-    raise ConfigInvalidError(
-        key="KB_EMBEDDING_MODEL_GROUP",
-        reason="知识库 Embedding 模型组未配置，暂不允许创建、上传或重建知识库索引",
-    )
+    except ValueError as e:
+        raise ConfigInvalidError(
+            key="KB_EMBEDDING_MODEL_GROUP",
+            reason=f"{e}，暂不允许创建、上传或重建知识库索引",
+        ) from e
 
 
 @router.get("/assets", summary="获取全局知识库文件列表", response_model=KBAssetListResponse)
