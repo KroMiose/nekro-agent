@@ -51,6 +51,7 @@ import ActionButton from './ActionButton'
 import IconActionButton from './IconActionButton'
 import { useNotification } from '../../hooks/useNotification'
 import { restartApi } from '../../services/api/restart'
+import { unifiedConfigApi } from '../../services/api/unified-config'
 import { ThemedTooltip } from './ThemedTooltip'
 import { presetsApi, Preset } from '../../services/api/presets'
 import { useTranslation } from 'react-i18next'
@@ -97,6 +98,7 @@ export interface ConfigItem {
   is_secret?: boolean
   is_textarea?: boolean
   ref_model_groups?: boolean
+  ref_email_accounts_send_enabled?: boolean
   ref_presets?: boolean
   ref_presets_no_default?: boolean
   ref_presets_multiple?: boolean
@@ -938,6 +940,7 @@ export default function ConfigTable({
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [modelGroups, setModelGroups] = useState<Record<string, ModelGroupConfig>>({})
   const [modelTypes, setModelTypes] = useState<ModelTypeOption[]>([])
+  const [emailSendAccounts, setEmailSendAccounts] = useState<string[]>([])
 
   const [presets, setPresets] = useState<Preset[]>([])
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
@@ -1220,6 +1223,27 @@ export default function ConfigTable({
     }
   }, [configs])
 
+  useEffect(() => {
+    unifiedConfigApi
+      .getConfigList('adapter_email')
+      .then(items => {
+        const receiveAccountsItem = items.find(item => item.key === 'RECEIVE_ACCOUNTS')
+        const value = receiveAccountsItem?.value
+        if (!Array.isArray(value)) {
+          setEmailSendAccounts([])
+          return
+        }
+        const accounts = value
+          .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+          .filter(item => item.SEND_ENABLED === true && typeof item.USERNAME === 'string' && item.USERNAME.trim())
+          .map(item => String(item.USERNAME))
+        setEmailSendAccounts(accounts)
+      })
+      .catch(() => {
+        setEmailSendAccounts([])
+      })
+  }, [])
+
   const renderConfigInput = (config: ConfigItem, disabled: boolean = false) => {
     const isEditing = Object.prototype.hasOwnProperty.call(editingValues, config.key)
     const rawValue = isEditing ? editingValues[config.key] : String(config.value)
@@ -1287,6 +1311,33 @@ export default function ConfigTable({
             </Button>
           )}
         </Box>
+      )
+    }
+
+    if (config.ref_email_accounts_send_enabled) {
+      const isInvalidValue = Boolean(rawValue && !emailSendAccounts.includes(rawValue))
+
+      return (
+        <TextField
+          select
+          value={rawValue}
+          onChange={e => handleConfigChange(config.key, e.target.value)}
+          size="small"
+          fullWidth
+          error={isInvalidValue}
+          helperText={isInvalidValue ? t('configTable.currentEmailAccountMissing') : undefined}
+          placeholder={config.placeholder}
+          disabled={disabled}
+        >
+          <MenuItem value="">
+            <em>{t('configTable.selectEmailAccount')}</em>
+          </MenuItem>
+          {emailSendAccounts.map(account => (
+            <MenuItem key={account} value={account}>
+              {account}
+            </MenuItem>
+          ))}
+        </TextField>
       )
     }
 

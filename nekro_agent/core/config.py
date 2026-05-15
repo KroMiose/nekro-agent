@@ -1862,127 +1862,142 @@ class CoreConfig(ConfigBase):
     """邮件通知配置"""
     MAIL_ENABLED: bool = Field(
         default=False,
-        title="启用运行状态邮件通知",
-        description="启用后 Bot 上下线时会发送邮件通知",
+        title="启用运行状态邮件通知 (已弃用)",
+        description="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
         json_schema_extra=ExtraField(
+            is_hidden=True,
             i18n_category=i18n_text(
                 zh_CN="邮件通知",
                 en_US="Email Notification",
             ),
             i18n_title=i18n_text(
-                zh_CN="启用运行状态邮件通知",
-                en_US="Enable Runtime Status Email Notification",
+                zh_CN="启用运行状态邮件通知 (已弃用)",
+                en_US="Enable Runtime Status Email Notification (Deprecated)",
             ),
             i18n_description=i18n_text(
-                zh_CN="启用后 Bot 上下线时会发送邮件通知",
-                en_US="Send email notification when bot goes online/offline",
+                zh_CN="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
+                en_US="Migrated to the Email adapter settings. Old values are still kept as a backward-compatible fallback.",
             ),
         ).model_dump(),
     )
     MAIL_USERNAME: str = Field(
         default="",
-        title="邮件通知账号",
+        title="邮件通知账号 (已弃用)",
         json_schema_extra=ExtraField(
+            is_hidden=True,
             is_secret=True,
             i18n_category=i18n_text(
                 zh_CN="邮件通知",
                 en_US="Email Notification",
             ),
             i18n_title=i18n_text(
-                zh_CN="邮件通知账号",
-                en_US="Email Notification Account",
+                zh_CN="邮件通知账号 (已弃用)",
+                en_US="Email Notification Account (Deprecated)",
             ),
             i18n_description=i18n_text(
-                zh_CN="用于发送通知的邮箱账号",
-                en_US="Email account for sending notifications",
+                zh_CN="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
+                en_US="Migrated to the Email adapter settings. Old values are still kept as a backward-compatible fallback.",
             ),
         ).model_dump(),
-        description="用于发送通知的邮箱账号",
+        description="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
     )
     MAIL_PASSWORD: str = Field(
         default="",
-        title="邮件通知密码/授权码",
+        title="邮件通知密码/授权码 (已弃用)",
         json_schema_extra=ExtraField(
+            is_hidden=True,
             is_secret=True,
             i18n_category=i18n_text(
                 zh_CN="邮件通知",
                 en_US="Email Notification",
             ),
             i18n_title=i18n_text(
-                zh_CN="邮件通知密码/授权码",
-                en_US="Email Password/Authorization Code",
+                zh_CN="邮件通知密码/授权码 (已弃用)",
+                en_US="Email Password/Authorization Code (Deprecated)",
             ),
             i18n_description=i18n_text(
-                zh_CN="邮箱密码或授权码",
-                en_US="Email password or authorization code",
+                zh_CN="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
+                en_US="Migrated to the Email adapter settings. Old values are still kept as a backward-compatible fallback.",
             ),
         ).model_dump(),
-        description="邮箱密码或授权码",
+        description="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
     )
     MAIL_TARGET: List[str] = Field(
         default=[],
-        title="邮件通知目标",
+        title="邮件通知目标 (已弃用)",
         json_schema_extra=ExtraField(
+            is_hidden=True,
             i18n_category=i18n_text(
                 zh_CN="邮件通知",
                 en_US="Email Notification",
             ),
             sub_item_name="目标邮箱",
             i18n_title=i18n_text(
-                zh_CN="邮件通知目标",
-                en_US="Email Notification Targets",
+                zh_CN="邮件通知目标 (已弃用)",
+                en_US="Email Notification Targets (Deprecated)",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
+                en_US="Migrated to the Email adapter settings. Old values are still kept as a backward-compatible fallback.",
             ),
         ).model_dump(),
     )
     MAIL_HOSTNAME: str = Field(
         default="smtp.qq.com",
-        title="邮件通知 SMTP 服务器",
-        description="邮件服务器的 SMTP 地址",
+        title="邮件通知 SMTP 服务器 (已弃用)",
+        description="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
         json_schema_extra=ExtraField(
+            is_hidden=True,
             i18n_category=i18n_text(
                 zh_CN="邮件通知",
                 en_US="Email Notification",
             ),
             i18n_title=i18n_text(
-                zh_CN="邮件通知 SMTP 服务器",
-                en_US="Email SMTP Server",
+                zh_CN="邮件通知 SMTP 服务器 (已弃用)",
+                en_US="Email SMTP Server (Deprecated)",
             ),
             i18n_description=i18n_text(
-                zh_CN="邮件服务器的 SMTP 地址",
-                en_US="SMTP address of email server",
+                zh_CN="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
+                en_US="Migrated to the Email adapter settings. Old values are still kept as a backward-compatible fallback.",
             ),
         ).model_dump(),
     )
     MAIL_PORT: int = Field(
         default=587,
-        title="邮件通知 SMTP 端口",
-        description="SMTP服务器端口, 一般为 587 或 465",
+        title="邮件通知 SMTP 端口 (已弃用)",
+        description="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
         json_schema_extra=ExtraField(
+            is_hidden=True,
             i18n_category=i18n_text(
                 zh_CN="邮件通知",
                 en_US="Email Notification",
             ),
             i18n_title=i18n_text(
-                zh_CN="邮件通知 SMTP 端口",
-                en_US="Email SMTP Port",
+                zh_CN="邮件通知 SMTP 端口 (已弃用)",
+                en_US="Email SMTP Port (Deprecated)",
             ),
             i18n_description=i18n_text(
-                zh_CN="SMTP服务器端口，一般为 587 或 465",
-                en_US="SMTP server port, usually 587 or 465",
+                zh_CN="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
+                en_US="Migrated to the Email adapter settings. Old values are still kept as a backward-compatible fallback.",
             ),
         ).model_dump(),
     )
     MAIL_STARTTLS: bool = Field(
         default=True,
-        title="邮件通知启用 TLS 加密",
+        title="邮件通知启用 TLS 加密 (已弃用)",
         json_schema_extra=ExtraField(
+            is_hidden=True,
             i18n_category=i18n_text(
                 zh_CN="邮件通知",
                 en_US="Email Notification",
             ),
             i18n_title=i18n_text(
-                zh_CN="邮件通知启用 TLS 加密",
-                en_US="Enable TLS Encryption for Email",
+                zh_CN="邮件通知启用 TLS 加密 (已弃用)",
+                en_US="Enable TLS Encryption for Email (Deprecated)",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="已迁移到 Email 适配器配置中，旧值仍会作为兼容回退保留",
+                en_US="Migrated to the Email adapter settings. Old values are still kept as a backward-compatible fallback.",
             ),
         ).model_dump(),
     )

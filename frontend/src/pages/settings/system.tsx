@@ -60,13 +60,14 @@ export default function SettingsPage() {
 
   // 按分类组织配置，同时提取分类列表
   const { categories, configsByCategory } = useMemo(() => {
+    const visibleConfigs = configs.filter((config: ConfigItem) => !config.is_hidden)
     const seen = new Set<string>()
     const cats: string[] = []
     const grouped: Record<string, ConfigItem[]> = {}
 
     const otherLabel = t('system.otherCategory', '其他')
 
-    configs.forEach((config: ConfigItem) => {
+    visibleConfigs.forEach((config: ConfigItem) => {
       const category = resolveCategory(config)
       if (!seen.has(category)) {
         seen.add(category)
@@ -111,7 +112,7 @@ export default function SettingsPage() {
 
     return { categories: sortedCategories, configsByCategory: grouped }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configs, i18n.language, preferredCategoryOrder])
+  }, [configs, i18n.language, preferredCategoryOrder, t])
 
   const activeTab = useMemo(() => {
     if (categories.length === 0) {
