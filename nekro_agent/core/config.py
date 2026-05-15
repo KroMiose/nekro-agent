@@ -2049,6 +2049,25 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    BROWSER_PROXY_USE_SYSTEM: bool = Field(
+        default=False,
+        title="浏览器自动化使用系统代理",
+        description="是否在执行 agent-browser 时使用系统级默认代理",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="浏览器自动化使用系统代理",
+                en_US="Browser Automation Uses System Proxy",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="是否在执行 agent-browser 时使用系统级默认代理，解决容器内网络受限问题",
+                en_US="Whether to use the system default proxy when executing agent-browser, solving network restrictions in containers",
+            ),
+        ).model_dump(),
+    )
     DYNAMIC_PLUGIN_INSTALL_MIRROR: Literal[
         "https://pypi.tuna.tsinghua.edu.cn/simple",
         "https://mirrors.aliyun.com/pypi/simple",

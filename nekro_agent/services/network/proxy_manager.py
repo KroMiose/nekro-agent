@@ -8,11 +8,13 @@ from nekro_agent.core.config import config
 class SystemProxyFeature(StrEnum):
     PLUGIN_UPDATE = "plugin_update"
     DYNAMIC_PLUGIN_INSTALL = "dynamic_plugin_install"
+    BROWSER_AUTOMATION = "browser_automation"
 
 
 _FEATURE_FLAG_MAP: dict[SystemProxyFeature, str] = {
     SystemProxyFeature.PLUGIN_UPDATE: "PLUGIN_UPDATE_USE_PROXY",
     SystemProxyFeature.DYNAMIC_PLUGIN_INSTALL: "DYNAMIC_PLUGIN_INSTALL_USE_PROXY",
+    SystemProxyFeature.BROWSER_AUTOMATION: "BROWSER_PROXY_USE_SYSTEM",
 }
 
 
@@ -89,15 +91,24 @@ def build_subprocess_proxy_env(
     return merged_env
 
 
-def mask_proxy_url(proxy_url: Optional[str]) -> str:
-    if not proxy_url:
-        return ""
+def build_browser_proxy_env(
+    env: Optional[Mapping[str, str]] = None,
+) -> dict[str, str]:
+    """为浏览器自动化构建代理环境变量。
 
-    split = urlsplit(proxy_url)
-    if not split.username and not split.password:
-        return proxy_url
+    直接读取 DEFAULT_PROXY 配置，不依赖 feature flag，
+    适用于 agent-browser 等直接在容器中执行的命令。
+    """
+    merged_env = dict(env or {})
+    raw_proxy_url = (config.DEFAULT_PROXY or "").strip()
+    if not raw_proxy_url:
+        return merged_env
 
-    host_part = split.hostname or ""
-    if split.port is not None:
-        host_part = f"{host_part}:{split.port}"
-    return urlunsplit((split.scheme, f"***:***@{host_part}", split.path, split.query, split.fragment))
+    username, password = _get_proxy_credentials()
+    proxy_url = _build_authenticated_proxy_url(raw_proxy_url, username, password)
+
+    merged_env["HTTP_PROXY"] = proxy_url
+    merged_env["HTTPS_PROXY"] = proxy_url
+    merged_env["http_proxy"] = proxy_url
+    merged_env["https_proxy"] = proxy_url
+    return merged_env
