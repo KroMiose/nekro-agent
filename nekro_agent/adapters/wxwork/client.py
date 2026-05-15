@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Coroutine, Dict, Optional
 
+import httpx
 from websockets import connect
 from websockets.asyncio.client import ClientConnection
 
@@ -40,6 +41,7 @@ class WxWorkLongConnectionClient:
         self._bot_id = bot_id
         self._secret = secret
         self._adapter = adapter
+        self._http_client: Optional[httpx.AsyncClient] = None
         self._ws: Optional[ClientConnection] = None
         self._runner_task: Optional[asyncio.Task[None]] = None
         self._receiver_task: Optional[asyncio.Task[None]] = None
@@ -84,6 +86,7 @@ class WxWorkLongConnectionClient:
             self._ws = None
 
         await self._cancel_callback_tasks()
+        await self._close_http_client()
         self._fail_pending(RuntimeError("企业微信长连接已停止"))
 
     async def send_text_message(
@@ -196,6 +199,18 @@ class WxWorkLongConnectionClient:
         logger.info(f"企业微信 AI Bot 媒体上传完成: filename={filename}, type={media_type}")
         return finish_response
 
+    async def download_media(self, *, url: str, aeskey: str) -> bytes:
+        if not url:
+            raise ValueError("企业微信 AI Bot 媒体下载缺少 url")
+        if not aeskey:
+            raise ValueError("企业微信 AI Bot 媒体下载缺少 aeskey")
+
+        response = await self._get_http_client().get(url)
+        response.raise_for_status()
+        encrypted_bytes = response.content
+
+        return self._decrypt_media_bytes(encrypted_bytes=encrypted_bytes, aeskey=aeskey)
+
     def _prepare_media_upload(self, *, file_path: str, media_type: str) -> tuple[str, bytes]:
         file = Path(file_path)
         if not file.exists() or not file.is_file():
@@ -210,6 +225,32 @@ class WxWorkLongConnectionClient:
         raise ValueError(
             f"企业微信 AI Bot 暂不支持发送 {file.suffix.lower() or '未知'} 格式图片，仅支持 jpg/jpeg/png: {file.name}"
         )
+
+    def _decrypt_media_bytes(self, *, encrypted_bytes: bytes, aeskey: str) -> bytes:
+        from Crypto.Cipher import AES
+
+        padded_aeskey = aeskey.strip()
+        padded_aeskey += "=" * (-len(padded_aeskey) % 4)
+        try:
+            key = base64.b64decode(padded_aeskey)
+        except Exception as exc:
+            raise ValueError(
+                "企业微信 AI Bot 媒体 aeskey 不是合法的 base64: "
+                f"{self._mask_value(aeskey)}"
+            ) from exc
+
+        if len(key) != 32:
+            raise ValueError(f"企业微信 AI Bot 媒体 aeskey 长度非法: {len(key)}")
+
+        if len(encrypted_bytes) == 0 or len(encrypted_bytes) % 16 != 0:
+            raise ValueError(f"企业微信 AI Bot 媒体密文长度非法: {len(encrypted_bytes)}")
+
+        cipher = AES.new(key, AES.MODE_CBC, key[:16])
+        plain_bytes = cipher.decrypt(encrypted_bytes)
+        padding_len = plain_bytes[-1]
+        if padding_len <= 0 or padding_len > 32:
+            raise ValueError(f"企业微信 AI Bot 媒体解密填充非法: {padding_len}")
+        return plain_bytes[:-padding_len]
 
     async def _run_forever(self) -> None:
         attempt = 0
@@ -397,8 +438,26 @@ class WxWorkLongConnectionClient:
         masked = dict(body)
         secret = str(masked.get("secret", ""))
         if secret:
-            masked["secret"] = f"{secret[:3]}***{secret[-2:]}" if len(secret) > 5 else "***"
+            masked["secret"] = self._mask_value(secret)
         return masked
+
+    def _mask_value(self, value: str) -> str:
+        value = str(value or "").strip()
+        if not value:
+            return "***"
+        return f"{value[:3]}***{value[-2:]}" if len(value) > 5 else "***"
+
+    def _get_http_client(self) -> httpx.AsyncClient:
+        if self._http_client is None:
+            timeout = httpx.Timeout(self._adapter.config.REQUEST_TIMEOUT_SECONDS)
+            self._http_client = httpx.AsyncClient(timeout=timeout)
+        return self._http_client
+
+    async def _close_http_client(self) -> None:
+        if self._http_client is None:
+            return
+        await self._http_client.aclose()
+        self._http_client = None
 
     def _escape_markdown_link_definition_lines(self, content: str) -> str:
         """避免 `[label]: xxx` 在 Markdown 中被识别为引用定义而不可见。"""

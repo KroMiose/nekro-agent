@@ -3,7 +3,7 @@ import json
 import re
 import time
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 from nekro_agent.adapters.interface.schemas.extra import PlatformMessageExt
@@ -16,6 +16,16 @@ class ParsedWxWorkMessage:
     channel: PlatformChannel
     user: PlatformUser
     message: PlatformMessage
+    attachments: list["ParsedWxWorkAttachment"] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class ParsedWxWorkAttachment:
+    segment_type: ChatMessageSegmentType
+    media_type: str
+    url: str
+    aeskey: str
+    file_name: str = ""
 
 
 @dataclass(slots=True)
@@ -39,15 +49,15 @@ def parse_message_frame(frame: Mapping[str, Any], *, treat_all_as_tome: bool = T
     if msg_type == "event":
         return None
 
-    content_text = _extract_content_text(body)
-    if not content_text:
+    content_text, attachments = _extract_content_text_and_attachments(body)
+    if not content_text and not attachments:
         return None
 
     chat_type_value = _get_str(body, "chattype") or "single"
     chat_type = ChatType.GROUP if chat_type_value == "group" else ChatType.PRIVATE
     if chat_type == ChatType.GROUP:
         content_text = _strip_group_mention_prefix(content_text)
-        if not content_text:
+        if not content_text and not attachments:
             return None
 
     sender = body.get("from")
@@ -88,17 +98,13 @@ def parse_message_frame(frame: Mapping[str, Any], *, treat_all_as_tome: bool = T
             sender_id=sender_id,
             sender_name=sender_name,
             sender_nickname=sender_name,
-            content_data=[
-                ChatMessageSegment(
-                    type=ChatMessageSegmentType.TEXT,
-                    text=content_text,
-                )
-            ],
+            content_data=_build_text_segments(content_text),
             content_text=content_text,
             is_tome=treat_all_as_tome or chat_type == ChatType.PRIVATE,
             timestamp=_get_int(body, "create_time") or int(time.time()),
             ext_data=ext_data,
         ),
+        attachments=attachments,
     )
 
 
@@ -225,27 +231,77 @@ def parse_corp_app_kf_message(message: Mapping[str, Any], *, treat_all_as_tome: 
     )
 
 
-def _extract_content_text(body: Mapping[str, Any]) -> str:
+def _extract_content_text_and_attachments(
+    body: Mapping[str, Any],
+) -> tuple[str, list[ParsedWxWorkAttachment]]:
     msg_type = _get_str(body, "msgtype")
     if msg_type == "text":
-        return _get_str(_safe_mapping(body, "text"), "content")
+        return _get_str(_safe_mapping(body, "text"), "content"), []
+    attachment = _build_attachment(body, msg_type=msg_type)
+    if attachment is not None:
+        placeholder = "[图片]" if attachment.segment_type == ChatMessageSegmentType.IMAGE else "[文件]"
+        return placeholder, [attachment]
     if msg_type == "voice":
         voice = _safe_mapping(body, "voice")
-        return _get_str(voice, "recognition") or _get_str(voice, "text")
+        return _get_str(voice, "recognition") or _get_str(voice, "text"), []
     if msg_type == "mixed":
         mixed = _safe_mapping(body, "mixed")
         items = mixed.get("msg_item") or mixed.get("items") or mixed.get("msgItems")
         if isinstance(items, list):
             texts: list[str] = []
+            attachments: list[ParsedWxWorkAttachment] = []
             for item in items:
                 if not isinstance(item, Mapping):
                     continue
-                if _get_str(item, "msgtype") == "text":
+                item_msg_type = _get_str(item, "msgtype")
+                if item_msg_type == "text":
                     text = _get_str(_safe_mapping(item, "text"), "content")
                     if text:
                         texts.append(text)
-            return "\n".join(texts).strip()
-    return ""
+                    continue
+
+                attachment = _build_attachment(item, msg_type=item_msg_type)
+                if attachment is not None:
+                    attachments.append(attachment)
+            return "\n".join(texts).strip(), attachments
+    return "", []
+
+
+def _build_attachment(data: Mapping[str, Any], *, msg_type: str) -> ParsedWxWorkAttachment | None:
+    if msg_type not in {"image", "file"}:
+        return None
+
+    payload = _safe_mapping(data, msg_type)
+    if not payload:
+        payload = data
+
+    if msg_type == "image":
+        return ParsedWxWorkAttachment(
+            segment_type=ChatMessageSegmentType.IMAGE,
+            media_type="image",
+            url=_get_str(payload, "url"),
+            aeskey=_get_str(payload, "aeskey"),
+            file_name=_get_str(payload, "filename") or _get_str(payload, "name"),
+        )
+
+    return ParsedWxWorkAttachment(
+        segment_type=ChatMessageSegmentType.FILE,
+        media_type="file",
+        url=_get_str(payload, "url"),
+        aeskey=_get_str(payload, "aeskey"),
+        file_name=_get_str(payload, "filename") or _get_str(payload, "name") or _get_str(payload, "title"),
+    )
+
+
+def _build_text_segments(content_text: str) -> list[ChatMessageSegment]:
+    if not content_text:
+        return []
+    return [
+        ChatMessageSegment(
+            type=ChatMessageSegmentType.TEXT,
+            text=content_text,
+        )
+    ]
 
 
 def _extract_kf_content_text(message: Mapping[str, Any], msg_type: str) -> str:

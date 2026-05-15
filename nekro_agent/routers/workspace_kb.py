@@ -29,6 +29,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateDocumentBody,
     KBUpdateReferenceBody,
 )
+from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.document_service import (
     add_document_reference,
     create_file_document,
@@ -188,6 +189,7 @@ async def create_workspace_kb_document(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBDocumentDetailResponse:
     await _get_workspace_or_404(workspace_id)
+    ensure_kb_embedding_configured()
     if body.format not in {"markdown", "text"}:
         raise ValidationError(reason="仅支持创建 markdown 或 text 类型的文本知识")
     await ensure_kb_collection()
@@ -234,6 +236,7 @@ async def upload_workspace_kb_file(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBDocumentDetailResponse:
     await _get_workspace_or_404(workspace_id)
+    ensure_kb_embedding_configured()
     file_name = file.filename or ""
     if Path(file_name).suffix.lower() not in ALLOWED_KB_EXTENSIONS:
         raise ValidationError(reason=f"暂不支持的知识库文件类型: {file_name or 'unknown'}")
@@ -312,6 +315,7 @@ async def update_workspace_kb_document(
     reference_changed = body.title is not None or body.category is not None or body.is_enabled is not None
 
     if content_changed or source_path_changed:
+        ensure_kb_embedding_configured()
         await schedule_rebuild_document(updated)
     else:
         if metadata_changed:
@@ -426,6 +430,7 @@ async def reindex_workspace_kb_document(
     document_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBReindexResponse:
+    ensure_kb_embedding_configured()
     await ensure_kb_collection()
     document = await _get_document_or_404(workspace_id, document_id)
     scheduled = await schedule_rebuild_document(document)
@@ -439,6 +444,7 @@ async def reindex_workspace_kb(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBReindexResponse:
     await _get_workspace_or_404(workspace_id)
+    ensure_kb_embedding_configured()
     await ensure_kb_collection()
     scheduled, skipped = await rebuild_workspace_documents(workspace_id)
     return KBReindexResponse(ok=True, total=scheduled + skipped, success=scheduled, failed=0)

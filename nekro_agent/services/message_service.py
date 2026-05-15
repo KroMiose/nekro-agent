@@ -25,7 +25,7 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegmentType,
     convert_agent_message_to_prompt,
 )
-from nekro_agent.schemas.chat_message import ChatMessage, ChatMessageSegmentType, ChatType
+from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.errors import AdapterUnavailableError
 from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.channel_broadcaster import channel_broadcaster

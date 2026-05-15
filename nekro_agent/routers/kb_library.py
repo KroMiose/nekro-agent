@@ -26,6 +26,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateAssetBody,
     KBUpdateReferenceBody,
 )
+from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.library_index_service import (
     cancel_rebuild_asset,
     delete_asset_chunk_rows,
@@ -127,6 +128,7 @@ async def create_kb_library_asset(
     body: KBCreateTextDocumentBody,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBAssetUploadResponse:
+    ensure_kb_embedding_configured()
     if body.format not in {"markdown", "text"}:
         raise ValidationError(reason="仅支持创建 markdown 或 text 类型的文本知识")
     await ensure_kb_library_collection()
@@ -167,6 +169,7 @@ async def upload_kb_library_asset(
     is_enabled: bool = Form(default=True),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBAssetUploadResponse:
+    ensure_kb_embedding_configured()
     file_name = file.filename or ""
     if Path(file_name).suffix.lower() not in ALLOWED_KB_LIBRARY_EXTENSIONS:
         raise ValidationError(reason=f"暂不支持的全局知识库文件类型: {file_name or 'unknown'}")
@@ -281,6 +284,7 @@ async def reindex_kb_library_asset(
     asset_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBActionResponse:
+    ensure_kb_embedding_configured()
     await ensure_kb_library_collection()
     asset = await _get_asset_or_404(asset_id)
     await schedule_rebuild_asset(asset)
