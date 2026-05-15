@@ -67,8 +67,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            kromiose/nekro-agent:${{ needs.setup-version.outputs.version }}
-            kromiose/nekro-agent:latest
+            ${{ secrets.DOCKER_USERNAME }}/nekro-agent:${{ needs.setup-version.outputs.version }}
+            ${{ secrets.DOCKER_USERNAME }}/nekro-agent:latest
             ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent:${{ needs.setup-version.outputs.version }}
             ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent:latest
           cache-from: type=gha
@@ -117,8 +117,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            kromiose/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
-            kromiose/nekro-agent-sandbox:latest
+            ${{ secrets.DOCKER_USERNAME }}/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
+            ${{ secrets.DOCKER_USERNAME }}/nekro-agent-sandbox:latest
             ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
             ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent-sandbox:latest
           cache-from: type=gha
