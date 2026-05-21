@@ -194,6 +194,7 @@ async def _validate_stdio(
 
 async def _do_stdio_handshake(stream: Any, start: float) -> McpValidationResult:
     """在已建立的 docker exec stream 上跑 MCP 握手 + tools/list"""
+    stderr_buf = bytearray()  # 收集 stderr 用于失败时回传诊断
     init_msg = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -206,9 +207,9 @@ async def _do_stdio_handshake(stream: Any, start: float) -> McpValidationResult:
     }
     await stream.write_in((json.dumps(init_msg) + "\n").encode("utf-8"))
 
-    init_response = await _read_jsonrpc_response(stream, expected_id=1)
+    init_response = await _read_jsonrpc_response(stream, expected_id=1, stderr_buf=stderr_buf)
     if init_response is None:
-        return _fail("invalid_response", "未收到 initialize 响应", start)
+        return _fail("invalid_response", _stderr_diag("未收到 initialize 响应", stderr_buf), start)
     if "error" in init_response:
         err = init_response["error"]
         return _fail("transport_error", f"initialize 错误: {err}", start)
@@ -229,7 +230,7 @@ async def _do_stdio_handshake(stream: Any, start: float) -> McpValidationResult:
     list_msg = {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}
     await stream.write_in((json.dumps(list_msg) + "\n").encode("utf-8"))
 
-    tools_response = await _read_jsonrpc_response(stream, expected_id=2)
+    tools_response = await _read_jsonrpc_response(stream, expected_id=2, stderr_buf=stderr_buf)
     tool_names: Optional[List[str]] = None
     if tools_response and "result" in tools_response:
         tools = tools_response["result"].get("tools", [])
@@ -252,10 +253,12 @@ async def _read_jsonrpc_response(
     stream: Any,
     expected_id: int,
     buffer: Optional[bytearray] = None,
+    stderr_buf: Optional[bytearray] = None,
 ) -> Optional[Dict[str, Any]]:
     """从 docker exec stdout 中读到指定 id 的 JSON-RPC response
 
-    每条 MCP stdio 消息是一行 newline-delimited JSON。
+    每条 MCP stdio 消息是一行 newline-delimited JSON。stderr 不参与协议，
+    但会被收集到 stderr_buf（如提供）以便失败时回传诊断信息。
     """
     if buffer is None:
         buffer = bytearray()
@@ -267,6 +270,11 @@ async def _read_jsonrpc_response(
         # msg.stream: 1 = stdout, 2 = stderr。stderr 仅记录日志，不参与协议。
         if getattr(msg, "stream", 1) == 2:
             try:
+                if stderr_buf is not None:
+                    stderr_buf.extend(msg.data)
+                    # 防止 OOM：只保留尾部 4KB
+                    if len(stderr_buf) > 4096:
+                        del stderr_buf[: len(stderr_buf) - 4096]
                 logger.debug(f"MCP stdio stderr: {bytes(msg.data).decode('utf-8', 'replace').strip()}")
             except Exception:  # noqa: BLE001
                 pass
@@ -344,6 +352,17 @@ def _classify_transport_error(exc: BaseException, start: float) -> McpValidation
 
 def _elapsed_ms(start: float) -> float:
     return round((time.perf_counter() - start) * 1000, 2)
+
+
+def _stderr_diag(base_message: str, stderr_buf: bytearray) -> str:
+    """把 stderr 尾巴拼到诊断消息里，方便前端 Tooltip 直接看到原因"""
+    if not stderr_buf:
+        return base_message + "（stderr 无输出，进程很可能立刻退出；常见原因：command/包名不存在、参数错误）"
+    text = bytes(stderr_buf).decode("utf-8", "replace").strip()
+    # 截短超长 stderr，仅保留尾部
+    if len(text) > 1500:
+        text = "…" + text[-1500:]
+    return base_message + f"\n[stderr] {text}"
 
 
 async def _pick_running_workspace() -> Optional[DBWorkspace]:

@@ -113,19 +113,54 @@ export function ServerFormDialog({
   const [form, setForm] = useState<McpServerConfig>(initial)
   const [validating, setValidating] = useState(false)
   const [validationResult, setValidationResult] = useState<McpValidationResult | null>(null)
+  // 验证成功时的"结构指纹"快照，提交时与当前表单对比，相同则把验证状态一并写入
+  const [validatedSnapshot, setValidatedSnapshot] = useState<string | null>(null)
   useEffect(() => {
     if (open) {
       setForm(initial)
       setValidationResult(null)
+      setValidatedSnapshot(null)
     }
   }, [open, initial])
 
   const ALLOWED_STDIO_CMDS = new Set(['npx', 'uvx'])
 
+  // 给表单做结构指纹（不含 enabled），用于判断"验证后是否被改动过"
+  const fingerprint = (s: McpServerConfig) => JSON.stringify({
+    name: s.name,
+    type: s.type,
+    command: s.command ?? '',
+    args: s.args ?? [],
+    env: s.env ?? {},
+    url: s.url ?? '',
+    headers: s.headers ?? {},
+  })
+
   const handleSubmit = () => {
     if (!form.name.trim()) return
     if (form.type === 'stdio' && !ALLOWED_STDIO_CMDS.has((form.command ?? '').trim())) return
-    onSubmit({ ...form, args: form.args ?? [], env: form.env ?? {}, headers: form.headers ?? {} })
+    const cleaned: McpServerConfig = {
+      ...form,
+      args: form.args ?? [],
+      env: form.env ?? {},
+      headers: form.headers ?? {},
+    }
+    // 验证后未改动 → 携带 validated 状态
+    if (
+      validationResult?.ok
+      && validatedSnapshot
+      && validatedSnapshot === fingerprint(cleaned)
+    ) {
+      cleaned.validation = {
+        status: 'validated',
+        validated_at: new Date().toISOString(),
+        server_name: validationResult.server_info?.name ?? null,
+        server_version: validationResult.server_info?.version ?? null,
+        tools_count: (validationResult.tools ?? []).length,
+        latency_ms: validationResult.latency_ms,
+      }
+    }
+    onSubmit(cleaned)
   }
 
   const stdioCommandInvalid = form.type === 'stdio' && (form.command ?? '').trim() !== '' && !ALLOWED_STDIO_CMDS.has((form.command ?? '').trim())
@@ -140,14 +175,19 @@ export function ServerFormDialog({
     if (!onValidate || validating) return
     setValidating(true)
     setValidationResult(null)
+    setValidatedSnapshot(null)
     try {
-      const result = await onValidate({
+      const cleaned: McpServerConfig = {
         ...form,
         args: form.args ?? [],
         env: form.env ?? {},
         headers: form.headers ?? {},
-      })
+      }
+      const result = await onValidate(cleaned)
       setValidationResult(result)
+      if (result.ok) {
+        setValidatedSnapshot(fingerprint(cleaned))
+      }
     } catch (e) {
       setValidationResult({
         ok: false,
@@ -159,6 +199,16 @@ export function ServerFormDialog({
       setValidating(false)
     }
   }
+
+  // 表单一旦发生结构变化（不含 enabled），就清掉验证结果与快照，让用户重新点验证
+  useEffect(() => {
+    if (!validatedSnapshot) return
+    if (validatedSnapshot !== fingerprint(form)) {
+      setValidationResult(null)
+      setValidatedSnapshot(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form])
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -631,11 +681,13 @@ export function McpServerManager({
         ) : isGlobal ? (
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 2 }}>
             {servers.map(server => (
-              <Card key={server.name} sx={{ ...CARD_VARIANTS.default.styles, display: 'flex', flexDirection: 'column', opacity: server.enabled ? 1 : 0.55, transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
+              <Card key={server.name} sx={{ ...CARD_VARIANTS.default.styles, display: 'flex', flexDirection: 'column', transition: 'border-color 0.2s, box-shadow 0.2s', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
                 <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                     <Chip label={server.type.toUpperCase()} size="small" color={typeColor(server.type) as 'info' | 'warning' | 'success'} variant="outlined" icon={typeIcon(server.type)} sx={{ fontSize: '0.7rem', height: 22 }} />
-                    <Chip label={t('mcpServices.toolbar.autoInject')} size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'warning.main', color: 'warning.contrastText', fontWeight: 600 }} />
+                    {server.enabled && (
+                      <Chip label={t('mcpServices.toolbar.autoInject')} size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'warning.main', color: 'warning.contrastText', fontWeight: 600 }} />
+                    )}
                     {renderValidationChip(server)}
                     <Box sx={{ ml: 'auto', width: 8, height: 8, borderRadius: '50%', bgcolor: server.enabled ? 'success.main' : 'text.disabled' }} />
                   </Box>
