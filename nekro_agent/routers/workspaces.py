@@ -437,39 +437,8 @@ async def create_workspace(
             ws.metadata = metadata
             await ws.save(update_fields=["metadata"])
 
-    # 自动注入 MCP 服务
-    from nekro_agent.core.auto_inject_mcp import get_auto_inject_mcp_servers
-
-    auto_mcp = get_auto_inject_mcp_servers()
-    if auto_mcp:
-        metadata = ws.metadata or {}
-        mcp_config: Dict[str, Any] = metadata.get("mcp_config", {"mcpServers": {}})
-        if "mcpServers" not in mcp_config:
-            mcp_config["mcpServers"] = {}
-        for server in auto_mcp:
-            name = server.get("name", "")
-            if not name:
-                continue
-            raw: Dict[str, Any] = {}
-            srv_type = server.get("type", "stdio")
-            if not server.get("enabled", True):
-                raw["enabled"] = False
-            raw["transport"] = srv_type
-            if server.get("url"):
-                raw["url"] = server["url"]
-                if server.get("headers"):
-                    raw["headers"] = dict(server["headers"])
-            else:
-                if server.get("command"):
-                    raw["command"] = server["command"]
-                if server.get("args"):
-                    raw["args"] = list(server["args"])
-                if server.get("env"):
-                    raw["env"] = dict(server["env"])
-            mcp_config["mcpServers"][name] = raw
-        metadata["mcp_config"] = mcp_config
-        ws.metadata = metadata
-        await ws.save(update_fields=["metadata"])
+    # 自动注入 MCP 服务（冲突跳过，由 WorkspaceService.apply_auto_inject 统一处理）
+    await WorkspaceService.apply_auto_inject(ws)
 
     return await _detail_async(ws)
 
@@ -1573,10 +1542,54 @@ async def update_mcp_config(
     body: McpConfigUpdate,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionOkResponse:
+    """批量更新 MCP 配置。
+
+    服务端会逐项校验 mcpServers 中每个 server 是否符合 McpServerConfig schema
+    （stdio 命令白名单、URL 格式、name 规则）。任意一项不通过都整体拒绝。
+    """
+    from nekro_agent.schemas.errors import ValidationError
+
     ws = await DBWorkspace.get_or_none(id=workspace_id)
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
-    await WorkspaceService.update_mcp_config(ws, body.mcp_config)
+
+    raw_servers: Dict[str, Any] = (body.mcp_config or {}).get("mcpServers", {}) or {}
+    if not isinstance(raw_servers, dict):
+        raise ValidationError(reason="mcpServers 必须是对象")
+
+    validated: Dict[str, Any] = {}
+    for name, cfg in raw_servers.items():
+        if not isinstance(cfg, dict):
+            raise ValidationError(reason=f"MCP 服务器 {name} 配置必须是对象")
+        transport = cfg.get("transport")
+        if transport == "sse":
+            type_str = "sse"
+        elif transport == "http":
+            type_str = "http"
+        elif transport == "stdio":
+            type_str = "stdio"
+        elif "url" in cfg:
+            type_str = "http"
+        else:
+            type_str = "stdio"
+        try:
+            server = McpServerConfig.model_validate(
+                {
+                    "name": name,
+                    "type": type_str,
+                    "enabled": cfg.get("enabled", True),
+                    "command": cfg.get("command"),
+                    "args": cfg.get("args", []),
+                    "env": cfg.get("env", {}),
+                    "url": cfg.get("url"),
+                    "headers": cfg.get("headers", {}),
+                },
+            )
+        except Exception as e:  # noqa: BLE001
+            raise ValidationError(reason=f"MCP 服务器 {name} 配置无效: {e}") from e
+        validated[name] = WorkspaceService._server_to_raw(server)
+
+    await WorkspaceService.update_mcp_config(ws, {"mcpServers": validated})
     return ActionOkResponse(ok=True)
 
 
@@ -1646,13 +1659,99 @@ async def sync_mcp_to_sandbox(
     workspace_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionOkResponse:
-    """将数据库中的 MCP 配置重新写入工作区目录的 .mcp.json，无需重启容器即可生效"""
+    """重写工作区目录下的 .mcp.json 配置文件。
+
+    CC 在每次 claude 调用启动时读取 .mcp.json，因此同步后**下一次消息**即可生效，
+    无需重启容器。仅启用项会写入磁盘。
+    """
     ws = await DBWorkspace.get_or_none(id=workspace_id)
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     mcp_config = (ws.metadata or {}).get("mcp_config", {"mcpServers": {}})
     await WorkspaceService.update_mcp_config(ws, mcp_config)
     return ActionOkResponse(ok=True)
+
+
+# ─────────────────────────────────────────────────────────────
+# MCP 验证
+# ─────────────────────────────────────────────────────────────
+
+
+class McpValidationResponse(BaseModel):
+    ok: bool
+    server_info: Optional[Dict[str, Any]] = None
+    capabilities: Optional[Dict[str, Any]] = None
+    tools: Optional[List[str]] = None
+    latency_ms: float
+    error: Optional[str] = None
+    error_kind: Optional[str] = None
+
+
+@router.post(
+    "/{workspace_id}/mcp/servers/{server_name}/test",
+    summary="验证已保存的 MCP 服务器",
+    response_model=McpValidationResponse,
+)
+@require_role(Role.Admin)
+async def test_mcp_server(
+    workspace_id: int,
+    server_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> McpValidationResponse:
+    """对工作区已保存的某个 MCP 服务器跑一次 initialize 握手，并把结果持久化到 metadata"""
+    from datetime import datetime, timezone
+
+    from nekro_agent.services.mcp.validator import validate_server
+
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    servers = WorkspaceService.list_mcp_servers(ws)
+    target = next((s for s in servers if s.name == server_name), None)
+    if target is None:
+        raise NotFoundError(resource=f"MCP 服务器 {server_name}")
+    result = await validate_server(ws, target)
+
+    # 持久化结果到 metadata，下次 list/disk-write 时反映状态
+    if result.ok:
+        validation_state: Dict[str, Any] = {
+            "status": "validated",
+            "validated_at": datetime.now(timezone.utc).isoformat(),
+            "server_name": (result.server_info or {}).get("name") if result.server_info else None,
+            "server_version": (result.server_info or {}).get("version") if result.server_info else None,
+            "tools_count": len(result.tools or []),
+            "latency_ms": result.latency_ms,
+        }
+    else:
+        validation_state = {
+            "status": "failed",
+            "last_error": result.error,
+            "last_error_kind": result.error_kind,
+            "latency_ms": result.latency_ms,
+        }
+    await WorkspaceService.mark_server_validation(ws, server_name, validation_state)
+    return McpValidationResponse(**result.model_dump())
+
+
+@router.post(
+    "/{workspace_id}/mcp/test",
+    summary="临时验证一个 MCP 服务器配置（不保存）",
+    response_model=McpValidationResponse,
+)
+@require_role(Role.Admin)
+async def test_mcp_server_ad_hoc(
+    workspace_id: int,
+    server: McpServerConfig,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> McpValidationResponse:
+    """对未保存的配置预先做一次握手验证，便于用户先验后存"""
+    from nekro_agent.services.mcp.validator import validate_server
+
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    result = await validate_server(ws, server)
+    return McpValidationResponse(**result.model_dump())
 
 
 # ─────────────────────────────────────────────────────────────

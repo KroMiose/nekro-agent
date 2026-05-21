@@ -1,3 +1,4 @@
+import asyncio
 import json
 import shutil
 from datetime import datetime, timezone
@@ -14,6 +15,39 @@ if TYPE_CHECKING:
     from nekro_agent.core.cc_model_presets import CCModelPresetItem
 
 logger = get_sub_logger("workspace_manager")
+
+# 每 workspace 一把 asyncio.Lock，避免 MCP read-modify-write 并发覆盖
+_mcp_locks: Dict[int, asyncio.Lock] = {}
+
+
+def _get_mcp_lock(workspace_id: int) -> asyncio.Lock:
+    lock = _mcp_locks.get(workspace_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _mcp_locks[workspace_id] = lock
+    return lock
+
+
+def _build_disk_mcp_config(metadata_mcp_config: Dict[str, Any]) -> Dict[str, Any]:
+    """从元数据中的 mcp_config 派生 .mcp.json 写盘内容：剔除禁用项、未验证项、validation/enabled 内部字段。
+
+    CC 的 .mcp.json 不识别 `enabled` 与 `validation`，元数据里保留两者用于 UI 还原状态，
+    写盘时过滤。**只有 validation.status == 'validated' 的条目会进入 .mcp.json**，
+    保证沙盒内只看到真实通过过握手的 MCP 服务。
+    """
+    src_servers = (metadata_mcp_config or {}).get("mcpServers", {}) or {}
+    dst_servers: Dict[str, Any] = {}
+    for name, cfg in src_servers.items():
+        if not isinstance(cfg, dict):
+            continue
+        if cfg.get("enabled", True) is False:
+            continue
+        validation = cfg.get("validation") or {}
+        if (validation.get("status") if isinstance(validation, dict) else None) != "validated":
+            continue
+        cleaned = {k: v for k, v in cfg.items() if k not in ("enabled", "validation")}
+        dst_servers[name] = cleaned
+    return {"mcpServers": dst_servers}
 
 
 class WorkspaceService:
@@ -629,7 +663,11 @@ CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开�
         if not mcp_config:
             mcp_config = {"mcpServers": {}}
         mcp_path = ws_dir / "default" / ".mcp.json"
-        mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
+        mcp_path.parent.mkdir(parents=True, exist_ok=True)
+        mcp_path.write_text(
+            json.dumps(_build_disk_mcp_config(mcp_config), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
         logger.debug(f"写入 .mcp.json: {mcp_path}")
 
         # 写入 CLAUDE.md 到 CC 工作目录（/workspace/default/CLAUDE.md）
@@ -799,20 +837,33 @@ CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开�
 
     @staticmethod
     async def update_mcp_config(workspace: DBWorkspace, mcp_config: Dict[str, Any]) -> None:
-        """更新 workspace 的 MCP 配置并写入文件"""
-        metadata = dict(workspace.metadata)
-        metadata["mcp_config"] = mcp_config
-        workspace.metadata = metadata
-        await workspace.save(update_fields=["metadata", "update_time"])
+        """更新 workspace 的 MCP 配置并写入文件
 
-        ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
-        mcp_path = ws_dir / "default" / ".mcp.json"
-        mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
+        元数据里保留完整结构（含 enabled 字段），写盘时通过 _build_disk_mcp_config
+        剔除禁用项与 enabled 字段，保证 CC 看到的 .mcp.json 与启用状态一致。
+        """
+        async with _get_mcp_lock(workspace.id):
+            metadata = dict(workspace.metadata)
+            metadata["mcp_config"] = mcp_config
+            workspace.metadata = metadata
+            await workspace.save(update_fields=["metadata", "update_time"])
+
+            ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
+            mcp_path = ws_dir / "default" / ".mcp.json"
+            mcp_path.parent.mkdir(parents=True, exist_ok=True)
+            mcp_path.write_text(
+                json.dumps(_build_disk_mcp_config(mcp_config), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
 
     @staticmethod
     def list_mcp_servers(workspace: DBWorkspace) -> list[Any]:
-        """解析 metadata.mcp_config.mcpServers 为结构化服务器列表"""
-        from nekro_agent.services.mcp.schemas import McpServerConfig, McpServerType
+        """解析 metadata.mcp_config.mcpServers 为结构化服务器列表
+
+        宽松模式：旧数据若不符合新校验（如 stdio 命令不在白名单），跳过并记录日志，
+        允许用户在 UI 上看到剩余正常项。无效项需用户手动编辑或删除。
+        """
+        from nekro_agent.services.mcp.schemas import McpServerConfig, McpServerType, McpValidationState
 
         mcp_config: Dict[str, Any] = (workspace.metadata or {}).get("mcp_config", {})
         mcp_servers: Dict[str, Any] = mcp_config.get("mcpServers", {})
@@ -830,71 +881,173 @@ CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开�
                 server_type = McpServerType.http
             else:
                 server_type = McpServerType.stdio
-            result.append(
-                McpServerConfig(
-                    name=name,
-                    type=server_type,
-                    enabled=cfg.get("enabled", True),
-                    command=cfg.get("command"),
-                    args=cfg.get("args", []),
-                    env=cfg.get("env", {}),
-                    url=cfg.get("url"),
-                    headers=cfg.get("headers", {}),
+            try:
+                validation_raw = cfg.get("validation")
+                validation = (
+                    McpValidationState.model_validate(validation_raw)
+                    if isinstance(validation_raw, dict)
+                    else McpValidationState(status="unvalidated")
                 )
-            )
+                result.append(
+                    McpServerConfig(
+                        name=name,
+                        type=server_type,
+                        enabled=cfg.get("enabled", True),
+                        command=cfg.get("command"),
+                        args=cfg.get("args", []),
+                        env=cfg.get("env", {}),
+                        url=cfg.get("url"),
+                        headers=cfg.get("headers", {}),
+                        validation=validation,
+                    ),
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"忽略无效的 MCP 配置 {name}: {e}")
         return result
 
     @staticmethod
     async def add_mcp_server(workspace: DBWorkspace, server: Any) -> None:
         """添加一个 MCP 服务器到 mcpServers"""
-        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
-        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+        async with _get_mcp_lock(workspace.id):
+            mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+            mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
 
-        if server.name in mcp_servers:
-            from nekro_agent.schemas.errors import ConflictError
+            if server.name in mcp_servers:
+                from nekro_agent.schemas.errors import ConflictError
 
-            raise ConflictError(resource=f"MCP 服务器 {server.name}")
+                raise ConflictError(resource=f"MCP 服务器 {server.name}")
 
-        mcp_servers[server.name] = WorkspaceService._server_to_raw(server)
-        mcp_config["mcpServers"] = mcp_servers
-        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+            raw = WorkspaceService._server_to_raw(server)
+            raw["validation"] = WorkspaceService._unvalidated_state()
+            mcp_servers[server.name] = raw
+            mcp_config["mcpServers"] = mcp_servers
+            await WorkspaceService._write_mcp_config_locked(workspace, mcp_config)
 
     @staticmethod
     async def update_mcp_server(workspace: DBWorkspace, old_name: str, server: Any) -> None:
         """更新指定的 MCP 服务器"""
-        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
-        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+        async with _get_mcp_lock(workspace.id):
+            mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+            mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
 
-        if old_name not in mcp_servers:
-            from nekro_agent.schemas.errors import NotFoundError
+            if old_name not in mcp_servers:
+                from nekro_agent.schemas.errors import NotFoundError
 
-            raise NotFoundError(resource=f"MCP 服务器 {old_name}")
+                raise NotFoundError(resource=f"MCP 服务器 {old_name}")
 
-        # 如果改名，删除旧的
-        if server.name != old_name:
-            del mcp_servers[old_name]
-        mcp_servers[server.name] = WorkspaceService._server_to_raw(server)
-        mcp_config["mcpServers"] = mcp_servers
-        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+            # 改名时拒绝覆盖已有的目标名（add 路径已检查，update 路径补齐）
+            if server.name != old_name and server.name in mcp_servers:
+                from nekro_agent.schemas.errors import ConflictError
+
+                raise ConflictError(resource=f"MCP 服务器 {server.name}")
+
+            old_entry = mcp_servers.get(old_name, {})
+            old_validation = old_entry.get("validation") if isinstance(old_entry, dict) else None
+            new_raw = WorkspaceService._server_to_raw(server)
+            # 仅当核心字段（除 enabled 外）未变时保留旧的验证状态，否则视为重新需要验证
+            old_fingerprint = {k: v for k, v in old_entry.items() if k not in ("enabled", "validation")} if isinstance(old_entry, dict) else None
+            new_fingerprint = {k: v for k, v in new_raw.items() if k not in ("enabled", "validation")}
+            if old_validation and old_fingerprint == new_fingerprint and server.name == old_name:
+                new_raw["validation"] = old_validation
+            else:
+                new_raw["validation"] = WorkspaceService._unvalidated_state()
+
+            if server.name != old_name:
+                del mcp_servers[old_name]
+            mcp_servers[server.name] = new_raw
+            mcp_config["mcpServers"] = mcp_servers
+            await WorkspaceService._write_mcp_config_locked(workspace, mcp_config)
 
     @staticmethod
     async def remove_mcp_server(workspace: DBWorkspace, name: str) -> None:
         """删除指定的 MCP 服务器"""
-        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
-        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+        async with _get_mcp_lock(workspace.id):
+            mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+            mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
 
-        if name not in mcp_servers:
-            from nekro_agent.schemas.errors import NotFoundError
+            if name not in mcp_servers:
+                from nekro_agent.schemas.errors import NotFoundError
 
-            raise NotFoundError(resource=f"MCP 服务器 {name}")
+                raise NotFoundError(resource=f"MCP 服务器 {name}")
 
-        del mcp_servers[name]
-        mcp_config["mcpServers"] = mcp_servers
-        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+            del mcp_servers[name]
+            mcp_config["mcpServers"] = mcp_servers
+            await WorkspaceService._write_mcp_config_locked(workspace, mcp_config)
+
+    @staticmethod
+    async def _write_mcp_config_locked(workspace: DBWorkspace, mcp_config: Dict[str, Any]) -> None:
+        """已持有 _get_mcp_lock 后的写盘内部实现，避免重入"""
+        metadata = dict(workspace.metadata)
+        metadata["mcp_config"] = mcp_config
+        workspace.metadata = metadata
+        await workspace.save(update_fields=["metadata", "update_time"])
+
+        ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
+        mcp_path = ws_dir / "default" / ".mcp.json"
+        mcp_path.parent.mkdir(parents=True, exist_ok=True)
+        mcp_path.write_text(
+            json.dumps(_build_disk_mcp_config(mcp_config), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    @staticmethod
+    async def apply_auto_inject(workspace: DBWorkspace) -> List[str]:
+        """把全局自动注入清单合并进 workspace 的 mcp_config
+
+        冲突策略：workspace 已存在同名服务时跳过（不覆盖），返回被跳过的名字列表。
+        每条自动注入的 validation 状态会被携带：源条目"已验证"，工作区内立即可用；
+        源条目"未验证"，工作区内同样为未验证，用户需在工作区页面再次验证。
+        """
+        from nekro_agent.core.auto_inject_mcp import get_auto_inject_mcp_servers
+        from nekro_agent.services.mcp.schemas import McpServerConfig
+
+        auto_mcp = get_auto_inject_mcp_servers()
+        if not auto_mcp:
+            return []
+
+        skipped: List[str] = []
+        async with _get_mcp_lock(workspace.id):
+            metadata = dict(workspace.metadata or {})
+            mcp_config: Dict[str, Any] = metadata.get("mcp_config", {"mcpServers": {}})
+            if "mcpServers" not in mcp_config:
+                mcp_config["mcpServers"] = {}
+            mcp_servers: Dict[str, Any] = mcp_config["mcpServers"]
+
+            mutated = False
+            for raw in auto_mcp:
+                name = (raw or {}).get("name")
+                if not name:
+                    continue
+                if name in mcp_servers:
+                    skipped.append(name)
+                    continue
+                try:
+                    server = McpServerConfig.model_validate(raw)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"auto-inject 配置无效，跳过: {raw} ({e})")
+                    continue
+                entry = WorkspaceService._server_to_raw(server)
+                src_validation = (raw or {}).get("validation")
+                entry["validation"] = (
+                    dict(src_validation)
+                    if isinstance(src_validation, dict)
+                    else WorkspaceService._unvalidated_state()
+                )
+                mcp_servers[name] = entry
+                mutated = True
+
+            if mutated:
+                mcp_config["mcpServers"] = mcp_servers
+                await WorkspaceService._write_mcp_config_locked(workspace, mcp_config)
+
+        return skipped
 
     @staticmethod
     def _server_to_raw(server: Any) -> Dict[str, Any]:
-        """将 McpServerConfig 转换为 .mcp.json 兼容的 raw dict"""
+        """将 McpServerConfig 转换为 .mcp.json 兼容的 raw dict（不含 validation 字段）
+
+        validation 由调用方在 raw dict 上单独设置，避免用户提交的 validation 串改后端状态。
+        """
         raw: Dict[str, Any] = {}
         if not server.enabled:
             raw["enabled"] = False
@@ -914,6 +1067,31 @@ CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开�
             if server.env:
                 raw["env"] = dict(server.env)
         return raw
+
+    @staticmethod
+    def _unvalidated_state() -> Dict[str, Any]:
+        """新增/修改后的初始验证状态：未验证"""
+        return {"status": "unvalidated"}
+
+    @staticmethod
+    async def mark_server_validation(
+        workspace: DBWorkspace,
+        server_name: str,
+        validation_state: Dict[str, Any],
+    ) -> None:
+        """把某个 server 的 validation 字段更新进 metadata（独立于配置编辑）"""
+        async with _get_mcp_lock(workspace.id):
+            mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+            mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+            if server_name not in mcp_servers:
+                from nekro_agent.schemas.errors import NotFoundError
+
+                raise NotFoundError(resource=f"MCP 服务器 {server_name}")
+            entry = dict(mcp_servers[server_name])
+            entry["validation"] = validation_state
+            mcp_servers[server_name] = entry
+            mcp_config["mcpServers"] = mcp_servers
+            await WorkspaceService._write_mcp_config_locked(workspace, mcp_config)
 
     @staticmethod
     async def bind_channel(workspace: DBWorkspace, chat_key: str) -> None:
