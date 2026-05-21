@@ -389,6 +389,28 @@
     "deleteDialog": {
       "title": "Remove Auto-Inject Service",
       "content": "Remove \"{{name}}\" from the auto-inject list? Existing workspace configurations will not be affected."
+    },
+    "validate": {
+      "button": "Validate",
+      "pending": "Handshaking…",
+      "success": "{{name}} {{version}} handshake OK",
+      "toolsAndLatency": "{{count}} tools, {{latency}}ms",
+      "errorKind": {
+        "schema": "Invalid configuration",
+        "spawn_failed": "Failed to spawn process (check command and args)",
+        "handshake_timeout": "Handshake timed out (server not running or unreachable)",
+        "transport_error": "Transport error (connection failed / URL unreachable)",
+        "container_not_running": "Workspace container is not running; start it first for stdio validation",
+        "invalid_response": "Invalid handshake response (peer may not be an MCP server)"
+      },
+      "chip": {
+        "validated": "Verified",
+        "unvalidated": "Unverified",
+        "failed": "Failed",
+        "validatedTooltip": "Verified at {{time}} UTC · {{tools}} tools. Active in .mcp.json; CC will see it.",
+        "unvalidatedTooltip": "Not yet verified. Click ▶ to run a handshake. Unverified servers are skipped from .mcp.json and stay hidden from CC.",
+        "failedTooltip": "Last validation failed; not written to .mcp.json"
+      }
     }
   },
   "detail": {
@@ -783,8 +805,8 @@
         "url": "Server URL",
         "headersLabel": "HTTP Headers",
         "cancel": "Cancel",
-        "stdioHint": "Only package manager commands (npx / uvx / bunx / pnpx) are supported. Local file paths on the host are not supported.",
-        "stdioCommandError": "Only npx, uvx, bunx, pnpx commands are supported"
+        "stdioHint": "Only npx / uvx package manager commands are supported (CC sandbox ships Node.js 20 and astral-sh/uv). Local file paths on the host are not supported.",
+        "stdioCommandError": "Only npx and uvx commands are supported"
       },
       "registry": {
         "title": "Add MCP Server from Template",

@@ -389,6 +389,18 @@ export interface McpServerConfig {
   env?: Record<string, string>
   url?: string
   headers?: Record<string, string>
+  validation?: McpValidationState | null
+}
+
+export interface McpValidationState {
+  status: 'validated' | 'unvalidated' | 'failed'
+  validated_at?: string | null
+  server_name?: string | null
+  server_version?: string | null
+  tools_count?: number | null
+  latency_ms?: number | null
+  last_error?: string | null
+  last_error_kind?: string | null
 }
 
 export interface McpEnvKeyDef {
@@ -408,6 +420,33 @@ export interface McpRegistryItem {
   env_keys?: McpEnvKeyDef[]
   url?: string
   tags?: string[]
+}
+
+export interface McpConstraints {
+  stdio_command_allowlist: string[]
+  name_pattern: string
+}
+
+export type McpValidationErrorKind =
+  | 'schema'
+  | 'spawn_failed'
+  | 'handshake_timeout'
+  | 'transport_error'
+  | 'container_not_running'
+  | 'invalid_response'
+
+export interface McpValidationResult {
+  ok: boolean
+  server_info?: {
+    name?: string | null
+    version?: string | null
+    protocolVersion?: string | null
+  } | null
+  capabilities?: Record<string, unknown> | null
+  tools?: string[] | null
+  latency_ms: number
+  error?: string | null
+  error_kind?: McpValidationErrorKind | null
 }
 
 export type ResourceFieldValueKind =
@@ -652,6 +691,18 @@ export const workspaceApi = {
 
   syncMcpToSandbox: async (id: number): Promise<void> => {
     await axios.post(`/workspaces/${id}/mcp/sync`)
+  },
+
+  testMcpServer: async (id: number, name: string): Promise<McpValidationResult> => {
+    const response = await axios.post<McpValidationResult>(
+      `/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}/test`
+    )
+    return response.data
+  },
+
+  testMcpServerAdHoc: async (id: number, server: McpServerConfig): Promise<McpValidationResult> => {
+    const response = await axios.post<McpValidationResult>(`/workspaces/${id}/mcp/test`, server)
+    return response.data
   },
 
   // Workspace Resources
@@ -1013,6 +1064,11 @@ export const mcpApi = {
     return response.data
   },
 
+  getConstraints: async (): Promise<McpConstraints> => {
+    const response = await axios.get<McpConstraints>('/mcp/constraints')
+    return response.data
+  },
+
   getAutoInject: async (): Promise<McpServerConfig[]> => {
     const response = await axios.get<{ servers: McpServerConfig[] }>('/mcp/auto-inject')
     return response.data.servers
@@ -1020,6 +1076,18 @@ export const mcpApi = {
 
   setAutoInject: async (servers: McpServerConfig[]): Promise<void> => {
     await axios.put('/mcp/auto-inject', { servers })
+  },
+
+  testAutoInjectServer: async (server: McpServerConfig): Promise<McpValidationResult> => {
+    const response = await axios.post<McpValidationResult>('/mcp/auto-inject/test', server)
+    return response.data
+  },
+
+  testSavedAutoInjectServer: async (name: string): Promise<McpValidationResult> => {
+    const response = await axios.post<McpValidationResult>(
+      `/mcp/auto-inject/servers/${encodeURIComponent(name)}/test`
+    )
+    return response.data
   },
 }
 

@@ -36,6 +36,9 @@ import {
   FileUpload as ImportIcon,
   SyncOutlined as SyncIcon,
   ArrowDropDown as ArrowDropDownIcon,
+  PlayArrow as PlayArrowIcon,
+  CheckCircle as CheckCircleIcon,
+  ErrorOutline as ErrorOutlineIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { useTheme } from '@mui/material/styles'
@@ -45,6 +48,7 @@ import {
   type McpServerConfig,
   type McpRegistryItem,
   type McpServerType,
+  type McpValidationResult,
 } from '../../../services/api/workspace'
 import { stripJsoncComments, typeColor, typeIcon, emptyServer } from './mcpUtils'
 import { CARD_VARIANTS, UNIFIED_TABLE_STYLES } from '../../../theme/variants'
@@ -100,15 +104,23 @@ export function KeyValueEditor({
 // ── ServerFormDialog ──
 
 export function ServerFormDialog({
-  open, onClose, onSubmit, initial, title, submitLabel, t,
+  open, onClose, onSubmit, onValidate, initial, title, submitLabel, t,
 }: {
   open: boolean; onClose: () => void; onSubmit: (server: McpServerConfig) => void
+  onValidate?: (server: McpServerConfig) => Promise<McpValidationResult>
   initial: McpServerConfig; title: string; submitLabel: string; t: (key: string) => string
 }) {
   const [form, setForm] = useState<McpServerConfig>(initial)
-  useEffect(() => { if (open) setForm(initial) }, [open, initial])
+  const [validating, setValidating] = useState(false)
+  const [validationResult, setValidationResult] = useState<McpValidationResult | null>(null)
+  useEffect(() => {
+    if (open) {
+      setForm(initial)
+      setValidationResult(null)
+    }
+  }, [open, initial])
 
-  const ALLOWED_STDIO_CMDS = new Set(['npx', 'uvx', 'bunx', 'pnpx'])
+  const ALLOWED_STDIO_CMDS = new Set(['npx', 'uvx'])
 
   const handleSubmit = () => {
     if (!form.name.trim()) return
@@ -117,6 +129,36 @@ export function ServerFormDialog({
   }
 
   const stdioCommandInvalid = form.type === 'stdio' && (form.command ?? '').trim() !== '' && !ALLOWED_STDIO_CMDS.has((form.command ?? '').trim())
+
+  const canValidate = !!onValidate && !!form.name.trim() && !stdioCommandInvalid && (
+    form.type === 'stdio'
+      ? !!form.command?.trim()
+      : !!form.url?.trim()
+  )
+
+  const handleValidate = async () => {
+    if (!onValidate || validating) return
+    setValidating(true)
+    setValidationResult(null)
+    try {
+      const result = await onValidate({
+        ...form,
+        args: form.args ?? [],
+        env: form.env ?? {},
+        headers: form.headers ?? {},
+      })
+      setValidationResult(result)
+    } catch (e) {
+      setValidationResult({
+        ok: false,
+        latency_ms: 0,
+        error: (e as Error).message,
+        error_kind: 'transport_error',
+      })
+    } finally {
+      setValidating(false)
+    }
+  }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -131,7 +173,7 @@ export function ServerFormDialog({
           </Box>
           {form.type === 'stdio' ? (
             <>
-              <TextField label={t('detail.mcp.form.command')} value={form.command ?? ''} onChange={e => setForm(f => ({ ...f, command: e.target.value }))} size="small" fullWidth placeholder="npx / uvx / bunx / pnpx" error={stdioCommandInvalid} helperText={stdioCommandInvalid ? t('detail.mcp.form.stdioCommandError') : undefined} />
+              <TextField label={t('detail.mcp.form.command')} value={form.command ?? ''} onChange={e => setForm(f => ({ ...f, command: e.target.value }))} size="small" fullWidth placeholder="npx / uvx" error={stdioCommandInvalid} helperText={stdioCommandInvalid ? t('detail.mcp.form.stdioCommandError') : undefined} />
               <TextField label={t('detail.mcp.form.args')} value={(form.args ?? []).join(' ')} onChange={e => setForm(f => ({ ...f, args: e.target.value.split(' ').filter(Boolean) }))} size="small" fullWidth placeholder="-y @modelcontextprotocol/server-github" helperText={t('detail.mcp.form.argsHint')} />
               <Typography variant="caption" color="text.secondary">{t('detail.mcp.form.envLabel')}</Typography>
               <KeyValueEditor value={form.env ?? {}} onChange={env => setForm(f => ({ ...f, env }))} keyLabel="Key" valueLabel="Value" />
@@ -144,13 +186,79 @@ export function ServerFormDialog({
               <KeyValueEditor value={form.headers ?? {}} onChange={headers => setForm(f => ({ ...f, headers }))} keyLabel="Header" valueLabel="Value" />
             </>
           )}
+          {validationResult && <ValidationResultPanel result={validationResult} t={t} />}
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <ActionButton onClick={onClose}>{t('detail.mcp.form.cancel')}</ActionButton>
-        <ActionButton variant="contained" onClick={handleSubmit} disabled={!form.name.trim() || stdioCommandInvalid}>{submitLabel}</ActionButton>
+      <DialogActions sx={{ justifyContent: 'space-between', px: 3 }}>
+        <Box>
+          {onValidate && (
+            <ActionButton
+              size="small"
+              variant="outlined"
+              startIcon={validating ? <CircularProgress size={14} /> : <PlayArrowIcon />}
+              onClick={handleValidate}
+              disabled={!canValidate || validating}
+            >
+              {t('mcpServices.validate.button')}
+            </ActionButton>
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <ActionButton onClick={onClose}>{t('detail.mcp.form.cancel')}</ActionButton>
+          <ActionButton variant="contained" onClick={handleSubmit} disabled={!form.name.trim() || stdioCommandInvalid}>{submitLabel}</ActionButton>
+        </Box>
       </DialogActions>
     </Dialog>
+  )
+}
+
+// ── ValidationResultPanel — 内联展示 MCP 握手结果 ──
+
+function ValidationResultPanel({
+  result, t,
+}: {
+  result: McpValidationResult; t: (key: string) => string
+}) {
+  if (result.ok) {
+    const tools = result.tools ?? []
+    return (
+      <Alert
+        severity="success"
+        icon={<CheckCircleIcon fontSize="small" />}
+        sx={{ py: 0.5 }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {t('mcpServices.validate.success', {
+            name: result.server_info?.name ?? '-',
+            version: result.server_info?.version ?? '-',
+          })}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+          {t('mcpServices.validate.toolsAndLatency', {
+            count: tools.length,
+            latency: Math.round(result.latency_ms),
+          })}
+        </Typography>
+        {tools.length > 0 && (
+          <Typography variant="caption" sx={{ display: 'block', fontFamily: 'monospace', mt: 0.5, wordBreak: 'break-all' }}>
+            {tools.slice(0, 8).join(', ')}{tools.length > 8 ? '…' : ''}
+          </Typography>
+        )}
+      </Alert>
+    )
+  }
+  const kind = result.error_kind ?? 'transport_error'
+  return (
+    <Alert severity="error" icon={<ErrorOutlineIcon fontSize="small" />} sx={{ py: 0.5 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        {t(`mcpServices.validate.errorKind.${kind}`)}
+      </Typography>
+      {result.error && (
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.25, fontFamily: 'monospace', wordBreak: 'break-all' }}>
+          {result.error}
+        </Typography>
+      )}
+    </Alert>
   )
 }
 
@@ -204,6 +312,8 @@ export interface McpServerManagerProps {
   onToggleEnabled: (server: McpServerConfig) => Promise<void>
   onImport: (servers: McpServerConfig[]) => Promise<void>
   onSyncToSandbox?: () => Promise<void>
+  onValidate?: (server: McpServerConfig) => Promise<McpValidationResult>
+  onValidateSaved?: (name: string) => Promise<McpValidationResult>
   // 卡片差异
   cardVariant?: 'workspace' | 'global'
   // 文本
@@ -228,6 +338,8 @@ export function McpServerManager({
   onToggleEnabled,
   onImport,
   onSyncToSandbox,
+  onValidate,
+  onValidateSaved,
   cardVariant = 'workspace',
   title,
   emptyText,
@@ -253,16 +365,25 @@ export function McpServerManager({
   const [importText, setImportText] = useState('')
   const [importError, setImportError] = useState<string | null>(null)
   const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null)
+  // 卡片/列表上的"验证"状态：{ [name]: 'pending' | result }
+  const [validationStates, setValidationStates] = useState<Record<string, 'pending' | McpValidationResult>>({})
 
-  // ── JSON text ──
+
+  // ── JSON text (与磁盘 .mcp.json 一致：仅含启用项、保留 transport、不含 enabled) ──
   const jsonText = useMemo(() => {
     const obj: Record<string, Record<string, unknown>> = {}
     for (const s of servers) {
+      if (!s.enabled) continue
+      const entry: Record<string, unknown> = { transport: s.type }
       if (s.type === 'stdio') {
-        obj[s.name] = { command: s.command, args: s.args, env: s.env }
+        if (s.command) entry.command = s.command
+        if (s.args && s.args.length > 0) entry.args = s.args
+        if (s.env && Object.keys(s.env).length > 0) entry.env = s.env
       } else {
-        obj[s.name] = { url: s.url, headers: s.headers }
+        if (s.url) entry.url = s.url
+        if (s.headers && Object.keys(s.headers).length > 0) entry.headers = s.headers
       }
+      obj[s.name] = entry
     }
     return JSON.stringify({ mcpServers: obj }, null, 2)
   }, [servers])
@@ -286,6 +407,30 @@ export function McpServerManager({
     withMutating(async () => { await onDelete(deleteTarget); setDeleteTarget(null) })
   }
 
+  const handleValidateCard = async (server: McpServerConfig) => {
+    const validator = onValidateSaved
+      ? () => onValidateSaved(server.name)
+      : onValidate
+        ? () => onValidate(server)
+        : null
+    if (!validator) return
+    setValidationStates(prev => ({ ...prev, [server.name]: 'pending' }))
+    try {
+      const result = await validator()
+      setValidationStates(prev => ({ ...prev, [server.name]: result }))
+    } catch (e) {
+      setValidationStates(prev => ({
+        ...prev,
+        [server.name]: {
+          ok: false,
+          latency_ms: 0,
+          error: (e as Error).message,
+          error_kind: 'transport_error',
+        },
+      }))
+    }
+  }
+
   const handleImport = async () => {
     try {
       const parsed = JSON.parse(stripJsoncComments(importText))
@@ -295,12 +440,16 @@ export function McpServerManager({
       }
       const allServers: McpServerConfig[] = Object.entries(mcpObj).map(([name, cfg]) => {
         const c = cfg as Record<string, unknown>
-        const tp = (c.transport_type as string) ?? (c.command ? 'stdio' : c.url ? 'http' : 'stdio')
+        // 接受 transport / transport_type / type 三种历史字段命名，按优先级回退到启发式推断
+        const tp = (c.transport as string)
+          ?? (c.transport_type as string)
+          ?? (c.type as string)
+          ?? (c.command ? 'stdio' : c.url ? 'http' : 'stdio')
         return { name, type: tp as McpServerType, enabled: true, command: (c.command as string) ?? '', args: (c.args as string[]) ?? [], env: (c.env as Record<string, string>) ?? {}, url: (c.url as string) ?? '', headers: (c.headers as Record<string, string>) ?? {} }
       })
       if (allServers.length === 0) { setImportError(t('mcpServices.import.emptyError')); return }
       // STDIO 仅允许包管理器命令（npx/uvx 等），其余拒绝导入
-      const ALLOWED_STDIO_CMDS = new Set(['npx', 'uvx', 'bunx', 'pnpx'])
+      const ALLOWED_STDIO_CMDS = new Set(['npx', 'uvx'])
       const unsupported = allServers.filter(s =>
         s.type === 'stdio' && !ALLOWED_STDIO_CMDS.has((s.command ?? '').trim())
       )
@@ -312,6 +461,94 @@ export function McpServerManager({
       await onImport(newServers)
       setImportOpen(false); setImportText(''); setImportError(null)
     } catch { setImportError(t('mcpServices.import.parseError')) } finally { setMutating(false) }
+  }
+
+  // ── 单个 server 的"验证"按钮渲染器，复用于卡片/列表 ──
+  const renderValidateButton = (server: McpServerConfig, iconSize = 16) => {
+    if (!onValidate && !onValidateSaved) return null
+    const state = validationStates[server.name]
+    const pending = state === 'pending'
+    const result = state && state !== 'pending' ? (state as McpValidationResult) : null
+    let color: 'inherit' | 'success' | 'error' = 'inherit'
+    let icon: React.ReactNode = <PlayArrowIcon sx={{ fontSize: iconSize }} />
+    if (pending) {
+      icon = <CircularProgress size={iconSize - 2} />
+    } else if (result?.ok) {
+      color = 'success'
+      icon = <CheckCircleIcon sx={{ fontSize: iconSize }} />
+    } else if (result && !result.ok) {
+      color = 'error'
+      icon = <ErrorOutlineIcon sx={{ fontSize: iconSize }} />
+    }
+    const tooltip = pending
+      ? t('mcpServices.validate.pending')
+      : result?.ok
+        ? t('mcpServices.validate.success', {
+          name: result.server_info?.name ?? '-',
+          version: result.server_info?.version ?? '-',
+        }) + ` (${(result.tools ?? []).length} tools, ${Math.round(result.latency_ms)}ms)`
+        : result
+          ? t(`mcpServices.validate.errorKind.${result.error_kind ?? 'transport_error'}`) + (result.error ? ` — ${result.error}` : '')
+          : t('mcpServices.validate.button')
+    return (
+      <Tooltip title={tooltip} arrow>
+        <span>
+          <IconActionButton size="small" color={color} onClick={() => handleValidateCard(server)} disabled={pending || mutating}>
+            {icon}
+          </IconActionButton>
+        </span>
+      </Tooltip>
+    )
+  }
+
+  // ── 持久化的验证状态 chip（已验证/未验证/失败）──
+  const renderValidationChip = (server: McpServerConfig) => {
+    const status = server.validation?.status ?? 'unvalidated'
+    if (status === 'validated') {
+      return (
+        <Tooltip
+          title={t('mcpServices.validate.chip.validatedTooltip', {
+            time: server.validation?.validated_at?.slice(0, 19).replace('T', ' ') ?? '-',
+            tools: server.validation?.tools_count ?? 0,
+          })}
+          arrow
+        >
+          <Chip
+            icon={<CheckCircleIcon sx={{ fontSize: 12 }} />}
+            label={t('mcpServices.validate.chip.validated')}
+            size="small"
+            color="success"
+            variant="outlined"
+            sx={{ height: 18, fontSize: 10, '& .MuiChip-icon': { ml: 0.5 }, '& .MuiChip-label': { px: 0.75 } }}
+          />
+        </Tooltip>
+      )
+    }
+    if (status === 'failed') {
+      return (
+        <Tooltip title={server.validation?.last_error ?? t('mcpServices.validate.chip.failedTooltip')} arrow>
+          <Chip
+            icon={<ErrorOutlineIcon sx={{ fontSize: 12 }} />}
+            label={t('mcpServices.validate.chip.failed')}
+            size="small"
+            color="error"
+            variant="outlined"
+            sx={{ height: 18, fontSize: 10, '& .MuiChip-icon': { ml: 0.5 }, '& .MuiChip-label': { px: 0.75 } }}
+          />
+        </Tooltip>
+      )
+    }
+    return (
+      <Tooltip title={t('mcpServices.validate.chip.unvalidatedTooltip')} arrow>
+        <Chip
+          label={t('mcpServices.validate.chip.unvalidated')}
+          size="small"
+          color="warning"
+          variant="outlined"
+          sx={{ height: 18, fontSize: 10, '& .MuiChip-label': { px: 0.75 } }}
+        />
+      </Tooltip>
+    )
   }
 
   return (
@@ -396,9 +633,10 @@ export function McpServerManager({
             {servers.map(server => (
               <Card key={server.name} sx={{ ...CARD_VARIANTS.default.styles, display: 'flex', flexDirection: 'column', opacity: server.enabled ? 1 : 0.55, transition: 'border-color 0.2s, box-shadow 0.2s, opacity 0.2s', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
                 <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                     <Chip label={server.type.toUpperCase()} size="small" color={typeColor(server.type) as 'info' | 'warning' | 'success'} variant="outlined" icon={typeIcon(server.type)} sx={{ fontSize: '0.7rem', height: 22 }} />
                     <Chip label={t('mcpServices.toolbar.autoInject')} size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'warning.main', color: 'warning.contrastText', fontWeight: 600 }} />
+                    {renderValidationChip(server)}
                     <Box sx={{ ml: 'auto', width: 8, height: 8, borderRadius: '50%', bgcolor: server.enabled ? 'success.main' : 'text.disabled' }} />
                   </Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.3 }}>{server.name}</Typography>
@@ -414,6 +652,7 @@ export function McpServerManager({
                     {server.enabled ? t('mcpServices.toolbar.autoInjectOn') : t('mcpServices.toolbar.autoInjectOff')}
                   </Typography>
                   <Tooltip title={t('detail.mcp.edit')}><IconActionButton size="small" color="primary" onClick={() => setEditTarget(server)}><EditIcon sx={{ fontSize: 16 }} /></IconActionButton></Tooltip>
+                  {renderValidateButton(server, 16)}
                   <Tooltip title={t('detail.mcp.delete')}><IconActionButton size="small" color="error" onClick={() => setDeleteTarget(server.name)}><DeleteIcon sx={{ fontSize: 16 }} /></IconActionButton></Tooltip>
                 </Box>
               </Card>
@@ -424,9 +663,10 @@ export function McpServerManager({
             {servers.map(server => (
               <Card key={server.name} sx={{ ...CARD_VARIANTS.default.styles, minWidth: 0, opacity: server.enabled ? 1 : 0.6, transition: 'all 0.2s ease' }}>
                 <Box sx={{ p: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1, gap: 1, flexWrap: 'wrap' }}>
                     <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: server.enabled ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{server.name}</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{server.name}</Typography>
+                    {renderValidationChip(server)}
                     <Chip label={server.type.toUpperCase()} size="small" color={typeColor(server.type) as 'info' | 'warning' | 'success'} variant="outlined" sx={{ height: 20, fontSize: 11 }} />
                   </Box>
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -438,6 +678,7 @@ export function McpServerManager({
                     </Tooltip>
                     <Box sx={{ flexGrow: 1 }} />
                     <Tooltip title={t('detail.mcp.edit')}><IconActionButton size="small" onClick={() => setEditTarget(server)}><EditIcon fontSize="small" /></IconActionButton></Tooltip>
+                    {renderValidateButton(server, 18)}
                     <Tooltip title={t('detail.mcp.delete')}><IconActionButton size="small" onClick={() => setDeleteTarget(server.name)}><DeleteIcon fontSize="small" /></IconActionButton></Tooltip>
                   </Box>
                 </Box>
@@ -464,6 +705,7 @@ export function McpServerManager({
                       </Typography>
                     </Box>
                   </Box>
+                  {renderValidationChip(server)}
                   <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: server.enabled ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
                   {isGlobal && (
                     <Tooltip title={t('mcpServices.toolbar.autoInjectTooltip')}>
@@ -472,6 +714,7 @@ export function McpServerManager({
                   )}
                   <Box sx={{ display: 'flex', gap: 0.25, flexShrink: 0 }}>
                     <Tooltip title={t('detail.mcp.edit')}><IconActionButton size="small" color="primary" onClick={() => setEditTarget(server)}><EditIcon sx={{ fontSize: 14 }} /></IconActionButton></Tooltip>
+                    {renderValidateButton(server, 14)}
                     <Tooltip title={t('detail.mcp.delete')}><IconActionButton size="small" color="error" onClick={() => setDeleteTarget(server.name)}><DeleteIcon sx={{ fontSize: 14 }} /></IconActionButton></Tooltip>
                   </Box>
                 </Box>
@@ -504,10 +747,10 @@ export function McpServerManager({
       )}
 
       {/* Add dialog */}
-      <ServerFormDialog open={addOpen} onClose={() => setAddOpen(false)} onSubmit={handleAdd} initial={emptyServer()} title={t('detail.mcp.addTitle')} submitLabel={mutating ? t('detail.mcp.adding') : t('detail.mcp.add')} t={t} />
+      <ServerFormDialog open={addOpen} onClose={() => setAddOpen(false)} onSubmit={handleAdd} onValidate={onValidate} initial={emptyServer()} title={t('detail.mcp.addTitle')} submitLabel={mutating ? t('detail.mcp.adding') : t('detail.mcp.add')} t={t} />
 
       {/* Edit dialog */}
-      <ServerFormDialog open={!!editTarget} onClose={() => setEditTarget(null)} onSubmit={handleEdit} initial={editTarget ?? emptyServer()} title={t('detail.mcp.editTitle')} submitLabel={mutating ? t('detail.mcp.saving') : t('detail.mcp.save')} t={t} />
+      <ServerFormDialog open={!!editTarget} onClose={() => setEditTarget(null)} onSubmit={handleEdit} onValidate={onValidate} initial={editTarget ?? emptyServer()} title={t('detail.mcp.editTitle')} submitLabel={mutating ? t('detail.mcp.saving') : t('detail.mcp.save')} t={t} />
 
       {/* Delete dialog */}
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs">

@@ -89,6 +89,15 @@ export default function MCPTab({ workspace }: { workspace: WorkspaceDetail }) {
     }
   }
 
+  const handleValidate = (server: McpServerConfig) =>
+    workspaceApi.testMcpServerAdHoc(workspace.id, server)
+
+  const handleValidateSaved = async (name: string) => {
+    const result = await workspaceApi.testMcpServer(workspace.id, name)
+    invalidate()
+    return result
+  }
+
   return (
     <McpServerManager
       servers={servers}
@@ -99,6 +108,8 @@ export default function MCPTab({ workspace }: { workspace: WorkspaceDetail }) {
       onToggleEnabled={handleToggleEnabled}
       onImport={handleImport}
       onSyncToSandbox={handleSyncToSandbox}
+      onValidate={handleValidate}
+      onValidateSaved={handleValidateSaved}
       cardVariant="workspace"
       emptyText={t('detail.mcp.empty')}
       jsonTitle={t('detail.mcp.title')}

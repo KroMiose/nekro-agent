@@ -389,6 +389,28 @@
     "deleteDialog": {
       "title": "移除自动注入服务",
       "content": "确定要从自动注入列表中移除「{{name}}」吗？已有工作区中的配置不受影响。"
+    },
+    "validate": {
+      "button": "验证连接",
+      "pending": "正在握手…",
+      "success": "{{name}} {{version}} 握手成功",
+      "toolsAndLatency": "提供 {{count}} 个工具，耗时 {{latency}}ms",
+      "errorKind": {
+        "schema": "配置不合法",
+        "spawn_failed": "进程启动失败（检查 command 与 args）",
+        "handshake_timeout": "握手超时（检查服务器是否启动 / 网络可达）",
+        "transport_error": "传输层错误（连接失败 / URL 不可达）",
+        "container_not_running": "工作区容器未运行，stdio 类型需先启动工作区",
+        "invalid_response": "握手响应无效（对方可能不是 MCP 服务）"
+      },
+      "chip": {
+        "validated": "已验证",
+        "unvalidated": "未验证",
+        "failed": "验证失败",
+        "validatedTooltip": "已通过验证 · {{time}} UTC · {{tools}} 个工具。已写入 .mcp.json，CC 可见。",
+        "unvalidatedTooltip": "尚未通过验证。点击 ▶ 按钮发起一次握手；未验证的服务器不会写入 .mcp.json，CC 不可见。",
+        "failedTooltip": "最近一次验证失败，未写入 .mcp.json"
+      }
     }
   },
   "detail": {
@@ -783,8 +805,8 @@
         "url": "服务器 URL",
         "headersLabel": "HTTP 请求头",
         "cancel": "取消",
-        "stdioHint": "仅支持 npx / uvx / bunx / pnpx 等包管理器命令，不支持引用宿主机本地文件路径",
-        "stdioCommandError": "仅支持 npx、uvx、bunx、pnpx 命令"
+        "stdioHint": "仅支持 npx / uvx 包管理器命令（CC 沙盒已预装 Node.js 20 与 astral-sh/uv），不支持引用宿主机本地文件路径",
+        "stdioCommandError": "仅支持 npx、uvx 命令"
       },
       "registry": {
         "title": "从模板添加 MCP 服务器",

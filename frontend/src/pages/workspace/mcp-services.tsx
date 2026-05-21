@@ -126,6 +126,14 @@ export default function McpServicesPage() {
     )
   }
 
+  const handleValidate = (server: McpServerConfig) => mcpApi.testAutoInjectServer(server)
+
+  const handleValidateSaved = async (name: string) => {
+    const result = await mcpApi.testSavedAutoInjectServer(name)
+    invalidate()
+    return result
+  }
+
   return (
     <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: { xs: 1.5, sm: 2, md: 3 }, overflow: 'auto' }}>
       {/* Stat cards */}
@@ -145,6 +153,8 @@ export default function McpServicesPage() {
         onDelete={handleDelete}
         onToggleEnabled={handleToggleEnabled}
         onImport={handleImport}
+        onValidate={handleValidate}
+        onValidateSaved={handleValidateSaved}
         cardVariant="global"
         title=""
         emptyText={hasActiveFilters ? t('mcpServices.empty.noMatch') : t('mcpServices.empty.title')}
