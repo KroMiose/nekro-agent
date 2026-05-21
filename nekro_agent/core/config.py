@@ -450,7 +450,7 @@ class CoreConfig(ConfigBase):
         ).model_dump(),
     )
     KB_EMBEDDING_MODEL_GROUP: str = Field(
-        default="",
+        default="text-embedding",
         title="知识库 Embedding 模型组",
         description="用于知识库向量化与检索的 embedding 模型组。必须选择 MODEL_TYPE 为 embedding 的模型组，并与知识库向量维度配置保持一致",
         json_schema_extra=ExtraField(
