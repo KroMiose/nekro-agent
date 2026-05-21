@@ -106,7 +106,7 @@ export default function McpServicesPage() {
 
   const handleToggleEnabled = async (server: McpServerConfig) => {
     try {
-      await updateList(current => current.map(s => s.name === server.name ? { ...s, enabled: !s.enabled } : s))
+      await updateList(current => current.map(s => s.name === server.name ? { ...s, auto_inject: !s.auto_inject } : s))
     } catch (e) {
       notification.error((e as Error).message)
       throw e

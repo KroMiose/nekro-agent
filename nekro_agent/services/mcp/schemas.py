@@ -40,13 +40,23 @@ class McpEnvKeyDef(BaseModel):
 
 
 class McpServerConfig(BaseModel):
-    """单个 MCP 服务器的结构化配置"""
+    """单个 MCP 服务器的结构化配置（全局 MCP 库的条目）
+
+    所有 MCP 服务器定义都集中存储在全局库（data/configs/auto-inject-mcp.json）。
+    工作区不再直接保存配置，仅在 `workspace.metadata.mcp_servers_enabled` 中按
+    name 引用。
+
+    字段语义因上下文不同：
+    - 全局库视图：`auto_inject` 表示"是否在新工作区中默认启用"
+    - 工作区视图：`enabled` 表示"当前工作区是否启用此 server"
+    """
 
     model_config = ConfigDict(use_enum_values=False)
 
-    name: str  # 服务器名称（唯一标识）
+    name: str  # 服务器名称（全局库唯一）
     type: McpServerType  # 传输类型
-    enabled: bool = True  # 是否启用
+    auto_inject: bool = False  # 全局：是否在新建工作区时自动启用
+    enabled: bool = False  # 工作区：在当前工作区是否启用（仅工作区视图使用）
     # stdio 类型
     command: Optional[str] = None  # 命令
     args: List[str] = []  # 参数

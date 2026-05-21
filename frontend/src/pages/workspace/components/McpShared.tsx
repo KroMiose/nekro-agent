@@ -405,6 +405,9 @@ export function McpServerManager({
   const theme = useTheme()
   const isGlobal = cardVariant === 'global'
 
+  // 全局视图：toggle 字段为 auto_inject；工作区视图：toggle 字段为 enabled
+  const getToggleField = (s: McpServerConfig) => (isGlobal ? !!s.auto_inject : !!s.enabled)
+
   // ── View & Dialog state ──
   const [viewMode, setViewMode] = useState<'cards' | 'list' | 'json'>('cards')
   const [addOpen, setAddOpen] = useState(false)
@@ -419,11 +422,14 @@ export function McpServerManager({
   const [validationStates, setValidationStates] = useState<Record<string, 'pending' | McpValidationResult>>({})
 
 
-  // ── JSON text (与磁盘 .mcp.json 一致：仅含启用项、保留 transport、不含 enabled) ──
+  // ── JSON text (与磁盘 .mcp.json 一致) ──
+  // 全局视图：展示 auto_inject=true 的条目（新工作区将看到的形态）
+  // 工作区视图：展示 enabled=true 的条目（当前工作区 .mcp.json 内容）
   const jsonText = useMemo(() => {
     const obj: Record<string, Record<string, unknown>> = {}
     for (const s of servers) {
-      if (!s.enabled) continue
+      const include = isGlobal ? !!s.auto_inject : !!s.enabled
+      if (!include) continue
       const entry: Record<string, unknown> = { transport: s.type }
       if (s.type === 'stdio') {
         if (s.command) entry.command = s.command
@@ -436,7 +442,7 @@ export function McpServerManager({
       obj[s.name] = entry
     }
     return JSON.stringify({ mcpServers: obj }, null, 2)
-  }, [servers])
+  }, [servers, isGlobal])
 
   // ── Handlers ──
   const withMutating = async (fn: () => Promise<void>) => {
@@ -495,7 +501,7 @@ export function McpServerManager({
           ?? (c.transport_type as string)
           ?? (c.type as string)
           ?? (c.command ? 'stdio' : c.url ? 'http' : 'stdio')
-        return { name, type: tp as McpServerType, enabled: true, command: (c.command as string) ?? '', args: (c.args as string[]) ?? [], env: (c.env as Record<string, string>) ?? {}, url: (c.url as string) ?? '', headers: (c.headers as Record<string, string>) ?? {} }
+        return { name, type: tp as McpServerType, auto_inject: false, enabled: false, command: (c.command as string) ?? '', args: (c.args as string[]) ?? [], env: (c.env as Record<string, string>) ?? {}, url: (c.url as string) ?? '', headers: (c.headers as Record<string, string>) ?? {} }
       })
       if (allServers.length === 0) { setImportError(t('mcpServices.import.emptyError')); return }
       // STDIO 仅允许包管理器命令（npx/uvx 等），其余拒绝导入
@@ -680,16 +686,18 @@ export function McpServerManager({
           </Card>
         ) : isGlobal ? (
           <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 2 }}>
-            {servers.map(server => (
+            {servers.map(server => {
+              const on = getToggleField(server)
+              return (
               <Card key={server.name} sx={{ ...CARD_VARIANTS.default.styles, display: 'flex', flexDirection: 'column', transition: 'border-color 0.2s, box-shadow 0.2s', '&:hover': { borderColor: 'primary.main', boxShadow: 2 } }}>
                 <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                     <Chip label={server.type.toUpperCase()} size="small" color={typeColor(server.type) as 'info' | 'warning' | 'success'} variant="outlined" icon={typeIcon(server.type)} sx={{ fontSize: '0.7rem', height: 22 }} />
-                    {server.enabled && (
+                    {on && (
                       <Chip label={t('mcpServices.toolbar.autoInject')} size="small" sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'warning.main', color: 'warning.contrastText', fontWeight: 600 }} />
                     )}
                     {renderValidationChip(server)}
-                    <Box sx={{ ml: 'auto', width: 8, height: 8, borderRadius: '50%', bgcolor: server.enabled ? 'success.main' : 'text.disabled' }} />
+                    <Box sx={{ ml: 'auto', width: 8, height: 8, borderRadius: '50%', bgcolor: on ? 'success.main' : 'text.disabled' }} />
                   </Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, lineHeight: 1.3 }}>{server.name}</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.5, fontFamily: 'monospace', fontSize: '0.75rem' }}>
@@ -698,17 +706,17 @@ export function McpServerManager({
                 </Box>
                 <Box sx={{ px: 2, py: 1, borderTop: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                   <Tooltip title={t('mcpServices.toolbar.autoInjectTooltip')}>
-                    <Switch size="small" checked={server.enabled} onChange={() => onToggleEnabled(server)} disabled={mutating} color="warning" />
+                    <Switch size="small" checked={on} onChange={() => onToggleEnabled(server)} disabled={mutating} color="warning" />
                   </Tooltip>
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 'auto' }}>
-                    {server.enabled ? t('mcpServices.toolbar.autoInjectOn') : t('mcpServices.toolbar.autoInjectOff')}
+                    {on ? t('mcpServices.toolbar.autoInjectOn') : t('mcpServices.toolbar.autoInjectOff')}
                   </Typography>
                   <Tooltip title={t('detail.mcp.edit')}><IconActionButton size="small" color="primary" onClick={() => setEditTarget(server)}><EditIcon sx={{ fontSize: 16 }} /></IconActionButton></Tooltip>
                   {renderValidateButton(server, 16)}
                   <Tooltip title={t('detail.mcp.delete')}><IconActionButton size="small" color="error" onClick={() => setDeleteTarget(server.name)}><DeleteIcon sx={{ fontSize: 16 }} /></IconActionButton></Tooltip>
                 </Box>
               </Card>
-            ))}
+            )})}
           </Box>
         ) : (
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fill, minmax(260px, 1fr))' }, gap: 2 }}>
@@ -761,7 +769,7 @@ export function McpServerManager({
                   <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: server.enabled ? 'success.main' : 'text.disabled', flexShrink: 0 }} />
                   {isGlobal && (
                     <Tooltip title={t('mcpServices.toolbar.autoInjectTooltip')}>
-                      <Switch size="small" checked={server.enabled} onChange={() => onToggleEnabled(server)} disabled={mutating} color="warning" />
+                      <Switch size="small" checked={getToggleField(server)} onChange={() => onToggleEnabled(server)} disabled={mutating} color="warning" />
                     </Tooltip>
                   )}
                   <Box sx={{ display: 'flex', gap: 0.25, flexShrink: 0 }}>

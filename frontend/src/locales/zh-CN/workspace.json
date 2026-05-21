@@ -762,8 +762,23 @@
       }
     },
     "mcp": {
-      "title": "MCP 服务配置",
-      "empty": "暂未配置 MCP 服务器，从模板添加快速开始",
+      "title": "MCP 服务",
+      "empty": "本工作区还没有加入任何 MCP 服务",
+      "emptyHint": "点击「添加 MCP 服务」从全局 MCP 库挑选",
+      "workspaceHint": "共 {{total}} 个已加入，{{validated}} 个已通过验证",
+      "addBtn": "添加 MCP 服务",
+      "addSuccess": "MCP 服务已加入本工作区",
+      "addFailed": "添加失败：{{message}}",
+      "removeTooltip": "从本工作区移除（不删除全局库条目）",
+      "removeSuccess": "已从本工作区移除 {{name}}",
+      "removeFailed": "移除失败：{{message}}",
+      "manageLibrary": "管理 MCP 库",
+      "libraryEmpty": "全局 MCP 库还没有任何服务，请到「MCP 服务」管理页添加",
+      "autoInjectTooltip": "新建工作区时会自动启用此服务",
+      "addDialog": {
+        "title": "添加 MCP 服务",
+        "empty": "全局库中所有服务都已加入本工作区。如需更多，请到 MCP 库添加新服务。"
+      },
       "fromTemplate": "从模板添加",
       "addManual": "手动添加",
       "addServer": "添加服务",

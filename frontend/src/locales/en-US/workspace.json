@@ -762,8 +762,23 @@
       }
     },
     "mcp": {
-      "title": "MCP Service Configuration",
-      "empty": "No MCP servers configured. Add from templates to get started.",
+      "title": "MCP Services",
+      "empty": "No MCP servers attached to this workspace yet",
+      "emptyHint": "Click \"Add MCP Service\" to pick from the global library",
+      "workspaceHint": "{{total}} attached, {{validated}} verified",
+      "addBtn": "Add MCP Service",
+      "addSuccess": "MCP server attached to this workspace",
+      "addFailed": "Add failed: {{message}}",
+      "removeTooltip": "Remove from this workspace (does not delete the global library entry)",
+      "removeSuccess": "Removed {{name}} from this workspace",
+      "removeFailed": "Remove failed: {{message}}",
+      "manageLibrary": "Manage MCP Library",
+      "libraryEmpty": "The global MCP library is empty. Go to the MCP Services management page to add entries.",
+      "autoInjectTooltip": "Auto-injected into newly created workspaces",
+      "addDialog": {
+        "title": "Add MCP Service",
+        "empty": "All servers from the global library are already attached. Add new entries in the MCP library to extend it."
+      },
       "fromTemplate": "From Template",
       "addManual": "Add Manually",
       "addServer": "Add Server",

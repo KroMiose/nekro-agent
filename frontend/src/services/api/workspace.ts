@@ -383,7 +383,10 @@ export type McpServerType = 'stdio' | 'sse' | 'http'
 export interface McpServerConfig {
   name: string
   type: McpServerType
-  enabled: boolean
+  /** 全局库视图：是否在新建工作区时自动启用 */
+  auto_inject?: boolean
+  /** 工作区视图：当前工作区是否启用此 server */
+  enabled?: boolean
   command?: string
   args?: string[]
   env?: Record<string, string>
@@ -659,33 +662,22 @@ export const workspaceApi = {
     await axios.post(`/workspaces/${id}/skills/${encodeURIComponent(skillName)}/sync`)
   },
 
-  // MCP
-  getMcpConfig: async (id: number): Promise<Record<string, unknown>> => {
-    const response = await axios.get<{ mcp_config: Record<string, unknown> }>(
-      `/workspaces/${id}/mcp`
-    )
-    return response.data.mcp_config
-  },
-
-  updateMcpConfig: async (id: number, mcpConfig: Record<string, unknown>): Promise<void> => {
-    await axios.put(`/workspaces/${id}/mcp`, { mcp_config: mcpConfig })
-  },
-
-  // MCP 结构化操作
+  // MCP（工作区只引用全局 MCP 库）
   getMcpServers: async (id: number): Promise<McpServerConfig[]> => {
     const response = await axios.get<{ servers: McpServerConfig[] }>(`/workspaces/${id}/mcp/servers`)
     return response.data.servers
   },
 
-  addMcpServer: async (id: number, server: McpServerConfig): Promise<void> => {
-    await axios.post(`/workspaces/${id}/mcp/servers`, server)
+  getAvailableMcpServers: async (id: number): Promise<McpServerConfig[]> => {
+    const response = await axios.get<{ servers: McpServerConfig[] }>(`/workspaces/${id}/mcp/available`)
+    return response.data.servers
   },
 
-  updateMcpServer: async (id: number, oldName: string, server: McpServerConfig): Promise<void> => {
-    await axios.put(`/workspaces/${id}/mcp/servers/${encodeURIComponent(oldName)}`, server)
+  addMcpServerToWorkspace: async (id: number, name: string): Promise<void> => {
+    await axios.post(`/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}`)
   },
 
-  deleteMcpServer: async (id: number, name: string): Promise<void> => {
+  removeMcpServerFromWorkspace: async (id: number, name: string): Promise<void> => {
     await axios.delete(`/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}`)
   },
 
@@ -697,11 +689,6 @@ export const workspaceApi = {
     const response = await axios.post<McpValidationResult>(
       `/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}/test`
     )
-    return response.data
-  },
-
-  testMcpServerAdHoc: async (id: number, server: McpServerConfig): Promise<McpValidationResult> => {
-    const response = await axios.post<McpValidationResult>(`/workspaces/${id}/mcp/test`, server)
     return response.data
   },
 

@@ -66,7 +66,22 @@ async def get_mcp_constraints(
 async def get_auto_inject_mcp(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> _AutoInjectMcpResponse:
-    return _AutoInjectMcpResponse(servers=get_auto_inject_mcp_servers())
+    """返回全局 MCP 库（也即新建工作区时的自动注入候选）
+
+    返回前会归一化字段：把老版本里的 `enabled` 字段语义转为 `auto_inject`，
+    避免前端两边都要兼容。
+    """
+    normalized: List[Dict[str, Any]] = []
+    for raw in get_auto_inject_mcp_servers():
+        if not isinstance(raw, dict):
+            continue
+        entry = dict(raw)
+        if "auto_inject" not in entry:
+            entry["auto_inject"] = bool(entry.pop("enabled", False))
+        else:
+            entry.pop("enabled", None)
+        normalized.append(entry)
+    return _AutoInjectMcpResponse(servers=normalized)
 
 
 @router.put("/auto-inject", summary="更新自动注入 MCP 服务列表", response_model=_ActionOk)
@@ -75,9 +90,20 @@ async def update_auto_inject_mcp(
     body: _AutoInjectMcpUpdate,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> _ActionOk:
+    """批量覆盖写全局 MCP 库
+
+    每条 server 必须通过 McpServerConfig schema 校验。同时归一化 auto_inject 字段，
+    并保留来自旧条目的 validation 状态（前端不应主动修改 validation）。
+    """
     from nekro_agent.schemas.errors import ValidationError
 
+    existing_by_name: Dict[str, Dict[str, Any]] = {}
+    for raw in get_auto_inject_mcp_servers():
+        if isinstance(raw, dict) and raw.get("name"):
+            existing_by_name[raw["name"]] = raw
+
     # 逐项校验，避免任意 dict 直接落盘
+    sanitized: List[Dict[str, Any]] = []
     for raw in body.servers:
         if not isinstance(raw, dict):
             raise ValidationError(reason="servers 必须是对象数组")
@@ -85,7 +111,20 @@ async def update_auto_inject_mcp(
             McpServerConfig.model_validate(raw)
         except Exception as e:  # noqa: BLE001
             raise ValidationError(reason=f"自动注入项 {raw.get('name', '?')} 配置无效: {e}") from e
-    set_auto_inject_mcp_servers(body.servers)
+        entry = dict(raw)
+        # 兜底归一化：把可能从旧前端发来的 `enabled` 字段转为 auto_inject
+        if "auto_inject" not in entry:
+            entry["auto_inject"] = bool(entry.pop("enabled", False))
+        else:
+            entry.pop("enabled", None)
+        # 服务端保留 validation 不让客户端串改
+        prev = existing_by_name.get(entry.get("name", ""), {})
+        if "validation" in prev:
+            entry["validation"] = prev["validation"]
+        else:
+            entry.pop("validation", None)
+        sanitized.append(entry)
+    set_auto_inject_mcp_servers(sanitized)
     return _ActionOk()
 
 
