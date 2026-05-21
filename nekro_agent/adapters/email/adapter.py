@@ -118,6 +118,8 @@ class ParsedEmail:
 class EmailAdapter(BaseAdapter[EmailConfig]):
     """邮箱适配器"""
 
+    _POLLING_STATUS_LOG_INTERVAL_SECONDS = 3600
+
     def __init__(self, config_cls: Type[EmailConfig] = EmailConfig):
         """初始化邮箱适配器"""
         super().__init__(config_cls)
@@ -137,6 +139,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         # 轮询任务
         self._polling_task: Optional[asyncio.Task] = None
         self._polling_active = False
+        self._last_polling_status_log_at: float | None = None
 
     def _html_to_text(self, html_content: str) -> str:
         """提取HTML中的文字，去除标签/脚本，便于聊天展示"""
@@ -378,6 +381,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
         if not self._polling_task or self._polling_task.done():
             self._polling_active = True
+            self._last_polling_status_log_at = None
             self._polling_task = asyncio.create_task(self._polling_loop())
             logger.info("邮箱适配器轮询任务已启动")
 
@@ -394,10 +398,15 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         while self._polling_active:
             try:
                 poll_count += 1
-                # 输出轮询状态信息
-                logger.info(
-                    f"邮箱适配器第 {poll_count} 次轮询开始，轮询间隔: {self.config.POLL_INTERVAL} 秒，已连接账户数: {len(self.imap_connections)}",
-                )
+                now = time.monotonic()
+                if (
+                    self._last_polling_status_log_at is None
+                    or now - self._last_polling_status_log_at >= self._POLLING_STATUS_LOG_INTERVAL_SECONDS
+                ):
+                    logger.info(
+                        f"邮箱适配器第 {poll_count} 次轮询开始，轮询间隔: {self.config.POLL_INTERVAL} 秒，已连接账户数: {len(self.imap_connections)}",
+                    )
+                    self._last_polling_status_log_at = now
 
                 # 检查每个账户的新邮件
                 accounts_to_check = list(self.imap_connections.items())
