@@ -1,5 +1,5 @@
-import type { ConfigItem } from '../../components/common/ConfigTable'
-import { ModelGroupConfig, unifiedConfigApi } from './unified-config'
+import type { ConfigItem, ModelGroupConfig } from '../../components/common/ConfigTable'
+import { unifiedConfigApi } from './unified-config'
 
 export interface OobeStatus {
   completed: boolean
