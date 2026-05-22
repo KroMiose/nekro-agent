@@ -1,9 +1,11 @@
-import { lazy, ComponentType, Suspense } from 'react'
+import { lazy, type ComponentType, Suspense } from 'react'
 import { createHashRouter, Navigate } from 'react-router-dom'
 import { CircularProgress, Box } from '@mui/material'
 import MainLayout from '../layouts/MainLayout'
 import AdapterLayout from '../layouts/AdapterLayout'
 import LoginPage from '../pages/login'
+import OobePage from '../pages/oobe'
+import RequireAuth from './RequireAuth'
 
 // 创建一个包装器组件来处理懒加载和加载状态
 const lazyLoad = (importFn: () => Promise<{ default: ComponentType }>) => {
@@ -33,6 +35,14 @@ const router = createHashRouter([
   {
     path: '/login',
     element: <LoginPage />,
+  },
+  {
+    path: '/oobe',
+    element: (
+      <RequireAuth>
+        <OobePage />
+      </RequireAuth>
+    ),
   },
   {
     path: '/',

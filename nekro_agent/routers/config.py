@@ -165,7 +165,11 @@ def _raise_config_error(
         raise ConfigNotFoundError(key=config_key)
 
     if "配置项不存在" in error_msg:
-        key = f"{config_key}.{item_key}" if item_key else config_key
+        missing_key = item_key
+        missing_prefix = "配置项不存在:"
+        if missing_key is None and missing_prefix in error_msg:
+            missing_key = error_msg.split(missing_prefix, maxsplit=1)[1].strip()
+        key = f"{config_key}.{missing_key}" if missing_key else config_key
         raise ConfigNotFoundError(key=key)
 
     if "无效" in error_msg or "invalid" in error_msg.lower():

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { Box, Tab } from '@mui/material'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
 import { useTranslation } from 'react-i18next'
@@ -10,9 +11,11 @@ import type { ConfigItem } from '../../components/common/ConfigTable'
 import { useLocaleStore } from '../../stores/locale'
 import type { SupportedLocale } from '../../config/i18n'
 import { PanelTabs, PanelTabsContainer } from '../../components/common/NekroTabs'
+import ActionButton from '../../components/common/ActionButton'
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { t } = useTranslation('settings')
   const { i18n } = useTranslation()
   const { setLocaleLocal } = useLocaleStore()
@@ -196,27 +199,43 @@ export default function SettingsPage() {
       }}
     >
       {/* 分类选项卡 */}
-      <PanelTabsContainer
+      <Box
         sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
           mb: 2,
           flexShrink: 0,
         }}
       >
-        <PanelTabs
-          value={categories.length > 0 ? activeTab : false}
-          onChange={(_, newValue) => {
-            const nextParams = new URLSearchParams(searchParams)
-            nextParams.set('category', newValue)
-            setSearchParams(nextParams, { replace: true })
+        <PanelTabsContainer sx={{ flex: 1, minWidth: 0 }}>
+          <PanelTabs
+            value={categories.length > 0 ? activeTab : false}
+            onChange={(_, newValue) => {
+              const nextParams = new URLSearchParams(searchParams)
+              nextParams.set('category', newValue)
+              setSearchParams(nextParams, { replace: true })
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {categories.map((category) => (
+              <Tab key={category} label={category} value={category} />
+            ))}
+          </PanelTabs>
+        </PanelTabsContainer>
+        <ActionButton
+          tone="secondary"
+          size="small"
+          startIcon={<RocketLaunchIcon />}
+          onClick={() => {
+            navigate('/oobe?mode=manual')
           }}
-          variant="scrollable"
-          scrollButtons="auto"
+          sx={{ height: 40, flexShrink: 0, whiteSpace: 'nowrap' }}
         >
-          {categories.map((category) => (
-            <Tab key={category} label={category} value={category} />
-          ))}
-        </PanelTabs>
-      </PanelTabsContainer>
+          {t('oobe.actions.openGuide')}
+        </ActionButton>
+      </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <ConfigTable

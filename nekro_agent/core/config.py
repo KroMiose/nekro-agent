@@ -71,6 +71,16 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    OOBE_COMPLETED: bool = Field(
+        default=False,
+        title="OOBE 已完成",
+        json_schema_extra=ExtraField(is_hidden=True).model_dump(),
+    )
+    OOBE_SKIPPED: bool = Field(
+        default=False,
+        title="OOBE 已跳过",
+        json_schema_extra=ExtraField(is_hidden=True).model_dump(),
+    )
 
     """Nekro Cloud 云服务配置"""
     ENABLE_NEKRO_CLOUD: bool = Field(

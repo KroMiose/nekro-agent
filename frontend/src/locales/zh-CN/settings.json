@@ -537,5 +537,117 @@
       "otherData": "其他数据空间",
       "agentData": "NekroAgent 数据"
     }
+  },
+  "oobe": {
+    "title": "NekroAgent 初始引导",
+    "subtitle": "完成模型与系统基础设置后即可开始使用",
+    "manualSubtitle": "重新检查并更新基础配置",
+    "adminPasswordNote": "WebUI 管理员密码仍由部署环境变量管理，不会在引导中修改。",
+    "steps": {
+      "welcome": {
+        "title": "开始",
+        "description": "查看配置完整度"
+      },
+      "language": {
+        "title": "选择语言",
+        "description": "选择 NekroAgent 的显示语言"
+      },
+      "system": {
+        "title": "系统基础",
+        "description": "云服务与默认代理"
+      },
+      "chat": {
+        "title": "主聊天模型",
+        "description": "配置默认对话模型组"
+      },
+      "embedding": {
+        "title": "Embedding 模型",
+        "description": "配置记忆与知识库向量模型"
+      },
+      "finish": {
+        "title": "确认完成",
+        "description": "保存并进入控制台"
+      }
+    },
+    "actions": {
+      "back": "上一步",
+      "next": "下一步",
+      "continue": "继续",
+      "skip": "暂时跳过",
+      "complete": "完成引导",
+      "logout": "退出登录",
+      "fetchModels": "拉取模型",
+      "test": "连接测试",
+      "showSecret": "显示密钥",
+      "hideSecret": "隐藏密钥",
+      "openGuide": "启动引导"
+    },
+    "status": {
+      "completed": "已完成",
+      "skipped": "已跳过",
+      "pending": "待完成"
+    },
+    "common": {
+      "enabled": "已启用",
+      "disabled": "已关闭"
+    },
+    "welcome": {
+      "body": "设置 NekroAgent 的系统基础项与模型组。",
+      "footer": "通信适配器、工作区和人设可稍后在控制台继续配置。"
+    },
+    "system": {
+      "languageTitle": "系统语言",
+      "cloudTitle": "NekroAI 云服务",
+      "enableCloud": "启用云服务",
+      "cloudKey": "NekroAI API Key",
+      "cloudLink": "前往 NekroAI 社区获取 API Key",
+      "proxyTitle": "系统默认代理",
+      "proxy": "默认代理地址",
+      "proxyHint": "留空表示不使用默认代理。模型组也可以单独设置代理。"
+    },
+    "model": {
+      "groupName": "模型组名称",
+      "baseUrl": "API 地址",
+      "apiKey": "API 密钥",
+      "proxy": "模型组代理",
+      "chatModel": "聊天模型",
+      "embeddingModel": "Embedding 模型",
+      "vision": "启用视觉能力",
+      "cot": "启用外置思维链",
+      "extraBodyHint": "可选，填写合法 JSON 对象"
+    },
+    "embedding": {
+      "dimensionTitle": "向量维度",
+      "memoryDimension": "记忆 Embedding 维度",
+      "kbDimension": "知识库 Embedding 维度",
+      "dimensionHint": "维度需要与所选 embedding 模型和已有 Qdrant 索引保持一致。"
+    },
+    "finish": {
+      "system": "系统基础",
+      "chat": "主聊天模型",
+      "embedding": "Embedding 模型",
+      "dimensions": "向量维度"
+    },
+    "validation": {
+      "modelFetchRequired": "请先填写 API 地址与 API 密钥",
+      "invalidJson": "请输入合法 JSON",
+      "completeRequired": "请补全主聊天模型、Embedding 模型与向量维度后再完成。"
+    },
+    "testResult": {
+      "success": "连接测试通过",
+      "failed": "连接测试未通过",
+      "detail": "实际模型：{{model}}，耗时：{{ms}}ms"
+    },
+    "notifications": {
+      "completeSuccess": "OOBE 已完成",
+      "completeFailed": "保存引导配置失败",
+      "skipped": "已跳过 OOBE，可稍后在设置页重新打开",
+      "skipFailed": "跳过引导失败",
+      "testPassed": "模型连通性测试通过",
+      "testFailed": "模型测试失败，请检查配置",
+      "testError": "测速请求失败",
+      "fetchSuccess": "已获取 {{count}} 个模型",
+      "fetchFailed": "获取模型列表失败"
+    }
   }
 }

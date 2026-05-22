@@ -54,6 +54,7 @@ import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../stores/locale'
 import ActionButton from '../components/common/ActionButton'
 import IconActionButton from '../components/common/IconActionButton'
+import { oobeApi } from '../services/api/oobe'
 
 const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro', 'agent', 'agent']
 let initialLocaleSyncPromise: Promise<void> | null = null
@@ -203,6 +204,29 @@ function MainLayoutContent() {
       transform: 'scale(0.95)',
     },
   }
+
+  useEffect(() => {
+    if (!userInfo) {
+      return
+    }
+    if (location.pathname === '/oobe') {
+      return
+    }
+    let cancelled = false
+    oobeApi
+      .getSetupState()
+      .then(state => {
+        if (!cancelled && state.status.shouldShow) {
+          navigate('/oobe', { replace: true })
+        }
+      })
+      .catch(() => {
+        // 登录后的主页面不因 OOBE 状态读取失败而阻塞。
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [location.pathname, navigate, userInfo])
 
   const drawer = (
     <Box className="h-full flex flex-col">
