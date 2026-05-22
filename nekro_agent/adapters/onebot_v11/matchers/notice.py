@@ -78,6 +78,10 @@ class GroupIncreaseNoticeHandler(BaseNoticeHandler):
     def get_notice_config(self) -> NoticeConfig:
         return NoticeConfig(force_tome=True, use_system_sender=True)
 
+    async def is_enabled(self, db_chat_channel: DBChatChannel) -> bool:
+        effective_config = await db_chat_channel.get_effective_config()
+        return effective_config.SESSION_GROUP_WELCOME_ENABLED
+
     def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_increase":
             return None
@@ -200,6 +204,9 @@ class NoticeHandlerManager:
 
         for handler in self._handlers:
             if info := handler.match(db_chat_channel, event_dict):
+                is_enabled = await handler.is_enabled(db_chat_channel)
+                if not is_enabled:
+                    return None
                 return NoticeResult(
                     handler=handler,
                     info=info,

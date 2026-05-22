@@ -1674,6 +1674,26 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    SESSION_GROUP_WELCOME_ENABLED: bool = Field(
+        default=True,
+        title="启用入群自动欢迎",
+        description="启用后群成员增加通知会触发 AI 自动欢迎；可在群聊覆盖配置中单独关闭",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="启用入群自动欢迎",
+                en_US="Enable Group Welcome",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用后群成员增加通知会触发 AI 自动欢迎；可在群聊覆盖配置中单独关闭",
+                en_US="When enabled, group member increase notices trigger AI welcome replies; can be disabled per group in channel overrides",
+            ),
+        ).model_dump(),
+    )
     SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(
         default=True,
         title="新私聊默认启用聊天",

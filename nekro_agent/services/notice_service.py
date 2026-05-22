@@ -23,6 +23,10 @@ class BaseNoticeHandler:
         """获取通知配置"""
         return NoticeConfig()
 
+    async def is_enabled(self, _db_chat_channel: DBChatChannel) -> bool:
+        """检查通知处理器是否启用"""
+        return True
+
     def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         """匹配通知事件并提取信息
 
