@@ -9,6 +9,7 @@ import {
   Box,
   ButtonBase,
   CircularProgress,
+  Collapse,
   FormControlLabel,
   InputAdornment,
   Link,
@@ -27,6 +28,7 @@ import {
   CloudQueue as CloudQueueIcon,
   ContentCopy as ContentCopyIcon,
   DoneAll as DoneAllIcon,
+  ExpandMore as ExpandMoreIcon,
   Hub as HubIcon,
   Language as LanguageIcon,
   Launch as LaunchIcon,
@@ -1270,6 +1272,7 @@ function ModelDraft({
   const { t, i18n } = useTranslation('settings')
   const theme = useTheme()
   const [showApiKey, setShowApiKey] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const providerOptions = useMemo(() => OPENAI_COMPAT_PROVIDERS.map(provider => provider.url), [])
   const providerMetaByUrl = useMemo(
     () => new Map(OPENAI_COMPAT_PROVIDERS.map(provider => [
@@ -1413,41 +1416,70 @@ function ModelDraft({
             </Stack>
           )}
 
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
-              gap: 1.5,
-            }}
+          <ActionButton
+            tone="ghost"
+            size="small"
+            endIcon={
+              <ExpandMoreIcon
+                fontSize="small"
+                sx={{
+                  transform: showAdvanced ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease',
+                }}
+              />
+            }
+            onClick={() => setShowAdvanced(value => !value)}
+            sx={{ alignSelf: 'flex-start' }}
           >
-            <TextField
-              type="number"
-              label="Temperature"
-              value={model.TEMPERATURE ?? ''}
-              onChange={event => onChange({ ...model, TEMPERATURE: event.target.value === '' ? null : Number(event.target.value) })}
-            />
-            <TextField
-              type="number"
-              label="Top P"
-              value={model.TOP_P ?? ''}
-              onChange={event => onChange({ ...model, TOP_P: event.target.value === '' ? null : Number(event.target.value) })}
-            />
-            <TextField
-              type="number"
-              label="Top K"
-              value={model.TOP_K ?? ''}
-              onChange={event => onChange({ ...model, TOP_K: event.target.value === '' ? null : Number(event.target.value) })}
-            />
-          </Box>
-          <TextField
-            label="Extra Body"
-            value={model.EXTRA_BODY ?? ''}
-            onChange={event => onChange({ ...model, EXTRA_BODY: event.target.value || null })}
-            multiline
-            minRows={3}
-            error={!isValidJsonOrEmpty(model.EXTRA_BODY)}
-            helperText={!isValidJsonOrEmpty(model.EXTRA_BODY) ? t('oobe.validation.invalidJson') : t('oobe.model.extraBodyHint')}
-          />
+            {t('oobe.model.advancedConfig')}
+          </ActionButton>
+
+          <Collapse in={showAdvanced} timeout={220} unmountOnExit>
+            <Stack
+              spacing={2}
+              sx={{
+                mt: 1,
+                pl: { xs: 0, sm: 2 },
+                borderLeft: { sm: `2px solid ${alpha(theme.palette.primary.main, 0.14)}` },
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
+                  gap: 1.5,
+                }}
+              >
+                <TextField
+                  type="number"
+                  label="Temperature"
+                  value={model.TEMPERATURE ?? ''}
+                  onChange={event => onChange({ ...model, TEMPERATURE: event.target.value === '' ? null : Number(event.target.value) })}
+                />
+                <TextField
+                  type="number"
+                  label="Top P"
+                  value={model.TOP_P ?? ''}
+                  onChange={event => onChange({ ...model, TOP_P: event.target.value === '' ? null : Number(event.target.value) })}
+                />
+                <TextField
+                  type="number"
+                  label="Top K"
+                  value={model.TOP_K ?? ''}
+                  onChange={event => onChange({ ...model, TOP_K: event.target.value === '' ? null : Number(event.target.value) })}
+                />
+              </Box>
+              <TextField
+                label="Extra Body"
+                value={model.EXTRA_BODY ?? ''}
+                onChange={event => onChange({ ...model, EXTRA_BODY: event.target.value || null })}
+                multiline
+                minRows={3}
+                error={!isValidJsonOrEmpty(model.EXTRA_BODY)}
+                helperText={!isValidJsonOrEmpty(model.EXTRA_BODY) ? t('oobe.validation.invalidJson') : t('oobe.model.extraBodyHint')}
+              />
+            </Stack>
+          </Collapse>
         </Stack>
       </Paper>
 

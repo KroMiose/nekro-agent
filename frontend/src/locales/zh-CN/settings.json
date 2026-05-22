@@ -614,6 +614,7 @@
       "embeddingModel": "Embedding 模型",
       "vision": "启用视觉能力",
       "cot": "启用外置思维链",
+      "advancedConfig": "高级配置",
       "extraBodyHint": "可选，填写合法 JSON 对象"
     },
     "embedding": {

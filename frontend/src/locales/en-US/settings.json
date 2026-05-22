@@ -614,6 +614,7 @@
       "embeddingModel": "Embedding Model",
       "vision": "Enable vision",
       "cot": "Enable external CoT",
+      "advancedConfig": "Advanced config",
       "extraBodyHint": "Optional valid JSON object"
     },
     "embedding": {
