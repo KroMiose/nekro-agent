@@ -183,6 +183,21 @@ class DrawConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    GPT_IMAGE_NATIVE: bool = Field(
+        default=False,
+        title="GPT-Image原生API适配",
+        description="针对 OpenAI 官方 GPT-Image 接口的适配。开启后将使用 `images/generations` 和 `images/edits` 接口，而非聊天模式或通用兼容图像接口。适用于模型名被改写的 GPT-Image 服务，请勿与谷歌原生API适配同时开启",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="GPT-Image原生API适配",
+                en_US="GPT-Image Native API Adaptation",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="针对 OpenAI 官方 GPT-Image 接口的适配。适用于模型名被改写的 GPT-Image 服务，请勿与谷歌原生API适配同时开启",
+                en_US="Adaptation for OpenAI GPT-Image native APIs. Useful when GPT-Image model names are rewritten by providers. Do not enable together with Google native adaptation",
+            ),
+        ).model_dump(),
+    )
     
 
 

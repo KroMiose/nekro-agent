@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
+  Autocomplete,
   Box,
   Paper,
   Typography,
@@ -135,13 +136,83 @@ interface EditDialogProps {
   onSuccess: () => void
 }
 
+function resolveTestModelFromForm(form: PresetFormState): string {
+  if (form.model_type === 'manual') {
+    const candidates = [
+      form.anthropic_model,
+      form.default_sonnet,
+      form.default_opus,
+      form.default_haiku,
+      form.small_fast_model,
+    ]
+    return candidates.find(c => c.trim())?.trim() || ''
+  }
+  const candidates = [
+    form.anthropic_model,
+    form.default_sonnet,
+    form.default_opus,
+    form.default_haiku,
+    form.small_fast_model,
+    form.preset_model,
+  ]
+  return candidates.find(c => c.trim())?.trim() || ''
+}
+
 function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogProps) {
   const [form, setForm] = useState<PresetFormState>(DEFAULT_FORM)
   const [sourcePresetId, setSourcePresetId] = useState('')
   const [showToken, setShowToken] = useState(false)
+  const [testingModel, setTestingModel] = useState(false)
+  const [testResult, setTestResult] = useState<CCModelPresetTestItem | null>(null)
+  const [modelOptions, setModelOptions] = useState<string[]>([])
+  const [fetchingModels, setFetchingModels] = useState(false)
   const notification = useNotification()
   const { t, i18n } = useTranslation('workspace')
   const selectedSourcePreset = CC_MODEL_SOURCE_PRESETS.find(item => item.id === sourcePresetId)
+
+  const testModel = resolveTestModelFromForm(form)
+  const canTest = Boolean(form.base_url.trim() && form.auth_token.trim() && testModel)
+  const canFetchModels = Boolean(form.base_url.trim() && form.auth_token.trim() && !fetchingModels)
+
+  const handleTestModel = async () => {
+    if (!canTest) return
+    setTestingModel(true)
+    setTestResult(null)
+    try {
+      const item = await ccModelPresetApi.testInline({
+        base_url: form.base_url,
+        auth_token: form.auth_token,
+        model: testModel,
+        api_timeout_ms: form.api_timeout_ms || undefined,
+      })
+      setTestResult(item)
+      if (item.success) {
+        notification.success(t('ccModels.notifications.testAllPassed'))
+      } else {
+        notification.warning(t('ccModels.notifications.testFailed'))
+      }
+    } catch (err) {
+      notification.error(err instanceof Error ? err.message : t('ccModels.notifications.testFailed'))
+    } finally {
+      setTestingModel(false)
+    }
+  }
+
+  const handleFetchModels = async () => {
+    if (!canFetchModels) return
+    setFetchingModels(true)
+    try {
+      const models = await ccModelPresetApi.fetchModels({
+        base_url: form.base_url,
+        auth_token: form.auth_token,
+      })
+      setModelOptions(models)
+    } catch (err) {
+      notification.error(err instanceof Error ? err.message : t('ccModels.notifications.testFailed'))
+    } finally {
+      setFetchingModels(false)
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: (body: CCModelPresetCreate) => ccModelPresetApi.create(body),
@@ -188,6 +259,8 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
       }
       setSourcePresetId('')
       setShowToken(false)
+      setTestResult(null)
+      setModelOptions([])
     }
   }, [open, initial, isCopy])
 
@@ -390,51 +463,65 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
             </TextField>
           ) : (
             <Stack spacing={2}>
-              <TextField
-                label="ANTHROPIC_MODEL"
-                value={form.anthropic_model}
-                onChange={e => setForm(prev => ({ ...prev, anthropic_model: e.target.value }))}
-                size="small"
-                fullWidth
-                autoComplete="off"
-                placeholder={t('ccModels.dialog.emptyMeans')}
-              />
-              <TextField
-                label="ANTHROPIC_SMALL_FAST_MODEL"
-                value={form.small_fast_model}
-                onChange={e => setForm(prev => ({ ...prev, small_fast_model: e.target.value }))}
-                size="small"
-                fullWidth
-                autoComplete="off"
-                placeholder={t('ccModels.dialog.emptyMeans')}
-              />
-              <TextField
-                label="ANTHROPIC_DEFAULT_SONNET_MODEL"
-                value={form.default_sonnet}
-                onChange={e => setForm(prev => ({ ...prev, default_sonnet: e.target.value }))}
-                size="small"
-                fullWidth
-                autoComplete="off"
-                placeholder={t('ccModels.dialog.emptyMeans')}
-              />
-              <TextField
-                label="ANTHROPIC_DEFAULT_OPUS_MODEL"
-                value={form.default_opus}
-                onChange={e => setForm(prev => ({ ...prev, default_opus: e.target.value }))}
-                size="small"
-                fullWidth
-                autoComplete="off"
-                placeholder={t('ccModels.dialog.emptyMeans')}
-              />
-              <TextField
-                label="ANTHROPIC_DEFAULT_HAIKU_MODEL"
-                value={form.default_haiku}
-                onChange={e => setForm(prev => ({ ...prev, default_haiku: e.target.value }))}
-                size="small"
-                fullWidth
-                autoComplete="off"
-                placeholder={t('ccModels.dialog.emptyMeans')}
-              />
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <Box sx={{ flex: 1 }}>
+                  <Stack spacing={2}>
+                    {([
+                      { label: 'ANTHROPIC_MODEL', key: 'anthropic_model' as const },
+                      { label: 'ANTHROPIC_SMALL_FAST_MODEL', key: 'small_fast_model' as const },
+                      { label: 'ANTHROPIC_DEFAULT_SONNET_MODEL', key: 'default_sonnet' as const },
+                      { label: 'ANTHROPIC_DEFAULT_OPUS_MODEL', key: 'default_opus' as const },
+                      { label: 'ANTHROPIC_DEFAULT_HAIKU_MODEL', key: 'default_haiku' as const },
+                    ] as const).map(({ label, key }) => (
+                      <Autocomplete
+                        key={key}
+                        freeSolo
+                        options={modelOptions}
+                        value={form[key]}
+                        inputValue={form[key]}
+                        onChange={(_, newValue) => {
+                          setForm(prev => ({ ...prev, [key]: typeof newValue === 'string' ? newValue : '' }))
+                        }}
+                        onInputChange={(_, newInput) => {
+                          setForm(prev => ({ ...prev, [key]: newInput }))
+                        }}
+                        renderInput={params => (
+                          <TextField
+                            {...params}
+                            label={label}
+                            size="small"
+                            fullWidth
+                            placeholder={t('ccModels.dialog.emptyMeans')}
+                            inputProps={{
+                              ...params.inputProps,
+                              autoComplete: 'new-password',
+                            }}
+                          />
+                        )}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              </Stack>
+              <Tooltip
+                title={canFetchModels ? '' : t('ccModels.dialog.fetchModelsNeedConfig')}
+                arrow
+              >
+                <span>
+                  <ActionButton
+                    tone="secondary"
+                    onClick={handleFetchModels}
+                    disabled={!canFetchModels}
+                    size="small"
+                    startIcon={fetchingModels ? <CircularProgress size={14} /> : <NetworkCheckIcon />}
+                  >
+                    {fetchingModels
+                      ? t('ccModels.dialog.fetchingModels')
+                      : t('ccModels.dialog.fetchModels')}
+                    {modelOptions.length > 0 && ` (${modelOptions.length})`}
+                  </ActionButton>
+                </span>
+              </Tooltip>
             </Stack>
           )}
 
@@ -483,6 +570,42 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
             </Stack>
           )}
 
+          {/* 模型测试结果 */}
+          {testResult && (
+            <Alert severity={testResult.success ? 'success' : 'error'} sx={{ mt: 1 }}>
+              {testResult.success ? (
+                <Stack spacing={0.25}>
+                  <Typography variant="caption" component="div">
+                    {t('ccModels.health.tooltipPassed')} · {testResult.latency_ms}ms
+                  </Typography>
+                  {testResult.used_model && (
+                    <Typography variant="caption" component="div" color="text.secondary">
+                      {t('ccModels.health.tooltipModel', { model: testResult.used_model })}
+                    </Typography>
+                  )}
+                  {((testResult.input_tokens ?? 0) > 0 || (testResult.output_tokens ?? 0) > 0) && (
+                    <Typography variant="caption" component="div" color="text.secondary">
+                      {t('ccModels.health.tooltipTokens', {
+                        input: testResult.input_tokens ?? 0,
+                        output: testResult.output_tokens ?? 0,
+                      })}
+                    </Typography>
+                  )}
+                  {testResult.response_text && (
+                    <Typography variant="caption" component="div" color="text.secondary"
+                      sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 60, overflow: 'auto' }}>
+                      {t('ccModels.health.tooltipReply', { text: testResult.response_text.trim() })}
+                    </Typography>
+                  )}
+                </Stack>
+              ) : (
+                <Typography variant="caption" component="div">
+                  {testResult.error_message || t('ccModels.health.failed')}
+                </Typography>
+              )}
+            </Alert>
+          )}
+
           {/* 配置预览 */}
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mt: 1 }}>
             {t('ccModels.dialog.sectionPreview')}
@@ -503,7 +626,24 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
           />
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
+      <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+        <Tooltip
+          title={!canTest ? t('ccModels.dialog.testNeedsConfig') : ''}
+          arrow
+        >
+          <span>
+            <ActionButton
+              tone="secondary"
+              onClick={handleTestModel}
+              size="small"
+              startIcon={testingModel ? <CircularProgress size={14} /> : <NetworkCheckIcon />}
+              disabled={testingModel || !canTest}
+              sx={{ mr: 'auto' }}
+            >
+              {t('ccModels.dialog.test')}
+            </ActionButton>
+          </span>
+        </Tooltip>
         <ActionButton tone="secondary" onClick={onClose} disabled={isPending}>
           {t('ccModels.dialog.cancel')}
         </ActionButton>

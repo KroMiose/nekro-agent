@@ -71,7 +71,10 @@
     "performanceInfo": "Performance Info",
     "copyThoughtChain": "Copy Thought Chain",
     "copyCode": "Copy Code",
-    "copyOutput": "Copy Output"
+    "copyOutput": "Copy Output",
+    "retryErrors": "LLM Retry Errors",
+    "retryErrorItem": "Retry #{{index}}",
+    "retryCount": "{{count}} retries"
   },
   "dialog": {
     "logTitle": "View Log Content",

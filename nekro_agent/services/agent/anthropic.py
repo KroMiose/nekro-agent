@@ -1,6 +1,6 @@
 import math
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
 import httpx
 
@@ -149,3 +149,61 @@ async def test_anthropic_messages(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
         )
+
+
+def _normalize_models_endpoint(base_url: str) -> str:
+    normalized = base_url.strip().rstrip("/")
+    if normalized.endswith("/v1/models"):
+        return normalized
+    if normalized.endswith("/v1"):
+        return f"{normalized}/models"
+    return f"{normalized}/v1/models"
+
+
+def _extract_model_ids_from_anthropic(payload: Dict[str, Any]) -> List[str]:
+    """从 Anthropic 模型列表响应中提取模型 ID。"""
+    data = payload.get("data")
+    if not isinstance(data, list):
+        return []
+    result: List[str] = []
+    for item in data:
+        if isinstance(item, dict) and isinstance(item.get("id"), str):
+            result.append(item["id"])
+        elif isinstance(item, str):
+            result.append(item)
+    return sorted(set(result))
+
+
+async def list_anthropic_models(
+    *,
+    base_url: str,
+    auth_token: str,
+) -> List[str]:
+    """通过 Anthropic API 拉取可用模型列表。"""
+
+    endpoint = _normalize_models_endpoint(base_url)
+    headers = {
+        "content-type": "application/json",
+        "anthropic-version": "2023-06-01",
+        "x-api-key": auth_token.strip(),
+        "authorization": f"Bearer {auth_token.strip()}",
+    }
+
+    all_models: List[str] = []
+    params: Dict[str, str] = {"limit": "1000"}
+
+    async with _create_http_client(
+        read_timeout=30,
+        write_timeout=30,
+        connect_timeout=10,
+        pool_timeout=10,
+    ) as client:
+        response = await client.get(endpoint, headers=headers, params=params)
+        if response.is_error:
+            raise ValueError(_extract_error_message(response))
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("响应格式无效")
+        all_models.extend(_extract_model_ids_from_anthropic(payload))
+
+    return sorted(set(all_models))

@@ -2,6 +2,13 @@ from .db_chat_channel import DBChatChannel  # noqa: F401
 from .db_chat_message import DBChatMessage  # noqa: F401
 from .db_email import DBEmail  # noqa: F401
 from .db_exec_code import DBExecCode  # noqa: F401
+from .db_kb_asset import DBKBAsset  # noqa: F401
+from .db_kb_asset_binding import DBKBAssetBinding  # noqa: F401
+from .db_kb_asset_chunk import DBKBAssetChunk  # noqa: F401
+from .db_kb_asset_reference import DBKBAssetReference  # noqa: F401
+from .db_kb_chunk import DBKBChunk  # noqa: F401
+from .db_kb_document import DBKBDocument  # noqa: F401
+from .db_kb_document_reference import DBKBDocumentReference  # noqa: F401
 from .db_mem_entity import DBMemEntity  # noqa: F401
 from .db_mem_episode import DBMemEpisode  # noqa: F401
 from .db_mem_media_resource import DBMemMediaResource  # noqa: F401

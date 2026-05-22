@@ -71,7 +71,10 @@
     "performanceInfo": "性能信息",
     "copyThoughtChain": "复制思维链",
     "copyCode": "复制代码",
-    "copyOutput": "复制输出"
+    "copyOutput": "复制输出",
+    "retryErrors": "LLM 重试错误",
+    "retryErrorItem": "第 {{index}} 次重试",
+    "retryCount": "重试 {{count}} 次"
   },
   "dialog": {
     "logTitle": "查看日志内容",

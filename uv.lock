@@ -1362,7 +1362,7 @@ wheels = [
 
 [[package]]
 name = "nekro-agent"
-version = "2.3.0"
+version = "2.3.3"
 source = { editable = "." }
 dependencies = [
     { name = "aerich" },
@@ -1396,6 +1396,7 @@ dependencies = [
     { name = "psutil" },
     { name = "psycopg2-binary" },
     { name = "pycryptodome" },
+    { name = "pypdf" },
     { name = "python-jose", extra = ["cryptography"] },
     { name = "python-magic" },
     { name = "python-magic-bin", marker = "sys_platform == 'win32'" },
@@ -1408,6 +1409,7 @@ dependencies = [
     { name = "tortoise-orm" },
     { name = "tzlocal" },
     { name = "websockets" },
+    { name = "wechatbot-sdk" },
 ]
 
 [package.optional-dependencies]
@@ -1459,6 +1461,7 @@ requires-dist = [
     { name = "psutil", specifier = ">=7.0.0,<8.0.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.9,<3.0.0" },
     { name = "pycryptodome", specifier = ">=3.23.0,<4.0.0" },
+    { name = "pypdf", specifier = ">=5.4.0,<6.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0,<9.0.0" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.0.0,<2.0.0" },
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0,<7.0.0" },
@@ -1477,6 +1480,7 @@ requires-dist = [
     { name = "tzlocal", specifier = ">=5.2,<6.0" },
     { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.23.2,<1.0.0" },
     { name = "websockets", specifier = ">=15.0.1,<16.0.0" },
+    { name = "wechatbot-sdk", specifier = ">=0.1.0,<1.0.0" },
 ]
 provides-extras = ["dev"]
 
@@ -2064,6 +2068,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/33/c1/1d9de9aeaa1b89b0186e5fe23294ff6517fce1bc69149185577cd31016b2/pyparsing-3.3.1.tar.gz", hash = "sha256:47fad0f17ac1e2cad3de3b458570fbc9b03560aa029ed5e16ee5554da9a2251c", size = 1550512, upload-time = "2025-12-23T03:14:04.391Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/40/2614036cdd416452f5bf98ec037f38a1afb17f327cb8e6b652d4729e0af8/pyparsing-3.3.1-py3-none-any.whl", hash = "sha256:023b5e7e5520ad96642e2c6db4cb683d3970bd640cdf7115049a6e9c3682df82", size = 121793, upload-time = "2025-12-23T03:14:02.103Z" },
+]
+
+[[package]]
+name = "pypdf"
+version = "5.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/3a/584b97a228950ed85aec97c811c68473d9b8d149e6a8c155668287cf1a28/pypdf-5.9.0.tar.gz", hash = "sha256:30f67a614d558e495e1fbb157ba58c1de91ffc1718f5e0dfeb82a029233890a1", size = 5035118, upload-time = "2025-07-27T14:04:52.364Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/d9/6cff57c80a6963e7dd183bf09e9f21604a77716644b1e580e97b259f7612/pypdf-5.9.0-py3-none-any.whl", hash = "sha256:be10a4c54202f46d9daceaa8788be07aa8cd5ea8c25c529c50dd509206382c35", size = 313193, upload-time = "2025-07-27T14:04:50.53Z" },
 ]
 
 [[package]]
@@ -2848,6 +2861,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/83/de1f7709376dc3ca9b7eeb4b9a07b4526b14876b6d372a4dc62312bebee0/websockets-15.0.1-cp312-cp312-win32.whl", hash = "sha256:c338ffa0520bdb12fbc527265235639fb76e7bc7faafbb93f6ba80d9c06578a9", size = 176395, upload-time = "2025-03-05T20:02:33.017Z" },
     { url = "https://files.pythonhosted.org/packages/7d/71/abf2ebc3bbfa40f391ce1428c7168fb20582d0ff57019b69ea20fa698043/websockets-15.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:fcd5cf9e305d7b8338754470cf69cf81f420459dbae8a3b40cee57417f4614a7", size = 176841, upload-time = "2025-03-05T20:02:34.498Z" },
     { url = "https://files.pythonhosted.org/packages/fa/a8/5b41e0da817d64113292ab1f8247140aac61cbf6cfd085d6a0fa77f4984f/websockets-15.0.1-py3-none-any.whl", hash = "sha256:f7a866fbc1e97b5c617ee4116daaa09b722101d4a3c170c787450ba409f9736f", size = 169743, upload-time = "2025-03-05T20:03:39.41Z" },
+]
+
+[[package]]
+name = "wechatbot-sdk"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "cryptography" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/42/fe/fc419ff228e64a5d02de7ad06a5b663dcef10502e10a2263ae667b7aa80b/wechatbot_sdk-0.2.1.tar.gz", hash = "sha256:7c06d252fdc35110e0ef6fdd701469c04a1436a602b1088e4d3c30f944ec01c3", size = 14824, upload-time = "2026-04-17T15:21:16.929Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/20/ddb52f93bc90e38d4112ba427a8ec7867a82fdea30e593540fe78b7dfd76/wechatbot_sdk-0.2.1-py3-none-any.whl", hash = "sha256:957e13161c9d689806cd78c39d5c050f1365ede4cfa8653ce4a7395ce1278b19", size = 16608, upload-time = "2026-04-17T15:21:15.526Z" },
 ]
 
 [[package]]

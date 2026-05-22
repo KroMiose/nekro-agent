@@ -52,6 +52,18 @@ export interface CCModelPresetTestItem {
   error_message?: string | null
 }
 
+export interface CCModelPresetInlineTestRequest {
+  base_url: string
+  auth_token: string
+  model: string
+  api_timeout_ms?: string | null
+}
+
+export interface CCModelPresetFetchModelsRequest {
+  base_url: string
+  auth_token: string
+}
+
 export const ccModelPresetApi = {
   getList: async (): Promise<CCModelPresetInfo[]> => {
     const res = await axios.get<{ total: number; items: CCModelPresetInfo[] }>('/cc-model-presets/list')
@@ -73,5 +85,15 @@ export const ccModelPresetApi = {
       preset_ids: presetIds,
     })
     return res.data.items
+  },
+
+  testInline: async (body: CCModelPresetInlineTestRequest): Promise<CCModelPresetTestItem> => {
+    const res = await axios.post<CCModelPresetTestItem>('/cc-model-presets/test-inline', body)
+    return res.data
+  },
+
+  fetchModels: async (body: CCModelPresetFetchModelsRequest): Promise<string[]> => {
+    const res = await axios.post<{ models: string[] }>('/cc-model-presets/fetch-models', body)
+    return res.data.models
   },
 }

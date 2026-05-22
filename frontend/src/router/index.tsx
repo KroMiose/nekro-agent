@@ -231,6 +231,10 @@ const router = createHashRouter([
             element: lazyLoad(() => import('../pages/workspace/mcp-services')),
           },
           {
+            path: 'kb-library',
+            element: lazyLoad(() => import('../pages/workspace/kb-library')),
+          },
+          {
             path: 'timers',
             element: lazyLoad(() => import('../pages/workspace/timers')),
           },
