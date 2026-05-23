@@ -88,14 +88,37 @@ const steps: OobeStep[] = ['welcome', 'language', 'system', 'chat', 'embedding',
 const animationEase = [0.4, 0, 0.2, 1] as const
 
 const helloWords = [
-  '你好',
-  'Hello',
-  'こんにちは',
-  '안녕하세요',
-  'Bonjour',
-  'Hola',
-  'Hallo',
-  'Ciao',
+  '你好',         // 简体中文
+  'Hello',        // 英语
+  'こんにちは',     // 日语
+  'Bonjour',      // 法语
+  '哈囉',         // 繁体中文 (港台)
+  'Hola',         // 西班牙语
+  '안녕하세요',      // 韩语
+  'Guten Tag',    // 德语
+  '您好',         // 中文敬称
+  'Ciao',         // 意大利语
+  'Olá',          // 葡萄牙语
+  'Xin chào',     // 越南语
+  'Привет',       // 俄语
+  'สวัสดี',        // 泰语
+  'Merhaba',      // 土耳其语
+  'مرحبا',        // 阿拉伯语
+  'नमस्ते',        // 印地语
+  'Shalom',       // 希伯来语
+  'Hallå',        // 瑞典语
+  'Aloha',        // 夏威夷语
+  'Szia',         // 匈牙利语
+  'Hei',          // 芬兰语
+  'Sawubona',     // 祖鲁语
+  'Jambo',        // 斯瓦希里语
+  'Ahoj',         // 捷克语
+  'Kamusta',      // 菲律宾语
+  'Kia Ora',      // 毛利语
+  'Goddag',       // 丹麦语
+  'Bună ziua',    // 罗马尼亚语
+  'Dobry dzień',  // 波兰语
+  'Namaste',      // 尼泊尔语
 ]
 
 const languageOptions: LanguageOption[] = [
@@ -526,255 +549,273 @@ function OobePageContent() {
     )
   }
 
-  if (activeStep === 'welcome') {
-    return (
-      <PageShell>
-        <WelcomeStep onContinue={() => setActiveStep('language')} />
-      </PageShell>
-    )
-  }
-
   return (
     <PageShell>
-      <Box
-        sx={{
-          minHeight: '100vh',
-          p: { xs: 1.5, sm: 2.5, md: 4 },
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxSizing: 'border-box',
-        }}
-      >
-        <MotionPaper
-          layout
-          elevation={0}
-          transition={{
-            layout: { duration: getAnimationDuration(0.42), ease: animationEase },
-            duration: getAnimationDuration(0.42),
-            ease: animationEase,
-          }}
-          sx={{
-            width: 'min(100%, 1280px)',
-            minHeight: { xs: 'calc(100vh - 24px)', sm: 'calc(100vh - 40px)', md: 'min(760px, calc(100vh - 64px))' },
-            maxHeight: { md: 'calc(100vh - 64px)' },
-            borderRadius: { xs: 4, md: 5 },
-            overflow: 'hidden',
-            position: 'relative',
-            display: 'grid',
-            gridTemplateRows: 'auto auto auto auto',
-            p: { xs: 2, sm: 2.5, md: 3 },
-            background: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.92)}, ${alpha(theme.palette.primary.main, 0.12)})`,
-            border: `1px solid ${alpha(theme.palette.common.white, 0.42)}`,
-            boxShadow: `0 28px 90px ${alpha(theme.palette.primary.main, 0.2)}`,
-          }}
-        >
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            spacing={1}
-            sx={{
-              zIndex: 1,
-              minHeight: 44,
-              px: { xs: 0.25, sm: 0.5 },
+      <AnimatePresence initial={false} mode="wait">
+        {activeStep === 'welcome' ? (
+          <motion.div
+            key="welcome-step-wrapper"
+            initial={{ opacity: 1, scale: 1 }}
+            exit={{
+              opacity: 0,
+              scale: 0.94,
+              y: -24,
+              filter: 'blur(8px)',
+              transition: { duration: 0.45, ease: animationEase },
             }}
+            style={{ width: '100%' }}
           >
-            <Stack direction="row" spacing={0.75} alignItems="center">
-              {steps.slice(1).map(step => (
-                <Box
-                  key={step}
-                  sx={{
-                    width: step === activeStep ? 30 : 9,
-                    height: 9,
-                    borderRadius: 999,
-                    backgroundColor: step === activeStep
-                      ? theme.palette.primary.main
-                      : alpha(theme.palette.primary.main, 0.2),
-                    boxShadow: step === activeStep ? `0 6px 18px ${alpha(theme.palette.primary.main, 0.28)}` : 'none',
-                    transition: 'all 0.24s ease',
-                  }}
-                />
-              ))}
-            </Stack>
-            <Stack direction="row" alignItems="center" spacing={1}>
-              {!manualMode && (
-                <ActionButton
-                  tone="secondary"
-                  startIcon={skipMutation.isPending ? <CircularProgress size={16} /> : <SkipNextIcon />}
-                  onClick={() => skipMutation.mutate()}
-                  disabled={skipMutation.isPending || completionMutation.isPending}
-                  sx={{
-                    height: 38,
-                    minWidth: { xs: 82, sm: 96 },
-                    borderRadius: 999,
-                    px: { xs: 1.25, sm: 1.75 },
-                    backgroundColor: alpha(theme.palette.background.paper, 0.62),
-                    boxShadow: `0 10px 26px ${alpha(theme.palette.text.primary, 0.06)}`,
-                  }}
-                >
-                  {t('oobe.actions.skip')}
-                </ActionButton>
-              )}
-              {!isSmall && <LocaleToggleButton />}
-              <ThemeToggleButton size="small" />
-              <IconActionButton aria-label="Exit" size="small" onClick={handleLogout}>
-                <ArrowForwardIcon sx={{ transform: 'rotate(180deg)' }} />
-              </IconActionButton>
-            </Stack>
-          </Stack>
-
-          <Box sx={{ textAlign: 'center', pt: { xs: 3.5, md: 4.5 }, pb: { xs: 2, md: 3 }, zIndex: 1 }}>
-            <Stack spacing={1.2} alignItems="center">
-              <Box
-                sx={{
-                  width: { xs: 52, md: 58 },
-                  height: { xs: 52, md: 58 },
-                  borderRadius: 3,
-                  display: 'grid',
-                  placeItems: 'center',
-                  color: theme.palette.primary.main,
-                  backgroundColor: alpha(theme.palette.primary.main, 0.12),
-                  boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.34)}`,
-                  '& svg': { fontSize: { xs: 28, md: 32 } },
-                }}
-              >
-                {stepMeta[activeStep].icon}
-              </Box>
-              <Typography variant={isSmall ? 'h5' : 'h4'} sx={{ fontWeight: 900, letterSpacing: 0 }}>
-                {stepMeta[activeStep].title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 520 }}>
-                {stepMeta[activeStep].description}
-              </Typography>
-            </Stack>
-          </Box>
-
+            <WelcomeStep onContinue={() => setActiveStep('language')} />
+          </motion.div>
+        ) : (
           <Box
+            key="oobe-main-frame"
+            component={motion.div}
+            initial={{ opacity: 0, y: 35, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.98 }}
+            transition={{ duration: 0.5, ease: animationEase }}
             sx={{
-              minHeight: 0,
-              overflow: 'auto',
-              px: { xs: 0, md: 6 },
-              pt: { xs: 1.5, md: 2.5 },
-              pb: { xs: 1, md: 2 },
-              zIndex: 1,
+              minHeight: '100vh',
+              p: { xs: 1.5, sm: 2.5, md: 4 },
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxSizing: 'border-box',
+              width: '100%',
             }}
           >
-            <Box
+            <MotionPaper
+              layout
+              elevation={0}
+              transition={{
+                layout: { duration: getAnimationDuration(0.42), ease: animationEase },
+                duration: getAnimationDuration(0.42),
+                ease: animationEase,
+              }}
               sx={{
-                width: '100%',
-                display: 'flex',
-                justifyContent: 'center',
+                width: 'min(100%, 1280px)',
+                minHeight: { xs: 'calc(100vh - 24px)', sm: 'calc(100vh - 40px)', md: 'min(760px, calc(100vh - 64px))' },
+                maxHeight: { md: 'calc(100vh - 64px)' },
+                borderRadius: { xs: 4, md: 5 },
+                overflow: 'hidden',
+                position: 'relative',
+                display: 'grid',
+                gridTemplateRows: 'auto auto auto auto',
+                p: { xs: 2, sm: 2.5, md: 3 },
+                background: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.92)}, ${alpha(theme.palette.primary.main, 0.12)})`,
+                border: `1px solid ${alpha(theme.palette.common.white, 0.42)}`,
+                boxShadow: `0 28px 90px ${alpha(theme.palette.primary.main, 0.2)}`,
               }}
             >
-              <motion.div
-                layout
-                animate={{
-                  maxWidth: contentFrameMaxWidth,
-                  padding: contentFramePadding,
-                  borderRadius: contentFrameRadius,
-                  backgroundColor: contentFrameBackground,
-                  boxShadow: contentFrameShadow,
-                }}
-                transition={{
-                  duration: getAnimationDuration(0.42),
-                  ease: animationEase,
-                  layout: { duration: getAnimationDuration(0.42), ease: animationEase },
-                }}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  overflow: 'hidden',
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                spacing={1}
+                sx={{
+                  zIndex: 1,
+                  minHeight: 44,
+                  px: { xs: 0.25, sm: 0.5 },
                 }}
               >
-                <AnimatePresence initial={false} mode="popLayout">
+                <Stack direction="row" spacing={0.75} alignItems="center">
+                  {steps.slice(1).map(step => (
+                    <Box
+                      key={step}
+                      sx={{
+                        width: step === activeStep ? 30 : 9,
+                        height: 9,
+                        borderRadius: 999,
+                        backgroundColor: step === activeStep
+                          ? theme.palette.primary.main
+                          : alpha(theme.palette.primary.main, 0.2),
+                        boxShadow: step === activeStep ? `0 6px 18px ${alpha(theme.palette.primary.main, 0.28)}` : 'none',
+                        transition: 'all 0.24s ease',
+                      }}
+                    />
+                  ))}
+                </Stack>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  {!manualMode && (
+                    <ActionButton
+                      tone="secondary"
+                      startIcon={skipMutation.isPending ? <CircularProgress size={16} /> : <SkipNextIcon />}
+                      onClick={() => skipMutation.mutate()}
+                      disabled={skipMutation.isPending || completionMutation.isPending}
+                      sx={{
+                        height: 38,
+                        minWidth: { xs: 82, sm: 96 },
+                        borderRadius: 999,
+                        px: { xs: 1.25, sm: 1.75 },
+                        backgroundColor: alpha(theme.palette.background.paper, 0.62),
+                        boxShadow: `0 10px 26px ${alpha(theme.palette.text.primary, 0.06)}`,
+                      }}
+                    >
+                      {t('oobe.actions.skip')}
+                    </ActionButton>
+                  )}
+                  {!isSmall && <LocaleToggleButton />}
+                  <ThemeToggleButton size="small" />
+                  <IconActionButton aria-label="Exit" size="small" onClick={handleLogout}>
+                    <ArrowForwardIcon sx={{ transform: 'rotate(180deg)' }} />
+                  </IconActionButton>
+                </Stack>
+              </Stack>
+
+              <Box sx={{ textAlign: 'center', pt: { xs: 3.5, md: 4.5 }, pb: { xs: 2, md: 3 }, zIndex: 1 }}>
+                <Stack spacing={1.2} alignItems="center">
+                  <Box
+                    sx={{
+                      width: { xs: 52, md: 58 },
+                      height: { xs: 52, md: 58 },
+                      borderRadius: 3,
+                      display: 'grid',
+                      placeItems: 'center',
+                      color: theme.palette.primary.main,
+                      backgroundColor: alpha(theme.palette.primary.main, 0.12),
+                      boxShadow: `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.34)}`,
+                      '& svg': { fontSize: { xs: 28, md: 32 } },
+                    }}
+                  >
+                    {stepMeta[activeStep].icon}
+                  </Box>
+                  <Typography variant={isSmall ? 'h5' : 'h4'} sx={{ fontWeight: 900, letterSpacing: 0 }}>
+                    {stepMeta[activeStep].title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 520 }}>
+                    {stepMeta[activeStep].description}
+                  </Typography>
+                </Stack>
+              </Box>
+
+              <Box
+                sx={{
+                  minHeight: 0,
+                  overflow: 'auto',
+                  px: { xs: 0, md: 6 },
+                  pt: { xs: 1.5, md: 2.5 },
+                  pb: { xs: 1, md: 2 },
+                  zIndex: 1,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: '100%',
+                    display: 'flex',
+                    justifyContent: 'center',
+                  }}
+                >
                   <motion.div
-                    key={activeStep}
                     layout
-                    initial={{ opacity: 0, y: 14, scale: 0.985 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.992 }}
+                    animate={{
+                      maxWidth: contentFrameMaxWidth,
+                      padding: contentFramePadding,
+                      borderRadius: contentFrameRadius,
+                      backgroundColor: contentFrameBackground,
+                      boxShadow: contentFrameShadow,
+                    }}
                     transition={{
-                      duration: getAnimationDuration(0.22),
+                      duration: getAnimationDuration(0.42),
                       ease: animationEase,
                       layout: { duration: getAnimationDuration(0.42), ease: animationEase },
                     }}
-                    style={{ width: '100%' }}
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden',
+                    }}
                   >
-                    {renderStepPanel()}
+                    <AnimatePresence initial={false} mode="popLayout">
+                      <motion.div
+                        key={activeStep}
+                        layout
+                        initial={{ opacity: 0, y: 14, scale: 0.985 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.992 }}
+                        transition={{
+                          duration: getAnimationDuration(0.22),
+                          ease: animationEase,
+                          layout: { duration: getAnimationDuration(0.42), ease: animationEase },
+                        }}
+                        style={{ width: '100%' }}
+                      >
+                        {renderStepPanel()}
+                      </motion.div>
+                    </AnimatePresence>
                   </motion.div>
-                </AnimatePresence>
-              </motion.div>
-            </Box>
-          </Box>
+                </Box>
+              </Box>
 
-          <Stack
-            direction="row"
-            alignItems="center"
-            justifyContent="space-between"
-            spacing={1.5}
-            sx={{
-              pt: { xs: 1.25, md: 2 },
-              zIndex: 1,
-              minHeight: 64,
-            }}
-          >
-            <IconActionButton
-              aria-label={t('oobe.actions.back')}
-              onClick={goBack}
-              disabled={activeStep === 'language' || completionMutation.isPending}
-              sx={{
-                width: 50,
-                height: 46,
-                borderRadius: 999,
-                border: `1px solid ${alpha(theme.palette.text.primary, 0.22)}`,
-                backgroundColor: alpha(theme.palette.background.paper, 0.28),
-              }}
-            >
-              <ArrowBackIcon />
-            </IconActionButton>
-            <Stack direction="row" spacing={1} alignItems="center">
-              {activeStep === 'finish' ? (
-                <ActionButton
-                  tone="primary"
-                  startIcon={completionMutation.isPending ? <CircularProgress size={16} /> : <DoneAllIcon />}
-                  onClick={() => completionMutation.mutate()}
-                  disabled={!canComplete || completionMutation.isPending}
-                  sx={{
-                    minWidth: 138,
-                    height: 50,
-                    borderRadius: 999,
-                    boxShadow: `0 14px 34px ${alpha(theme.palette.primary.main, 0.3)}`,
-                  }}
-                >
-                  {t('oobe.actions.complete')}
-                </ActionButton>
-              ) : (
+              <Stack
+                direction="row"
+                alignItems="center"
+                justifyContent="space-between"
+                spacing={1.5}
+                sx={{
+                  pt: { xs: 1.25, md: 2 },
+                  zIndex: 1,
+                  minHeight: 64,
+                }}
+              >
                 <IconActionButton
-                  tone="primary"
-                  aria-label={t('oobe.actions.next')}
-                  onClick={goNext}
-                  disabled={completionMutation.isPending}
+                  aria-label={t('oobe.actions.back')}
+                  onClick={goBack}
+                  disabled={activeStep === 'language' || completionMutation.isPending}
                   sx={{
-                    width: 72,
-                    height: 52,
+                    width: 50,
+                    height: 46,
                     borderRadius: 999,
-                    color: theme.palette.primary.contrastText,
-                    backgroundColor: theme.palette.primary.main,
-                    boxShadow: `0 14px 34px ${alpha(theme.palette.primary.main, 0.34)}`,
-                    '&:hover': {
-                      backgroundColor: theme.palette.primary.dark,
-                    },
-                    '& svg': { fontSize: 30 },
+                    border: `1px solid ${alpha(theme.palette.text.primary, 0.22)}`,
+                    backgroundColor: alpha(theme.palette.background.paper, 0.28),
                   }}
                 >
-                  <ArrowForwardIcon />
+                  <ArrowBackIcon />
                 </IconActionButton>
-              )}
-            </Stack>
-          </Stack>
-        </MotionPaper>
-      </Box>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {activeStep === 'finish' ? (
+                    <ActionButton
+                      tone="primary"
+                      startIcon={completionMutation.isPending ? <CircularProgress size={16} /> : <DoneAllIcon />}
+                      onClick={() => completionMutation.mutate()}
+                      disabled={!canComplete || completionMutation.isPending}
+                      sx={{
+                        minWidth: 138,
+                        height: 50,
+                        borderRadius: 999,
+                        boxShadow: `0 14px 34px ${alpha(theme.palette.primary.main, 0.3)}`,
+                      }}
+                    >
+                      {t('oobe.actions.complete')}
+                    </ActionButton>
+                  ) : (
+                    <IconActionButton
+                      tone="primary"
+                      aria-label={t('oobe.actions.next')}
+                      onClick={goNext}
+                      disabled={completionMutation.isPending}
+                      sx={{
+                        width: 72,
+                        height: 52,
+                        borderRadius: 999,
+                        color: theme.palette.primary.contrastText,
+                        backgroundColor: theme.palette.primary.main,
+                        boxShadow: `0 14px 34px ${alpha(theme.palette.primary.main, 0.34)}`,
+                        '&:hover': {
+                          backgroundColor: theme.palette.primary.dark,
+                        },
+                        '& svg': { fontSize: 30 },
+                      }}
+                    >
+                      <ArrowForwardIcon />
+                    </IconActionButton>
+                  )}
+                </Stack>
+              </Stack>
+            </MotionPaper>
+          </Box>
+        )}
+      </AnimatePresence>
     </PageShell>
   )
 }
@@ -800,17 +841,72 @@ function WelcomeStep({
   onContinue: () => void
 }) {
   const theme = useTheme()
-  const [helloIndex, setHelloIndex] = useState(0)
+  const [displayText, setDisplayText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [loopNum, setLoopNum] = useState(0)
+  const [typingSpeed, setTypingSpeed] = useState(120)
+
+  // 优雅的过渡与 AI 载入状态
+  const [isExiting, setIsExiting] = useState(false)
+  const [showLoader, setShowLoader] = useState(false)
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setHelloIndex(index => (index + 1) % helloWords.length)
-    }, 1450)
-    return () => window.clearInterval(timer)
-  }, [])
+    if (isExiting) return // 转场中停止打字计时器，节省开销
 
-  const currentHello = helloWords[helloIndex]
-  const helloFontSize = getHelloFontSize(currentHello)
+    let timer: number
+
+    const handleType = () => {
+      const i = loopNum % helloWords.length
+      const fullText = helloWords[i]
+
+      if (!isDeleting) {
+        // 逐字输入
+        const nextText = fullText.substring(0, displayText.length + 1)
+        setDisplayText(nextText)
+        // 打字速度在 100ms - 150ms 之间微小浮动，增加自然度
+        setTypingSpeed(100 + Math.random() * 50)
+
+        if (nextText === fullText) {
+          // 输入完毕，停顿 1.5 秒
+          setTypingSpeed(1500)
+          setIsDeleting(true)
+        }
+      } else {
+        // 逐字删除
+        const nextText = fullText.substring(0, displayText.length - 1)
+        setDisplayText(nextText)
+        // 删除速度比输入更快，约 60ms
+        setTypingSpeed(60)
+
+        if (nextText === '') {
+          // 删除完毕，停顿 300ms 后切换到下一个词
+          setIsDeleting(false)
+          setLoopNum(loopNum + 1)
+          setTypingSpeed(300)
+        }
+      }
+    }
+
+    timer = window.setTimeout(handleType, typingSpeed)
+    return () => window.clearTimeout(timer)
+  }, [displayText, isDeleting, loopNum, typingSpeed, isExiting])
+
+  const currentWord = helloWords[loopNum % helloWords.length]
+  const helloFontSize = getHelloFontSize(currentWord)
+
+  const handleStartTransition = () => {
+    setIsExiting(true)
+
+    // 250ms 后，文字模糊淡出完毕，展示优雅的 AI 配置加载条
+    window.setTimeout(() => {
+      setShowLoader(true)
+    }, 250)
+
+    // 再持续 950ms (总计 1.2 秒) 的缓冲，极度顺滑地转场至系统语言设置步骤
+    window.setTimeout(() => {
+      onContinue()
+    }, 1200)
+  }
 
   return (
     <Box
@@ -850,80 +946,153 @@ function WelcomeStep({
             zIndex: 1,
           }}
         >
-          <Box
-            sx={{
-              width: '100%',
-              maxWidth: { xs: 760, md: 1000, lg: 1080 },
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1fr) 104px' },
-              alignItems: 'center',
-              justifyItems: 'center',
-              columnGap: { md: 4 },
-              rowGap: { xs: 3.5, sm: 4.5 },
-              px: { xs: 1, sm: 2, md: 0 },
-            }}
-          >
-            <Box
-              sx={{
-                minHeight: { xs: 116, sm: 178, md: 230 },
-                minWidth: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: { xs: '100%', md: 'auto' },
-                maxWidth: '100%',
-              }}
-            >
-              <AnimatePresence initial={false} mode="popLayout">
+          <AnimatePresence mode="wait">
+            {showLoader ? (
+              <motion.div
+                key="loader"
+                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.35, ease: animationEase }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '24px',
+                }}
+              >
+                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                  <CircularProgress
+                    size={56}
+                    thickness={4.5}
+                    sx={{
+                      color: theme.palette.primary.main,
+                      filter: `drop-shadow(0 0 12px ${alpha(theme.palette.primary.main, 0.55)})`,
+                    }}
+                  />
+                </Box>
                 <Typography
-                  key={currentHello}
-                  component={motion.h1}
-                  initial={{ opacity: 0, y: 28, scale: 0.98, filter: 'blur(12px)' }}
-                  animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, y: -24, scale: 1.02, filter: 'blur(12px)' }}
-                  transition={{ duration: getAnimationDuration(0.5), ease: animationEase }}
+                  variant="body2"
                   sx={{
-                    m: 0,
-                    fontSize: helloFontSize,
-                    lineHeight: 0.88,
-                    fontWeight: 900,
-                    letterSpacing: 0,
-                    color: theme.palette.primary.main,
-                    textShadow: `0 24px 62px ${alpha(theme.palette.primary.main, 0.25)}`,
-                    wordBreak: 'keep-all',
-                    whiteSpace: 'nowrap',
-                    maxWidth: '100%',
+                    color: 'text.secondary',
+                    fontWeight: 700,
+                    letterSpacing: '0.8px',
+                    animation: 'pulse 1.6s infinite ease-in-out',
+                    '@keyframes pulse': {
+                      '0%, 100%': { opacity: 0.55, transform: 'scale(0.985)' },
+                      '50%': { opacity: 1, transform: 'scale(1.015)' },
+                    },
                   }}
                 >
-                  {currentHello}
+                  请稍候 Please hang on for a brief second...
                 </Typography>
-              </AnimatePresence>
-            </Box>
-            <Box sx={{ width: { xs: '100%', md: 104 }, display: 'flex', justifyContent: 'center' }}>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="welcome-text"
+                animate={{
+                  opacity: isExiting ? 0 : 1,
+                  scale: isExiting ? 0.94 : 1,
+                  filter: isExiting ? 'blur(10px)' : 'blur(0px)'
+                }}
+                transition={{ duration: 0.3, ease: animationEase }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Box
+                  sx={{
+                    width: '100%',
+                    maxWidth: { xs: 760, md: 1000, lg: 1080 },
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    px: { xs: 2, sm: 3, md: 4 },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      minHeight: { xs: 116, sm: 178, md: 230 },
+                      minWidth: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '100%',
+                    }}
+                  >
+                    <Typography
+                      component={motion.h1}
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.6, ease: animationEase }}
+                      sx={{
+                        m: 0,
+                        fontSize: helloFontSize,
+                        lineHeight: 0.88,
+                        fontWeight: 900,
+                        letterSpacing: 0,
+                        color: theme.palette.primary.main,
+                        textShadow: `0 24px 62px ${alpha(theme.palette.primary.main, 0.25)}`,
+                        wordBreak: 'keep-all',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <span>{displayText}</span>
+                    </Typography>
+                  </Box>
+                </Box>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Box>
+
+        <AnimatePresence>
+          {!isExiting && (
+            <Box
+              component={motion.div}
+              initial={{ opacity: 0, scale: 0.85, x: '-50%' }}
+              animate={{ opacity: 1, scale: 1, x: '-50%' }}
+              exit={{ opacity: 0, scale: 0.8, filter: 'blur(4px)', x: '-50%' }}
+              transition={{ duration: 0.25 }}
+              sx={{
+                position: 'absolute',
+                bottom: { xs: 80, sm: 120, md: 160 },
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 2
+              }}
+            >
               <IconActionButton
                 tone="primary"
                 aria-label="Continue"
-                onClick={onContinue}
+                onClick={handleStartTransition}
                 sx={{
-                  width: { xs: 82, md: 92 },
-                  height: { xs: 64, md: 72 },
+                  width: { xs: 68, md: 76 },
+                  height: { xs: 52, md: 60 },
                   borderRadius: 999,
                   color: theme.palette.primary.contrastText,
                   backgroundColor: theme.palette.primary.main,
-                  boxShadow: `0 18px 44px ${alpha(theme.palette.primary.main, 0.36)}`,
+                  boxShadow: `0 14px 34px ${alpha(theme.palette.primary.main, 0.3)}`,
                   '&:hover': {
                     backgroundColor: theme.palette.primary.dark,
-                    boxShadow: `0 18px 44px ${alpha(theme.palette.primary.main, 0.36)}`,
+                    boxShadow: `0 14px 34px ${alpha(theme.palette.primary.main, 0.3)}`,
                   },
-                  '& svg': { fontSize: { xs: 34, md: 38 } },
+                  '& svg': { fontSize: { xs: 28, md: 32 } },
                 }}
               >
                 <ArrowForwardIcon />
               </IconActionButton>
             </Box>
-          </Box>
-        </Box>
-
+          )}
+        </AnimatePresence>
       </Paper>
     </Box>
   )
@@ -1167,10 +1336,10 @@ function SystemStep({
                 <Typography variant="body2" sx={{ fontWeight: 700 }}>
                   {t('oobe.system.enableCloud')}
                 </Typography>
-              <Switch
-                checked={settings.enableNekroCloud}
-                onChange={event => onChange({ ...settings, enableNekroCloud: event.target.checked })}
-              />
+                <Switch
+                  checked={settings.enableNekroCloud}
+                  onChange={event => onChange({ ...settings, enableNekroCloud: event.target.checked })}
+                />
               </Box>
               <TextField
                 fullWidth
@@ -1555,7 +1724,7 @@ function EmbeddingStep({
         <Stack spacing={2}>
           <Stack direction="row" spacing={1} alignItems="center">
             <ScienceIcon color="primary" />
-            <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 850 }}>
               {t('oobe.embedding.dimensionTitle')}
             </Typography>
           </Stack>
