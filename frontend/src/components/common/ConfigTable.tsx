@@ -898,7 +898,20 @@ export default function ConfigTable({
   const actualEmptyMessage = emptyMessage || defaultEmptyMessage
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const [internalSearchText, setInternalSearchText] = useState(searchText)
-  const effectiveSearchText = onSearchChange ? searchText : internalSearchText
+  const [isSearchComposing, setIsSearchComposing] = useState(false)
+  const [searchCompositionText, setSearchCompositionText] = useState(searchText)
+  const effectiveSearchText = isSearchComposing ? searchCompositionText : onSearchChange ? searchText : internalSearchText
+
+  const updateSearchText = useCallback(
+    (nextValue: string) => {
+      if (onSearchChange) {
+        onSearchChange(nextValue)
+      } else {
+        setInternalSearchText(nextValue)
+      }
+    },
+    [onSearchChange]
+  )
 
   // i18n 辅助函数：获取本地化的配置项标题和描述
   const getConfigTitle = useCallback(
@@ -1708,13 +1721,24 @@ export default function ConfigTable({
                 sx={{ flexGrow: 1 }}
                 placeholder={t('configTable.searchPlaceholder')}
                 value={effectiveSearchText}
+                onCompositionStart={e => {
+                  const nextValue = e.target instanceof HTMLInputElement ? e.target.value : ''
+                  setIsSearchComposing(true)
+                  setSearchCompositionText(nextValue)
+                }}
+                onCompositionEnd={e => {
+                  const nextValue = e.target instanceof HTMLInputElement ? e.target.value : ''
+                  setIsSearchComposing(false)
+                  setSearchCompositionText(nextValue)
+                  updateSearchText(nextValue)
+                }}
                 onChange={e => {
                   const nextValue = e.target.value
-                  if (onSearchChange) {
-                    onSearchChange(nextValue)
-                  } else {
-                    setInternalSearchText(nextValue)
+                  if (isSearchComposing || e.nativeEvent.isComposing) {
+                    setSearchCompositionText(nextValue)
+                    return
                   }
+                  updateSearchText(nextValue)
                 }}
                 InputProps={{
                   startAdornment: (

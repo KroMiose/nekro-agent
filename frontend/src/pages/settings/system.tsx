@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useDeferredValue } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Box, Tab } from '@mui/material'
 import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { useQuery } from '@tanstack/react-query'
@@ -22,7 +22,7 @@ export default function SettingsPage() {
   const urlSearchText = searchParams.get('search') ?? ''
   const requestedCategory = searchParams.get('category') ?? ''
   const [searchInput, setSearchInput] = useState<string>(urlSearchText)
-  const deferredSearchInput = useDeferredValue(searchInput)
+  const [debouncedSearchInput, setDebouncedSearchInput] = useState<string>(urlSearchText)
 
   // 创建系统配置服务
   const configService = createConfigService('system')
@@ -126,7 +126,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setSearchInput(urlSearchText)
+    setDebouncedSearchInput(urlSearchText)
   }, [urlSearchText])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchInput(searchInput)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [searchInput])
 
   useEffect(() => {
     if (categories.length === 0 || !activeTab) {
@@ -141,7 +149,7 @@ export default function SettingsPage() {
   }, [activeTab, categories.length, requestedCategory, searchParams, setSearchParams])
 
   useEffect(() => {
-    const normalizedSearch = deferredSearchInput.trim()
+    const normalizedSearch = debouncedSearchInput.trim()
     const currentSearch = searchParams.get('search') ?? ''
     const currentCategory = searchParams.get('category') ?? ''
     const normalizedCurrentSearch = currentSearch.trim()
@@ -151,7 +159,7 @@ export default function SettingsPage() {
 
     const nextParams = new URLSearchParams(searchParams)
     if (normalizedSearch) {
-      nextParams.set('search', deferredSearchInput)
+      nextParams.set('search', debouncedSearchInput)
     } else {
       nextParams.delete('search')
     }
@@ -159,7 +167,7 @@ export default function SettingsPage() {
       nextParams.set('category', activeTab)
     }
     setSearchParams(nextParams, { replace: true })
-  }, [activeTab, deferredSearchInput, searchParams, setSearchParams])
+  }, [activeTab, debouncedSearchInput, searchParams, setSearchParams])
 
   // 当系统配置刷新后，同步 SYSTEM_LANG 到前端 locale
   useEffect(() => {
@@ -181,8 +189,8 @@ export default function SettingsPage() {
     return configsByCategory[activeTab] || []
   }, [activeTab, configs, configsByCategory, searchInput])
 
-  const handleSearchChange = (text: string) => {
-    setSearchInput(text)
+  const handleSearchChange = (text: string | undefined) => {
+    setSearchInput(text ?? '')
   }
 
   const handleRefresh = () => {
