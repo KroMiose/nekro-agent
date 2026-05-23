@@ -380,12 +380,13 @@ class MessageService:
         should_trigger = explicit_triggered or random_triggered or content_triggered
         should_notify_quota_exhausted = explicit_triggered or content_triggered
 
-        # 纯媒体消息（无文本内容）不触发 AI 回复，仅记录
+        # 私聊纯媒体消息（无文本内容）不触发 AI 回复，仅记录；群聊仍允许直接触发
         _MEDIA_TYPES = {"file", "image", "voice", "video"}
         _MEDIA_OR_AT_TYPES = _MEDIA_TYPES | {"at"}
-        if should_trigger and all(seg.type in _MEDIA_OR_AT_TYPES for seg in message.content_data):
+        is_media_only_message = all(seg.type in _MEDIA_OR_AT_TYPES for seg in message.content_data)
+        if should_trigger and db_chat_channel.chat_type == ChatType.PRIVATE and is_media_only_message:
             if any(seg.type in _MEDIA_TYPES for seg in message.content_data):
-                logger.info(f"纯媒体消息，仅记录不触发: {message.content_text[:32]}...")
+                logger.info(f"私聊纯媒体消息，仅记录不触发: {message.content_text[:32]}...")
                 should_trigger = False
 
         if not should_ignore and should_trigger:
