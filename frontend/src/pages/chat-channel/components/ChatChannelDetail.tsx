@@ -82,7 +82,8 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
     mutationFn: (status: 'active' | 'observe' | 'disabled') => chatChannelApi.setStatus(chatKey, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
-      queryClient.invalidateQueries({ queryKey: ['chat-channels'] })
+      queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
+      queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
     },
   })
 
@@ -100,7 +101,8 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
-      await queryClient.invalidateQueries({ queryKey: ['chat-channels'] })
+      await queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
+      await queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
     } finally {
       setIsRefreshing(false)
     }

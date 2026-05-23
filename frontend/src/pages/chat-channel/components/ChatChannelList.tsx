@@ -10,11 +10,12 @@ import {
   Box,
 } from '@mui/material'
 import { Group as GroupIcon, Person as PersonIcon, Circle as CircleIcon } from '@mui/icons-material'
-import type { ChannelDirectoryEntry } from '../../../hooks/useChannelDirectory'
+import type { ChatChannel } from '../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
+import { formatLastActiveTimeFromInput } from '../../../utils/time'
 
 interface ChatChannelListProps {
-  channels: ChannelDirectoryEntry[]
+  channels: ChatChannel[]
   selectedChatKey: string | null
   onSelectChannel: (chatKey: string) => void
   isLoading: boolean
@@ -106,6 +107,16 @@ export default function ChatChannelList({
               >
                 {channel.chat_key}
               </Typography>
+              <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" className="min-w-0">
+                <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1.2 }}>
+                  {t('list.messageCount', { count: channel.message_count })}
+                </Typography>
+                <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1.2 }} className="truncate">
+                  {channel.last_message_time
+                    ? formatLastActiveTimeFromInput(channel.last_message_time)
+                    : t('list.noActiveRecord')}
+                </Typography>
+              </Stack>
             </Box>
           </ListItemButton>
         </ListItem>

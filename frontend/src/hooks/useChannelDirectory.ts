@@ -74,6 +74,7 @@ export function useChannelDirectory(): ChannelDirectoryState {
     const cancel = chatChannelApi.streamChannels((event) => {
       setChannels(prev => applyChannelStreamEvent(prev, event))
       queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
+      queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
     })
     return () => cancel()
   }, [queryClient])

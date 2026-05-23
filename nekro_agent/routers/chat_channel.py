@@ -22,6 +22,7 @@ from nekro_agent.models.db_recurring_timer_job import DBRecurringTimerJob
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.errors import AdapterUnavailableError, NotFoundError, ValidationError
+from nekro_agent.services.channel_broadcaster import channel_broadcaster
 from nekro_agent.services.config_resolver import config_resolver
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.user.deps import get_current_active_user
@@ -342,6 +343,13 @@ async def set_chat_channel_active(
         raise NotFoundError(resource="聊天频道")
 
     await channel.set_channel_status("active" if is_active else "disabled")
+    await channel_broadcaster.publish_update(
+        event_type="updated",
+        chat_key=channel.chat_key,
+        channel_name=channel.channel_name,
+        is_active=channel.is_active,
+        status=channel.channel_status,
+    )
     return ActionResponse(ok=True)
 
 
@@ -369,6 +377,13 @@ async def set_chat_channel_status(
         return ActionResponse(ok=False)
 
     await channel.set_channel_status(status)
+    await channel_broadcaster.publish_update(
+        event_type="updated",
+        chat_key=channel.chat_key,
+        channel_name=channel.channel_name,
+        is_active=channel.is_active,
+        status=channel.channel_status,
+    )
     return ActionResponse(ok=True)
 
 
