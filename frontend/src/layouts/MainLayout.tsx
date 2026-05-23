@@ -613,7 +613,6 @@ function MainLayoutContent() {
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
           <IconActionButton
-            color="inherit"
             edge="start"
             onClick={() => setDrawerOpen(!drawerOpen)}
             sx={{ mr: 2, color: 'white' }}
@@ -654,7 +653,6 @@ function MainLayoutContent() {
           <LocaleToggleButton mode="compact" sx={{ color: 'white' }} />
 
           <IconActionButton
-            color="inherit"
             size={isSmall ? 'small' : 'medium'}
             onClick={() => window.open('https://doc.nekro.ai', '_blank')}
             sx={{
@@ -675,7 +673,6 @@ function MainLayoutContent() {
           <ActionButton
             tone="ghost"
             variant="text"
-            color="inherit"
             size={isSmall ? 'small' : 'medium'}
             startIcon={<GitHubIcon />}
             onClick={() => window.open('https://github.com/KroMiose/nekro-agent', '_blank')}
