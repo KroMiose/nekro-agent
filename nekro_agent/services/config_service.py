@@ -244,11 +244,6 @@ class UnifiedConfigService:
         if instance:
             return instance
 
-        if config_key == ConfigType.SYSTEM.value:
-            from nekro_agent.core.config import config
-
-            ConfigManager.register_config(config_key, config)
-            return config
 
         # 2. 尝试动态加载
         try:
