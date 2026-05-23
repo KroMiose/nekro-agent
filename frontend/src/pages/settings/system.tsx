@@ -201,40 +201,46 @@ export default function SettingsPage() {
       {/* 分类选项卡 */}
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
           mb: 2,
           flexShrink: 0,
         }}
       >
-        <PanelTabsContainer sx={{ flex: 1, minWidth: 0 }}>
-          <PanelTabs
-            value={categories.length > 0 ? activeTab : false}
-            onChange={(_, newValue) => {
-              const nextParams = new URLSearchParams(searchParams)
-              nextParams.set('category', newValue)
-              setSearchParams(nextParams, { replace: true })
-            }}
-            variant="scrollable"
-            scrollButtons="auto"
-          >
-            {categories.map((category) => (
-              <Tab key={category} label={category} value={category} />
-            ))}
-          </PanelTabs>
-        </PanelTabsContainer>
-        <ActionButton
-          tone="secondary"
-          size="small"
-          startIcon={<RocketLaunchIcon />}
-          onClick={() => {
-            navigate('/oobe?mode=manual')
+        <PanelTabsContainer
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            minWidth: 0,
           }}
-          sx={{ height: 40, flexShrink: 0, whiteSpace: 'nowrap' }}
         >
-          {t('oobe.actions.openGuide')}
-        </ActionButton>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <PanelTabs
+              value={categories.length > 0 ? activeTab : false}
+              onChange={(_, newValue) => {
+                const nextParams = new URLSearchParams(searchParams)
+                nextParams.set('category', newValue)
+                setSearchParams(nextParams, { replace: true })
+              }}
+              variant="scrollable"
+              scrollButtons="auto"
+            >
+              {categories.map((category) => (
+                <Tab key={category} label={category} value={category} />
+              ))}
+            </PanelTabs>
+          </Box>
+          <ActionButton
+            tone="secondary"
+            size="small"
+            startIcon={<RocketLaunchIcon />}
+            onClick={() => {
+              navigate('/oobe?mode=manual')
+            }}
+            sx={{ height: 38, flexShrink: 0, whiteSpace: 'nowrap' }}
+          >
+            {t('oobe.actions.openGuide')}
+          </ActionButton>
+        </PanelTabsContainer>
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
