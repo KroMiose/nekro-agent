@@ -267,6 +267,11 @@ function OobePageContent() {
   const contentFrameShadow = isCompactContentStep
     ? `inset 0 1px 0 ${alpha(theme.palette.common.white, 0)}`
     : `inset 0 1px 0 ${alpha(theme.palette.common.white, 0.24)}`
+  const mainFrameHeight = {
+    xs: 'calc(100dvh - 16px)',
+    sm: 'calc(100dvh - 24px)',
+    md: 'min(940px, calc(100dvh - 32px))',
+  }
 
   const stepMeta = useMemo(
     () => ({
@@ -577,7 +582,7 @@ function OobePageContent() {
             transition={{ duration: 0.5, ease: animationEase }}
             sx={{
               minHeight: '100vh',
-              p: { xs: 1.5, sm: 2.5, md: 4 },
+              p: { xs: 1, sm: 1.5, md: 2 },
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -595,13 +600,14 @@ function OobePageContent() {
               }}
               sx={{
                 width: 'min(100%, 1280px)',
-                minHeight: { xs: 'calc(100vh - 24px)', sm: 'calc(100vh - 40px)', md: 'min(760px, calc(100vh - 64px))' },
-                maxHeight: { md: 'calc(100vh - 64px)' },
+                height: mainFrameHeight,
+                minHeight: mainFrameHeight,
+                maxHeight: mainFrameHeight,
                 borderRadius: { xs: 4, md: 5 },
                 overflow: 'hidden',
                 position: 'relative',
                 display: 'grid',
-                gridTemplateRows: 'auto auto auto auto',
+                gridTemplateRows: 'auto auto minmax(0, 1fr) auto',
                 p: { xs: 2, sm: 2.5, md: 3 },
                 background: `linear-gradient(145deg, ${alpha(theme.palette.background.paper, 0.92)}, ${alpha(theme.palette.primary.main, 0.12)})`,
                 border: `1px solid ${alpha(theme.palette.common.white, 0.42)}`,
