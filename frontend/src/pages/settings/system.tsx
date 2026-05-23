@@ -188,6 +188,23 @@ export default function SettingsPage() {
     refetch()
   }
 
+  const otherCategoryLabel = t('system.otherCategory', '其他')
+  const guideToolbarAction = activeTab === otherCategoryLabel
+    ? (
+        <ActionButton
+          tone="secondary"
+          size="small"
+          startIcon={<RocketLaunchIcon />}
+          onClick={() => {
+            navigate('/oobe?mode=manual')
+          }}
+          sx={{ height: 38, flexShrink: 0, whiteSpace: 'nowrap' }}
+        >
+          {t('oobe.actions.openGuide')}
+        </ActionButton>
+      )
+    : null
+
   return (
     <Box
       sx={{
@@ -205,41 +222,21 @@ export default function SettingsPage() {
           flexShrink: 0,
         }}
       >
-        <PanelTabsContainer
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            minWidth: 0,
-          }}
-        >
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <PanelTabs
-              value={categories.length > 0 ? activeTab : false}
-              onChange={(_, newValue) => {
-                const nextParams = new URLSearchParams(searchParams)
-                nextParams.set('category', newValue)
-                setSearchParams(nextParams, { replace: true })
-              }}
-              variant="scrollable"
-              scrollButtons="auto"
-            >
-              {categories.map((category) => (
-                <Tab key={category} label={category} value={category} />
-              ))}
-            </PanelTabs>
-          </Box>
-          <ActionButton
-            tone="secondary"
-            size="small"
-            startIcon={<RocketLaunchIcon />}
-            onClick={() => {
-              navigate('/oobe?mode=manual')
+        <PanelTabsContainer sx={{ minWidth: 0 }}>
+          <PanelTabs
+            value={categories.length > 0 ? activeTab : false}
+            onChange={(_, newValue) => {
+              const nextParams = new URLSearchParams(searchParams)
+              nextParams.set('category', newValue)
+              setSearchParams(nextParams, { replace: true })
             }}
-            sx={{ height: 38, flexShrink: 0, whiteSpace: 'nowrap' }}
+            variant="scrollable"
+            scrollButtons="auto"
           >
-            {t('oobe.actions.openGuide')}
-          </ActionButton>
+            {categories.map((category) => (
+              <Tab key={category} label={category} value={category} />
+            ))}
+          </PanelTabs>
         </PanelTabsContainer>
       </Box>
 
@@ -254,6 +251,7 @@ export default function SettingsPage() {
           onRefresh={handleRefresh}
           showSearchBar={true}
           showToolbar={true}
+          toolbarActions={guideToolbarAction}
           showCategoryColumn={Boolean(searchInput.trim())}
           emptyMessage={t('system.emptyMessage')}
         />

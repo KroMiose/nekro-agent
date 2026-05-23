@@ -214,9 +214,9 @@ function MainLayoutContent() {
     }
     let cancelled = false
     oobeApi
-      .getSetupState()
-      .then(state => {
-        if (!cancelled && state.status.shouldShow) {
+      .getGuideStatus()
+      .then(status => {
+        if (!cancelled && status.shouldShow) {
           navigate('/oobe', { replace: true })
         }
       })

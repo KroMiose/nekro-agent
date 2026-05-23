@@ -582,11 +582,6 @@
       "hideSecret": "隐藏密钥",
       "openGuide": "启动引导"
     },
-    "status": {
-      "completed": "已完成",
-      "skipped": "已跳过",
-      "pending": "待完成"
-    },
     "common": {
       "enabled": "已启用",
       "disabled": "已关闭"
@@ -640,9 +635,9 @@
       "detail": "实际模型：{{model}}，耗时：{{ms}}ms"
     },
     "notifications": {
-      "completeSuccess": "OOBE 已完成",
+      "completeSuccess": "OOBE 已完成，稍后可在系统设置的“其他”中重新启用该引导",
       "completeFailed": "保存引导配置失败",
-      "skipped": "已跳过 OOBE，可稍后在设置页重新打开",
+      "skipped": "已跳过 OOBE，稍后可在系统设置的“其他”中重新启用该引导",
       "skipFailed": "跳过引导失败",
       "testPassed": "模型连通性测试通过",
       "testFailed": "模型测试失败，请检查配置",

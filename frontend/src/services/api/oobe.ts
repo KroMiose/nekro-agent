@@ -2,8 +2,6 @@ import type { ConfigItem, ModelGroupConfig } from '../../components/common/Confi
 import { unifiedConfigApi } from './unified-config'
 
 export interface OobeStatus {
-  completed: boolean
-  skipped: boolean
   shouldShow: boolean
 }
 
@@ -19,7 +17,6 @@ export interface OobeModelSettings extends ModelGroupConfig {
 }
 
 export interface OobeSetupState {
-  status: OobeStatus
   system: OobeSystemSettings
   chatModel: OobeModelSettings
   embeddingModel: OobeModelSettings
@@ -30,50 +27,10 @@ export interface OobeSetupState {
 
 const CHAT_GROUP_NAME = 'default'
 const EMBEDDING_GROUP_NAME = 'text-embedding'
-const OOBE_STORAGE_KEY = 'nekro-agent-oobe-state'
-
-interface StoredOobeStatus {
-  completed: boolean
-  skipped: boolean
-}
+const UI_ONBOARDING_GUIDE_CONFIG_KEY = 'ENABLE_UI_ONBOARDING_GUIDE'
 
 const getItem = (items: ConfigItem[], key: string): ConfigItem | undefined =>
   items.find(item => item.key === key)
-
-const hasItem = (items: ConfigItem[], key: string): boolean =>
-  items.some(item => item.key === key)
-
-const readStoredOobeStatus = (): StoredOobeStatus => {
-  if (typeof window === 'undefined') {
-    return { completed: false, skipped: false }
-  }
-
-  try {
-    const raw = window.localStorage.getItem(OOBE_STORAGE_KEY)
-    if (!raw) {
-      return { completed: false, skipped: false }
-    }
-    const parsed = JSON.parse(raw) as Partial<StoredOobeStatus>
-    return {
-      completed: parsed.completed === true,
-      skipped: parsed.skipped === true,
-    }
-  } catch {
-    return { completed: false, skipped: false }
-  }
-}
-
-const writeStoredOobeStatus = (status: StoredOobeStatus): void => {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  try {
-    window.localStorage.setItem(OOBE_STORAGE_KEY, JSON.stringify(status))
-  } catch {
-    // 本地存储不可用时不阻断配置保存。
-  }
-}
 
 const filterExistingSystemConfig = (
   configs: Record<string, string>,
@@ -149,31 +106,22 @@ const serializeModelConfig = (model: OobeModelSettings, modelType: 'chat' | 'emb
 })
 
 export const oobeApi = {
+  getGuideStatus: async (): Promise<OobeStatus> => {
+    const status = await unifiedConfigApi.getUiOnboardingGuideStatus()
+    return {
+      shouldShow: status.should_show,
+    }
+  },
+
   getSetupState: async (): Promise<OobeSetupState> => {
     const [configItems, modelGroups] = await Promise.all([
       unifiedConfigApi.getConfigList('system'),
       unifiedConfigApi.getModelGroups(),
     ])
 
-    const storedOobeStatus = readStoredOobeStatus()
-    const completed = (
-      hasItem(configItems, 'OOBE_COMPLETED')
-        ? getBoolValue(configItems, 'OOBE_COMPLETED')
-        : false
-    ) || storedOobeStatus.completed
-    const skipped = (
-      hasItem(configItems, 'OOBE_SKIPPED')
-        ? getBoolValue(configItems, 'OOBE_SKIPPED')
-        : false
-    ) || storedOobeStatus.skipped
     const systemLang = getStringValue(configItems, 'SYSTEM_LANG', 'zh-CN')
 
     return {
-      status: {
-        completed,
-        skipped,
-        shouldShow: !completed && !skipped,
-      },
       system: {
         systemLang: systemLang === 'en-US' ? 'en-US' : 'zh-CN',
         enableNekroCloud: getBoolValue(configItems, 'ENABLE_NEKRO_CLOUD', true),
@@ -194,9 +142,8 @@ export const oobeApi = {
 
   markSkipped: async (): Promise<void> => {
     await batchUpdateExistingSystemConfig({
-      OOBE_SKIPPED: 'true',
+      [UI_ONBOARDING_GUIDE_CONFIG_KEY]: 'false',
     })
-    writeStoredOobeStatus({ completed: false, skipped: true })
   },
 
   completeSetup: async (
@@ -228,10 +175,8 @@ export const oobeApi = {
       KB_EMBEDDING_MODEL_GROUP: embeddingGroupName,
       MEMORY_EMBEDDING_DIMENSION: String(memoryEmbeddingDimension),
       KB_EMBEDDING_DIMENSION: String(kbEmbeddingDimension),
-      OOBE_COMPLETED: 'true',
-      OOBE_SKIPPED: 'false',
+      [UI_ONBOARDING_GUIDE_CONFIG_KEY]: 'false',
     })
-    writeStoredOobeStatus({ completed: true, skipped: false })
   },
 }
 

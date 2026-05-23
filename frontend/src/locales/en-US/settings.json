@@ -580,12 +580,7 @@
       "test": "Connection test",
       "showSecret": "Show secret",
       "hideSecret": "Hide secret",
-      "openGuide": "Open setup"
-    },
-    "status": {
-      "completed": "Completed",
-      "skipped": "Skipped",
-      "pending": "Pending"
+      "openGuide": "Start guide"
     },
     "common": {
       "enabled": "Enabled",
@@ -640,9 +635,9 @@
       "detail": "Actual model: {{model}}, latency: {{ms}}ms"
     },
     "notifications": {
-      "completeSuccess": "OOBE completed",
+      "completeSuccess": "OOBE completed. You can re-enable this guide later in System Settings > Other.",
       "completeFailed": "Failed to save setup",
-      "skipped": "OOBE skipped. You can open it again from Settings later.",
+      "skipped": "OOBE skipped. You can re-enable this guide later in System Settings > Other.",
       "skipFailed": "Failed to skip setup",
       "testPassed": "Model connection test passed",
       "testFailed": "Model test failed. Check the configuration.",
