@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -220,13 +220,11 @@ function readModelsResponse(payload: unknown): string[] {
 function OobePageContent() {
   const { t } = useTranslation('settings')
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const notification = useNotification()
   const theme = useTheme()
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { logout } = useAuthStore()
   const { setLocaleLocal } = useLocaleStore()
-  const manualMode = searchParams.get('mode') === 'manual'
 
   const [activeStep, setActiveStep] = useState<OobeStep>('welcome')
   const [systemSettings, setSystemSettings] = useState<OobeSystemSettings>(defaultSystemSettings)
@@ -643,24 +641,22 @@ function OobePageContent() {
                   ))}
                 </Stack>
                 <Stack direction="row" alignItems="center" spacing={1}>
-                  {!manualMode && (
-                    <ActionButton
-                      tone="secondary"
-                      startIcon={skipMutation.isPending ? <CircularProgress size={16} /> : <SkipNextIcon />}
-                      onClick={() => skipMutation.mutate()}
-                      disabled={skipMutation.isPending || completionMutation.isPending}
-                      sx={{
-                        height: 38,
-                        minWidth: { xs: 82, sm: 96 },
-                        borderRadius: 999,
-                        px: { xs: 1.25, sm: 1.75 },
-                        backgroundColor: alpha(theme.palette.background.paper, 0.62),
-                        boxShadow: `0 10px 26px ${alpha(theme.palette.text.primary, 0.06)}`,
-                      }}
-                    >
-                      {t('oobe.actions.skip')}
-                    </ActionButton>
-                  )}
+                  <ActionButton
+                    tone="secondary"
+                    startIcon={skipMutation.isPending ? <CircularProgress size={16} /> : <SkipNextIcon />}
+                    onClick={() => skipMutation.mutate()}
+                    disabled={skipMutation.isPending || completionMutation.isPending}
+                    sx={{
+                      height: 38,
+                      minWidth: { xs: 82, sm: 96 },
+                      borderRadius: 999,
+                      px: { xs: 1.25, sm: 1.75 },
+                      backgroundColor: alpha(theme.palette.background.paper, 0.62),
+                      boxShadow: `0 10px 26px ${alpha(theme.palette.text.primary, 0.06)}`,
+                    }}
+                  >
+                    {t('oobe.actions.skip')}
+                  </ActionButton>
                   {!isSmall && <LocaleToggleButton />}
                   <ThemeToggleButton size="small" />
                   <IconActionButton aria-label="Exit" size="small" onClick={handleLogout}>

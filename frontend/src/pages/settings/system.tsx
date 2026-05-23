@@ -196,7 +196,7 @@ export default function SettingsPage() {
           size="small"
           startIcon={<RocketLaunchIcon />}
           onClick={() => {
-            navigate('/oobe?mode=manual')
+            navigate('/oobe')
           }}
           sx={{ height: 38, flexShrink: 0, whiteSpace: 'nowrap' }}
         >
