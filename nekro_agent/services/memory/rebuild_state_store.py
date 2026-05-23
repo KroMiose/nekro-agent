@@ -334,17 +334,35 @@ def list_workspace_index_files() -> list[Path]:
 
 @contextmanager
 def exclusive_lock(path: Path) -> Iterator[bool]:
-    import fcntl
-
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a+", encoding="utf-8") as f:
         try:
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if os.name == "nt":
+                import msvcrt
+
+                f.seek(0)
+                if f.read(1) == "":
+                    f.write("\0")
+                    f.flush()
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
             yield True
-        except BlockingIOError:
+        except (BlockingIOError, OSError):
             yield False
         finally:
             try:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                if os.name == "nt":
+                    import msvcrt
+
+                    f.seek(0)
+                    msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+                else:
+                    import fcntl
+
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
             except OSError:
                 pass

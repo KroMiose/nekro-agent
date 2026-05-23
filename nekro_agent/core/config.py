@@ -71,6 +71,25 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    ENABLE_UI_ONBOARDING_GUIDE: bool = Field(
+        default=True,
+        title="启用界面上手引导",
+        description="启用后，管理员打开 WebUI 时会自动进入界面上手引导；跳过或完成引导后会自动关闭。",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="其他",
+                en_US="Other",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="启用界面上手引导",
+                en_US="Enable UI Onboarding Guide",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用后，管理员打开 WebUI 时会自动进入界面上手引导；跳过或完成引导后会自动关闭，可稍后在此重新启用。",
+                en_US="When enabled, administrators will automatically enter the UI onboarding guide when opening WebUI. It turns off after the guide is skipped or completed and can be re-enabled here later.",
+            ),
+        ).model_dump(),
+    )
 
     """Nekro Cloud 云服务配置"""
     ENABLE_NEKRO_CLOUD: bool = Field(

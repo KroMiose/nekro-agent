@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, useDeferredValue } from 'react'
 import { Box, Tab } from '@mui/material'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
 import { useTranslation } from 'react-i18next'
@@ -10,9 +11,11 @@ import type { ConfigItem } from '../../components/common/ConfigTable'
 import { useLocaleStore } from '../../stores/locale'
 import type { SupportedLocale } from '../../config/i18n'
 import { PanelTabs, PanelTabsContainer } from '../../components/common/NekroTabs'
+import ActionButton from '../../components/common/ActionButton'
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { t } = useTranslation('settings')
   const { i18n } = useTranslation()
   const { setLocaleLocal } = useLocaleStore()
@@ -185,6 +188,23 @@ export default function SettingsPage() {
     refetch()
   }
 
+  const otherCategoryLabel = t('system.otherCategory', '其他')
+  const guideToolbarAction = activeTab === otherCategoryLabel
+    ? (
+        <ActionButton
+          tone="secondary"
+          size="small"
+          startIcon={<RocketLaunchIcon />}
+          onClick={() => {
+            navigate('/oobe')
+          }}
+          sx={{ height: 38, flexShrink: 0, whiteSpace: 'nowrap' }}
+        >
+          {t('oobe.actions.openGuide')}
+        </ActionButton>
+      )
+    : null
+
   return (
     <Box
       sx={{
@@ -196,27 +216,29 @@ export default function SettingsPage() {
       }}
     >
       {/* 分类选项卡 */}
-      <PanelTabsContainer
+      <Box
         sx={{
           mb: 2,
           flexShrink: 0,
         }}
       >
-        <PanelTabs
-          value={categories.length > 0 ? activeTab : false}
-          onChange={(_, newValue) => {
-            const nextParams = new URLSearchParams(searchParams)
-            nextParams.set('category', newValue)
-            setSearchParams(nextParams, { replace: true })
-          }}
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          {categories.map((category) => (
-            <Tab key={category} label={category} value={category} />
-          ))}
-        </PanelTabs>
-      </PanelTabsContainer>
+        <PanelTabsContainer sx={{ minWidth: 0 }}>
+          <PanelTabs
+            value={categories.length > 0 ? activeTab : false}
+            onChange={(_, newValue) => {
+              const nextParams = new URLSearchParams(searchParams)
+              nextParams.set('category', newValue)
+              setSearchParams(nextParams, { replace: true })
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {categories.map((category) => (
+              <Tab key={category} label={category} value={category} />
+            ))}
+          </PanelTabs>
+        </PanelTabsContainer>
+      </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <ConfigTable
@@ -229,6 +251,7 @@ export default function SettingsPage() {
           onRefresh={handleRefresh}
           showSearchBar={true}
           showToolbar={true}
+          toolbarActions={guideToolbarAction}
           showCategoryColumn={Boolean(searchInput.trim())}
           emptyMessage={t('system.emptyMessage')}
         />

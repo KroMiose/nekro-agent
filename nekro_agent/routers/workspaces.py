@@ -1,12 +1,9 @@
 import asyncio
 import contextlib
-import fcntl
 import json
 import os
-import pty
 import struct
 import subprocess
-import termios
 import time
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Literal, Optional
@@ -79,6 +76,15 @@ from nekro_agent.services.workspace.prompt_envelope import CcPromptEnvelope
 
 if TYPE_CHECKING:
     from nekro_agent.models.db_mem_episode import DBMemEpisode
+
+try:
+    import fcntl
+    import pty
+    import termios
+except ImportError:
+    fcntl = None  # type: ignore[assignment]
+    pty = None  # type: ignore[assignment]
+    termios = None  # type: ignore[assignment]
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 logger = get_sub_logger("workspaces")
@@ -1856,6 +1862,10 @@ async def workspace_terminal(
     if not ws_db or not ws_db.container_name:
         await websocket.send_text(json.dumps({"type": "error", "data": "容器未运行\r\n"}))
         await websocket.close(code=4004)
+        return
+    if fcntl is None or pty is None or termios is None:
+        await websocket.send_text(json.dumps({"type": "error", "data": "当前系统不支持内置终端，请使用 Docker Desktop 或 docker exec 进入容器\r\n"}))
+        await websocket.close(code=4000)
         return
 
     master_fd, slave_fd = pty.openpty()

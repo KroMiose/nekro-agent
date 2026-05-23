@@ -844,6 +844,7 @@ export interface ConfigTableProps {
   infoBox?: ReactNode
   isOverridePage?: boolean
   showCategoryColumn?: boolean
+  toolbarActions?: ReactNode
 }
 
 interface ConfirmDialogProps {
@@ -885,6 +886,7 @@ export default function ConfigTable({
   infoBox,
   isOverridePage = false,
   showCategoryColumn = false,
+  toolbarActions,
 }: ConfigTableProps) {
   const navigate = useNavigate()
   const notification = useNotification()
@@ -1672,7 +1674,8 @@ export default function ConfigTable({
                 }}
               />
             )}
-            <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+            <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {toolbarActions}
               <Button
                 variant="contained"
                 color="primary"
