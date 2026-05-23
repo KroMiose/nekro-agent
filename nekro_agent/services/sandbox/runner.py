@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -99,6 +100,11 @@ chat_key_sandbox_cleanup_task_map: Dict[str, asyncio.Task] = {}
 semaphore = asyncio.Semaphore(config.SANDBOX_MAX_CONCURRENT)
 
 
+def _sanitize_docker_name_part(value: str) -> str:
+    sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", value)
+    return sanitized or "unknown"
+
+
 async def limited_run_code(
     code_run_data: ParsedCodeRunData,
     from_chat_key: str,
@@ -152,7 +158,7 @@ async def run_code_in_sandbox(
     generation_time_ms = llm_response.generation_time_ms if llm_response else 0
 
     # container_key = f'{time.strftime("%Y%m%d%H%M%S")}_{os.urandom(4).hex()}'
-    container_key = f"sandbox_{from_chat_key}"
+    container_key = f"sandbox_{_sanitize_docker_name_part(from_chat_key)}"
     container_name = f"nekro-agent-sandbox-{container_key}-{os.urandom(4).hex()}"
 
     host_shared_dir = Path(HOST_SHARED_DIR / container_key)

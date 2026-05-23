@@ -131,7 +131,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
 
   if (isLoadingNewChannel) {
     return (
-      <Box className="h-full flex flex-col overflow-hidden gap-2">
+      <Box className="h-full flex flex-col overflow-hidden gap-2" sx={{ minWidth: 0, minHeight: 0 }}>
         <Card sx={CARD_VARIANTS.default.styles}>
           <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
             <Stack direction="row" spacing={2} alignItems="center">
@@ -161,12 +161,14 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
     <Box
       className="h-full flex flex-col overflow-hidden gap-2"
       sx={{
+        minWidth: 0,
+        minHeight: 0,
         opacity: isFetching && !isRefreshing ? 0.6 : 1,
         transition: 'opacity 0.2s ease',
       }}
     >
       {/* 头部信息 */}
-      <Card sx={CARD_VARIANTS.default.styles}>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
         <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
           <Stack
             direction={{ xs: 'column', lg: 'row' }}
@@ -294,7 +296,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
       </Card>
 
       {/* 标签页 */}
-      <Card sx={CARD_VARIANTS.default.styles}>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
         <InlineTabs
           value={currentTabIndex}
           onChange={handleTabChange}
@@ -313,25 +315,37 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
       </Card>
 
       {/* 标签内容 */}
-      <Box className="flex-1 overflow-hidden">
+      <Box className="flex-1 overflow-hidden" sx={{ minWidth: 0, minHeight: 0 }}>
         <Fade in={!isFetching || isRefreshing} timeout={150}>
-          <Box className="h-full">
+          <Box className="h-full" sx={{ minWidth: 0, minHeight: 0 }}>
             {currentTab === 'basic-info' && (
-              <Box sx={{ height: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Card sx={CARD_VARIANTS.default.styles}>
-                  {channel && <BasicInfo channel={channel} />}
-                </Card>
-                <Card sx={CARD_VARIANTS.default.styles}>
-                  <DangerZone
-                    chatKey={chatKey}
-                    channelName={channel?.channel_name ?? null}
-                    onDeleted={() => onBack?.()}
-                  />
-                </Card>
+              <Box
+                sx={{
+                  height: '100%',
+                  minWidth: 0,
+                  minHeight: 0,
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  pr: 0.25,
+                  pb: 0.25,
+                }}
+              >
+                <Stack spacing={1}>
+                  <Card sx={CARD_VARIANTS.default.styles}>
+                    {channel && <BasicInfo channel={channel} />}
+                  </Card>
+                  <Card sx={CARD_VARIANTS.default.styles}>
+                    <DangerZone
+                      chatKey={chatKey}
+                      channelName={channel?.channel_name ?? null}
+                      onDeleted={() => onBack?.()}
+                    />
+                  </Card>
+                </Stack>
               </Box>
             )}
             {currentTab === 'override-settings' && (
-              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
+              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', minWidth: 0, overflowY: 'auto', overflowX: 'hidden' }}>
                 <OverrideSettings chatKey={chatKey} />
               </Card>
             )}
@@ -341,7 +355,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
               </Card>
             )}
             {currentTab === 'plugin-data' && (
-              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
+              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', minWidth: 0, overflowY: 'auto', overflowX: 'hidden' }}>
                 <PluginData chatKey={chatKey} />
               </Card>
             )}
