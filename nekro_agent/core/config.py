@@ -1694,6 +1694,26 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    SESSION_GROUP_LEAVE_NOTICE_ENABLED: bool = Field(
+        default=True,
+        title="启用退群提醒",
+        description="启用后群成员减少通知会触发 AI 退群提醒；可在群聊覆盖配置中单独关闭",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="启用退群提醒",
+                en_US="Enable Group Leave Notice",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用后群成员减少通知会触发 AI 退群提醒；可在群聊覆盖配置中单独关闭",
+                en_US="When enabled, group member decrease notices trigger AI leave notices; can be disabled per group in channel overrides",
+            ),
+        ).model_dump(),
+    )
     SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(
         default=True,
         title="新私聊默认启用聊天",
