@@ -44,6 +44,8 @@ interface BasicInfoProps {
 
 export default function BasicInfo({ channel }: BasicInfoProps) {
   const [presetDialogOpen, setPresetDialogOpen] = useState(false)
+  const [customNameDialogOpen, setCustomNameDialogOpen] = useState(false)
+  const [customName, setCustomName] = useState(channel.custom_channel_name ?? '')
   const [presets, setPresets] = useState<Preset[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
@@ -51,6 +53,10 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
   const { enqueueSnackbar } = useSnackbar()
   const queryClient = useQueryClient()
   const { t } = useTranslation('chat-channel')
+
+  useEffect(() => {
+    setCustomName(channel.custom_channel_name ?? '')
+  }, [channel.custom_channel_name])
 
   // 获取当前聊天频道的人设信息
   useEffect(() => {
@@ -96,6 +102,23 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
   // 搜索人设
   const handleSearch = async () => {
     await loadPresets()
+  }
+
+  const handleSaveCustomName = async () => {
+    try {
+      setLoading(true)
+      const nextName = customName.trim()
+      await chatChannelApi.setCustomChannelName(channel.chat_key, nextName || null)
+      enqueueSnackbar(t('basicInfo.saveCustomNameSuccess'), { variant: 'success' })
+      setCustomNameDialogOpen(false)
+      queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', channel.chat_key] })
+      queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
+      queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
+    } catch (_error) {
+      enqueueSnackbar(t('basicInfo.saveCustomNameFailed'), { variant: 'error' })
+    } finally {
+      setLoading(false)
+    }
   }
 
   // 选择人设
@@ -163,6 +186,32 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
   return (
     <Box className="p-4">
       <Stack spacing={2}>
+        <InfoItem
+          icon={<MessageIcon color="primary" />}
+          label={t('basicInfo.displayName')}
+          value={
+            <Stack spacing={0.5}>
+              <Typography component="div">
+                {channel.custom_channel_name || channel.channel_name || channel.chat_key}
+              </Typography>
+              {channel.custom_channel_name && (
+                <Typography variant="caption" color="textSecondary" component="div" sx={{ wordBreak: 'break-all' }}>
+                  {t('basicInfo.originalName')}: {channel.channel_name || channel.chat_key}
+                </Typography>
+              )}
+            </Stack>
+          }
+          action={
+            <ActionButton
+              size="small"
+              variant="outlined"
+              onClick={() => setCustomNameDialogOpen(true)}
+              disabled={loading}
+            >
+              {t('basicInfo.editCustomName')}
+            </ActionButton>
+          }
+        />
         <InfoItem
           icon={<FaceIcon color="secondary" />}
           label={t('basicInfo.currentPreset')}
@@ -245,6 +294,38 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
           }
         />
       </Stack>
+
+      <Dialog
+        open={customNameDialogOpen}
+        onClose={() => setCustomNameDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{t('basicInfo.editCustomName')}</DialogTitle>
+        <DialogContent>
+          <Box className="mt-2">
+            <TextField
+              fullWidth
+              size="small"
+              label={t('basicInfo.customName')}
+              placeholder={channel.channel_name || channel.chat_key}
+              value={customName}
+              inputProps={{ maxLength: 64 }}
+              helperText={t('basicInfo.customNamePlaceholder')}
+              onChange={event => setCustomName(event.target.value)}
+              onKeyDown={event => event.key === 'Enter' && handleSaveCustomName()}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton tone="secondary" onClick={() => setCustomNameDialogOpen(false)}>
+            {t('basicInfo.cancel')}
+          </ActionButton>
+          <ActionButton onClick={handleSaveCustomName} disabled={loading}>
+            {loading ? <CircularProgress size={20} /> : t('basicInfo.save')}
+          </ActionButton>
+        </DialogActions>
+      </Dialog>
 
       {/* 人设选择对话框 */}
       <Dialog

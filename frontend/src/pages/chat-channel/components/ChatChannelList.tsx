@@ -10,7 +10,7 @@ import {
   Box,
 } from '@mui/material'
 import { Group as GroupIcon, Person as PersonIcon, Circle as CircleIcon } from '@mui/icons-material'
-import type { ChatChannel } from '../../../services/api/chat-channel'
+import { getChannelDisplayName, type ChatChannel } from '../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
 import { formatLastActiveTimeFromInput } from '../../../utils/time'
 
@@ -80,7 +80,7 @@ export default function ChatChannelList({
             <Box className="min-w-0 flex-1 overflow-hidden">
               <Stack direction="row" spacing={1} alignItems="center" className="min-w-0">
                 <Typography variant="body2" className="font-medium truncate flex-1">
-                  {channel.channel_name || channel.chat_key}
+                  {getChannelDisplayName(channel)}
                 </Typography>
                 <CircleIcon
                   sx={{

@@ -20,6 +20,7 @@ function applyChannelStreamEvent(
 ): ChannelDirectoryEntry[] {
   const next = [...channels]
   const index = next.findIndex(channel => channel.chat_key === event.chat_key)
+  const hasCustomChannelName = Object.prototype.hasOwnProperty.call(event, 'custom_channel_name')
 
   if (event.event_type === 'deleted') {
     if (index >= 0) {
@@ -32,6 +33,7 @@ function applyChannelStreamEvent(
     const updated = {
       ...next[index],
       channel_name: event.channel_name ?? next[index].channel_name,
+      custom_channel_name: hasCustomChannelName ? event.custom_channel_name ?? null : next[index].custom_channel_name,
       is_active: event.is_active ?? next[index].is_active,
       status: event.status ?? next[index].status,
     }
@@ -45,6 +47,7 @@ function applyChannelStreamEvent(
       id: 0,
       chat_key: event.chat_key,
       channel_name: event.channel_name ?? null,
+      custom_channel_name: hasCustomChannelName ? event.custom_channel_name ?? null : null,
       is_active: event.is_active ?? true,
       status: event.status ?? 'active',
       chat_type: '',
