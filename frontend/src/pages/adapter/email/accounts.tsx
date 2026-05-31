@@ -28,6 +28,7 @@ import {
 } from '@mui/material'
 import {
   Add as AddIcon,
+  CloudDownload as PullIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   OpenInNew as OpenInNewIcon,
@@ -38,7 +39,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useNotification } from '../../../hooks/useNotification'
-import { EmailAccount, EmailProvider, emailApi } from '../../../services/api/email'
+import { EmailAccount, EmailProvider, EmailPullResult, emailApi } from '../../../services/api/email'
 
 const providers: EmailProvider[] = ['QQ邮箱', '163邮箱', 'Gmail', 'Outlook', '自定义']
 
@@ -113,6 +114,7 @@ export default function EmailAccountsPage() {
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null)
   const [callbackDialogOpen, setCallbackDialogOpen] = useState(false)
   const [callbackText, setCallbackText] = useState('')
+  const [pullResult, setPullResult] = useState<EmailPullResult | null>(null)
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['email-accounts'],
@@ -165,6 +167,28 @@ export default function EmailAccountsPage() {
       await invalidateAccounts()
     },
     onError: (err: Error) => notification.error(err.message || t('emailAccounts.testFailed')),
+  })
+
+  const pullMutation = useMutation({
+    mutationFn: (index: number) => emailApi.pullAccountInbox(index, { unseen_only: false }),
+    onSuccess: async result => {
+      setPullResult(result)
+      const message = t('emailAccounts.pullSummary', {
+        mailbox: result.mailbox || '-',
+        found: result.found_count,
+        processed: result.processed_count,
+        failed: result.failed_count,
+        skipped: result.skipped_count,
+      })
+      if (result.success) {
+        notification.success(message)
+      } else {
+        const firstError = result.errors[0]?.message
+        notification.error(firstError ? `${message}: ${firstError}` : message)
+      }
+      await queryClient.invalidateQueries({ queryKey: ['emails'] })
+    },
+    onError: (err: Error) => notification.error(err.message || t('emailAccounts.pullFailed')),
   })
 
   const openCreateDialog = () => {
@@ -374,6 +398,19 @@ export default function EmailAccountsPage() {
                   >
                     <TestIcon fontSize="small" />
                   </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={() => account.index !== undefined && pullMutation.mutate(account.index)}
+                    disabled={
+                      account.index === undefined
+                      || pullMutation.isPending
+                      || !account.ENABLED
+                      || account.RECEIVE_ENABLED === false
+                    }
+                    title={t('emailAccounts.pullInbox')}
+                  >
+                    <PullIcon fontSize="small" />
+                  </IconButton>
                   <IconButton size="small" onClick={() => openEditDialog(account)}>
                     <EditIcon fontSize="small" />
                   </IconButton>
@@ -393,6 +430,61 @@ export default function EmailAccountsPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {pullResult && (
+        <Alert
+          severity={pullResult.success ? 'success' : 'warning'}
+          sx={{ mt: 2 }}
+          onClose={() => setPullResult(null)}
+        >
+          <Stack spacing={0.5}>
+            <Typography variant="body2">
+              {t('emailAccounts.pullResultSummary', {
+                account: pullResult.account_username,
+                mailbox: pullResult.mailbox || '-',
+                found: pullResult.found_count,
+                processed: pullResult.processed_count,
+                failed: pullResult.failed_count,
+                marked: pullResult.marked_seen_count,
+                skipped: pullResult.skipped_count,
+                duration: pullResult.duration_ms,
+              })}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {`unseen_only=${pullResult.search_unseen_only}, limit=${pullResult.effective_limit}, mark_seen=${pullResult.mark_as_seen_after_fetch}`}
+            </Typography>
+            {pullResult.reconnect_attempted && (
+              <Typography variant="body2">
+                {t('emailAccounts.pullReconnect', {
+                  status: pullResult.reconnect_success ? t('emailAccounts.yes') : t('emailAccounts.no'),
+                })}
+              </Typography>
+            )}
+            {pullResult.debug_steps.length > 0 && (
+              <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                {pullResult.debug_steps.map((step, idx) => (
+                  <li key={`debug-${step.stage}-${idx}`}>
+                    <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>
+                      [debug:{step.stage}] {JSON.stringify(step)}
+                    </Typography>
+                  </li>
+                ))}
+              </Box>
+            )}
+            {pullResult.errors.length > 0 && (
+              <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                {pullResult.errors.slice(0, 5).map((pullError, idx) => (
+                  <li key={`${pullError.stage}-${idx}`}>
+                    <Typography variant="body2">
+                      [{pullError.stage}] {pullError.email_id ? `${pullError.email_id}: ` : ''}{pullError.message}
+                    </Typography>
+                  </li>
+                ))}
+              </Box>
+            )}
+          </Stack>
+        </Alert>
+      )}
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>

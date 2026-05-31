@@ -111,6 +111,10 @@ class ImapSmtpPasswordClient:
             raise RuntimeError(f"Failed to select mailbox {target} for account {self.account_username}: {data!r}")
         return target
 
+    async def get_mailbox_folders_debug(self) -> list[str]:
+        conn = self._require_conn()
+        return await asyncio.to_thread(self._get_mailbox_folders_sync, conn)
+
     async def list_message_ids(self, unseen_only: bool) -> list[bytes]:
         conn = self._require_conn()
         criteria = "UNSEEN" if unseen_only else "ALL"
@@ -282,8 +286,11 @@ class ImapSmtpPasswordClient:
     def _pick_mailbox(self, folders: list[str], preferred: str = "INBOX", override: str | None = None) -> str:
         if override:
             return override
-        if preferred in folders:
-            return preferred
+        for folder in folders:
+            if folder.upper() == preferred.upper():
+                return folder
+        if preferred.upper() == "INBOX":
+            return "INBOX"
         if not folders:
             raise RuntimeError("no folders available")
         return folders[0]

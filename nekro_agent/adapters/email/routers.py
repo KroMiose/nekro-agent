@@ -48,12 +48,17 @@ def _save_email_config(adapter) -> None:
 
 
 async def _sync_runtime_account(adapter, account: EmailAccount) -> None:
+    reconnect_success = True
     reconnect = getattr(adapter, "_reconnect_email_client", None)
     if reconnect:
-        await reconnect(account)
+        reconnect_success = bool(await reconnect(account))
     mapping = getattr(adapter, "account_chat_mapping", None)
-    if isinstance(mapping, dict) and account.ENABLED:
+    if not isinstance(mapping, dict):
+        return
+    if account.ENABLED and account.RECEIVE_ENABLED and reconnect_success:
         mapping[account.USERNAME] = account.USERNAME
+    else:
+        mapping.pop(account.USERNAME, None)
 
 
 async def _remove_runtime_account(adapter, account: EmailAccount) -> None:
@@ -207,6 +212,39 @@ async def test_email_account(index: int, adapter=Depends(get_email_adapter)):
     adapter.config.RECEIVE_ACCOUNTS = accounts
     _save_email_config(adapter)
     return {"success": success, "message": message, "tested_at": account.LAST_TEST_TIME}
+
+
+@router.post("/accounts/{index}/pull")
+async def pull_email_account(index: int, request: Optional[dict] = None, adapter=Depends(get_email_adapter)):
+    """手动拉取指定账户的未读收件箱，并返回诊断统计。"""
+    accounts = _get_accounts(adapter)
+    _validate_index(accounts, index)
+    account = accounts[index]
+
+    manual_pull = getattr(adapter, "manual_pull_account", None)
+    if not manual_pull:
+        raise HTTPException(status_code=503, detail="Email adapter runtime is not initialized")
+
+    payload = request or {}
+    unseen_only = payload.get("unseen_only", True)
+    if not isinstance(unseen_only, bool):
+        raise HTTPException(status_code=400, detail="unseen_only must be a boolean")
+
+    limit_value = payload.get("limit")
+    limit: int | None = None
+    if limit_value is not None:
+        try:
+            limit = int(limit_value)
+        except (TypeError, ValueError) as e:
+            raise HTTPException(status_code=400, detail="limit must be an integer") from e
+        if limit <= 0:
+            raise HTTPException(status_code=400, detail="limit must be greater than 0")
+
+    try:
+        result = await manual_pull(account, unseen_only=unseen_only, limit=limit)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return {"account_index": index, **result}
 
 
 @router.delete("/accounts/{index}")

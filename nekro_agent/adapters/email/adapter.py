@@ -5,7 +5,7 @@ import imaplib
 import re
 import time
 from contextlib import asynccontextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from email.header import decode_header
 from email.message import Message
 from email.mime.multipart import MIMEMultipart
@@ -13,7 +13,7 @@ from email.mime.text import MIMEText
 from email.utils import mktime_tz, parseaddr, parsedate_tz
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 import aiofiles
 from fastapi import APIRouter
@@ -113,6 +113,56 @@ class ParsedEmail:
     text_content: str
     attachments: List[str]
     raw_bytes: bytes
+
+
+@dataclass
+class EmailPullResult:
+    success: bool
+    account_username: str
+    mailbox: str = ""
+    search_unseen_only: bool = True
+    mark_as_seen_after_fetch: bool = True
+    max_per_poll: int = 0
+    requested_limit: int | None = None
+    effective_limit: int = 0
+    found_count: int = 0
+    processed_count: int = 0
+    failed_count: int = 0
+    marked_seen_count: int = 0
+    mark_seen_failed_count: int = 0
+    skipped_count: int = 0
+    reconnect_attempted: bool = False
+    reconnect_success: bool | None = None
+    started_at: int = 0
+    finished_at: int = 0
+    duration_ms: int = 0
+    errors: List[dict[str, Any]] = field(default_factory=list)
+    debug_steps: List[dict[str, Any]] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        return {
+            "success": self.success,
+            "account_username": self.account_username,
+            "mailbox": self.mailbox,
+            "search_unseen_only": self.search_unseen_only,
+            "mark_as_seen_after_fetch": self.mark_as_seen_after_fetch,
+            "max_per_poll": self.max_per_poll,
+            "requested_limit": self.requested_limit,
+            "effective_limit": self.effective_limit,
+            "found_count": self.found_count,
+            "processed_count": self.processed_count,
+            "failed_count": self.failed_count,
+            "marked_seen_count": self.marked_seen_count,
+            "mark_seen_failed_count": self.mark_seen_failed_count,
+            "skipped_count": self.skipped_count,
+            "reconnect_attempted": self.reconnect_attempted,
+            "reconnect_success": self.reconnect_success,
+            "started_at": self.started_at,
+            "finished_at": self.finished_at,
+            "duration_ms": self.duration_ms,
+            "errors": self.errors,
+            "debug_steps": self.debug_steps,
+        }
 
 
 class EmailAdapter(BaseAdapter[EmailConfig]):
@@ -300,7 +350,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         notify_text = (
             f"[邮箱新邮件通知]\n"
             f"收件账户: {account_username}\n"
-            f"邮件UID: {email_id.decode()}\n"
+            f"邮件UID: {self._email_id_text(email_id)}\n"
             f"发件人: {parsed.sender_name} <{parsed.sender_addr}>\n"
             f"主题: {parsed.subject}\n"
             f"日期: {parsed.date_str}"
@@ -476,8 +526,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         """
         if override:
             return override
-        if preferred in folders:
-            return preferred
+        for folder in folders:
+            if folder.upper() == preferred.upper():
+                return folder
+        if preferred.upper() == "INBOX":
+            return "INBOX"
         if not folders:
             raise RuntimeError("no folders available")
         return folders[0]
@@ -672,53 +725,258 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         """
         return await asyncio.to_thread(conn.fetch, msg_id, query)
 
-    async def _check_new_emails(self, account_username: str, client: EmailClient) -> None:
-        """检查指定账户的新邮件"""
-        async with self._account_lock(account_username):
-            try:
-                target_folder = await client.select_mailbox()
-                logger.debug(f"账户 {account_username} 使用文件夹: {target_folder}")
+    def _email_id_text(self, email_id: bytes) -> str:
+        return email_id.decode(errors="ignore") if isinstance(email_id, bytes) else str(email_id)
 
-                email_ids = await client.list_message_ids(self.config.FETCH_UNSEEN_ONLY)
+    async def manual_pull_account(
+        self,
+        account: EmailAccount,
+        *,
+        unseen_only: bool = True,
+        limit: int | None = None,
+    ) -> dict:
+        if not account.ENABLED or not account.RECEIVE_ENABLED:
+            raise RuntimeError("账户未启用收信")
+
+        reconnect_attempted = False
+        reconnect_success: bool | None = None
+        client = self.email_clients.get(account.USERNAME)
+        if client is None:
+            reconnect_attempted = True
+            reconnect_success = await self._reconnect_email_client(account)
+            client = self.email_clients.get(account.USERNAME)
+
+        if client is None:
+            now = int(time.time())
+            result = EmailPullResult(
+                success=False,
+                account_username=account.USERNAME,
+                search_unseen_only=unseen_only,
+                mark_as_seen_after_fetch=self.config.MARK_AS_SEEN_AFTER_FETCH,
+                max_per_poll=self.config.MAX_PER_POLL,
+                requested_limit=limit,
+                effective_limit=0,
+                reconnect_attempted=reconnect_attempted,
+                reconnect_success=reconnect_success,
+                started_at=now,
+                finished_at=now,
+                errors=[{"stage": "connect", "message": "账户未连接，且重连失败"}],
+                debug_steps=[
+                    {
+                        "stage": "connect",
+                        "client_available": False,
+                        "reconnect_attempted": reconnect_attempted,
+                        "reconnect_success": reconnect_success,
+                    },
+                ],
+            )
+            self._log_manual_pull_result(account, result)
+            return self._build_pull_response(account, result)
+
+        result = await self._pull_account_emails(
+            account.USERNAME,
+            client,
+            unseen_only=unseen_only,
+            limit=limit,
+            reconnect_on_error=True,
+        )
+        if reconnect_attempted and not result.reconnect_attempted:
+            result.reconnect_attempted = True
+            result.reconnect_success = reconnect_success
+        result.debug_steps.insert(
+            0,
+            {
+                "stage": "connect",
+                "client_available": True,
+                "reconnect_attempted": reconnect_attempted,
+                "reconnect_success": reconnect_success,
+                "client": client.__class__.__name__,
+            },
+        )
+        self._log_manual_pull_result(account, result)
+        return self._build_pull_response(account, result)
+
+    def _log_manual_pull_result(self, account: EmailAccount, result: EmailPullResult) -> None:
+        logger.info(
+            f"手动拉取邮箱账户: username={account.USERNAME}, provider={account.EMAIL_ACCOUNT}, "
+            f"auth_type={account.AUTH_TYPE}, transport_type={account.TRANSPORT_TYPE}, mailbox={result.mailbox}, "
+            f"unseen_only={result.search_unseen_only}, found={result.found_count}, processed={result.processed_count}, "
+            f"failed={result.failed_count}, marked_seen={result.marked_seen_count}, skipped={result.skipped_count}, "
+            f"duration_ms={result.duration_ms}, success={result.success}",
+        )
+        for step in result.debug_steps:
+            logger.info(f"手动拉取邮箱账户 {account.USERNAME} debug: {step}")
+        for error in result.errors:
+            logger.error(f"手动拉取邮箱账户 {account.USERNAME} error: {error}")
+
+    def _build_pull_response(self, account: EmailAccount, result: EmailPullResult) -> dict:
+        payload = result.to_dict()
+        payload.update(
+            {
+                "provider": account.EMAIL_ACCOUNT,
+                "auth_type": account.AUTH_TYPE,
+                "transport_type": account.TRANSPORT_TYPE,
+            },
+        )
+        return payload
+
+    async def _pull_account_emails(
+        self,
+        account_username: str,
+        client: EmailClient,
+        *,
+        unseen_only: bool | None = None,
+        limit: int | None = None,
+        reconnect_on_error: bool = True,
+    ) -> EmailPullResult:
+        effective_unseen_only = self.config.FETCH_UNSEEN_ONLY if unseen_only is None else unseen_only
+        configured_limit = max(1, self.config.MAX_PER_POLL)
+        effective_limit = configured_limit if limit is None else min(max(1, limit), configured_limit)
+        started_monotonic = time.monotonic()
+        result = EmailPullResult(
+            success=False,
+            account_username=account_username,
+            search_unseen_only=effective_unseen_only,
+            mark_as_seen_after_fetch=self.config.MARK_AS_SEEN_AFTER_FETCH,
+            max_per_poll=self.config.MAX_PER_POLL,
+            requested_limit=limit,
+            effective_limit=effective_limit,
+            started_at=int(time.time()),
+        )
+        reconnect_needed = False
+
+        try:
+            async with self._account_lock(account_username):
+                if hasattr(client, "get_mailbox_folders_debug"):
+                    try:
+                        folders = await client.get_mailbox_folders_debug()
+                        result.debug_steps.append({"stage": "list_mailboxes", "folders": folders})
+                    except Exception as e:
+                        result.debug_steps.append({"stage": "list_mailboxes", "error": str(e)})
+                try:
+                    result.debug_steps.append({"stage": "select_mailbox", "preferred": "INBOX"})
+                    target_folder = await client.select_mailbox()
+                    result.mailbox = target_folder
+                    result.debug_steps.append({"stage": "select_mailbox", "selected": target_folder})
+                    logger.debug(f"账户 {account_username} 使用文件夹: {target_folder}")
+                except Exception as e:
+                    reconnect_needed = True
+                    result.errors.append({"stage": "select_mailbox", "message": str(e)})
+                    result.debug_steps.append({"stage": "select_mailbox", "error": str(e)})
+                    raise
+
+                try:
+                    list_step = {"stage": "list_message_ids", "unseen_only": effective_unseen_only, "mailbox": result.mailbox}
+                    if client.__class__.__name__ == "MicrosoftGraphMailClient":
+                        list_step["url"] = "https://graph.microsoft.com/v1.0/me/mailFolders/Inbox/messages"
+                        list_step["params"] = {"$select": "id", "$top": 50}
+                        if effective_unseen_only:
+                            list_step["params"]["$filter"] = "isRead eq false"
+                        else:
+                            list_step["params"]["$orderby"] = "receivedDateTime desc"
+                    else:
+                        list_step["criteria"] = "UNSEEN" if effective_unseen_only else "ALL"
+                    result.debug_steps.append(list_step)
+                    email_ids = await client.list_message_ids(effective_unseen_only)
+                    result.found_count = len(email_ids)
+                    result.debug_steps.append(
+                        {
+                            "stage": "list_message_ids",
+                            "found_count": result.found_count,
+                            "sample_ids": [self._email_id_text(email_id) for email_id in email_ids[:5]],
+                        },
+                    )
+                except Exception as e:
+                    reconnect_needed = True
+                    result.errors.append({"stage": "list_message_ids", "message": str(e)})
+                    result.debug_steps.append({"stage": "list_message_ids", "error": str(e)})
+                    raise
+
+                result.effective_limit = min(result.found_count, effective_limit)
+                result.skipped_count = max(0, result.found_count - result.effective_limit)
                 if email_ids:
                     logger.info(f"账户 {account_username} 在文件夹 {target_folder} 中发现 {len(email_ids)} 封新邮件")
-                    max_emails = min(len(email_ids), self.config.MAX_PER_POLL)
-                    for i in range(max_emails):
-                        email_id = email_ids[i]
-                        try:
-                            await self._process_email(account_username, email_id, client)
-                        except Exception as e:
-                            logger.error(f"处理邮件 {email_id} 时发生错误: {e}")
-
-                    if self.config.MARK_AS_SEEN_AFTER_FETCH and self.config.FETCH_UNSEEN_ONLY:
-                        for i in range(max_emails):
-                            await client.mark_seen(email_ids[i])
                 else:
                     logger.debug(f"账户 {account_username} 在文件夹 {target_folder} 中没有新邮件")
 
-            except Exception as e:
-                logger.error(f"检查账户 {account_username} 邮件时发生错误: {e}")
+                for email_id in email_ids[: result.effective_limit]:
+                    email_id_text = self._email_id_text(email_id)
+                    try:
+                        if await self._process_email(account_username, email_id, client, raise_on_error=True):
+                            result.processed_count += 1
+                        else:
+                            result.failed_count += 1
+                            result.errors.append(
+                                {"stage": "process", "email_id": email_id_text, "message": "邮件处理失败"},
+                            )
+                    except Exception as e:
+                        result.failed_count += 1
+                        result.errors.append({"stage": "process", "email_id": email_id_text, "message": str(e)})
+
+                if self.config.MARK_AS_SEEN_AFTER_FETCH and effective_unseen_only:
+                    for email_id in email_ids[: result.effective_limit]:
+                        email_id_text = self._email_id_text(email_id)
+                        try:
+                            await client.mark_seen(email_id)
+                            result.marked_seen_count += 1
+                        except Exception as e:
+                            result.mark_seen_failed_count += 1
+                            result.errors.append({"stage": "mark_seen", "email_id": email_id_text, "message": str(e)})
+        except Exception as e:
+            if not result.errors:
+                result.errors.append({"stage": "pull", "message": str(e)})
+            if reconnect_on_error and reconnect_needed:
+                result.reconnect_attempted = True
                 for account in self.config.RECEIVE_ACCOUNTS:
                     if account_username == account.USERNAME and account.ENABLED and account.RECEIVE_ENABLED:
                         logger.info(f"尝试重新连接账户 {account_username}")
-                        if await self._reconnect_email_client(account):
+                        result.reconnect_success = await self._reconnect_email_client(account)
+                        if result.reconnect_success:
                             logger.info(f"账户 {account_username} 重新连接成功")
                         else:
                             logger.error(f"账户 {account_username} 重新连接失败")
                         break
+        finally:
+            result.finished_at = int(time.time())
+            result.duration_ms = int((time.monotonic() - started_monotonic) * 1000)
+            result.success = not result.errors
+
+        return result
+
+    async def _check_new_emails(self, account_username: str, client: EmailClient) -> None:
+        """检查指定账户的新邮件"""
+        result = await self._pull_account_emails(
+            account_username,
+            client,
+            unseen_only=self.config.FETCH_UNSEEN_ONLY,
+            limit=self.config.MAX_PER_POLL,
+            reconnect_on_error=True,
+        )
+        if result.found_count:
+            logger.info(
+                f"账户 {account_username} 邮件拉取完成: 文件夹={result.mailbox}, 发现={result.found_count}, "
+                f"处理={result.processed_count}, 失败={result.failed_count}, 跳过={result.skipped_count}",
+            )
+        for error in result.errors:
+            logger.error(f"账户 {account_username} 邮件拉取错误: {error}")
 
     async def _process_email(
         self,
         account_username: str,
         email_id: bytes,
         client: EmailClient,
-    ) -> None:
+        *,
+        raise_on_error: bool = False,
+    ) -> bool:
         """处理单封邮件"""
         try:
             raw_email = await client.fetch_raw_message(email_id)
             if raw_email is None:
-                logger.warning(f"获取邮件 {email_id.decode()} 失败")
-                return
+                message = f"获取邮件 {self._email_id_text(email_id)} 失败"
+                logger.warning(message)
+                if raise_on_error:
+                    raise RuntimeError(message)
+                return False
             # 只解析一次邮件，避免重复解析
             email_message = email.message_from_bytes(raw_email)
             parsed = self._parse_email(raw_email)
@@ -735,7 +993,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                                 decoded_filename,
                                 account_username,
                                 parsed.subject,
-                                email_id.decode(),
+                                self._email_id_text(email_id),
                             ),
                         )
 
@@ -776,7 +1034,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
             # 创建平台消息对象
             platform_message = PlatformMessage(
-                message_id=email_id.decode(),
+                message_id=self._email_id_text(email_id),
                 sender_id=parsed.sender_addr,
                 sender_name=parsed.sender_name,
                 content_text=content,
@@ -850,7 +1108,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                         "references": references_header,
                     },
                     account_username=account_username,
-                    email_uid=email_id.decode(),
+                    email_uid=self._email_id_text(email_id),
                 )
             except Exception as cache_exc:
                 logger.warning(f"写入邮件缓存失败: {cache_exc}")
@@ -865,8 +1123,12 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             except Exception as notify_exc:
                 logger.error(f"触发邮箱新邮件通知失败: {notify_exc}")
 
+            return True
         except Exception as e:
-            logger.error(f"处理邮件 {email_id.decode()} 时发生错误: {e}")
+            logger.error(f"处理邮件 {self._email_id_text(email_id)} 时发生错误: {e}")
+            if raise_on_error:
+                raise
+            return False
 
     def _init_account_chat_mapping(self) -> None:
         """初始化邮箱账户到聊天ID的映射"""
@@ -909,7 +1171,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         """重新连接邮件客户端"""
         try:
             await self._remove_email_client(account.USERNAME)
-            if not account.ENABLED:
+            if not account.ENABLED or not account.RECEIVE_ENABLED:
                 return True
 
             client = self._create_email_client(account)
@@ -920,11 +1182,13 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 self.imap_connections[account.USERNAME] = conn
             if account.USERNAME not in self.imap_locks:
                 self.imap_locks[account.USERNAME] = asyncio.Lock()
+            self.account_chat_mapping[account.USERNAME] = account.USERNAME
         except Exception as e:
             logger.error(f"邮件客户端重新连接失败 ({account.USERNAME}): {e}")
             return False
         else:
             logger.info(f"邮件客户端重新连接成功: {account.USERNAME}")
+            self._start_polling()
             return True
 
     async def _remove_email_client(self, account_username: str) -> None:

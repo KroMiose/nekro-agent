@@ -56,18 +56,26 @@ class GmailApiClient(_ApiClientBase):
 class MicrosoftGraphMailClient(_ApiClientBase):
     _GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 
+    async def select_mailbox(self, preferred: str = "INBOX", override_folder: str | None = None) -> str:
+        folder = override_folder or preferred
+        folder_id = "Inbox" if folder.upper() == "INBOX" else folder
+        payload = await self._graph_request_json("GET", f"/me/mailFolders/{quote(folder_id, safe='')}")
+        display_name = payload.get("displayName")
+        return str(display_name or folder)
+
     async def list_message_ids(self, unseen_only: bool) -> list[bytes]:
         params: dict[str, Any] = {
             "$select": "id",
-            "$orderby": "receivedDateTime desc",
-            "$top": "50",
+            "$top": 50,
         }
         if unseen_only:
             params["$filter"] = "isRead eq false"
+        else:
+            params["$orderby"] = "receivedDateTime desc"
 
         payload = await self._graph_request_json(
             "GET",
-            "/me/mailFolders/inbox/messages",
+            "/me/mailFolders/Inbox/messages",
             params=params,
         )
         messages = payload.get("value", [])
