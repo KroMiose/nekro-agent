@@ -74,6 +74,7 @@
 """
 
 import asyncio
+import base64
 import email
 import imaplib
 import os
@@ -826,7 +827,7 @@ async def _fetch_email_content(_ctx: AgentCtx, conn, account_username, email_id,
 
 
 @plugin.mount_sandbox_method(
-    method_type=SandboxMethodType.TOOL,
+    method_type=SandboxMethodType.AGENT,
     name="get_email_content",
     description="获取指定邮箱和邮件ID的邮件内容",
 )
@@ -869,16 +870,12 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         if not adapter:
             raise Exception("邮箱适配器未启用或未找到")
 
-    def _raise_if_account_not_connected(username: str, connections: dict) -> None:
-        if username not in connections:
+    def _raise_if_account_not_connected(username: str, clients: dict) -> None:
+        if username not in clients:
             raise Exception(f"账户 {username} 未连接或不存在")
 
-    def _raise_if_fetch_failed(status: str, msg_data, eid: str) -> None:
-        if status != "OK" or not msg_data or len(msg_data) == 0:
-            raise Exception(f"获取邮件 {eid} 失败")
-
     def _raise_if_invalid_type(raw: Any, eid: str) -> None:
-        if not isinstance(raw, bytes):
+        if not isinstance(raw, bytes) or not raw:
             raise TypeError(f"邮件 {eid} 数据类型错误")
 
     try:
@@ -921,9 +918,9 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         email_adapter = cast(EmailAdapter, base_adapter)
 
         # 检查账户是否存在且已连接
-        _raise_if_account_not_connected(account_username, email_adapter.imap_connections)
+        _raise_if_account_not_connected(account_username, email_adapter.email_clients)
 
-        # 获取该账户的锁，确保IMAP操作的线程安全
+        # 获取该账户的锁，确保邮件客户端操作的线程安全
         lock = email_adapter.imap_locks.get(account_username)
         if not lock:
             # 如果锁不存在，这是初始化/重连的不一致状态，按需创建避免静默降级
@@ -932,15 +929,8 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
             email_adapter.imap_locks[account_username] = lock
 
         async with lock:
-            # 使用适配器的辅助方法选择文件夹
-            conn = await email_adapter.select_default_mailbox(account_username)
-
-            # 使用适配器的 imap_fetch 辅助方法
-            status, msg_data = await email_adapter.imap_fetch(conn, email_id.encode(), "(RFC822)")
-            _raise_if_fetch_failed(status, msg_data, email_id)
-
-            # 解析邮件
-            raw_email = msg_data[0][1]
+            raw_content = await email_adapter.email_clients[account_username].get_raw_email_content(email_id)
+            raw_email = base64.b64decode(raw_content.raw_email_base64) if raw_content.raw_email_base64 else b""
             _raise_if_invalid_type(raw_email, email_id)
 
         email_message = email.message_from_bytes(raw_email)
@@ -1086,7 +1076,4 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         }
     except Exception as e:
         logger.error(f"获取邮件内容失败: {e}")
-        return {
-            "success": False,
-            "message": f"获取邮件内容失败: {e!s}",
-        }
+        raise Exception(f"获取邮件内容失败: {e!s}") from e

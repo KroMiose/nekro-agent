@@ -180,6 +180,8 @@
     "title": "Email List",
     "subtitle": "Browse synced emails by time and open any message to read the body and headers.",
     "listTitle": "Mail Summary",
+    "accountFilter": "Email Account",
+    "allAccounts": "All Accounts",
     "detailTitle": "Mail Detail",
     "subject": "Subject",
     "sender": "Sender",

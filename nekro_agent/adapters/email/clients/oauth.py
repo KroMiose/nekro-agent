@@ -14,7 +14,13 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_GMAIL_SCOPES = ["https://mail.google.com/"]
 MICROSOFT_AUTH_URL = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize"
 MICROSOFT_TOKEN_URL = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-MICROSOFT_GRAPH_SCOPES = ["offline_access", "https://outlook.office.com/IMAP.AccessAsUser.All", "https://outlook.office.com/SMTP.Send"]
+def _get_microsoft_scopes(account: EmailAccount) -> list[str]:
+    if account.TRANSPORT_TYPE == "microsoft_graph":
+        return ["offline_access", "https://graph.microsoft.com/Mail.ReadWrite"]
+    return ["offline_access", "https://outlook.office.com/IMAP.AccessAsUser.All", "https://outlook.office.com/SMTP.Send"]
+
+
+MICROSOFT_GRAPH_SCOPES = ["offline_access", "https://graph.microsoft.com/Mail.ReadWrite"]
 
 
 def build_oauth_authorize_url(account: EmailAccount, redirect_uri: str, state: str) -> str:
@@ -40,7 +46,7 @@ def build_oauth_authorize_url(account: EmailAccount, redirect_uri: str, state: s
                 "client_id": account.CLIENT_ID,
                 "redirect_uri": redirect_uri,
                 "response_type": "code",
-                "scope": " ".join(MICROSOFT_GRAPH_SCOPES),
+                "scope": " ".join(_get_microsoft_scopes(account)),
                 "response_mode": "query",
                 "prompt": "select_account",
                 "state": state,

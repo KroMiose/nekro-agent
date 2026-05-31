@@ -8,10 +8,14 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  FormControl,
+  InputLabel,
   List,
   ListItemButton,
   ListItemText,
+  MenuItem,
   Paper,
+  Select,
   Skeleton,
   Stack,
   Typography,
@@ -34,6 +38,7 @@ import {
   type EmailListResponse,
   type EmailRawContent,
 } from '../../../services/api/emails'
+import { emailApi, type EmailAccount } from '../../../services/api/email'
 import { CARD_VARIANTS } from '../../../theme/variants'
 
 function formatDate(dateStr: string | null) {
@@ -305,10 +310,20 @@ export default function EmailsPage() {
   const [rowsPerPage, setRowsPerPage] = useState(25)
   const [selectedEmailId, setSelectedEmailId] = useState<number | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [selectedAccount, setSelectedAccount] = useState('')
+
+  const { data: accountsData } = useQuery({
+    queryKey: ['email-accounts'],
+    queryFn: emailApi.getAccounts,
+  })
 
   const { data, isLoading, error } = useQuery<EmailListResponse>({
-    queryKey: ['emails', page, rowsPerPage],
-    queryFn: () => emailsApi.getEmails({ offset: page * rowsPerPage, limit: rowsPerPage }),
+    queryKey: ['emails', page, rowsPerPage, selectedAccount],
+    queryFn: () => emailsApi.getEmails({
+      offset: page * rowsPerPage,
+      limit: rowsPerPage,
+      account: selectedAccount || undefined,
+    }),
     refetchInterval: 30000,
   })
 
@@ -349,10 +364,19 @@ export default function EmailsPage() {
     setPage(0)
   }
 
+  const handleChangeAccount = (account: string) => {
+    setSelectedAccount(account)
+    setPage(0)
+    setSelectedEmailId(null)
+    setDetailOpen(false)
+  }
+
   const handleSelectEmail = (emailId: number) => {
     setSelectedEmailId(emailId)
     setDetailOpen(true)
   }
+
+  const accounts: EmailAccount[] = accountsData?.accounts ?? []
 
   if (isLoading) {
     return (
@@ -396,9 +420,32 @@ export default function EmailsPage() {
 
       <Paper sx={{ ...CARD_VARIANTS.default.styles, overflow: 'hidden' }}>
         <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            {t('emails.listTitle')}
-          </Typography>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1.5}
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            justifyContent="space-between"
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {t('emails.listTitle')}
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 220 } }}>
+              <InputLabel id="email-account-filter-label">{t('emails.accountFilter')}</InputLabel>
+              <Select
+                labelId="email-account-filter-label"
+                value={selectedAccount}
+                label={t('emails.accountFilter')}
+                onChange={event => handleChangeAccount(event.target.value)}
+              >
+                <MenuItem value="">{t('emails.allAccounts')}</MenuItem>
+                {accounts.map(account => (
+                  <MenuItem key={account.USERNAME} value={account.USERNAME}>
+                    {account.USERNAME}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Stack>
         </Box>
         <Divider />
 

@@ -180,6 +180,8 @@
     "title": "邮件列表",
     "subtitle": "按时间查看已同步邮件，点开可直接阅读正文和邮件头信息。",
     "listTitle": "邮件摘要",
+    "accountFilter": "邮箱账户",
+    "allAccounts": "全部邮箱",
     "detailTitle": "邮件详情",
     "subject": "主题",
     "sender": "发件人",

@@ -104,9 +104,11 @@ class ImapSmtpPasswordClient:
         conn = self._require_conn()
         folders = await asyncio.to_thread(self._get_mailbox_folders_sync, conn)
         target = self._pick_mailbox(folders, preferred=preferred, override=override_folder)
-        status, _ = await asyncio.to_thread(conn.select, target)
+        status, data = await asyncio.to_thread(conn.select, target)
+        if status != "OK" and target.upper() == "INBOX":
+            status, data = await asyncio.to_thread(conn.select, '"INBOX"')
         if status != "OK":
-            raise RuntimeError(f"Failed to select mailbox {target} for account {self.account_username}")
+            raise RuntimeError(f"Failed to select mailbox {target} for account {self.account_username}: {data!r}")
         return target
 
     async def list_message_ids(self, unseen_only: bool) -> list[bytes]:
@@ -241,7 +243,7 @@ class ImapSmtpPasswordClient:
             imaplib.Commands["ID"] = ("AUTH", "SELECTED")
         payload = "(" + " ".join(
             [
-                f"{k!r} {v!r}"
+                f'"{k}" "{v}"'
                 for k, v in {
                     "name": "nekro-agent",
                     "version": "1.0.0",
@@ -250,8 +252,6 @@ class ImapSmtpPasswordClient:
                 }.items()
             ],
         ) + ")"
-        with suppress(Exception):
-            conn._simple_command("ID", "NIL")  # noqa: SLF001
         conn._simple_command("ID", payload)  # noqa: SLF001
 
     def _get_mailbox_folders_sync(self, conn: imaplib.IMAP4_SSL) -> list[str]:
