@@ -2,6 +2,7 @@ import asyncio
 import base64
 import email
 import imaplib
+import re
 import socket
 import smtplib
 import ssl
@@ -155,7 +156,7 @@ class ImapSmtpPasswordClient:
         try:
             await self._send_mail(message, smtp_host, smtp_ssl_port if use_ssl_preferred else smtp_port, use_ssl_preferred)
         except Exception:
-            if not use_ssl_preferred:
+            if not use_ssl_preferred and smtp_ssl_port != smtp_port:
                 await self._send_mail(message, smtp_host, smtp_ssl_port, True)
             else:
                 raise
@@ -268,15 +269,15 @@ class ImapSmtpPasswordClient:
         return folder_names
 
     def _parse_imap_list_line(self, line: str) -> str | None:
-        if '"/"' in line or '" "' in line:
-            parts = line.split('"')
-            if len(parts) >= 3:
-                name = parts[-2]
-                return name if name else None
+        quoted = re.findall(r'"((?:[^"\\]|\\.)*)"', line)
+        if len(quoted) >= 2:
+            name = quoted[-1].replace(r'\"', '"')
+            return name if name else None
         tokens = line.split()
         if not tokens:
             return None
-        return tokens[-1].strip('"')
+        name = tokens[-1].strip('"')
+        return name if name else None
 
     def _pick_mailbox(self, folders: list[str], preferred: str = "INBOX", override: str | None = None) -> str:
         if override:

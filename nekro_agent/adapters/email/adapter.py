@@ -515,17 +515,15 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         Returns:
             Optional[str]: 解析出的文件夹名称，解析失败返回 None
         """
-        # IMAP LIST: (<flags>) "<delimiter>" "<name>"
-        if '"/"' in line or '" "' in line:
-            parts = line.split('"')
-            if len(parts) >= 3:
-                name = parts[-2]
-                return name if name else None
-        # fallback: take last token, strip quotes
+        quoted = re.findall(r'"((?:[^"\\]|\\.)*)"', line)
+        if len(quoted) >= 2:
+            name = quoted[-1].replace(r'\"', '"')
+            return name if name else None
         tokens = line.split()
         if not tokens:
             return None
-        return tokens[-1].strip('"')
+        name = tokens[-1].strip('"')
+        return name if name else None
 
     def _extract_body(self, email_message: Message) -> tuple[str, str]:
         """提取邮件正文内容（HTML 和纯文本）

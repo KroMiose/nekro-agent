@@ -1,3 +1,5 @@
+import base64
+import json
 import time
 from collections.abc import Callable
 from typing import Any
@@ -12,7 +14,7 @@ GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_GMAIL_SCOPES = ["https://mail.google.com/"]
 MICROSOFT_AUTH_URL = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/authorize"
 MICROSOFT_TOKEN_URL = "https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-MICROSOFT_GRAPH_SCOPES = ["offline_access", "User.Read", "Mail.ReadWrite", "Mail.Send"]
+MICROSOFT_GRAPH_SCOPES = ["offline_access", "https://outlook.office.com/IMAP.AccessAsUser.All", "https://outlook.office.com/SMTP.Send"]
 
 
 def build_oauth_authorize_url(account: EmailAccount, redirect_uri: str, state: str) -> str:
@@ -40,6 +42,7 @@ def build_oauth_authorize_url(account: EmailAccount, redirect_uri: str, state: s
                 "response_type": "code",
                 "scope": " ".join(MICROSOFT_GRAPH_SCOPES),
                 "response_mode": "query",
+                "prompt": "select_account",
                 "state": state,
             },
         )
@@ -51,13 +54,39 @@ def _httpx_client_kwargs(proxy_url: str | None) -> dict[str, Any]:
     return {"timeout": 30, "proxy": proxy_url} if proxy_url else {"timeout": 30}
 
 
-async def fetch_oauth_email_address(account: EmailAccount, access_token: str, proxy_url: str = "") -> str:
+def _decode_jwt_payload(token: str) -> dict[str, Any]:
+    parts = token.split(".")
+    if len(parts) < 2:
+        return {}
+    payload = parts[1]
+    payload += "=" * (-len(payload) % 4)
+    try:
+        return json.loads(base64.urlsafe_b64decode(payload.encode()).decode())
+    except Exception:
+        return {}
+
+
+async def fetch_oauth_email_address(
+    account: EmailAccount,
+    access_token: str,
+    proxy_url: str = "",
+    id_token: str = "",
+) -> str:
     if account.OAUTH_PROVIDER == "google":
         url = "https://gmail.googleapis.com/gmail/v1/users/me/profile"
         email_key = "emailAddress"
     elif account.OAUTH_PROVIDER == "microsoft":
-        url = "https://graph.microsoft.com/v1.0/me"
-        email_key = "mail"
+        payload = _decode_jwt_payload(id_token)
+        email_address = str(
+            payload.get("preferred_username")
+            or payload.get("email")
+            or payload.get("upn")
+            or account.USERNAME
+            or ""
+        )
+        if not email_address:
+            raise RuntimeError("OAuth 用户信息响应缺少邮箱地址")
+        return email_address
     else:
         raise RuntimeError(f"不支持的 OAuth 提供商: {account.OAUTH_PROVIDER}")
 
@@ -90,6 +119,7 @@ async def exchange_oauth_code(account: EmailAccount, code: str, redirect_uri: st
         response.raise_for_status()
         payload: dict[str, Any] = response.json()
     access_token = str(payload.get("access_token") or "")
+    id_token = str(payload.get("id_token") or "")
     if not access_token:
         raise RuntimeError("OAuth 回调响应缺少 access_token")
     refresh_token = str(payload.get("refresh_token") or account.REFRESH_TOKEN or "")
@@ -99,7 +129,7 @@ async def exchange_oauth_code(account: EmailAccount, code: str, redirect_uri: st
     account.ACCESS_TOKEN = access_token
     account.REFRESH_TOKEN = refresh_token
     account.TOKEN_EXPIRES_AT = int(time.time()) + expires_in
-    account.USERNAME = await fetch_oauth_email_address(account, access_token, proxy_url)
+    account.USERNAME = await fetch_oauth_email_address(account, access_token, proxy_url, id_token)
     return payload
 
 

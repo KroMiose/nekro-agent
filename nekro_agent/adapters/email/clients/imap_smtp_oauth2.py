@@ -5,9 +5,12 @@ from collections.abc import Callable
 from email.mime.multipart import MIMEMultipart
 
 from nekro_agent.adapters.email.config import EmailAccount
+from nekro_agent.core.logger import get_sub_logger
 
 from .imap_smtp_password import ImapSmtpPasswordClient, ProxiedIMAP4SSL, ProxiedSMTP, ProxiedSMTPSSL
 from .oauth import OAuthTokenManager
+
+logger = get_sub_logger("adapter.email.client")
 
 
 class ImapSmtpOAuth2Client(ImapSmtpPasswordClient):
@@ -44,7 +47,7 @@ class ImapSmtpOAuth2Client(ImapSmtpPasswordClient):
                 access_token,
             )
         except Exception:
-            if not use_ssl_preferred:
+            if not use_ssl_preferred and smtp_ssl_port != smtp_port:
                 await self._send_mail_oauth2(message, smtp_host, smtp_ssl_port, True, access_token)
             else:
                 raise
@@ -85,7 +88,9 @@ class ImapSmtpOAuth2Client(ImapSmtpPasswordClient):
                 else:
                     server_context = smtp_ssl_cls(smtp_host, port, timeout=60)
                 with server_context as server:
-                    server.auth("XOAUTH2", auth_object)
+                    server.ehlo()
+                    auth_code, auth_response = server.auth("XOAUTH2", auth_object)
+                    logger.debug(f"SMTP XOAUTH2 认证结果: host={smtp_host}, port={port}, code={auth_code}, response={auth_response!r}")
                     server.send_message(message)
             else:
                 smtp_cls = ProxiedSMTP if self.proxy_url else smtplib.SMTP
@@ -94,8 +99,11 @@ class ImapSmtpOAuth2Client(ImapSmtpPasswordClient):
                 else:
                     server_context = smtp_cls(smtp_host, port, timeout=60)
                 with server_context as server:
+                    server.ehlo()
                     server.starttls()
-                    server.auth("XOAUTH2", auth_object)
+                    server.ehlo()
+                    auth_code, auth_response = server.auth("XOAUTH2", auth_object)
+                    logger.debug(f"SMTP XOAUTH2 认证结果: host={smtp_host}, port={port}, code={auth_code}, response={auth_response!r}")
                     server.send_message(message)
 
         await asyncio.to_thread(_sync_send)
