@@ -79,8 +79,10 @@ class GroupIncreaseNoticeHandler(BaseNoticeHandler):
         return NoticeConfig(force_tome=True, use_system_sender=True)
 
     async def is_enabled(self, db_chat_channel: DBChatChannel) -> bool:
-        effective_config = await db_chat_channel.get_effective_config()
-        return effective_config.SESSION_GROUP_WELCOME_ENABLED
+        from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
+
+        adapter = db_chat_channel.adapter.cast(OnebotV11Adapter)
+        return adapter.config.SESSION_GROUP_WELCOME_ENABLED
 
     def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_increase":
@@ -100,8 +102,10 @@ class GroupDecreaseNoticeHandler(BaseNoticeHandler):
         return NoticeConfig(force_tome=True, use_system_sender=True)
 
     async def is_enabled(self, db_chat_channel: DBChatChannel) -> bool:
-        effective_config = await db_chat_channel.get_effective_config()
-        return effective_config.SESSION_GROUP_LEAVE_NOTICE_ENABLED
+        from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
+
+        adapter = db_chat_channel.adapter.cast(OnebotV11Adapter)
+        return adapter.config.SESSION_GROUP_LEAVE_NOTICE_ENABLED
 
     def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_decrease":
