@@ -43,6 +43,7 @@ import OneBotV11NapCatPage from '../pages/adapter/onebot_v11/napcat'
 import OneBotV11LogsPage from '../pages/adapter/onebot_v11/logs'
 import WechatOpenILinkLoginPage from '../pages/adapter/wechat_openilink/login'
 import EmailsPage from '../pages/adapter/email/emails'
+import EmailAccountsPage from '../pages/adapter/email/accounts'
 
 export interface AdapterTabConfig {
   label: string
@@ -481,6 +482,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.accounts',
+        value: 'accounts',
+        icon: <EmailIcon fontSize="small" />,
+        path: 'accounts',
+        component: <EmailAccountsPage />,
       },
       {
         label: 'tabs.emails',

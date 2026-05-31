@@ -855,8 +855,6 @@ function WelcomeStep({
   useEffect(() => {
     if (isExiting) return // 转场中停止打字计时器，节省开销
 
-    let timer: number
-
     const handleType = () => {
       const i = loopNum % helloWords.length
       const fullText = helloWords[i]
@@ -889,7 +887,7 @@ function WelcomeStep({
       }
     }
 
-    timer = window.setTimeout(handleType, typingSpeed)
+    const timer = window.setTimeout(handleType, typingSpeed)
     return () => window.clearTimeout(timer)
   }, [displayText, isDeleting, loopNum, typingSpeed, isExiting])
 
