@@ -40,3 +40,20 @@ def set_auto_inject_mcp_servers(servers: List[Dict[str, Any]]) -> None:
         json.dumps({"servers": servers}, indent=2),
         encoding="utf-8",
     )
+
+
+def update_auto_inject_validation(name: str, validation_state: Dict[str, Any]) -> bool:
+    """更新自动注入清单中某个 server 的 validation 字段。
+
+    返回 True 表示找到并更新成功，False 表示该 name 不在清单内。
+    """
+    servers = get_auto_inject_mcp_servers()
+    found = False
+    for entry in servers:
+        if (entry or {}).get("name") == name:
+            entry["validation"] = validation_state
+            found = True
+            break
+    if found:
+        set_auto_inject_mcp_servers(servers)
+    return found

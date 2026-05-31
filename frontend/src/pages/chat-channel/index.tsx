@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState, useEffect } from 'react'
+import { useDeferredValue, useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -15,6 +15,7 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
 import { CARD_VARIANTS } from '../../theme/variants'
@@ -28,7 +29,10 @@ import {
   isChatChannelDetailTab,
   type ChatChannelDetailTab,
 } from '../../router/routes'
-import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
+import {
+  chatChannelApi,
+  type ChatChannel,
+} from '../../services/api/chat-channel'
 
 export default function ChatChannelPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -52,31 +56,23 @@ export default function ChatChannelPage() {
   useEffect(() => { sessionStorage.setItem('chatChannel.chatType', chatType) }, [chatType])
   useEffect(() => { sessionStorage.setItem('chatChannel.status', status) }, [status])
 
-  // 使用全局频道目录
-  const { channels, isLoading } = useChannelDirectoryContext()
-
-  // 延迟搜索值，避免每次按键都触发全量过滤
+  // 延迟搜索值，避免每次按键都触发请求
   const deferredSearch = useDeferredValue(search)
 
-  // 前端过滤
-  const filteredChannels = useMemo(() => {
-    let result = channels
-    if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase()
-      result = result.filter(
-        ch =>
-          ch.chat_key.toLowerCase().includes(lower) ||
-          (ch.channel_name ?? '').toLowerCase().includes(lower),
-      )
-    }
-    if (chatType) {
-      result = result.filter(ch => ch.chat_type === chatType)
-    }
-    if (status) {
-      result = result.filter(ch => ch.status === status)
-    }
-    return result
-  }, [channels, deferredSearch, chatType, status])
+  const { data, isLoading } = useQuery({
+    queryKey: ['chat-channel-management-list', deferredSearch, chatType, status],
+    queryFn: () =>
+      chatChannelApi.getList({
+        page: 1,
+        page_size: 1000,
+        search: deferredSearch || undefined,
+        chat_type: chatType || undefined,
+        status: status === '' ? undefined : status as ChatChannel['status'],
+      }),
+    staleTime: 30_000,
+  })
+
+  const filteredChannels = data?.items ?? []
 
   useEffect(() => {
     const legacyChatKey = searchParams.get('chat_key')

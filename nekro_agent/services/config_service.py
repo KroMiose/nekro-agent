@@ -532,6 +532,7 @@ class ConfigService:
                 "required",
                 "is_hidden",
                 "ref_model_groups",
+                "ref_email_accounts_send_enabled",
                 "model_type",
                 "sub_item_name",
                 "enable_toggle",

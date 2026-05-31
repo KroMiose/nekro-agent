@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import SearchIcon from '@mui/icons-material/Search'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { InputAdornment, SxProps, TextField, TextFieldProps, Theme } from '@mui/material'
@@ -21,6 +22,9 @@ export default function SearchField({
   size = 'small',
   ...props
 }: SearchFieldProps) {
+  const [isComposing, setIsComposing] = useState(false)
+  const [compositionValue, setCompositionValue] = useState(value)
+  const displayValue = isComposing ? compositionValue : value
   const mergedSx = (
     sx
       ? [INPUT_VARIANTS.default.styles, sx]
@@ -30,9 +34,27 @@ export default function SearchField({
   return (
     <TextField
       {...props}
-      value={value}
+      value={displayValue}
       size={size}
-      onChange={event => onChange(event.target.value)}
+      onCompositionStart={event => {
+        const nextValue = event.target instanceof HTMLInputElement ? event.target.value : ''
+        setIsComposing(true)
+        setCompositionValue(nextValue)
+      }}
+      onCompositionEnd={event => {
+        const nextValue = event.target instanceof HTMLInputElement ? event.target.value : ''
+        setIsComposing(false)
+        setCompositionValue(nextValue)
+        onChange(nextValue)
+      }}
+      onChange={event => {
+        const nextValue = event.target.value
+        if (isComposing || event.nativeEvent.isComposing) {
+          setCompositionValue(nextValue)
+          return
+        }
+        onChange(nextValue)
+      }}
       sx={mergedSx}
       InputProps={{
         ...InputProps,
@@ -42,7 +64,7 @@ export default function SearchField({
           </InputAdornment>
         ),
         endAdornment:
-          value && onClear ? (
+          displayValue && onClear ? (
             <InputAdornment position="end">
               <IconActionButton
                 tone="subtle"
