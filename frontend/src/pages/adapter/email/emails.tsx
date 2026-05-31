@@ -430,11 +430,13 @@ export default function EmailsPage() {
               {t('emails.listTitle')}
             </Typography>
             <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 220 } }}>
-              <InputLabel id="email-account-filter-label">{t('emails.accountFilter')}</InputLabel>
-              <Select
+              <InputLabel id="email-account-filter-label" shrink>{t('emails.accountFilter')}</InputLabel>
+              <Select<string>
                 labelId="email-account-filter-label"
                 value={selectedAccount}
                 label={t('emails.accountFilter')}
+                displayEmpty
+                renderValue={value => value || t('emails.allAccounts')}
                 onChange={event => handleChangeAccount(event.target.value)}
               >
                 <MenuItem value="">{t('emails.allAccounts')}</MenuItem>
