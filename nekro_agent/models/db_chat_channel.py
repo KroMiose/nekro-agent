@@ -62,6 +62,20 @@ class DBChatChannel(Model):
         table = "chat_channel"
 
     @classmethod
+    def _get_default_channel_status(cls, adapter_key: str, channel_type: ChatType) -> ChannelStatus:
+        try:
+            adapter = adapter_utils.get_adapter(adapter_key)
+            return ChannelStatus(adapter.get_default_channel_status(channel_type))
+        except Exception as e:
+            logger.debug(f"获取适配器默认频道状态失败，使用全局配置: {adapter_key}, {e!s}")
+
+        if channel_type == ChatType.GROUP and config.SESSION_GROUP_ACTIVE_DEFAULT:
+            return ChannelStatus.ACTIVE
+        if channel_type == ChatType.PRIVATE and config.SESSION_PRIVATE_ACTIVE_DEFAULT:
+            return ChannelStatus.ACTIVE
+        return ChannelStatus.DISABLED
+
+    @classmethod
     async def get_or_create(
         cls,
         adapter_key: str,
@@ -72,16 +86,15 @@ class DBChatChannel(Model):
         """获取或创建聊天频道"""
         channel = await cls.get_or_none(adapter_key=adapter_key, channel_id=channel_id)
         if not channel:
-            is_active = (channel_type == ChatType.GROUP and config.SESSION_GROUP_ACTIVE_DEFAULT) or (
-                channel_type == ChatType.PRIVATE and config.SESSION_PRIVATE_ACTIVE_DEFAULT
-            )
+            default_status = cls._get_default_channel_status(adapter_key=adapter_key, channel_type=channel_type)
             channel = await cls.create(
                 adapter_key=adapter_key,
                 channel_id=channel_id,
                 channel_type=channel_type.value,
                 channel_name=channel_name,
                 chat_key=f"{adapter_key}-{channel_id}",
-                is_active=is_active,
+                is_active=default_status != ChannelStatus.DISABLED,
+                observe_mode=default_status == ChannelStatus.OBSERVE,
                 data=json.dumps({}),
             )
         else:

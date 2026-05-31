@@ -144,6 +144,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         self._polling_active = False
         self._last_polling_status_log_at: float | None = None
 
+    def get_default_channel_status(self, channel_type: ChatType) -> str:
+        if channel_type in {ChatType.GROUP, ChatType.PRIVATE}:
+            return "disabled"
+        return super().get_default_channel_status(channel_type)
+
     def _html_to_text(self, html_content: str) -> str:
         """提取HTML中的文字，去除标签/脚本，便于聊天展示"""
         extractor = _HTMLTextExtractor()
