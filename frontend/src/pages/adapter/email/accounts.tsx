@@ -441,9 +441,7 @@ export default function EmailAccountsPage() {
                 </Stack>
               </Alert>
             )}
-            {isOauthProvider ? (
-              <Alert severity="info">{t('emailAccounts.oauthUsernameHint')}</Alert>
-            ) : (
+            {!isOauthProvider && (
               <TextField
                 label={t('emailAccounts.username')}
                 value={form.USERNAME}

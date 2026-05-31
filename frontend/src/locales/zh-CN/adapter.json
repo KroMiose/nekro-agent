@@ -234,7 +234,6 @@
     "tenantId": "Microsoft Tenant ID",
     "tenantIdHelp": "个人账户可使用 common，企业账户可填写 organizations 或指定租户 ID。",
     "oauthPending": "点击连接后会自动保存账户并跳转到官方登录页面，登录成功后会自动使用授权的邮箱地址完成绑定。",
-    "oauthUsernameHint": "无需填写邮箱账户，登录成功后会自动使用授权的 Google / Microsoft 邮箱地址。",
     "connectGoogle": "连接 Google",
     "connectMicrosoft": "连接 Microsoft",
     "saveBeforeAuthorize": "请先保存账户，再发起官方授权。",

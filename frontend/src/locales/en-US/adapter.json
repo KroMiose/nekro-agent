@@ -234,7 +234,6 @@
     "tenantId": "Microsoft Tenant ID",
     "tenantIdHelp": "Use common for personal accounts, organizations for work accounts, or a specific tenant ID.",
     "oauthPending": "Click connect to save the account automatically and open the official login page. After login, the authorized Google / Microsoft email address will be used automatically.",
-    "oauthUsernameHint": "No need to enter an email account. After login, the authorized Google / Microsoft email address will be used automatically.",
     "connectGoogle": "Connect Google",
     "connectMicrosoft": "Connect Microsoft",
     "saveBeforeAuthorize": "Save the account before starting official authorization.",
