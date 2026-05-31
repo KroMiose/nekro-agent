@@ -1,5 +1,5 @@
 from contextlib import suppress
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -157,6 +157,18 @@ class EmailAccount(BaseModel):
             ),
         ).model_dump(),
     )
+    AUTH_TYPE: Literal["password", "oauth2"] = Field(default="password", title="认证方式")
+    TRANSPORT_TYPE: Literal["imap_smtp", "gmail_api", "microsoft_graph"] = Field(default="imap_smtp", title="收发信方式")
+    OAUTH_PROVIDER: Literal["", "google", "microsoft"] = Field(default="", title="OAuth 提供商")
+    CLIENT_ID: str = Field(default="", title="OAuth Client ID")
+    CLIENT_SECRET: str = Field(default="", title="OAuth Client Secret")
+    TENANT_ID: str = Field(default="common", title="Microsoft Tenant ID")
+    ACCESS_TOKEN: str = Field(default="", title="OAuth Access Token")
+    REFRESH_TOKEN: str = Field(default="", title="OAuth Refresh Token")
+    TOKEN_EXPIRES_AT: int = Field(default=0, title="OAuth Token 过期时间戳")
+    LAST_TEST_SUCCESS: Optional[bool] = Field(default=None, title="最近一次连接测试是否成功")
+    LAST_TEST_MESSAGE: str = Field(default="", title="最近一次连接测试消息")
+    LAST_TEST_TIME: int = Field(default=0, title="最近一次连接测试时间戳")
     SEND_ENABLED: bool = Field(
         default=False,
         title="启用发信",
@@ -220,16 +232,16 @@ class EmailConfig(BaseAdapterConfig):
     RECEIVE_ACCOUNTS: List[EmailAccount] = Field(
         default_factory=list,
         title="邮箱账户列表",
-        description="用于接收邮件的 IMAP 账户列表（主机、端口、SSL、用户名、密码）",
+        description="邮箱账户列表，请在 Email 适配器的账户管理页面维护",
         json_schema_extra=ExtraField(
-            required=True,
+            is_hidden=True,
             sub_item_name="邮箱账户",
-            placeholder="添加你的邮箱账户",
+            placeholder="请在 Email 适配器的账户管理页面添加邮箱账户",
             i18n_category=i18n_text(zh_CN="邮箱账户", en_US="Email Accounts"),
             i18n_title=i18n_text(zh_CN="邮箱账户列表", en_US="Email Account List"),
             i18n_description=i18n_text(
-                zh_CN="用于接收邮件的 IMAP 账户列表（主机、端口、SSL、用户名、密码）",
-                en_US="List of IMAP accounts used to receive emails, including host, port, SSL, username, and password.",
+                zh_CN="邮箱账户列表，请在 Email 适配器的账户管理页面维护。",
+                en_US="Email account list. Manage these accounts on the Email adapter account page.",
             ),
         ).model_dump(),
     )
@@ -284,6 +296,20 @@ class EmailConfig(BaseAdapterConfig):
             i18n_description=i18n_text(
                 zh_CN=r"启用后在读取并收集消息后将邮件标记为已读(\Seen)",
                 en_US=r"When enabled, emails will be marked as seen (\Seen) after they are fetched and collected.",
+            ),
+        ).model_dump(),
+    )
+    OAUTH_PROXY: str = Field(
+        default="",
+        title="国外邮箱登录代理",
+        description="用于 Gmail/Outlook 官方登录、授权回调与 Token 刷新的代理地址，例如 http://127.0.0.1:7890。留空则不使用代理",
+        json_schema_extra=ExtraField(
+            placeholder="http://127.0.0.1:7890",
+            i18n_category=i18n_text(zh_CN="邮箱登录", en_US="Email Login"),
+            i18n_title=i18n_text(zh_CN="国外邮箱登录代理", en_US="OAuth Proxy"),
+            i18n_description=i18n_text(
+                zh_CN="用于 Gmail/Outlook 官方登录、授权回调与 Token 刷新的代理地址，例如 http://127.0.0.1:7890。留空则不使用代理。",
+                en_US="Proxy URL used for Gmail/Outlook official login, OAuth callback, and token refresh, for example http://127.0.0.1:7890. Leave empty to disable proxy.",
             ),
         ).model_dump(),
     )

@@ -78,7 +78,6 @@ import email
 import imaplib
 import os
 import re
-import smtplib
 import time
 from datetime import datetime, timedelta
 from email.header import decode_header
@@ -426,10 +425,6 @@ async def send_email(
         if not sender:
             raise Exception("没有找到可用的发件人账户")
 
-    def _raise_if_no_smtp_host(host: str, email_account: str) -> None:
-        if not host:
-            raise Exception(f"未找到 {email_account} 的SMTP配置")
-
     try:
         # 获取邮箱适配器
         email_adapter = adapter_utils.get_adapter("email")
@@ -461,17 +456,6 @@ async def send_email(
         _raise_if_no_sender(sender_account)
         assert sender_account is not None  # Type narrowing for Pylance
 
-        # 获取SMTP配置（支持自定义提供商）
-        provider_config = email_adapter.get_provider_config_for_account(sender_account)
-        smtp_host = provider_config.get("smtp_host", "")
-        smtp_port = int(provider_config.get("smtp_port", 587))
-        smtp_ssl_port = int(provider_config.get("smtp_ssl_port", smtp_port))
-        # 将字符串 "true"/"false" 转换为布尔值
-        use_ssl_str = provider_config.get("smtp_use_ssl", "false").lower()
-        use_ssl_preferred = use_ssl_str == "true"
-
-        _raise_if_no_smtp_host(smtp_host, sender_account.EMAIL_ACCOUNT)
-
         # 创建邮件
         msg = MIMEMultipart()
         msg["From"] = sender_account.USERNAME
@@ -479,41 +463,8 @@ async def send_email(
         msg["Subject"] = subject
         msg.attach(MIMEText(content, "plain", "utf-8"))
 
-        async def _send_mail(use_ssl: bool, port: int) -> None:
-            def _sync_send() -> None:
-                if use_ssl:
-                    with smtplib.SMTP_SSL(smtp_host, port, timeout=60) as server:
-                        server.login(sender_account.USERNAME, sender_account.PASSWORD)
-                        server.send_message(msg)
-                else:
-                    with smtplib.SMTP(smtp_host, port, timeout=60) as server:
-                        server.starttls()
-                        server.login(sender_account.USERNAME, sender_account.PASSWORD)
-                        server.send_message(msg)
-
-            return await asyncio.to_thread(_sync_send)
-
-        try:
-            await _send_mail(use_ssl_preferred, smtp_ssl_port if use_ssl_preferred else smtp_port)
-        except Exception as e:
-            # 只在连接/认证错误时重试，避免邮件重复发送
-            error_msg = str(e).lower()
-            error_str = str(e)
-
-            # QQ 邮箱等可能在邮件发送成功后返回特殊响应码（如 -1）
-            # 这种情况下邮件实际已发送，不应重试
-            if "(-1," in error_str:
-                logger.warning(f"邮件可能已发送成功，但收到特殊响应码: {e}")
-                # 不抛出异常，视为发送成功
-            elif not use_ssl_preferred and (
-                "connect" in error_msg or "ssl" in error_msg or "tls" in error_msg or "certificate" in error_msg
-            ):
-                # 只在连接相关错误时尝试 SSL
-                logger.info(f"非 SSL 连接失败，尝试使用 SSL 连接: {e}")
-                await _send_mail(True, smtp_ssl_port)
-            else:
-                # 其他错误直接抛出
-                raise
+        client = email_adapter.email_clients.get(sender_account.USERNAME) or email_adapter._create_email_client(sender_account)
+        await client.send_message(msg)
     except Exception as e:
         logger.error(f"发送邮件失败: {e}")
         return {
