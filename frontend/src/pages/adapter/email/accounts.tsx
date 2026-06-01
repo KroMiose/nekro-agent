@@ -79,6 +79,7 @@ const defaultAccount: EmailAccount = {
   CUSTOM_SMTP_SSL_PORT: 465,
   CUSTOM_SMTP_USE_SSL: true,
   ENABLED: true,
+  USE_PROXY: false,
   USERNAME: '',
   PASSWORD: '',
   SEND_ENABLED: false,
@@ -354,6 +355,7 @@ export default function EmailAccountsPage() {
               <TableCell>{t('emailAccounts.username')}</TableCell>
               <TableCell>{t('emailAccounts.authType')}</TableCell>
               <TableCell>{t('emailAccounts.transportType')}</TableCell>
+              <TableCell>{t('emailAccounts.useProxy')}</TableCell>
               <TableCell>{t('emailAccounts.connectionStatus')}</TableCell>
               <TableCell>{t('emailAccounts.sendEnabled')}</TableCell>
               <TableCell>{t('emailAccounts.defaultSender')}</TableCell>
@@ -376,6 +378,7 @@ export default function EmailAccountsPage() {
                 <TableCell>{account.USERNAME || '-'}</TableCell>
                 <TableCell>{t(`emailAccounts.authTypes.${account.AUTH_TYPE || 'password'}`)}</TableCell>
                 <TableCell>{t(`emailAccounts.transportTypes.${account.TRANSPORT_TYPE || 'imap_smtp'}`)}</TableCell>
+                <TableCell>{account.USE_PROXY ? t('emailAccounts.yes') : t('emailAccounts.no')}</TableCell>
                 <TableCell>
                   <Chip
                     size="small"
@@ -419,7 +422,7 @@ export default function EmailAccountsPage() {
               )
             }) : (
               <TableRow>
-                <TableCell colSpan={9} align="center">
+                <TableCell colSpan={10} align="center">
                   <Typography color="text.secondary">{t('emailAccounts.empty')}</Typography>
                 </TableCell>
               </TableRow>
@@ -585,20 +588,35 @@ export default function EmailAccountsPage() {
                 helperText={editingIndex !== null && form.HAS_PASSWORD ? t('emailAccounts.passwordHelp') : undefined}
               />
             )}
-            <Stack direction="row" spacing={2} flexWrap="wrap">
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' },
+                columnGap: 2,
+                rowGap: 1,
+              }}
+            >
               <FormControlLabel
                 control={<Switch checked={form.ENABLED} onChange={event => updateForm('ENABLED', event.target.checked)} />}
                 label={t('emailAccounts.enabled')}
+                sx={{ m: 0 }}
               />
               <FormControlLabel
                 control={<Switch checked={form.SEND_ENABLED} onChange={event => updateForm('SEND_ENABLED', event.target.checked)} />}
                 label={t('emailAccounts.sendEnabled')}
+                sx={{ m: 0 }}
               />
               <FormControlLabel
                 control={<Switch checked={form.IS_DEFAULT_SENDER} onChange={event => updateForm('IS_DEFAULT_SENDER', event.target.checked)} />}
                 label={t('emailAccounts.defaultSender')}
+                sx={{ m: 0 }}
               />
-            </Stack>
+              <FormControlLabel
+                control={<Switch checked={form.USE_PROXY} onChange={event => updateForm('USE_PROXY', event.target.checked)} />}
+                label={t('emailAccounts.useProxy')}
+                sx={{ m: 0 }}
+              />
+            </Box>
 
             {form.EMAIL_ACCOUNT === '自定义' && (
               <Stack spacing={2}>

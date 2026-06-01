@@ -1140,13 +1140,14 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 logger.info(f"邮箱账户 {account.USERNAME} 映射到聊天 {chat_id}")
 
     def _create_email_client(self, account: EmailAccount) -> EmailClient:
+        proxy_url = self.config.OAUTH_PROXY if account.USE_PROXY else ""
         if account.AUTH_TYPE == "oauth2" and account.TRANSPORT_TYPE == "imap_smtp":
-            return ImapSmtpOAuth2Client(account, self.config.IMAP_TIMEOUT, self.config.OAUTH_PROXY, self.config.dump_config)
+            return ImapSmtpOAuth2Client(account, self.config.IMAP_TIMEOUT, proxy_url, self.config.dump_config)
         if account.TRANSPORT_TYPE == "gmail_api":
-            return GmailApiClient(account, self.config.OAUTH_PROXY)
+            return GmailApiClient(account, proxy_url)
         if account.TRANSPORT_TYPE == "microsoft_graph":
-            return MicrosoftGraphMailClient(account, self.config.OAUTH_PROXY)
-        return ImapSmtpPasswordClient(account, self.config.IMAP_TIMEOUT, self.config.OAUTH_PROXY)
+            return MicrosoftGraphMailClient(account, proxy_url)
+        return ImapSmtpPasswordClient(account, self.config.IMAP_TIMEOUT, proxy_url)
 
     async def _init_email_clients(self) -> None:
         """初始化邮件客户端连接"""

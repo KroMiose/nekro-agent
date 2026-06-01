@@ -16,6 +16,7 @@ export interface EmailAccount {
   CUSTOM_SMTP_USE_SSL: boolean
   ENABLED: boolean
   RECEIVE_ENABLED?: boolean
+  USE_PROXY: boolean
   USERNAME: string
   PASSWORD?: string
   HAS_PASSWORD?: boolean

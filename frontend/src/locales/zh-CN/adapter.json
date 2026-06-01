@@ -253,6 +253,7 @@
     "enabledYes": "已启用",
     "enabledNo": "已停用",
     "sendEnabled": "允许发信",
+    "useProxy": "使用邮箱连接代理",
     "defaultSender": "默认发件人",
     "actions": "操作",
     "configured": "已配置",

@@ -126,6 +126,19 @@ class EmailAccount(BaseModel):
             ),
         ).model_dump(),
     )
+    USE_PROXY: bool = Field(
+        default=False,
+        title="使用邮箱连接代理",
+        description="启用后，此账户的认证、IMAP/SMTP 或官方 API 连接会使用全局邮箱连接代理；关闭则直连",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="账户配置", en_US="Account Settings"),
+            i18n_title=i18n_text(zh_CN="使用邮箱连接代理", en_US="Use Mail Connection Proxy"),
+            i18n_description=i18n_text(
+                zh_CN="启用后，此账户的认证、IMAP/SMTP 或官方 API 连接会使用全局邮箱连接代理；关闭则直连。",
+                en_US="When enabled, this account uses the global mail connection proxy for authentication, IMAP/SMTP, or official API connections. When disabled, it connects directly.",
+            ),
+        ).model_dump(),
+    )
     USERNAME: str = Field(
         default="",
         title="邮箱用户名",
@@ -301,15 +314,15 @@ class EmailConfig(BaseAdapterConfig):
     )
     OAUTH_PROXY: str = Field(
         default="",
-        title="国外邮箱登录代理",
-        description="用于 Gmail/Outlook 官方登录、授权回调与 Token 刷新的代理地址，例如 http://127.0.0.1:7890。留空则不使用代理",
+        title="邮箱连接代理",
+        description="全局代理地址，例如 http://127.0.0.1:7890。仅在账户开启使用邮箱连接代理时用于认证、IMAP/SMTP 或官方 API 连接；留空则所有账户不使用代理",
         json_schema_extra=ExtraField(
             placeholder="http://127.0.0.1:7890",
-            i18n_category=i18n_text(zh_CN="邮箱登录", en_US="Email Login"),
-            i18n_title=i18n_text(zh_CN="国外邮箱登录代理", en_US="OAuth Proxy"),
+            i18n_category=i18n_text(zh_CN="邮箱连接", en_US="Mail Connection"),
+            i18n_title=i18n_text(zh_CN="邮箱连接代理", en_US="Mail Connection Proxy"),
             i18n_description=i18n_text(
-                zh_CN="用于 Gmail/Outlook 官方登录、授权回调与 Token 刷新的代理地址，例如 http://127.0.0.1:7890。留空则不使用代理。",
-                en_US="Proxy URL used for Gmail/Outlook official login, OAuth callback, and token refresh, for example http://127.0.0.1:7890. Leave empty to disable proxy.",
+                zh_CN="全局代理地址，例如 http://127.0.0.1:7890。仅在账户开启使用邮箱连接代理时用于认证、IMAP/SMTP 或官方 API 连接；留空则所有账户不使用代理。",
+                en_US="Global proxy URL, for example http://127.0.0.1:7890. It is used for authentication, IMAP/SMTP, or official API connections only when an account enables the mail connection proxy. Leave empty to disable proxy for all accounts.",
             ),
         ).model_dump(),
     )
@@ -519,9 +532,12 @@ class EmailConfig(BaseAdapterConfig):
             self.IMAP_TIMEOUT = 30
         if not isinstance(self.STATUS_MAIL_TARGETS, list):
             self.STATUS_MAIL_TARGETS = []
+        legacy_proxy_enabled = bool(str(getattr(self, "OAUTH_PROXY", "") or "").strip())
         for account in self.RECEIVE_ACCOUNTS:
             if not hasattr(account, "RECEIVE_ENABLED"):
                 account.RECEIVE_ENABLED = True
+            if legacy_proxy_enabled and "USE_PROXY" not in account.model_fields_set:
+                account.USE_PROXY = True
 
         # 互斥校验：最多仅允许一个默认发件人
         def _validate_default_sender() -> None:

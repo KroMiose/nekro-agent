@@ -253,6 +253,7 @@
     "enabledYes": "Enabled",
     "enabledNo": "Disabled",
     "sendEnabled": "Allow Sending",
+    "useProxy": "Use Mail Connection Proxy",
     "defaultSender": "Default Sender",
     "actions": "Actions",
     "configured": "Configured",

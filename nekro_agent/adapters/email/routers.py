@@ -293,8 +293,9 @@ async def handle_oauth_callback(index: int, request: dict, adapter=Depends(get_e
         raise HTTPException(status_code=400, detail="Missing code")
     if not redirect_uri:
         raise HTTPException(status_code=400, detail="Missing redirect_uri")
+    proxy_url = getattr(adapter.config, "OAUTH_PROXY", "") if account.USE_PROXY else ""
     try:
-        await exchange_oauth_code(account, code, redirect_uri, getattr(adapter.config, "OAUTH_PROXY", ""))
+        await exchange_oauth_code(account, code, redirect_uri, proxy_url)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     accounts[index] = account
