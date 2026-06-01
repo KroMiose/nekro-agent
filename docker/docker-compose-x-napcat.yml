@@ -34,6 +34,7 @@ services:
   nekro_agent:
     image: kromiose/nekro-agent:latest
     container_name: ${INSTANCE_NAME:-}nekro_agent
+    user: "1000:1000"  # 以 nekro 用户运行，需确保宿主机数据目录权限匹配
     environment:
       - NEKRO_INSTANCE_NAME=${INSTANCE_NAME:-}nekro_agent
       - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}

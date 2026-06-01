@@ -141,7 +141,7 @@ async def bytes_to_file(
     async with aiofiles.open(file_path, "wb") as f:
         await f.write(file_bytes)
 
-    file_path.chmod(0o755)
+    file_path.chmod(0o644)
     return str(file_path), file_name
 
 

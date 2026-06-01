@@ -52,6 +52,9 @@ RUN apt install -y git
 # 清理缓存
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 
+# 创建非 root 用户
+RUN groupadd -g 1000 nekro && useradd -u 1000 -g nekro -m nekro
+
 # 设置工作目录
 WORKDIR /app
 
@@ -79,11 +82,22 @@ COPY .env.prod ./
 # 从前端构建产物复制静态文件
 COPY --from=frontend-dist /frontend-dist ${STATIC_DIR}
 
+# 复制入口脚本
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
+# 设置 /app 目录权限
+RUN chown -R nekro:nekro /app
+
 # 暴露端口
 EXPOSE 8021
 
 # 健康检查
 HEALTHCHECK --interval=10s --timeout=3s CMD curl -f http://127.0.0.1:8021/api/health || exit 1
 
+# 切换到非 root 用户
+USER nekro
+
 # 启动应用
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["uv", "run", "bot", "--env=prod"]

@@ -114,7 +114,7 @@ async def download_file(
                 save_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path = str(save_path)
             Path(file_path).write_bytes(content)
-            Path(file_path).chmod(0o755)
+            Path(file_path).chmod(0o644)
     except Exception:
         if retry_count > 0:
             return await download_file(
@@ -156,7 +156,7 @@ async def download_file_from_bytes(
         save_path.parent.mkdir(parents=True, exist_ok=True)
         file_path = str(save_path)
     Path(file_path).write_bytes(bytes_data)
-    Path(file_path).chmod(0o755)
+    Path(file_path).chmod(0o644)
     return file_path, file_name
 
 
@@ -192,7 +192,7 @@ async def download_file_from_base64(
         save_path.parent.mkdir(parents=True, exist_ok=True)
         file_path = str(save_path)
     Path(file_path).write_bytes(base64.b64decode(base64_str.encode(encoding="utf-8")))
-    Path(file_path).chmod(0o755)
+    Path(file_path).chmod(0o644)
     return file_path, file_name
 
 
@@ -219,7 +219,7 @@ async def copy_to_upload_dir(
         save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
     save_path.parent.mkdir(parents=True, exist_ok=True)
     Path(save_path).write_bytes(Path(file_path).read_bytes())
-    Path(save_path).chmod(0o755)
+    Path(save_path).chmod(0o644)
     return str(save_path), file_name
 
 

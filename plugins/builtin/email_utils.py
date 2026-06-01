@@ -276,7 +276,7 @@ async def send_email_attachment(
             content = await src_file.read()
         async with aiofiles.open(target_path, "wb") as target_file:
             await target_file.write(content)
-        target_path.chmod(0o755)
+        target_path.chmod(0o644)
 
         logger.info(f"[附件发送] 文件复制到宿主机: {target_path}")
         logger.info(f"[附件发送] 参数 chat_key: {chat_key}")
