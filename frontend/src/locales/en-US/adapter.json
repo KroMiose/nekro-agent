@@ -178,7 +178,7 @@
   },
   "emails": {
     "title": "Email List",
-    "subtitle": "Browse synced emails by time and open any message to read the body and headers.",
+    "subtitle": "Browse synced emails by time, filter by account, and inspect body, headers, and attachments.",
     "listTitle": "Mail Summary",
     "accountFilter": "Email Account",
     "allAccounts": "All Accounts",
@@ -219,7 +219,7 @@
   },
   "emailAccounts": {
     "title": "Email Accounts",
-    "description": "Manage receiving and sending accounts for the Email adapter. Account data is still stored in the adapter RECEIVE_ACCOUNTS config, not in the database.",
+    "description": "Manage Email adapter accounts, official login authorization, default sender selection, and manual inbox diagnostics. Account data is stored in RECEIVE_ACCOUNTS.",
     "refresh": "Refresh",
     "add": "Add Account",
     "edit": "Edit Account",

@@ -458,8 +458,8 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
       iconText: 'Mail',
       navIcon: <EmailIcon />,
       description:
-        '邮箱适配器，支持通过IMAP/SMTP协议收发邮件，将同一邮箱账户的邮件归属到同一聊天中',
-      tags: ['Email', '邮件', 'IMAP', 'SMTP', '聊天'],
+        '邮箱适配器，支持多账户收发、Gmail/Outlook 官方登录、邮件同步、附件流转和收件诊断',
+      tags: ['Email', '邮件', 'IMAP', 'SMTP', 'OAuth', '附件'],
     },
     tabs: [
       {

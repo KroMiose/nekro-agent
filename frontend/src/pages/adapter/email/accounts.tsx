@@ -332,9 +332,6 @@ export default function EmailAccountsPage() {
       <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }} spacing={2}>
         <Box>
           <Typography variant="h6">{t('emailAccounts.title')}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {t('emailAccounts.description')}
-          </Typography>
         </Box>
         <Stack direction="row" spacing={1}>
           <Button startIcon={<RefreshIcon />} onClick={() => refetch()} disabled={isLoading}>

@@ -383,11 +383,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         """适配器元数据"""
         return AdapterMetadata(
             name="Email",
-            description="邮箱适配器，支持通过IMAP/SMTP协议收发邮件",
-            version="1.0.0",
+            description="邮箱适配器，支持多账户 IMAP/SMTP 收发、Gmail/Outlook 官方登录、邮件同步、附件流转和手动收件诊断",
+            version="2.0.0",
             author="NekroAI",
             homepage="https://github.com/nekro-agent/nekro-agent",
-            tags=["email", "imap", "smtp", "mail"],
+            tags=["email", "imap", "smtp", "oauth", "mail"],
         )
 
     async def init(self) -> None:

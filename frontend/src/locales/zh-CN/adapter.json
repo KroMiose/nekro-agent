@@ -178,7 +178,7 @@
   },
   "emails": {
     "title": "邮件列表",
-    "subtitle": "按时间查看已同步邮件，点开可直接阅读正文和邮件头信息。",
+    "subtitle": "按时间查看已同步邮件，支持按账户筛选、阅读正文、查看邮件头与附件信息。",
     "listTitle": "邮件摘要",
     "accountFilter": "邮箱账户",
     "allAccounts": "全部邮箱",
@@ -219,7 +219,7 @@
   },
   "emailAccounts": {
     "title": "邮箱账户",
-    "description": "管理 Email 适配器的收发信账户。账户信息仍保存到适配器配置 RECEIVE_ACCOUNTS，不写入数据库。",
+    "description": "管理 Email 适配器的多账户收发、官方登录授权、默认发件人与手动收件诊断。账户信息保存到适配器配置 RECEIVE_ACCOUNTS。",
     "refresh": "刷新",
     "add": "添加账户",
     "edit": "编辑账户",
