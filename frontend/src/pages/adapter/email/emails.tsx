@@ -377,6 +377,7 @@ export default function EmailsPage() {
   }
 
   const accounts: EmailAccount[] = accountsData?.accounts ?? []
+  const accountLabelMap = new Map(accounts.map(account => [account.USERNAME, account.DISPLAY_LABEL || account.USERNAME]))
 
   if (isLoading) {
     return (
@@ -436,13 +437,13 @@ export default function EmailsPage() {
                 value={selectedAccount}
                 label={t('emails.accountFilter')}
                 displayEmpty
-                renderValue={value => value || t('emails.allAccounts')}
+                renderValue={value => value ? accountLabelMap.get(value) || value : t('emails.allAccounts')}
                 onChange={event => handleChangeAccount(event.target.value)}
               >
                 <MenuItem value="">{t('emails.allAccounts')}</MenuItem>
                 {accounts.map(account => (
                   <MenuItem key={account.USERNAME} value={account.USERNAME}>
-                    {account.USERNAME}
+                    {account.DISPLAY_LABEL || account.USERNAME}
                   </MenuItem>
                 ))}
               </Select>

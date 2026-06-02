@@ -62,6 +62,7 @@ function getOAuthRedirectUri() {
 }
 
 const defaultAccount: EmailAccount = {
+  DISPLAY_NAME: '',
   EMAIL_ACCOUNT: 'QQ邮箱',
   AUTH_TYPE: 'password',
   TRANSPORT_TYPE: 'imap_smtp',
@@ -89,6 +90,7 @@ const defaultAccount: EmailAccount = {
 function buildPayload(form: EmailAccount, editing: boolean): Partial<EmailAccount> {
   const payload: Partial<EmailAccount> = { ...form }
   delete payload.index
+  delete payload.DISPLAY_LABEL
   delete payload.HAS_PASSWORD
   if (editing && !payload.PASSWORD?.trim()) {
     delete payload.PASSWORD
@@ -352,6 +354,7 @@ export default function EmailAccountsPage() {
             <TableRow>
               <TableCell>{t('emailAccounts.enabled')}</TableCell>
               <TableCell>{t('emailAccounts.provider')}</TableCell>
+              <TableCell>{t('emailAccounts.displayName')}</TableCell>
               <TableCell>{t('emailAccounts.username')}</TableCell>
               <TableCell>{t('emailAccounts.authType')}</TableCell>
               <TableCell>{t('emailAccounts.transportType')}</TableCell>
@@ -375,6 +378,7 @@ export default function EmailAccountsPage() {
                   />
                 </TableCell>
                 <TableCell>{account.EMAIL_ACCOUNT}</TableCell>
+                <TableCell>{account.DISPLAY_NAME || '-'}</TableCell>
                 <TableCell>{account.USERNAME || '-'}</TableCell>
                 <TableCell>{t(`emailAccounts.authTypes.${account.AUTH_TYPE || 'password'}`)}</TableCell>
                 <TableCell>{t(`emailAccounts.transportTypes.${account.TRANSPORT_TYPE || 'imap_smtp'}`)}</TableCell>
@@ -422,7 +426,7 @@ export default function EmailAccountsPage() {
               )
             }) : (
               <TableRow>
-                <TableCell colSpan={10} align="center">
+                <TableCell colSpan={11} align="center">
                   <Typography color="text.secondary">{t('emailAccounts.empty')}</Typography>
                 </TableCell>
               </TableRow>
@@ -513,6 +517,13 @@ export default function EmailAccountsPage() {
                 ))}
               </Select>
             </FormControl>
+            <TextField
+              label={t('emailAccounts.displayName')}
+              value={form.DISPLAY_NAME}
+              onChange={event => updateForm('DISPLAY_NAME', event.target.value)}
+              fullWidth
+              helperText={t('emailAccounts.displayNameHelp')}
+            />
             {currentProviderLinks.length > 0 && (
               <Alert severity="info">
                 <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">

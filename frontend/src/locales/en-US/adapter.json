@@ -225,6 +225,8 @@
     "edit": "Edit Account",
     "delete": "Delete Account",
     "provider": "Email Provider",
+    "displayName": "Display Name",
+    "displayNameHelp": "Used to distinguish email accounts in account lists, plugin tools, and selectors. When empty, the email address is shown.",
     "username": "Email Account",
     "password": "Password / App Password",
     "connectionStatus": "Connection Status",

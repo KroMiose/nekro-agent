@@ -327,7 +327,7 @@ async def send_email_attachment(
 
 
 @plugin.mount_sandbox_method(
-    method_type=SandboxMethodType.TOOL,
+    method_type=SandboxMethodType.AGENT,
     name="get_email_accounts",
     description="获取当前所有邮箱账户信息",
 )
@@ -344,6 +344,8 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
 
     返回:
         List[Dict[str, Any]]: 邮箱账户列表，每个账户包含以下字段:
+            - display_name (str): 用户配置的账户显示名称
+            - display_label (str): 展示用账户标签
             - email_address (str): 邮箱地址
             - provider (str): 邮箱服务商名称（如 "QQ邮箱"、"163邮箱"）
             - send_enabled (bool): 是否启用发信功能
@@ -352,6 +354,12 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
     def _raise_if_no_adapter(adapter) -> None:
         if not adapter:
             raise Exception("邮箱适配器未启用或未找到")
+
+    def _build_display_label(account: EmailAccount) -> str:
+        display_name = account.DISPLAY_NAME.strip()
+        if display_name and account.USERNAME:
+            return f"{display_name} ({account.USERNAME})"
+        return display_name or account.USERNAME or account.EMAIL_ACCOUNT
 
     try:
         # 获取邮箱适配器
@@ -370,6 +378,8 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
             if account.ENABLED:
                 accounts.append(
                     {
+                        "display_name": account.DISPLAY_NAME,
+                        "display_label": _build_display_label(account),
                         "email_address": account.USERNAME,
                         "provider": account.EMAIL_ACCOUNT,
                         "send_enabled": account.SEND_ENABLED,

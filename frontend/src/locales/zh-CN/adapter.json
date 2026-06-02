@@ -225,6 +225,8 @@
     "edit": "编辑账户",
     "delete": "删除账户",
     "provider": "邮箱提供商",
+    "displayName": "显示名称",
+    "displayNameHelp": "用于在账户列表、插件工具和选择器中区分邮箱账户，留空时显示邮箱地址。",
     "username": "邮箱账户",
     "password": "密码/授权码",
     "connectionStatus": "连接状态",

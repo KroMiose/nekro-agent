@@ -7,6 +7,8 @@ export type EmailOAuthProvider = '' | 'google' | 'microsoft'
 
 export interface EmailAccount {
   index?: number
+  DISPLAY_NAME: string
+  DISPLAY_LABEL?: string
   EMAIL_ACCOUNT: EmailProvider
   CUSTOM_IMAP_HOST: string
   CUSTOM_IMAP_PORT: number

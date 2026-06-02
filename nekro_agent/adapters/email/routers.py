@@ -78,6 +78,13 @@ def _normalize_default_sender(accounts: List[EmailAccount], selected_index: int 
         account.IS_DEFAULT_SENDER = index == selected
 
 
+def build_account_display_label(account: EmailAccount) -> str:
+    display_name = account.DISPLAY_NAME.strip()
+    if display_name and account.USERNAME:
+        return f"{display_name} ({account.USERNAME})"
+    return display_name or account.USERNAME or account.EMAIL_ACCOUNT
+
+
 def _sanitize_account(account: EmailAccount, index: int) -> dict:
     data = account.model_dump()
     has_password = bool(data.get("PASSWORD"))
@@ -90,6 +97,7 @@ def _sanitize_account(account: EmailAccount, index: int) -> dict:
     data["HAS_PASSWORD"] = has_password
     data["HAS_CLIENT_SECRET"] = has_client_secret
     data["OAUTH_CONNECTED"] = has_refresh_token
+    data["DISPLAY_LABEL"] = build_account_display_label(account)
     data["index"] = index
     return data
 

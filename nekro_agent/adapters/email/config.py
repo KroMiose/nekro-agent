@@ -9,6 +9,19 @@ from nekro_agent.schemas.i18n import i18n_text
 
 
 class EmailAccount(BaseModel):
+    DISPLAY_NAME: str = Field(
+        default="",
+        title="账户显示名称",
+        description="用于在账户列表、插件工具和选择器中区分邮箱账户；留空时显示邮箱地址",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="账户配置", en_US="Account Settings"),
+            i18n_title=i18n_text(zh_CN="账户显示名称", en_US="Account Display Name"),
+            i18n_description=i18n_text(
+                zh_CN="用于在账户列表、插件工具和选择器中区分邮箱账户；留空时显示邮箱地址。",
+                en_US="Used to distinguish email accounts in account lists, plugin tools, and selectors. When empty, the email address is displayed.",
+            ),
+        ).model_dump(),
+    )
     EMAIL_ACCOUNT: str = Field(
         default="QQ邮箱",
         title="邮箱提供商",
