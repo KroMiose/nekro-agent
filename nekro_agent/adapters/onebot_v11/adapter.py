@@ -355,7 +355,7 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
                     for seg in seg_data:
                         if isinstance(seg, str):
                             if seg.strip():
-                                message.append(MessageSegment.text(seg))
+                                self._append_text_message_segment(message, seg)
                         elif isinstance(seg, SegAt):  # SegAt 对象
                             message.append(MessageSegment.at(user_id=seg.platform_user_id))
 
@@ -376,6 +376,16 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         if message:
             return await self._send_to_chat(request.chat_key, message)
         return None
+
+    def _append_text_message_segment(self, message: Message, text: str) -> None:
+        """按配置决定普通文本中的 CQ 码是否解析为 OneBot 消息段。"""
+
+        if not self.config.RESOLVE_CQ_CODE:
+            message.append(MessageSegment.text(text))
+            return
+
+        for segment in Message(text):
+            message.append(segment)
 
     async def _send_files(self, chat_key: str, file_segments: List) -> None:
         """发送文件（物化到 uploads 目录后通过 OneBot 文件上传 API 发送）"""
@@ -435,9 +445,9 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         chat_id = int(db_chat_channel.channel_id.split("_")[1])
 
         if chat_type is ChatType.GROUP:
-            ret = await bot.send_group_msg(group_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
+            ret = await bot.send_group_msg(group_id=chat_id, message=message, auto_escape=False)
         elif chat_type is ChatType.PRIVATE:
-            ret = await bot.send_private_msg(user_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
+            ret = await bot.send_private_msg(user_id=chat_id, message=message, auto_escape=False)
         else:
             raise ValueError("Invalid chat type")
 

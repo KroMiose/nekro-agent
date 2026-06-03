@@ -61,6 +61,8 @@ from nekro_agent.tools.common_util import (
     calculate_text_similarity,
     download_file,
 )
+from nekro_agent.tools.at_markup import neutralize_at_all_markup
+from nekro_agent.tools.message_id import normalize_ref_msg_id
 from nekro_agent.tools.path_convertor import (
     convert_filename_to_sandbox_upload_path,
     convert_to_host_path,
@@ -217,7 +219,14 @@ async def basic_prompt_inject(_ctx: AgentCtx):
     base_prompt = "Current Adapter Support Feature:\n"
     if _ctx.adapter_key in ["onebot_v11"]:
         features["Reference_Message"] = True
-    tips: str = "When you reference a message, user can click it to jump to the referenced message."
+    tips: str = (
+        "When you reference a message, user can click it to jump to the referenced message. "
+        'For `ref_msg_id`, use only the raw platform message ID after `msg_id:` from history; '
+        'for `(msg_id:123)`, pass `ref_msg_id="123"`, not `"msg_id:123"`, '
+        "and do not repeat the referenced message ID in `message_text`. "
+        "Do not use raw CQ codes in `message_text`; use `[@id:123@]` for mentions and "
+        "`send_msg_file` for images/files."
+    )
     return base_prompt + "\n".join([f"{k}: {v}" for k, v in features.items()]) + "\n" + tips
 
 
@@ -236,11 +245,13 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     Attention:
         1. Do not expose any unnecessary technical id or key in the message content.
         2. You can always send messages that are confident in the content, not content that you don't even know what it will be.
+        3. For `ref_msg_id`, use only the raw platform message ID after `msg_id:` from history. For example, if history shows `(msg_id:123)`, pass `ref_msg_id="123"`, never `ref_msg_id="msg_id:123"`, and do not repeat the referenced message ID in `message_text`.
+        4. Do not write raw CQ codes in `message_text`. Use `[@id:123@]` for mentions; use `ref_msg_id` for replies; use `send_msg_file` for images/files.
 
     Args:
         chat_key (str): 聊天频道标识
-        message_text (str): 消息内容
-        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`，若需要引用时传递，不需要在 `message_text` 中重复说明被引用消息!)
+        message_text (str): 消息内容。不要直接写 `[CQ:...]` 这类原始 CQ 码。
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`。只传历史 `msg_id:` 后面的原始 ID，如 `msg_id:123` 对应 `"123"`，不要传 `"msg_id:123"`，也不要在 `message_text` 中重复说明被引用消息!)
 
     Example:
         # Send some valid message
@@ -265,8 +276,10 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     if not message_text.strip():
         raise Exception("Error: The message content cannot be empty.")
 
+    ref_msg_id = normalize_ref_msg_id(ref_msg_id)
+
     if not config.ALLOW_AT_ALL:
-        message_text = message_text.replace("[@all@]", "@全体成员")
+        message_text = neutralize_at_all_markup(message_text)
 
     # 拒绝包含 [image:xxx...] 的图片消息
     if re.match(r"^.*\[image:.*\]$", message_text) and len(message_text) > 100:
@@ -314,7 +327,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     except Exception as e:
         core.logger.exception(f"发送消息失败: {e}")
         raise Exception(
-            "Error sending text message to chat: Make sure the chat key is valid, you have permission to speak and message is not too long.",
+            f"Error sending text message to chat: {e}. Make sure the chat key is valid, you have permission to speak, the message is not too long, and `ref_msg_id` is the raw platform message ID without `msg_id:`.",
         ) from e
 
     # 更新消息缓存
@@ -333,9 +346,10 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str, ref_msg_i
     Args:
         chat_key (str): 聊天频道标识
         file_path (str): 图片/文件路径或 URL 容器内路径
-        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`。只传历史 `msg_id:` 后面的原始 ID，如 `msg_id:123` 对应 `"123"`，不要传 `"msg_id:123"`)
     """
     global SEND_FILE_CACHE
+    ref_msg_id = normalize_ref_msg_id(ref_msg_id)
     file_container_path = file_path  # 防止误导llm
     if not isinstance(file_container_path, str):
         raise TypeError("Error: The file argument must be a string with the correct file shared path or URL.")

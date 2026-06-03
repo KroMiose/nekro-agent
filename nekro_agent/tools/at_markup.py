@@ -13,6 +13,7 @@ _BARE_AT_BOUNDARY = r"(?<![\w\[/])"
 _ID_ASSIGN = rf"\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
 _BRACKET_AT_CLOSE = r"\s*[;；]?\s*@?\s*[\]】]"
 _MAX_NORMALIZE_PASSES = 3
+_AT_ALL_MARKUP_PATTERN = re.compile(r"\[@(?:id:)?all@\]", re.IGNORECASE)
 
 AT_MARKUP_PATTERN = re.compile(
     rf"\[@id:{_USER_ID_PATTERN}(?:;nickname:{_CANONICAL_NICKNAME_GROUP})?@\]",
@@ -92,3 +93,10 @@ def normalize_malformed_at_markup(text: str) -> str:
             break
 
     return normalized
+
+
+def neutralize_at_all_markup(text: str) -> str:
+    """将 @全体 标记转换为普通文本，避免未授权触发全体提醒。"""
+
+    normalized = normalize_malformed_at_markup(text)
+    return _AT_ALL_MARKUP_PATTERN.sub("@全体成员", normalized)

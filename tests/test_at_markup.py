@@ -1,7 +1,8 @@
 import pytest
 
 from nekro_agent.services.agent.resolver import fix_raw_response
-from nekro_agent.tools.at_markup import AT_MARKUP_PATTERN, normalize_malformed_at_markup
+from nekro_agent.tools.at_markup import AT_MARKUP_PATTERN, neutralize_at_all_markup, normalize_malformed_at_markup
+from nekro_agent.tools.message_id import normalize_ref_msg_id
 
 
 @pytest.mark.parametrize(
@@ -136,3 +137,34 @@ def test_normalize_malformed_at_markup_avoids_short_plain_numbers() -> None:
 
 def test_normalize_malformed_at_markup_keeps_other_cq_codes() -> None:
     assert normalize_malformed_at_markup("[CQ:image,file=test.png]") == "[CQ:image,file=test.png]"
+
+
+@pytest.mark.parametrize(
+    ("raw_text", "expected"),
+    [
+        ("[@all@]", "@全体成员"),
+        ("[@id:all@]", "@全体成员"),
+        ("[CQ:at,qq=all]", "@全体成员"),
+        ("提醒 [CQ:at,qq=all] 不要刷屏", "提醒 @全体成员 不要刷屏"),
+        ("提醒 @id:all@] 不要刷屏", "提醒 @全体成员 不要刷屏"),
+    ],
+)
+def test_neutralize_at_all_markup(raw_text: str, expected: str) -> None:
+    assert neutralize_at_all_markup(raw_text) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw_ref_msg_id", "expected"),
+    [
+        (None, None),
+        ("", None),
+        ("255799348", "255799348"),
+        ("msg_id:255799348", "255799348"),
+        ("message_id=255799348", "255799348"),
+        ("(msg_id:255799348)", "255799348"),
+        ("msg_id：255799348, ref:123", "255799348"),
+        ("`255799348`", "255799348"),
+    ],
+)
+def test_normalize_ref_msg_id(raw_ref_msg_id: str | None, expected: str | None) -> None:
+    assert normalize_ref_msg_id(raw_ref_msg_id) == expected

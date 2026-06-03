@@ -25,6 +25,7 @@ from nekro_agent.schemas.agent_message import (
 )
 from nekro_agent.services.agent.resolver import fix_raw_response
 from nekro_agent.tools.common_util import download_file
+from nekro_agent.tools.message_id import normalize_ref_msg_id
 from nekro_agent.tools.path_convertor import (
     convert_to_host_path,
     is_url_path,
@@ -99,6 +100,7 @@ class UniversalChatService:
             return
 
         # 构建协议端发送请求
+        ref_msg_id = normalize_ref_msg_id(ref_msg_id)
         send_request = PlatformSendRequest(
             chat_key=chat_key,
             segments=processed_segments,
