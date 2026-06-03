@@ -445,9 +445,9 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         chat_id = int(db_chat_channel.channel_id.split("_")[1])
 
         if chat_type is ChatType.GROUP:
-            ret = await bot.send_group_msg(group_id=chat_id, message=message, auto_escape=False)
+            ret = await bot.send_group_msg(group_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
         elif chat_type is ChatType.PRIVATE:
-            ret = await bot.send_private_msg(user_id=chat_id, message=message, auto_escape=False)
+            ret = await bot.send_private_msg(user_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
         else:
             raise ValueError("Invalid chat type")
 

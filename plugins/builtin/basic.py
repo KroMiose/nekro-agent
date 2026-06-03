@@ -327,7 +327,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     except Exception as e:
         core.logger.exception(f"发送消息失败: {e}")
         raise Exception(
-            f"Error sending text message to chat: {e}. Make sure the chat key is valid, you have permission to speak, the message is not too long, and `ref_msg_id` is the raw platform message ID without `msg_id:`.",
+            "Error sending text message to chat: make sure the chat key is valid, you have permission to speak, the message is not too long, and `ref_msg_id` is the raw platform message ID without `msg_id:`.",
         ) from e
 
     # 更新消息缓存
