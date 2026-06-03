@@ -189,6 +189,10 @@ def test_neutralize_at_all_markup(raw_text: str, expected: str) -> None:
         ('msg_id:"255799348"', "255799348"),
         ("`255799348`", "`255799348`"),
         ("[opaque-id]", "[opaque-id]"),
+        # 嵌套前缀：应剥离内层 msg_id/message_id
+        ('message_id="msg_id:123"', "123"),
+        ("msg_id: msg_id:123", "123"),
+        ("message_id=message_id:456", "456"),
     ],
 )
 def test_normalize_ref_msg_id(raw_ref_msg_id: str | None, expected: str | None) -> None:
