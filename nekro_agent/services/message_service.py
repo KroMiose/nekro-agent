@@ -498,6 +498,7 @@ class MessageService:
         plt_response: Optional[PlatformSendResponse] = None,
         db_chat_channel: Optional[DBChatChannel] = None,
         ref_msg_id: Optional[str] = None,
+        normalize_at_markup: bool = True,
     ):
         """推送机器人消息"""
         logger.info(f"Pushing Bot Message To Chat {chat_key}")
@@ -507,9 +508,10 @@ class MessageService:
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
 
-        for msg in agent_messages:
-            if msg.type == AgentMessageSegmentType.TEXT:
-                msg.content = normalize_malformed_at_markup(msg.content)
+        if normalize_at_markup:
+            for msg in agent_messages:
+                if msg.type == AgentMessageSegmentType.TEXT:
+                    msg.content = normalize_malformed_at_markup(msg.content)
 
         content_text = convert_agent_message_to_prompt(agent_messages)
 

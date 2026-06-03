@@ -132,7 +132,13 @@ class UniversalChatService:
         if record:
             from nekro_agent.services.message_service import message_service
 
-            await message_service.push_bot_message(chat_key, messages, plt_response, ref_msg_id=ref_msg_id)
+            await message_service.push_bot_message(
+                chat_key,
+                messages,
+                plt_response,
+                ref_msg_id=ref_msg_id,
+                normalize_at_markup=False,
+            )
 
     async def _preprocess_messages(
         self,

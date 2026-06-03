@@ -1,68 +1,73 @@
 import re
 
 _USER_ID_PATTERN = r"(?P<uid>all|[A-Za-z0-9][A-Za-z0-9_.#\-]{2,127})"
-_NICKNAME_PATTERN = r"(?:\s*[;；]\s*nickname\s*[=:：]\s*(?P<nickname>[^@\]\)>】）\n]+?))?"
+_NICKNAME_VALUE = r"[^@\]\)>】）\n]+?"
+_CANONICAL_NICKNAME_VALUE = r"[^@\]\n]+?"
+_NICKNAME_GROUP = rf"(?P<nickname>{_NICKNAME_VALUE})"
+_CANONICAL_NICKNAME_GROUP = rf"(?P<nickname>{_CANONICAL_NICKNAME_VALUE})"
+_NICKNAME_SUFFIX = rf"(?:\s*[;；]\s*nickname\s*[=:：]\s*{_NICKNAME_GROUP})?"
+_CQ_NICKNAME_SUFFIX = r"(?:\s*,\s*(?:name|card|nickname)\s*=\s*(?P<nickname>[^,\]】\n]+))?"
+_TRAILING_PUNCT = r"(?=$|[\s,，。.!！？;；:：\)\]】>）])"
+_AT_BOUNDARY = r"(?<![\w\[])"
+_BARE_AT_BOUNDARY = r"(?<![\w\[/])"
+_ID_ASSIGN = rf"\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
+_BRACKET_AT_CLOSE = r"\s*[;；]?\s*@?\s*[\]】]"
+_MAX_NORMALIZE_PASSES = 3
 
 AT_MARKUP_PATTERN = re.compile(
-    rf"\[@id:{_USER_ID_PATTERN}(?:;nickname:(?P<nickname>[^@\]\n]+?))?@\]",
+    rf"\[@id:{_USER_ID_PATTERN}(?:;nickname:{_CANONICAL_NICKNAME_GROUP})?@\]",
 )
 
 _AT_MARKUP_PATTERNS: list[re.Pattern[str]] = [
     re.compile(
         rf"[\[【]\s*CQ\s*:\s*at\s*,\s*qq\s*=\s*{_USER_ID_PATTERN}"
-        r"(?:\s*,\s*(?:name|card|nickname)\s*=\s*(?P<nickname>[^,\]】\n]+))?"
+        rf"{_CQ_NICKNAME_SUFFIX}"
         r"(?:\s*,[^\]】]*)?[\]】]",
         re.IGNORECASE,
     ),
     re.compile(
         rf"(?<!\w)CQ\s*:\s*at\s*,\s*qq\s*=\s*{_USER_ID_PATTERN}"
-        r"(?:\s*,\s*(?:name|card|nickname)\s*=\s*(?P<nickname>[^,\]】\n]+))?"
-        r"(?=$|[\s,，。.!！？;；:：\)\]】>）])",
+        rf"{_CQ_NICKNAME_SUFFIX}{_TRAILING_PUNCT}",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"[\(（]\s*@?\s*[\[【]\s*@?\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
-        rf"{_NICKNAME_PATTERN}\s*[;；]?\s*@?\s*[\]】]\s*[\)）]",
+        rf"[\(（]\s*@?\s*[\[【]\s*@?{_ID_ASSIGN}{_NICKNAME_SUFFIX}{_BRACKET_AT_CLOSE}\s*[\)）]",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"(?<!\w)@\s*[\[【]\s*@?\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
-        rf"{_NICKNAME_PATTERN}\s*[;；]?\s*@?\s*[\]】]",
+        rf"(?<!\w)@\s*[\[【]\s*@?{_ID_ASSIGN}{_NICKNAME_SUFFIX}{_BRACKET_AT_CLOSE}",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"(?:<\w{{4,12}}\s*\|\s*)?(?:<?At:\s*)?[\[【]\s*@?\s*id\s*[=:：]\s*"
-        rf"{_USER_ID_PATTERN}{_NICKNAME_PATTERN}\s*[;；]?\s*@?\s*[\]】](?:>)?",
+        rf"(?:<\w{{4,12}}\s*\|\s*)?(?:<?At:\s*)?[\[【]\s*@?{_ID_ASSIGN}"
+        rf"{_NICKNAME_SUFFIX}{_BRACKET_AT_CLOSE}(?:>)?",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"(?:<?At:\s*)?[\(（]\s*@\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
-        rf"{_NICKNAME_PATTERN}\s*[;；]?\s*@?\s*[\)）](?:>)?",
+        rf"(?:<?At:\s*)?[\(（]\s*@{_ID_ASSIGN}{_NICKNAME_SUFFIX}\s*[;；]?\s*@?\s*[\)）](?:>)?",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"(?<![\w\[])@\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
-        rf"{_NICKNAME_PATTERN}\s*[;；]?\s*@?\s*[\]】\)）>]",
+        rf"{_AT_BOUNDARY}@{_ID_ASSIGN}{_NICKNAME_SUFFIX}\s*[;；]?\s*@?\s*[\]】\)）>]",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"(?<![\w\[])@\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
-        rf"{_NICKNAME_PATTERN}\s*@(?=$|[\s,，。.!！？;；:：\)\]】>）])",
+        rf"{_AT_BOUNDARY}@{_ID_ASSIGN}{_NICKNAME_SUFFIX}\s*@{_TRAILING_PUNCT}",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"(?<![\w\[])@\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
-        r"(?=$|[\s,，。.!！？;；:：\)\]】>）])",
+        rf"{_AT_BOUNDARY}@{_ID_ASSIGN}{_TRAILING_PUNCT}",
         re.IGNORECASE,
     ),
     re.compile(r"(?<!\w)<@!?(?P<uid>\d{4,20})>"),
-    re.compile(r"(?<!\w)(?:@(?=\s*[\[【])\s*)?[\[【\(（]\s*@\s*(?P<uid>\d{4,20})\s*@?\s*[\]】\)）]"),
-    re.compile(r"(?<![\w\[])@\s*(?P<uid>\d{4,20})\s*@\s*[\]】\)）>]"),
-    re.compile(r"(?<![\w\[])@\s*(?P<uid>\d{5,20})\s*@?(?=$|[\s,，。.!！？;；:：\)\]】>）])"),
+    re.compile(rf"{_BARE_AT_BOUNDARY}(?:@(?=\s*[\[【])\s*)?[\[【\(（]\s*@\s*(?P<uid>\d{{4,20}})\s*@?\s*[\]】\)）]"),
+    re.compile(rf"{_BARE_AT_BOUNDARY}@\s*(?P<uid>\d{{4,20}})\s*@\s*[\]】\)）>]"),
+    re.compile(rf"{_BARE_AT_BOUNDARY}@\s*(?P<uid>\d{{5,20}})\s*@?{_TRAILING_PUNCT}"),
 ]
 
 
 def _build_at_markup(uid: str, nickname: str | None = None) -> str:
+    """将 uid/nickname 清理为标准 `[@id:...@]` 标记。"""
     uid = uid.strip()
     nickname = nickname.strip().strip(";；") if nickname else ""
     if nickname:
@@ -78,7 +83,8 @@ def normalize_malformed_at_markup(text: str) -> str:
     """将常见的 AI 幻觉 @ 写法归一化为 `[@id:xxx@]`。"""
 
     normalized = text
-    for _ in range(3):
+    # 少数嵌套幻觉格式会分步变成下一轮可识别的形态，例如 `@[@id:xxx@]`。
+    for _ in range(_MAX_NORMALIZE_PASSES):
         previous = normalized
         for pattern in _AT_MARKUP_PATTERNS:
             normalized = pattern.sub(_replace_at_match, normalized)
