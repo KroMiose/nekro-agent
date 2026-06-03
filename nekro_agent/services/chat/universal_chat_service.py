@@ -161,6 +161,7 @@ class UniversalChatService:
             if agent_message_type == AgentMessageSegmentType.TEXT:
                 # 处理文本消息 - 只做基本的修复，不解析@
                 content = fix_raw_response(content)
+                agent_message.content = content
 
                 if content.strip():
                     processed_segments.append(PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=content))

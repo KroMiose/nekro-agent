@@ -33,6 +33,7 @@ from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
 from nekro_agent.services.message_broadcaster import message_broadcaster
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.quota_service import quota_service
+from nekro_agent.tools.at_markup import AT_MARKUP_PATTERN, normalize_malformed_at_markup
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_forbidden_message,
@@ -506,6 +507,10 @@ class MessageService:
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
 
+        for msg in agent_messages:
+            if msg.type == AgentMessageSegmentType.TEXT:
+                msg.content = normalize_malformed_at_markup(msg.content)
+
         content_text = convert_agent_message_to_prompt(agent_messages)
 
         content_data = []
@@ -545,8 +550,7 @@ class MessageService:
             elif msg.type == AgentMessageSegmentType.TEXT:
                 # 处理 AI 生成的 @提及 [@id:qq_id@]
                 text = msg.content
-                ai_marker_pattern = r'\[@id:(\d+)@\]'
-                matches = list(re.finditer(ai_marker_pattern, text))
+                matches = list(AT_MARKUP_PATTERN.finditer(text))
 
                 if matches:
                     # 有 AI 标记，需要解析并替换
@@ -564,13 +568,14 @@ class MessageService:
                                 )
 
                         # 从用户管理里查询昵称
-                        qq_id = match.group(1)
+                        qq_id = match.group("uid")
+                        marked_nickname = match.group("nickname")
                         user = await DBUser.get_by_union_id(
                             adapter_key=db_chat_channel.adapter_key,
                             platform_userid=qq_id,
                         )
 
-                        nickname = user.username if user else f"User_{qq_id}"
+                        nickname = marked_nickname or (user.username if user else f"User_{qq_id}")
                         content_data.append(
                             {
                                 "type": "at",
