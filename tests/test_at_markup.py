@@ -131,6 +131,27 @@ def test_at_markup_pattern_reads_normalized_nickname() -> None:
     assert match.group("nickname") == "测试用户"
 
 
+def test_at_markup_pattern_multiple_matches_in_order() -> None:
+    text = "hello [@id:100001;nickname:用户一@] and [@id:100002;nickname:用户二@]"
+
+    matches = list(AT_MARKUP_PATTERN.finditer(text))
+
+    assert [m.group("uid") for m in matches] == ["100001", "100002"]
+    assert [m.group("nickname") for m in matches] == ["用户一", "用户二"]
+
+
+def test_at_markup_pattern_without_nickname() -> None:
+    text = "你好 [@id:260674044@]"
+
+    match = AT_MARKUP_PATTERN.search(text)
+
+    assert match
+    assert match.group("uid") == "260674044"
+    # nickname group should be present but not matched
+    assert "nickname" in match.groupdict()
+    assert match.group("nickname") is None
+
+
 def test_normalize_malformed_at_markup_avoids_short_plain_numbers() -> None:
     assert normalize_malformed_at_markup("@123") == "@123"
 
@@ -145,8 +166,10 @@ def test_normalize_malformed_at_markup_keeps_other_cq_codes() -> None:
         ("[@all@]", "@全体成员"),
         ("[@id:all@]", "@全体成员"),
         ("[CQ:at,qq=all]", "@全体成员"),
+        ("[CQ:at,qq=all,name=全体成员]", "@全体成员"),
         ("提醒 [CQ:at,qq=all] 不要刷屏", "提醒 @全体成员 不要刷屏"),
         ("提醒 @id:all@] 不要刷屏", "提醒 @全体成员 不要刷屏"),
+        ("提醒 [CQ:at,qq=all,name=全体成员] 不要刷屏", "提醒 @全体成员 不要刷屏"),
     ],
 )
 def test_neutralize_at_all_markup(raw_text: str, expected: str) -> None:

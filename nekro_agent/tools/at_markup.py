@@ -13,7 +13,7 @@ _BARE_AT_BOUNDARY = r"(?<![\w\[/])"
 _ID_ASSIGN = rf"\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
 _BRACKET_AT_CLOSE = r"\s*[;；]?\s*@?\s*[\]】]"
 _MAX_NORMALIZE_PASSES = 3
-_AT_ALL_MARKUP_PATTERN = re.compile(r"\[@(?:id:)?all@\]", re.IGNORECASE)
+_AT_ALL_MARKUP_PATTERN = re.compile(r"\[@(?:id:)?all(?:;nickname:[^@\]\n]+)?@\]", re.IGNORECASE)
 
 AT_MARKUP_PATTERN = re.compile(
     rf"\[@id:{_USER_ID_PATTERN}(?:;nickname:{_CANONICAL_NICKNAME_GROUP})?@\]",
