@@ -100,6 +100,12 @@ def test_normalize_malformed_at_markup_is_idempotent() -> None:
     assert normalize_malformed_at_markup(normalized) == normalized
 
 
+def test_normalize_malformed_at_markup_preserves_canonical() -> None:
+    text = "你好 [@id:260674044;nickname:测试用户@]"
+
+    assert normalize_malformed_at_markup(text) == text
+
+
 def test_normalize_malformed_at_markup_preserves_non_mentions() -> None:
     assert normalize_malformed_at_markup("邮箱 test@260674044.com 不应被改写") == "邮箱 test@260674044.com 不应被改写"
     assert normalize_malformed_at_markup("版本号 @1234abc 不应被改写") == "版本号 @1234abc 不应被改写"
