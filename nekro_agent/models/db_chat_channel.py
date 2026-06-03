@@ -119,6 +119,29 @@ class DBChatChannel(Model):
         adapter = adapter_utils.get_adapter(self.adapter_key)
         return (await adapter.get_channel_info(self.channel_id)).channel_name
 
+    def get_custom_channel_name(self) -> Optional[str]:
+        try:
+            data = json.loads(self.data or "{}")
+        except Exception:
+            return None
+        value = data.get("custom_channel_name")
+        return value if isinstance(value, str) and value else None
+
+    async def set_custom_channel_name(self, name: Optional[str]) -> None:
+        try:
+            data = json.loads(self.data or "{}")
+        except Exception:
+            data = {}
+
+        custom_name = name.strip() if name else ""
+        if custom_name:
+            data["custom_channel_name"] = custom_name
+        else:
+            data.pop("custom_channel_name", None)
+
+        self.data = json.dumps(data, ensure_ascii=False)
+        await self.save(update_fields=["data", "update_time"])
+
     async def reset_channel(self):
         """重置聊天频道"""
         from nekro_agent.schemas.agent_ctx import AgentCtx

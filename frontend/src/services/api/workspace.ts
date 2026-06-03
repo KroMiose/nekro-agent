@@ -383,12 +383,27 @@ export type McpServerType = 'stdio' | 'sse' | 'http'
 export interface McpServerConfig {
   name: string
   type: McpServerType
-  enabled: boolean
+  /** 全局库视图：是否在新建工作区时自动启用 */
+  auto_inject?: boolean
+  /** 工作区视图：当前工作区是否启用此 server */
+  enabled?: boolean
   command?: string
   args?: string[]
   env?: Record<string, string>
   url?: string
   headers?: Record<string, string>
+  validation?: McpValidationState | null
+}
+
+export interface McpValidationState {
+  status: 'validated' | 'unvalidated' | 'failed'
+  validated_at?: string | null
+  server_name?: string | null
+  server_version?: string | null
+  tools_count?: number | null
+  latency_ms?: number | null
+  last_error?: string | null
+  last_error_kind?: string | null
 }
 
 export interface McpEnvKeyDef {
@@ -408,6 +423,33 @@ export interface McpRegistryItem {
   env_keys?: McpEnvKeyDef[]
   url?: string
   tags?: string[]
+}
+
+export interface McpConstraints {
+  stdio_command_allowlist: string[]
+  name_pattern: string
+}
+
+export type McpValidationErrorKind =
+  | 'schema'
+  | 'spawn_failed'
+  | 'handshake_timeout'
+  | 'transport_error'
+  | 'container_not_running'
+  | 'invalid_response'
+
+export interface McpValidationResult {
+  ok: boolean
+  server_info?: {
+    name?: string | null
+    version?: string | null
+    protocolVersion?: string | null
+  } | null
+  capabilities?: Record<string, unknown> | null
+  tools?: string[] | null
+  latency_ms: number
+  error?: string | null
+  error_kind?: McpValidationErrorKind | null
 }
 
 export type ResourceFieldValueKind =
@@ -620,38 +662,34 @@ export const workspaceApi = {
     await axios.post(`/workspaces/${id}/skills/${encodeURIComponent(skillName)}/sync`)
   },
 
-  // MCP
-  getMcpConfig: async (id: number): Promise<Record<string, unknown>> => {
-    const response = await axios.get<{ mcp_config: Record<string, unknown> }>(
-      `/workspaces/${id}/mcp`
-    )
-    return response.data.mcp_config
-  },
-
-  updateMcpConfig: async (id: number, mcpConfig: Record<string, unknown>): Promise<void> => {
-    await axios.put(`/workspaces/${id}/mcp`, { mcp_config: mcpConfig })
-  },
-
-  // MCP 结构化操作
+  // MCP（工作区只引用全局 MCP 库）
   getMcpServers: async (id: number): Promise<McpServerConfig[]> => {
     const response = await axios.get<{ servers: McpServerConfig[] }>(`/workspaces/${id}/mcp/servers`)
     return response.data.servers
   },
 
-  addMcpServer: async (id: number, server: McpServerConfig): Promise<void> => {
-    await axios.post(`/workspaces/${id}/mcp/servers`, server)
+  getAvailableMcpServers: async (id: number): Promise<McpServerConfig[]> => {
+    const response = await axios.get<{ servers: McpServerConfig[] }>(`/workspaces/${id}/mcp/available`)
+    return response.data.servers
   },
 
-  updateMcpServer: async (id: number, oldName: string, server: McpServerConfig): Promise<void> => {
-    await axios.put(`/workspaces/${id}/mcp/servers/${encodeURIComponent(oldName)}`, server)
+  addMcpServerToWorkspace: async (id: number, name: string): Promise<void> => {
+    await axios.post(`/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}`)
   },
 
-  deleteMcpServer: async (id: number, name: string): Promise<void> => {
+  removeMcpServerFromWorkspace: async (id: number, name: string): Promise<void> => {
     await axios.delete(`/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}`)
   },
 
   syncMcpToSandbox: async (id: number): Promise<void> => {
     await axios.post(`/workspaces/${id}/mcp/sync`)
+  },
+
+  testMcpServer: async (id: number, name: string): Promise<McpValidationResult> => {
+    const response = await axios.post<McpValidationResult>(
+      `/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}/test`
+    )
+    return response.data
   },
 
   // Workspace Resources
@@ -1013,6 +1051,11 @@ export const mcpApi = {
     return response.data
   },
 
+  getConstraints: async (): Promise<McpConstraints> => {
+    const response = await axios.get<McpConstraints>('/mcp/constraints')
+    return response.data
+  },
+
   getAutoInject: async (): Promise<McpServerConfig[]> => {
     const response = await axios.get<{ servers: McpServerConfig[] }>('/mcp/auto-inject')
     return response.data.servers
@@ -1020,6 +1063,18 @@ export const mcpApi = {
 
   setAutoInject: async (servers: McpServerConfig[]): Promise<void> => {
     await axios.put('/mcp/auto-inject', { servers })
+  },
+
+  testAutoInjectServer: async (server: McpServerConfig): Promise<McpValidationResult> => {
+    const response = await axios.post<McpValidationResult>('/mcp/auto-inject/test', server)
+    return response.data
+  },
+
+  testSavedAutoInjectServer: async (name: string): Promise<McpValidationResult> => {
+    const response = await axios.post<McpValidationResult>(
+      `/mcp/auto-inject/servers/${encodeURIComponent(name)}/test`
+    )
+    return response.data
   },
 }
 

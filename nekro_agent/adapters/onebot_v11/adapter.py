@@ -74,6 +74,32 @@ class OnebotV11Config(BaseAdapterConfig):
             ),
         ).model_dump(),
     )
+    SESSION_GROUP_WELCOME_ENABLED: bool = Field(
+        default=True,
+        title="启用入群自动欢迎",
+        description="启用后群成员增加通知会触发 AI 自动欢迎",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="OneBot", en_US="OneBot"),
+            i18n_title=i18n_text(zh_CN="启用入群自动欢迎", en_US="Enable Group Welcome"),
+            i18n_description=i18n_text(
+                zh_CN="启用后群成员增加通知会触发 AI 自动欢迎",
+                en_US="When enabled, group member increase notices trigger AI welcome replies.",
+            ),
+        ).model_dump(),
+    )
+    SESSION_GROUP_LEAVE_NOTICE_ENABLED: bool = Field(
+        default=True,
+        title="启用退群提醒",
+        description="启用后群成员减少通知会触发 AI 退群提醒",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="OneBot", en_US="OneBot"),
+            i18n_title=i18n_text(zh_CN="启用退群提醒", en_US="Enable Group Leave Notice"),
+            i18n_description=i18n_text(
+                zh_CN="启用后群成员减少通知会触发 AI 退群提醒",
+                en_US="When enabled, group member decrease notices trigger AI leave notices.",
+            ),
+        ).model_dump(),
+    )
 
     """NAPCAT 配置"""
     NAPCAT_ACCESS_URL: str = Field(

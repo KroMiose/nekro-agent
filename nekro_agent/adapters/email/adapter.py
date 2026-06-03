@@ -14,7 +14,7 @@ from email.mime.text import MIMEText
 from email.utils import mktime_tz, parseaddr, parsedate_tz
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import Dict, List, Optional, Type
+from typing import Dict, List, Optional, Tuple, Type
 
 import aiofiles
 from fastapi import APIRouter
@@ -118,6 +118,8 @@ class ParsedEmail:
 class EmailAdapter(BaseAdapter[EmailConfig]):
     """邮箱适配器"""
 
+    _POLLING_STATUS_LOG_INTERVAL_SECONDS = 3600
+
     def __init__(self, config_cls: Type[EmailConfig] = EmailConfig):
         """初始化邮箱适配器"""
         super().__init__(config_cls)
@@ -137,6 +139,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         # 轮询任务
         self._polling_task: Optional[asyncio.Task] = None
         self._polling_active = False
+        self._last_polling_status_log_at: float | None = None
 
     def _html_to_text(self, html_content: str) -> str:
         """提取HTML中的文字，去除标签/脚本，便于聊天展示"""
@@ -313,6 +316,10 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             "邮箱：email-邮箱账户名（例如：email-123456@qq.com）",
         ]
 
+    def detect_command(self, _text: str) -> Optional[Tuple[str, str]]:
+        """邮箱场景禁用命令系统，避免正文误触发命令解析。"""
+        return None
+
     @property
     def metadata(self) -> AdapterMetadata:
         """适配器元数据"""
@@ -330,7 +337,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         logger.info("邮箱适配器初始化...")
 
         # 检查是否有启用的邮箱账户
-        enabled_accounts = [acc for acc in self.config.RECEIVE_ACCOUNTS if acc.ENABLED]
+        enabled_accounts = [acc for acc in self.config.RECEIVE_ACCOUNTS if acc.ENABLED and acc.RECEIVE_ENABLED]
         if not enabled_accounts:
             logger.info("没有启用的邮箱账户，跳过邮箱适配器初始化")
             return
@@ -374,6 +381,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
         if not self._polling_task or self._polling_task.done():
             self._polling_active = True
+            self._last_polling_status_log_at = None
             self._polling_task = asyncio.create_task(self._polling_loop())
             logger.info("邮箱适配器轮询任务已启动")
 
@@ -390,10 +398,15 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         while self._polling_active:
             try:
                 poll_count += 1
-                # 输出轮询状态信息
-                logger.info(
-                    f"邮箱适配器第 {poll_count} 次轮询开始，轮询间隔: {self.config.POLL_INTERVAL} 秒，已连接账户数: {len(self.imap_connections)}",
-                )
+                now = time.monotonic()
+                if (
+                    self._last_polling_status_log_at is None
+                    or now - self._last_polling_status_log_at >= self._POLLING_STATUS_LOG_INTERVAL_SECONDS
+                ):
+                    logger.info(
+                        f"邮箱适配器第 {poll_count} 次轮询开始，轮询间隔: {self.config.POLL_INTERVAL} 秒，已连接账户数: {len(self.imap_connections)}",
+                    )
+                    self._last_polling_status_log_at = now
 
                 # 检查每个账户的新邮件
                 accounts_to_check = list(self.imap_connections.items())
@@ -553,6 +566,35 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 text_content = content
         return html_content, text_content
 
+    def _inline_cid_images(self, html_content: str, email_message: Message) -> str:
+        """将 HTML 正文中的 cid 图片替换为 data URL，便于 Web 端直接预览。"""
+        if not html_content:
+            return html_content
+
+        resolved_html = html_content
+        for part in email_message.walk():
+            content_id = str(part.get("Content-ID") or "").strip().strip("<>")
+            if not content_id:
+                continue
+
+            content_type = part.get_content_type()
+            if not content_type.startswith("image/"):
+                continue
+
+            try:
+                payload = part.get_payload(decode=True)
+            except Exception:
+                payload = None
+
+            if not payload:
+                continue
+
+            encoded = base64.b64encode(payload).decode("utf-8")
+            data_url = f"data:{content_type};base64,{encoded}"
+            resolved_html = resolved_html.replace(f"cid:{content_id}", data_url)
+
+        return resolved_html
+
     def get_mailbox_folders(self, conn: imaplib.IMAP4_SSL) -> List[str]:
         """获取邮箱文件夹列表（同步版本，供asyncio.to_thread调用）
 
@@ -668,7 +710,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 # 尝试重新连接
                 # 查找对应的账户配置
                 for account in self.config.RECEIVE_ACCOUNTS:
-                    if account_username == account.USERNAME and account.ENABLED:
+                    if account_username == account.USERNAME and account.ENABLED and account.RECEIVE_ENABLED:
                         logger.info(f"尝试重新连接账户 {account_username}")
                         if await self._reconnect_imap(account):
                             logger.info(f"账户 {account_username} 重新连接成功")
@@ -843,7 +885,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
     def _init_account_chat_mapping(self) -> None:
         """初始化邮箱账户到聊天ID的映射"""
         for account in self.config.RECEIVE_ACCOUNTS:
-            if account.ENABLED:
+            if account.ENABLED and account.RECEIVE_ENABLED:
                 # 为每个启用的邮箱账户创建唯一的聊天ID
                 chat_id = account.USERNAME
                 self.account_chat_mapping[account.USERNAME] = chat_id
@@ -852,7 +894,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
     async def _init_imap_connections(self) -> None:
         """初始化IMAP连接"""
         for account in self.config.RECEIVE_ACCOUNTS:
-            if not account.ENABLED:
+            if not account.ENABLED or not account.RECEIVE_ENABLED:
                 continue
 
             try:
@@ -1175,6 +1217,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 if raw_email_data:
                     email_message = email.message_from_bytes(raw_email_data)
                     html_content, text_content = self._extract_body(email_message)
+                    html_content = self._inline_cid_images(html_content, email_message)
 
                 return {
                     "account": account_username,

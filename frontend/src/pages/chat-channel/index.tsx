@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState, useEffect } from 'react'
+import { useDeferredValue, useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -15,6 +15,7 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
 import { CARD_VARIANTS } from '../../theme/variants'
@@ -28,7 +29,10 @@ import {
   isChatChannelDetailTab,
   type ChatChannelDetailTab,
 } from '../../router/routes'
-import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
+import {
+  chatChannelApi,
+  type ChatChannel,
+} from '../../services/api/chat-channel'
 
 export default function ChatChannelPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -52,31 +56,23 @@ export default function ChatChannelPage() {
   useEffect(() => { sessionStorage.setItem('chatChannel.chatType', chatType) }, [chatType])
   useEffect(() => { sessionStorage.setItem('chatChannel.status', status) }, [status])
 
-  // 使用全局频道目录
-  const { channels, isLoading } = useChannelDirectoryContext()
-
-  // 延迟搜索值，避免每次按键都触发全量过滤
+  // 延迟搜索值，避免每次按键都触发请求
   const deferredSearch = useDeferredValue(search)
 
-  // 前端过滤
-  const filteredChannels = useMemo(() => {
-    let result = channels
-    if (deferredSearch) {
-      const lower = deferredSearch.toLowerCase()
-      result = result.filter(
-        ch =>
-          ch.chat_key.toLowerCase().includes(lower) ||
-          (ch.channel_name ?? '').toLowerCase().includes(lower),
-      )
-    }
-    if (chatType) {
-      result = result.filter(ch => ch.chat_type === chatType)
-    }
-    if (status) {
-      result = result.filter(ch => ch.status === status)
-    }
-    return result
-  }, [channels, deferredSearch, chatType, status])
+  const { data, isLoading } = useQuery({
+    queryKey: ['chat-channel-management-list', deferredSearch, chatType, status],
+    queryFn: () =>
+      chatChannelApi.getList({
+        page: 1,
+        page_size: 1000,
+        search: deferredSearch || undefined,
+        chat_type: chatType || undefined,
+        status: status === '' ? undefined : status as ChatChannel['status'],
+      }),
+    staleTime: 30_000,
+  })
+
+  const filteredChannels = data?.items ?? []
 
   useEffect(() => {
     const legacyChatKey = searchParams.get('chat_key')
@@ -125,8 +121,17 @@ export default function ChatChannelPage() {
 
   // 渲染聊天列表组件
   const renderChannelList = () => (
-    <>
-      <Box sx={{ p: { xs: 1.25, sm: 1.5 }, flexShrink: 0, bgcolor: 'background.paper' }}>
+    <Box
+      sx={{
+        height: '100%',
+        minWidth: 0,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <Box sx={{ p: { xs: 1.25, sm: 1.5 }, flexShrink: 0, minWidth: 0, bgcolor: 'background.paper' }}>
         <Stack spacing={1.5}>
           {/* 搜索框 */}
           <SearchField
@@ -139,11 +144,16 @@ export default function ChatChannelPage() {
           />
 
           {/* 筛选选项 */}
-          <Stack direction={isSmall ? 'column' : 'row'} spacing={1}>
+          <Stack
+            direction={isSmall ? 'column' : 'row'}
+            spacing={1}
+            sx={{ minWidth: 0, alignItems: 'stretch' }}
+          >
             <FilterSelect
               label={t('filters.type')}
               value={chatType}
               onChange={setChatType}
+              sx={{ minWidth: 0, flex: 1 }}
               options={[
                 { value: '', label: t('filters.all') },
                 { value: 'group', label: t('filters.group') },
@@ -154,6 +164,7 @@ export default function ChatChannelPage() {
               label={t('filters.status')}
               value={status}
               onChange={setStatus}
+              sx={{ minWidth: 0, flex: 1 }}
               options={[
                 { value: '', label: t('filters.all') },
                 { value: 'active', label: t('filters.active') },
@@ -168,7 +179,16 @@ export default function ChatChannelPage() {
       <Divider />
 
       {/* 聊天列表 */}
-      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', bgcolor: 'background.paper' }}>
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          bgcolor: 'background.paper',
+        }}
+      >
         <ChatChannelList
           channels={filteredChannels}
           selectedChatKey={selectedChatKey}
@@ -176,7 +196,7 @@ export default function ChatChannelPage() {
           isLoading={isLoading}
         />
       </Box>
-    </>
+    </Box>
   )
 
   // 渲染聊天详情组件
@@ -218,12 +238,15 @@ export default function ChatChannelPage() {
   )
 
   return (
-    <Box className="h-full flex gap-2 overflow-hidden p-2 box-border">
+    <Box
+      className="h-full flex gap-2 overflow-hidden p-2 box-border"
+      sx={{ minWidth: 0, minHeight: 0 }}
+    >
       {isMobile ? (
         // 移动端布局
         <>
           {/* 主内容区 - 根据是否选择聊天，显示详情或提示 */}
-          <Box className="w-full flex-1 overflow-hidden">
+          <Box className="w-full flex-1 overflow-hidden" sx={{ minWidth: 0, minHeight: 0 }}>
             {selectedChatKey ? (
               <ChatChannelDetail
                 chatKey={selectedChatKey}
@@ -301,14 +324,18 @@ export default function ChatChannelPage() {
       ) : (
         // 桌面端布局
         <>
-          <Box className="flex-1 overflow-hidden">{renderChannelDetail()}</Box>
+          <Box className="flex-1 overflow-hidden" sx={{ minWidth: 0, minHeight: 0 }}>
+            {renderChannelDetail()}
+          </Box>
           <Card
             sx={{
               ...CARD_VARIANTS.default.styles,
               width: '360px',
+              height: '100%',
               flexShrink: 0,
               display: 'flex',
               flexDirection: 'column',
+              minHeight: 0,
               overflow: 'hidden',
             }}
           >
