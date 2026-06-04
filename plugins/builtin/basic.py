@@ -221,9 +221,6 @@ async def basic_prompt_inject(_ctx: AgentCtx):
         features["Reference_Message"] = True
     tips: str = (
         "When you reference a message, user can click it to jump to the referenced message. "
-        'For `ref_msg_id`, use only the raw platform message ID after `msg_id:` from history; '
-        'for `(msg_id:123)`, pass `ref_msg_id="123"`, not `"msg_id:123"`, '
-        "and do not repeat the referenced message ID in `message_text`. "
         "Do not use raw CQ codes in `message_text`; use `[@id:123@]` for mentions and "
         "`send_msg_file` for images/files."
     )
@@ -245,13 +242,12 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     Attention:
         1. Do not expose any unnecessary technical id or key in the message content.
         2. You can always send messages that are confident in the content, not content that you don't even know what it will be.
-        3. For `ref_msg_id`, use only the raw platform message ID after `msg_id:` from history. For example, if history shows `(msg_id:123)`, pass `ref_msg_id="123"`, never `ref_msg_id="msg_id:123"`, and do not repeat the referenced message ID in `message_text`.
-        4. Do not write raw CQ codes in `message_text`. Use `[@id:123@]` for mentions; use `ref_msg_id` for replies; use `send_msg_file` for images/files.
+        3. Do not write raw CQ codes in `message_text`. Use `[@id:123@]` for mentions; use `send_msg_file` for images/files.
 
     Args:
         chat_key (str): 聊天频道标识
         message_text (str): 消息内容。不要直接写 `[CQ:...]` 这类原始 CQ 码。
-        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`。只传历史 `msg_id:` 后面的原始 ID，如 `msg_id:123` 对应 `"123"`，不要传 `"msg_id:123"`，也不要在 `message_text` 中重复说明被引用消息!)
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
 
     Example:
         # Send some valid message
@@ -327,7 +323,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     except Exception as e:
         core.logger.exception(f"发送消息失败: {e}")
         raise Exception(
-            "Error sending text message to chat: make sure the chat key is valid, you have permission to speak, the message is not too long, and `ref_msg_id` is the raw platform message ID without `msg_id:`.",
+            "Error sending text message to chat: make sure the chat key is valid, you have permission to speak, and the message is not too long.",
         ) from e
 
     # 更新消息缓存
@@ -346,7 +342,7 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str, ref_msg_i
     Args:
         chat_key (str): 聊天频道标识
         file_path (str): 图片/文件路径或 URL 容器内路径
-        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`。只传历史 `msg_id:` 后面的原始 ID，如 `msg_id:123` 对应 `"123"`，不要传 `"msg_id:123"`)
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
     """
     global SEND_FILE_CACHE
     ref_msg_id = normalize_ref_msg_id(ref_msg_id)
