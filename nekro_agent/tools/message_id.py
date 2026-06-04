@@ -18,10 +18,6 @@ _MSG_ID_METADATA_PATTERN = re.compile(
     rf"(?<![\w-])[\"'`]?{_MSG_ID_KEY_PATTERN}[\"'`]?\s*[:=：]\s*{_MSG_ID_VALUE_PATTERN}",
     re.IGNORECASE,
 )
-_CQ_REPLY_PATTERN = re.compile(
-    rf"\[?\s*CQ\s*:\s*reply\s*,[^\]\n]*?\bid\s*=\s*{_MSG_ID_VALUE_PATTERN}",
-    re.IGNORECASE,
-)
 _ID_ASSIGNMENT_PATTERN = re.compile(
     rf"^[\"'`]?(?:id|reply\s*[_-]?\s*id)[\"'`]?\s*[:=：]\s*{_MSG_ID_VALUE_PATTERN}\s*$",
     re.IGNORECASE,
@@ -83,11 +79,6 @@ def normalize_ref_msg_id(ref_msg_id: object | None) -> str | None:
     normalized = str(ref_msg_id).strip()
     if not normalized:
         return None
-
-    cq_reply_match = _CQ_REPLY_PATTERN.search(normalized)
-    if cq_reply_match:
-        normalized = _strip_nested_msg_id_prefix(_extract_message_id(cq_reply_match))
-        return normalized or None
 
     metadata_match = _MSG_ID_METADATA_PATTERN.search(normalized)
     if metadata_match:

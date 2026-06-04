@@ -2,12 +2,11 @@ from enum import Enum
 from time import time
 from typing import TYPE_CHECKING, List, Optional, Union
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
 from nekro_agent.models.db_chat_channel import DBChatChannel, DefaultPreset
 from nekro_agent.models.db_preset import DBPreset
 from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatType
-from nekro_agent.tools.message_id import normalize_ref_msg_id
 
 from .extra import PlatformMessageExt
 
@@ -102,11 +101,6 @@ class PlatformSendRequest(BaseModel):
     chat_key: str = Field(..., description="聊天标识")
     segments: List[PlatformSendSegment] = Field(default=[], description="消息段列表")
     ref_msg_id: Optional[str] = Field(default=None, description="引用消息ID")
-
-    @field_validator("ref_msg_id", mode="before")
-    @classmethod
-    def normalize_ref_msg_id_field(cls, value: object) -> str | None:
-        return normalize_ref_msg_id(value)
 
 
 class PlatformSendResponse(BaseModel):

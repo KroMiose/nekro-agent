@@ -13,6 +13,9 @@ _BARE_AT_BOUNDARY = r"(?<![\w\[/])"
 _ID_ASSIGN = rf"\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
 _BRACKET_AT_CLOSE = r"\s*[;；]?\s*@?\s*[\]】]"
 _MAX_NORMALIZE_PASSES = 3
+_PROTECTED_TEXT_PATTERN = re.compile(r"`[^`\n]*`|https?://[^\s<>'\"，。！？、]+|[\w.+\-]+@[\w.\-]+\.[A-Za-z]{2,}")
+_PROTECTED_TOKEN_PREFIX = "\uE000AT_PROTECTED_"
+_PROTECTED_TOKEN_SUFFIX = "\uE001"
 _AT_ALL_MARKUP_PATTERN = re.compile(r"\[@(?:id:)?all(?:;nickname:[^@\]\n]+)?@\]", re.IGNORECASE)
 
 AT_MARKUP_PATTERN = re.compile(
@@ -80,10 +83,26 @@ def _replace_at_match(match: re.Match[str]) -> str:
     return _build_at_markup(match.group("uid"), match.groupdict().get("nickname"))
 
 
+def _protect_non_at_spans(text: str) -> tuple[str, list[str]]:
+    protected_values: list[str] = []
+
+    def replace_match(match: re.Match[str]) -> str:
+        protected_values.append(match.group(0))
+        return f"{_PROTECTED_TOKEN_PREFIX}{len(protected_values) - 1}{_PROTECTED_TOKEN_SUFFIX}"
+
+    return _PROTECTED_TEXT_PATTERN.sub(replace_match, text), protected_values
+
+
+def _restore_non_at_spans(text: str, protected_values: list[str]) -> str:
+    for index, value in enumerate(protected_values):
+        text = text.replace(f"{_PROTECTED_TOKEN_PREFIX}{index}{_PROTECTED_TOKEN_SUFFIX}", value)
+    return text
+
+
 def normalize_malformed_at_markup(text: str) -> str:
     """将常见的 AI 幻觉 @ 写法归一化为 `[@id:xxx@]`。"""
 
-    normalized = text
+    normalized, protected_values = _protect_non_at_spans(text)
     # 少数嵌套幻觉格式会分步变成下一轮可识别的形态，例如 `@[@id:xxx@]`。
     for _ in range(_MAX_NORMALIZE_PASSES):
         previous = normalized
@@ -92,7 +111,7 @@ def normalize_malformed_at_markup(text: str) -> str:
         if normalized == previous:
             break
 
-    return normalized
+    return _restore_non_at_spans(normalized, protected_values)
 
 
 def neutralize_at_all_markup(text: str) -> str:
