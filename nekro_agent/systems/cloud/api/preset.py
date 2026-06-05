@@ -16,7 +16,7 @@ from .client import get_client
 
 logger = get_sub_logger("cloud_api")
 
-PRESET_API = "/api/v2/preset"
+PRESET_API = "/api/preset"
 async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
     """创建人设资源
 
