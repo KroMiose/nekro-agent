@@ -381,6 +381,7 @@ function EditDialog({
             onInputChange={(_, newInputValue) => {
               setConfig({ ...config, BASE_URL: newInputValue })
             }}
+            disabled={!!initialConfig && !isCopy}
             renderOption={(props, option) => (
               <li {...props} key={option}>
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -418,6 +419,7 @@ function EditDialog({
             type="text"
             fullWidth
             autoComplete="off"
+            disabled={!!initialConfig && !isCopy}
             size={isSmall ? 'small' : 'medium'}
             name={`apikey_${Math.random().toString(36).slice(2)}`}
             inputProps={{
@@ -438,6 +440,7 @@ function EditDialog({
                     onClick={() => setShowApiKey(!showApiKey)}
                     edge="end"
                     size={isSmall ? 'small' : 'medium'}
+                    disabled={!!initialConfig && !isCopy}
                     title={showApiKey ? t('actions.hide', { ns: 'common', defaultValue: '隐藏' }) : t('actions.show', { ns: 'common', defaultValue: '显示' })}
                   >
                     {showApiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
