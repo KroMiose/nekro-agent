@@ -191,6 +191,13 @@ const defaultSystemSettings: OobeSystemSettings = {
   defaultProxy: '',
 }
 
+const noBrowserAutofillProps = {
+  autoComplete: 'off',
+  autoCorrect: 'off',
+  autoCapitalize: 'none',
+  spellCheck: false,
+} as const
+
 const isModelReady = (model: OobeModelSettings) =>
   Boolean(model.groupName.trim() && model.CHAT_MODEL.trim() && model.BASE_URL.trim() && model.API_KEY.trim())
 
@@ -826,6 +833,9 @@ function PageShell({ children }: { children: ReactNode }) {
   const theme = useTheme()
   return (
     <Box
+      component="form"
+      autoComplete="off"
+      onSubmit={event => event.preventDefault()}
       sx={{
         minHeight: '100vh',
         background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)}, ${alpha(theme.palette.secondary.main, 0.06)} 46%, ${theme.palette.background.default})`,
@@ -1348,6 +1358,7 @@ function SystemStep({
                 type={showCloudKey ? 'text' : 'password'}
                 onChange={event => onChange({ ...settings, nekroCloudApiKey: event.target.value })}
                 disabled={!settings.enableNekroCloud}
+                inputProps={noBrowserAutofillProps}
                 sx={fieldSx}
                 InputProps={{
                   endAdornment: (
@@ -1407,6 +1418,7 @@ function SystemStep({
                 placeholder="http://127.0.0.1:7890"
                 value={settings.defaultProxy}
                 onChange={event => onChange({ ...settings, defaultProxy: event.target.value })}
+                inputProps={noBrowserAutofillProps}
                 sx={fieldSx}
               />
               <Typography
@@ -1465,12 +1477,17 @@ function ModelDraft({
         <TextField
           label={t('oobe.model.groupName')}
           value={model.groupName}
-          onChange={event => onChange({ ...model, groupName: event.target.value })}
+          helperText={t('oobe.model.groupNameLocked')}
+          disabled
+          inputProps={noBrowserAutofillProps}
           fullWidth
         />
         <Autocomplete
           freeSolo
           options={providerOptions}
+          autoComplete={false}
+          autoHighlight={false}
+          autoSelect={false}
           value={model.BASE_URL}
           onChange={(_, value) => onChange({ ...model, BASE_URL: value ?? '' })}
           onInputChange={(_, value) => onChange({ ...model, BASE_URL: value })}
@@ -1492,6 +1509,10 @@ function ModelDraft({
               {...params}
               label={t('oobe.model.baseUrl')}
               placeholder="https://api.nekro.ai/v1"
+              inputProps={{
+                ...params.inputProps,
+                ...noBrowserAutofillProps,
+              }}
             />
           )}
         />
@@ -1501,6 +1522,7 @@ function ModelDraft({
           type={showApiKey ? 'text' : 'password'}
           onChange={event => onChange({ ...model, API_KEY: event.target.value })}
           fullWidth
+          inputProps={noBrowserAutofillProps}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">
@@ -1521,6 +1543,7 @@ function ModelDraft({
           onChange={event => onChange({ ...model, CHAT_PROXY: event.target.value })}
           placeholder="http://127.0.0.1:7890"
           fullWidth
+          inputProps={noBrowserAutofillProps}
         />
       </Box>
 
@@ -1530,6 +1553,9 @@ function ModelDraft({
             <Autocomplete
               freeSolo
               options={modelOptions}
+              autoComplete={false}
+              autoHighlight={false}
+              autoSelect={false}
               value={model.CHAT_MODEL}
               onChange={(_, value) => onChange({ ...model, CHAT_MODEL: value ?? '' })}
               onInputChange={(_, value) => onChange({ ...model, CHAT_MODEL: value })}
@@ -1539,6 +1565,10 @@ function ModelDraft({
                   {...params}
                   label={isChat ? t('oobe.model.chatModel') : t('oobe.model.embeddingModel')}
                   placeholder={isChat ? 'gpt-4o' : 'text-embedding-3-large'}
+                  inputProps={{
+                    ...params.inputProps,
+                    ...noBrowserAutofillProps,
+                  }}
                 />
               )}
             />
@@ -1623,18 +1653,21 @@ function ModelDraft({
                   type="number"
                   label="Temperature"
                   value={model.TEMPERATURE ?? ''}
+                  inputProps={noBrowserAutofillProps}
                   onChange={event => onChange({ ...model, TEMPERATURE: event.target.value === '' ? null : Number(event.target.value) })}
                 />
                 <TextField
                   type="number"
                   label="Top P"
                   value={model.TOP_P ?? ''}
+                  inputProps={noBrowserAutofillProps}
                   onChange={event => onChange({ ...model, TOP_P: event.target.value === '' ? null : Number(event.target.value) })}
                 />
                 <TextField
                   type="number"
                   label="Top K"
                   value={model.TOP_K ?? ''}
+                  inputProps={noBrowserAutofillProps}
                   onChange={event => onChange({ ...model, TOP_K: event.target.value === '' ? null : Number(event.target.value) })}
                 />
               </Box>
@@ -1644,6 +1677,7 @@ function ModelDraft({
                 onChange={event => onChange({ ...model, EXTRA_BODY: event.target.value || null })}
                 multiline
                 minRows={3}
+                inputProps={noBrowserAutofillProps}
                 error={!isValidJsonOrEmpty(model.EXTRA_BODY)}
                 helperText={!isValidJsonOrEmpty(model.EXTRA_BODY) ? t('oobe.validation.invalidJson') : t('oobe.model.extraBodyHint')}
               />
@@ -1739,12 +1773,14 @@ function EmbeddingStep({
               type="number"
               label={t('oobe.embedding.memoryDimension')}
               value={memoryDimension}
+              inputProps={noBrowserAutofillProps}
               onChange={event => onMemoryDimensionChange(Number(event.target.value) || 0)}
             />
             <TextField
               type="number"
               label={t('oobe.embedding.kbDimension')}
               value={kbDimension}
+              inputProps={noBrowserAutofillProps}
               onChange={event => onKbDimensionChange(Number(event.target.value) || 0)}
             />
           </Box>

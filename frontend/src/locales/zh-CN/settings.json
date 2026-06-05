@@ -602,6 +602,7 @@
     },
     "model": {
       "groupName": "模型组名称",
+      "groupNameLocked": "不可更改默认模型组名称",
       "baseUrl": "API 地址",
       "apiKey": "API 密钥",
       "proxy": "模型组代理",

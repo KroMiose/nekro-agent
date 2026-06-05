@@ -602,6 +602,7 @@
     },
     "model": {
       "groupName": "Model Group Name",
+      "groupNameLocked": "OOBE always writes to the default model group name, so this cannot be changed here.",
       "baseUrl": "API URL",
       "apiKey": "API Key",
       "proxy": "Model group proxy",
