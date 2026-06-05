@@ -164,7 +164,7 @@ const defaultChatModel: OobeModelSettings = {
   FREQUENCY_PENALTY: null,
   EXTRA_BODY: null,
   ENABLE_VISION: true,
-  ENABLE_COT: true,
+  ENABLE_COT: false,
 }
 
 const defaultEmbeddingModel: OobeModelSettings = {
