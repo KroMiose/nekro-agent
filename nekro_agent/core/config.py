@@ -979,7 +979,7 @@ class CoreConfig(ConfigBase):
                 API_KEY="",
                 MODEL_TYPE="chat",
                 ENABLE_VISION=True,
-                ENABLE_COT=True,
+                ENABLE_COT=False,
             ),
             "default-draw": ModelConfigGroup(
                 CHAT_MODEL="Kolors",

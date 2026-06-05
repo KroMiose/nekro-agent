@@ -29,6 +29,9 @@ const CHAT_GROUP_NAME = 'default'
 const EMBEDDING_GROUP_NAME = 'text-embedding'
 const UI_ONBOARDING_GUIDE_CONFIG_KEY = 'ENABLE_UI_ONBOARDING_GUIDE'
 
+const getOobeModelGroupName = (modelType: 'chat' | 'embedding'): string =>
+  modelType === 'chat' ? CHAT_GROUP_NAME : EMBEDDING_GROUP_NAME
+
 const getItem = (items: ConfigItem[], key: string): ConfigItem | undefined =>
   items.find(item => item.key === key)
 
@@ -153,8 +156,8 @@ export const oobeApi = {
     memoryEmbeddingDimension: number,
     kbEmbeddingDimension: number,
   ): Promise<void> => {
-    const chatGroupName = chatModel.groupName.trim() || CHAT_GROUP_NAME
-    const embeddingGroupName = embeddingModel.groupName.trim() || EMBEDDING_GROUP_NAME
+    const chatGroupName = CHAT_GROUP_NAME
+    const embeddingGroupName = EMBEDDING_GROUP_NAME
 
     await unifiedConfigApi.updateModelGroup(chatGroupName, serializeModelConfig(chatModel, 'chat'))
     await unifiedConfigApi.updateModelGroup(
@@ -184,7 +187,7 @@ export const buildOobeInlineTestRequest = (
   model: OobeModelSettings,
   modelType: 'chat' | 'embedding',
 ) => ({
-  group_name: model.groupName.trim() || (modelType === 'chat' ? CHAT_GROUP_NAME : EMBEDDING_GROUP_NAME),
+  group_name: getOobeModelGroupName(modelType),
   chat_model: model.CHAT_MODEL.trim(),
   base_url: model.BASE_URL.trim(),
   api_key: model.API_KEY.trim(),
