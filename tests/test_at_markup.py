@@ -3,6 +3,10 @@ from collections.abc import Iterator
 
 import pytest
 
+from nekro_agent.adapters.onebot_v11.tools.cq_markup import (
+    neutralize_onebot_cq_at_all_markup,
+    normalize_onebot_cq_at_markup,
+)
 from nekro_agent.services.agent.resolver import fix_raw_response
 from nekro_agent.tools.at_markup import AT_MARKUP_PATTERN, neutralize_at_all_markup, normalize_malformed_at_markup
 from nekro_agent.tools.message_id import normalize_ref_msg_id
@@ -85,22 +89,9 @@ def _at_cases() -> list[tuple[str, str]]:
         _at_case("[@id:{uid};nickname=测试用户]", "[@id:{uid};nickname:测试用户@]"),
         _at_case("@id:{uid};nickname=测试用户@]", "[@id:{uid};nickname:测试用户@]"),
         _at_case("（@id：{uid}；nickname：测试用户）", "[@id:{uid};nickname:测试用户@]"),
-        _at_case("[CQ:at,qq={uid}]", "[@id:{uid}@]"),
-        _at_case("[CQ:at,qq={uid},name=测试用户]", "[@id:{uid};nickname:测试用户@]"),
-        _at_case("[CQ:at,qq={uid},card=测试用户]", "[@id:{uid};nickname:测试用户@]"),
-        ("[CQ:at,qq=all]", "[@id:all@]"),
-        _at_case("CQ:at,qq={uid}", "[@id:{uid}@]"),
-        _at_case("CQ:at,qq={uid}", "[@id:{uid}@]", _next_feishu_user_id()),
-        _at_case("CQ:at,qq={uid}", "[@id:{uid}@]", _next_wxid_user_id()),
-        _at_case("CQ:at,qq={uid}", "[@id:{uid}@]", _next_wecom_user_id()),
-        _at_case("[CQ:at,qq={uid},foo=bar]", "[@id:{uid}@]"),
-        _at_case("[cq:AT,qq={uid}]", "[@id:{uid}@]"),
-        _at_case("[CQ:at, qq = {uid} , name = 测试用户 ]", "[@id:{uid};nickname:测试用户@]"),
         _at_case("@ ID = {uid}", "[@id:{uid}@]"),
         _at_case("@ id ： {uid}", "[@id:{uid}@]", _next_named_user_id()),
         _at_case("[@id:{uid};nickname:测试用户；]", "[@id:{uid};nickname:测试用户@]"),
-        _at_case(" [CQ:at,qq={uid}] ", " [@id:{uid}@] "),
-        _at_case("[CQ:at,qq={uid},nickname=测试用户,foo=bar]", "[@id:{uid};nickname:测试用户@]"),
         _at_case("<At:（@id:{uid}）>", "[@id:{uid}@]"),
         _at_case("（@[@id:{uid}@]）", "[@id:{uid}@]"),
     ]
@@ -116,9 +107,6 @@ def test_normalize_malformed_at_markup_inside_sentence() -> None:
     assert normalize_malformed_at_markup(f"你好 @id:{uid}@] 请看这里") == f"你好 [@id:{uid}@] 请看这里"
 
     uid = _next_user_id()
-    assert normalize_malformed_at_markup(f"你好 [CQ:at,qq={uid}]，请看这里") == f"你好 [@id:{uid}@]，请看这里"
-
-    uid = _next_user_id()
     assert normalize_malformed_at_markup(f"你好，<@{uid}> 请看这里") == f"你好，[@id:{uid}@] 请看这里"
 
 
@@ -127,7 +115,7 @@ def test_normalize_malformed_at_markup_handles_multiple_mentions() -> None:
     uid_b = _next_user_id()
     uid_c = _next_user_id()
     assert (
-        normalize_malformed_at_markup(f"你好 @id:{uid_a}@] 和 [CQ:at,qq={uid_b},name=测试用户]，请看 <@{uid_c}>")
+        normalize_malformed_at_markup(f"你好 @id:{uid_a}@] 和 [@id:{uid_b};nickname=测试用户]，请看 <@{uid_c}>")
         == f"你好 [@id:{uid_a}@] 和 [@id:{uid_b};nickname:测试用户@]，请看 [@id:{uid_c}@]"
     )
 
@@ -143,7 +131,7 @@ def test_normalize_malformed_at_markup_handles_multiple_mentions() -> None:
     uid_b = _next_user_id()
     uid_c = _next_user_id()
     assert (
-        normalize_malformed_at_markup(f"[CQ:at,qq={uid_a}][CQ:at,qq={uid_b}]<@{uid_c}>")
+        normalize_malformed_at_markup(f"@id:{uid_a}@][@id:{uid_b}]<@{uid_c}>")
         == f"[@id:{uid_a}@][@id:{uid_b}@][@id:{uid_c}@]"
     )
 
@@ -151,7 +139,7 @@ def test_normalize_malformed_at_markup_handles_multiple_mentions() -> None:
     uid_b = _next_user_id()
     uid_c = _next_user_id()
     assert (
-        normalize_malformed_at_markup(f"第一行 @id:{uid_a}@]\n第二行 <@{uid_b}>\n第三行 [CQ:at,qq={uid_c}]")
+        normalize_malformed_at_markup(f"第一行 @id:{uid_a}@]\n第二行 <@{uid_b}>\n第三行 [@{uid_c}]")
         == f"第一行 [@id:{uid_a}@]\n第二行 [@id:{uid_b}@]\n第三行 [@id:{uid_c}@]"
     )
 
@@ -168,7 +156,7 @@ def test_normalize_malformed_at_markup_preserves_text_outside_mentions() -> None
         f"图片 [CQ:image,file={uid_c}.png] "
         f"数组 [@{short_id}] "
         f"代码 `@id:{uid_a}@]` "
-        f"目标 @id:{uid_a}@] 和 [CQ:at,qq={uid_b},name=微信用户]，尾部 <@{tail_uid}>"
+        f"目标 @id:{uid_a}@] 和 [@id:{uid_b};nickname=微信用户]，尾部 <@{tail_uid}>"
     )
     expected = (
         f"前缀 URL https://example.com/@{uid_a}?q=[CQ:at,qq=nope] "
@@ -196,7 +184,7 @@ def test_normalize_malformed_at_markup_is_idempotent() -> None:
     uid_a = _next_user_id()
     uid_b = _next_user_id()
     uid_c = _next_user_id()
-    text = f"你好 @id:{uid_a}@] 和 [CQ:at,qq={uid_b},name=测试用户]，请看 <@{uid_c}>"
+    text = f"你好 @id:{uid_a}@] 和 [@id:{uid_b};nickname=测试用户]，请看 <@{uid_c}>"
     normalized = normalize_malformed_at_markup(text)
 
     assert normalize_malformed_at_markup(normalized) == normalized
@@ -291,6 +279,7 @@ def test_normalize_malformed_at_markup_avoids_short_plain_numbers() -> None:
 
 def test_normalize_malformed_at_markup_keeps_other_cq_codes() -> None:
     assert normalize_malformed_at_markup("[CQ:image,file=test.png]") == "[CQ:image,file=test.png]"
+    assert normalize_malformed_at_markup("[CQ:at,qq=123456]") == "[CQ:at,qq=123456]"
 
 
 @pytest.mark.parametrize(
@@ -298,15 +287,53 @@ def test_normalize_malformed_at_markup_keeps_other_cq_codes() -> None:
     [
         ("[@all@]", "@全体成员"),
         ("[@id:all@]", "@全体成员"),
-        ("[CQ:at,qq=all]", "@全体成员"),
-        ("[CQ:at,qq=all,name=全体成员]", "@全体成员"),
-        ("提醒 [CQ:at,qq=all] 不要刷屏", "提醒 @全体成员 不要刷屏"),
         ("提醒 @id:all@] 不要刷屏", "提醒 @全体成员 不要刷屏"),
-        ("提醒 [CQ:at,qq=all,name=全体成员] 不要刷屏", "提醒 @全体成员 不要刷屏"),
     ],
 )
 def test_neutralize_at_all_markup(raw_text: str, expected: str) -> None:
     assert neutralize_at_all_markup(raw_text) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw_text", "expected"),
+    [
+        _at_case("[CQ:at,qq={uid}]", "[@id:{uid}@]"),
+        _at_case("[CQ:at,qq={uid},name=测试用户]", "[@id:{uid};nickname:测试用户@]"),
+        _at_case("[CQ:at,qq={uid},card=测试用户]", "[@id:{uid};nickname:测试用户@]"),
+        ("[CQ:at,qq=all]", "[@id:all@]"),
+        _at_case("CQ:at,qq={uid}", "[@id:{uid}@]"),
+        _at_case("CQ:at,qq={uid}", "[@id:{uid}@]", _next_feishu_user_id()),
+        _at_case("CQ:at,qq={uid}", "[@id:{uid}@]", _next_wxid_user_id()),
+        _at_case("CQ:at,qq={uid}", "[@id:{uid}@]", _next_wecom_user_id()),
+        _at_case("[CQ:at,qq={uid},foo=bar]", "[@id:{uid}@]"),
+        _at_case("[cq:AT,qq={uid}]", "[@id:{uid}@]"),
+        _at_case("[CQ:at, qq = {uid} , name = 测试用户 ]", "[@id:{uid};nickname:测试用户@]"),
+        _at_case(" [CQ:at,qq={uid}] ", " [@id:{uid}@] "),
+        _at_case("[CQ:at,qq={uid},nickname=测试用户,foo=bar]", "[@id:{uid};nickname:测试用户@]"),
+    ],
+)
+def test_normalize_onebot_cq_at_markup(raw_text: str, expected: str) -> None:
+    assert normalize_onebot_cq_at_markup(raw_text) == expected
+
+
+def test_normalize_onebot_cq_at_markup_preserves_protected_text() -> None:
+    uid = _next_user_id()
+    text = f"链接 https://example.com/?q=[CQ:at,qq={uid}] 目标 [CQ:at,qq={uid}]"
+
+    assert normalize_onebot_cq_at_markup(text) == f"链接 https://example.com/?q=[CQ:at,qq={uid}] 目标 [@id:{uid}@]"
+
+
+@pytest.mark.parametrize(
+    ("raw_text", "expected"),
+    [
+        ("[CQ:at,qq=all]", "@全体成员"),
+        ("[CQ:at,qq=all,name=全体成员]", "@全体成员"),
+        ("提醒 [CQ:at,qq=all] 不要刷屏", "提醒 @全体成员 不要刷屏"),
+        ("提醒 [CQ:at,qq=all,name=全体成员] 不要刷屏", "提醒 @全体成员 不要刷屏"),
+    ],
+)
+def test_neutralize_onebot_cq_at_all_markup(raw_text: str, expected: str) -> None:
+    assert neutralize_onebot_cq_at_all_markup(raw_text) == expected
 
 
 def _ref_msg_id_cases() -> list[tuple[str | None, str | None]]:

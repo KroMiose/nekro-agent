@@ -15,17 +15,18 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.adapters.onebot_v11.matchers.message import register_matcher
 from nekro_agent.core import config, logger
+from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.schemas.i18n import i18n_text
 from nekro_agent.services.command.schemas import CommandResponse
-from nekro_agent.core.core_utils import ExtraField
 
 from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
 from .core.bot import get_bot
 from .tools.at_parser import SegAt, parse_at_from_text
+from .tools.cq_markup import neutralize_onebot_cq_at_all_markup
 from .tools.convertor import get_channel_type
 
 
@@ -349,8 +350,9 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         for segment in request.segments:
             if segment.type == PlatformSendSegmentType.TEXT:
                 if segment.content.strip():
+                    content = neutralize_onebot_cq_at_all_markup(segment.content)
                     # NoneBot 特有功能：解析文本中的 @ 信息
-                    seg_data = await parse_at_from_text(segment.content, db_chat_channel)
+                    seg_data = await parse_at_from_text(content, db_chat_channel)
 
                     for seg in seg_data:
                         if isinstance(seg, str):

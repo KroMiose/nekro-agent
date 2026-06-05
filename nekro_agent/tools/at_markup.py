@@ -6,7 +6,6 @@ _CANONICAL_NICKNAME_VALUE = r"[^@\]\n]+?"
 _NICKNAME_GROUP = rf"(?P<nickname>{_NICKNAME_VALUE})"
 _CANONICAL_NICKNAME_GROUP = rf"(?P<nickname>{_CANONICAL_NICKNAME_VALUE})"
 _NICKNAME_SUFFIX = rf"(?:\s*[;；]\s*nickname\s*[=:：]\s*{_NICKNAME_GROUP})?"
-_CQ_NICKNAME_SUFFIX = r"(?:\s*,\s*(?:name|card|nickname)\s*=\s*(?P<nickname>[^,\]】\n]+))?"
 _TRAILING_PUNCT = r"(?=$|[\s,，。.!！？;；:：\)\]】>）])"
 _AT_BOUNDARY = r"(?<![\w\[])"
 _BARE_AT_BOUNDARY = r"(?<![\w\[/])"
@@ -23,17 +22,6 @@ AT_MARKUP_PATTERN = re.compile(
 )
 
 _AT_MARKUP_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(
-        rf"[\[【]\s*CQ\s*:\s*at\s*,\s*qq\s*=\s*{_USER_ID_PATTERN}"
-        rf"{_CQ_NICKNAME_SUFFIX}"
-        r"(?:\s*,[^\]】]*)?[\]】]",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        rf"(?<!\w)CQ\s*:\s*at\s*,\s*qq\s*=\s*{_USER_ID_PATTERN}"
-        rf"{_CQ_NICKNAME_SUFFIX}{_TRAILING_PUNCT}",
-        re.IGNORECASE,
-    ),
     re.compile(
         rf"[\(（]\s*@?\s*[\[【]\s*@?{_ID_ASSIGN}{_NICKNAME_SUFFIX}{_BRACKET_AT_CLOSE}\s*[\)）]",
         re.IGNORECASE,
@@ -100,7 +88,7 @@ def _restore_non_at_spans(text: str, protected_values: list[str]) -> str:
 
 
 def normalize_malformed_at_markup(text: str) -> str:
-    """将常见的 AI 幻觉 @ 写法归一化为 `[@id:xxx@]`。"""
+    """将跨平台通用的 AI 幻觉 @ 写法归一化为 `[@id:xxx@]`。"""
 
     normalized, protected_values = _protect_non_at_spans(text)
     # 少数嵌套幻觉格式会分步变成下一轮可识别的形态，例如 `@[@id:xxx@]`。
