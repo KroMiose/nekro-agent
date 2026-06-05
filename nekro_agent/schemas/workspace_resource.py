@@ -136,5 +136,36 @@ class WorkspaceResourceCheckBindResponse(BaseModel):
     conflicts: List[WorkspaceResourceConflict] = Field(default_factory=list)
 
 
+class WorkspaceResourceSecretIssue(BaseModel):
+    resource_id: int
+    resource_name: str
+    reason: str
+
+
+class WorkspaceResourceSecretHealthResponse(BaseModel):
+    ok: bool
+    total: int = 0
+    plaintext_count: int = 0
+    legacy_encrypted_count: int = 0
+    invalid_count: int = 0
+    issues: List[WorkspaceResourceSecretIssue] = Field(default_factory=list)
+
+
+class WorkspaceResourceSecretRecoverBody(BaseModel):
+    legacy_secret: str = Field(..., min_length=1, description="旧 NEKRO_JWT_SECRET_KEY")
+
+
+class WorkspaceResourceSecretRecoverResponse(BaseModel):
+    ok: bool
+    recovered_count: int = 0
+    invalid_count: int = 0
+    issues: List[WorkspaceResourceSecretIssue] = Field(default_factory=list)
+
+
+class WorkspaceResourceSecretPurgeResponse(BaseModel):
+    ok: bool
+    purged_count: int = 0
+
+
 class ActionOkResponse(BaseModel):
     ok: bool = True

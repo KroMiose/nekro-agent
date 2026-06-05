@@ -13,6 +13,10 @@ from nekro_agent.schemas.workspace_resource import (
     WorkspaceResourceDetailResponse,
     WorkspaceResourceListResponse,
     WorkspaceResourceReorderBody,
+    WorkspaceResourceSecretHealthResponse,
+    WorkspaceResourceSecretPurgeResponse,
+    WorkspaceResourceSecretRecoverBody,
+    WorkspaceResourceSecretRecoverResponse,
     WorkspaceResourceTemplatesResponse,
     WorkspaceResourceUpdate,
 )
@@ -45,6 +49,44 @@ async def list_resources(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> WorkspaceResourceListResponse:
     return WorkspaceResourceListResponse(items=await workspace_resource_service.list_resources())
+
+
+@router.get(
+    "/resources/secret-health",
+    summary="检查工作区资源敏感字段可用性",
+    response_model=WorkspaceResourceSecretHealthResponse,
+)
+@require_role(Role.Admin)
+async def check_resource_secret_health(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> WorkspaceResourceSecretHealthResponse:
+    return await workspace_resource_service.check_secret_payload_health()
+
+
+@router.post(
+    "/resources/secret-recover",
+    summary="使用旧密钥恢复工作区资源敏感字段",
+    response_model=WorkspaceResourceSecretRecoverResponse,
+)
+@require_role(Role.Admin)
+async def recover_resource_secrets(
+    body: WorkspaceResourceSecretRecoverBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> WorkspaceResourceSecretRecoverResponse:
+    return await workspace_resource_service.recover_legacy_secret_payloads(body.legacy_secret)
+
+
+@router.post(
+    "/resources/secret-purge",
+    summary="抹除无法解密的工作区资源敏感字段",
+    response_model=WorkspaceResourceSecretPurgeResponse,
+)
+@require_role(Role.Admin)
+async def purge_unreadable_resource_secrets(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> WorkspaceResourceSecretPurgeResponse:
+    purged_count = await workspace_resource_service.purge_unreadable_secret_payloads()
+    return WorkspaceResourceSecretPurgeResponse(ok=True, purged_count=purged_count)
 
 
 @router.post("/resources", summary="创建工作区资源", response_model=WorkspaceResourceDetailResponse)
@@ -87,16 +129,26 @@ async def delete_resource(
     return ActionOkResponse()
 
 
-@router.get("/workspaces/{workspace_id}/resources", summary="获取工作区已绑定资源", response_model=WorkspaceResourceBindingsResponse)
+@router.get(
+    "/workspaces/{workspace_id}/resources",
+    summary="获取工作区已绑定资源",
+    response_model=WorkspaceResourceBindingsResponse,
+)
 @require_role(Role.Admin)
 async def list_workspace_resources(
     workspace_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> WorkspaceResourceBindingsResponse:
-    return WorkspaceResourceBindingsResponse(items=await workspace_resource_service.list_workspace_bindings(workspace_id))
+    return WorkspaceResourceBindingsResponse(
+        items=await workspace_resource_service.list_workspace_bindings(workspace_id)
+    )
 
 
-@router.post("/workspaces/{workspace_id}/resources/check-bind", summary="检查资源绑定冲突", response_model=WorkspaceResourceCheckBindResponse)
+@router.post(
+    "/workspaces/{workspace_id}/resources/check-bind",
+    summary="检查资源绑定冲突",
+    response_model=WorkspaceResourceCheckBindResponse,
+)
 @require_role(Role.Admin)
 async def check_workspace_resource_bind(
     workspace_id: int,
@@ -107,7 +159,9 @@ async def check_workspace_resource_bind(
     return WorkspaceResourceCheckBindResponse(ok=not conflicts, conflicts=conflicts)
 
 
-@router.post("/workspaces/{workspace_id}/resources/{resource_id}", summary="绑定资源到工作区", response_model=ActionOkResponse)
+@router.post(
+    "/workspaces/{workspace_id}/resources/{resource_id}", summary="绑定资源到工作区", response_model=ActionOkResponse
+)
 @require_role(Role.Admin)
 async def bind_workspace_resource(
     workspace_id: int,
@@ -120,7 +174,9 @@ async def bind_workspace_resource(
     return ActionOkResponse()
 
 
-@router.delete("/workspaces/{workspace_id}/resources/{resource_id}", summary="解绑工作区资源", response_model=ActionOkResponse)
+@router.delete(
+    "/workspaces/{workspace_id}/resources/{resource_id}", summary="解绑工作区资源", response_model=ActionOkResponse
+)
 @require_role(Role.Admin)
 async def unbind_workspace_resource(
     workspace_id: int,

@@ -921,6 +921,22 @@
         "boundListTitle": "受影响的工作区",
         "confirm": "删除资源"
       },
+      "secretHealth": {
+        "title": "检测到资源敏感字段不可用",
+        "description": "{{count}} 条资源的敏感字段无法读取，通常是迁移设备后 NEKRO_JWT_SECRET_KEY 与旧环境不一致导致。",
+        "recoverAction": "使用旧密钥恢复",
+        "purgeAction": "抹除失效字段",
+        "recoverTitle": "使用旧密钥恢复资源",
+        "recoverContent": "请输入旧设备创建这些资源时使用的 NEKRO_JWT_SECRET_KEY。恢复成功后，旧密文会转换为当前版本可读取的明文 JSON。",
+        "recoverConfirm": "开始恢复",
+        "purgeTitle": "抹除失效敏感字段",
+        "purgeContent": "此操作会清空所有当前无法解密的敏感字段值，主机、用户名、备注等非敏感信息会保留。清空后需要重新编辑资源填写密码、令牌或私钥。",
+        "purgeConfirm": "确认抹除",
+        "recoverSuccess": "已恢复 {{count}} 条资源敏感字段",
+        "recoverFailed": "恢复失败：{{message}}",
+        "purgeSuccess": "已抹除 {{count}} 条失效敏感字段",
+        "purgeFailed": "抹除失败：{{message}}"
+      },
       "notifications": {
         "created": "资源已创建",
         "createFailed": "创建失败：{{message}}",

@@ -921,6 +921,22 @@
         "boundListTitle": "Affected Workspaces",
         "confirm": "Delete Resource"
       },
+      "secretHealth": {
+        "title": "Resource sensitive fields are unavailable",
+        "description": "{{count}} resources contain sensitive fields that cannot be read. This usually happens after moving devices when NEKRO_JWT_SECRET_KEY differs from the old environment.",
+        "recoverAction": "Recover with old key",
+        "purgeAction": "Clear invalid fields",
+        "recoverTitle": "Recover Resources with Old Key",
+        "recoverContent": "Enter the NEKRO_JWT_SECRET_KEY used on the old device when these resources were created. After recovery, legacy ciphertext will be converted to plaintext JSON readable by the current version.",
+        "recoverConfirm": "Recover",
+        "purgeTitle": "Clear Invalid Sensitive Fields",
+        "purgeContent": "This clears all currently unreadable sensitive field values. Non-sensitive data such as hosts, usernames, and notes will be kept. You will need to edit the resources again to fill passwords, tokens, or private keys.",
+        "purgeConfirm": "Clear Fields",
+        "recoverSuccess": "Recovered sensitive fields for {{count}} resources",
+        "recoverFailed": "Recovery failed: {{message}}",
+        "purgeSuccess": "Cleared invalid sensitive fields for {{count}} resources",
+        "purgeFailed": "Clear failed: {{message}}"
+      },
       "notifications": {
         "created": "Resource created",
         "createFailed": "Create failed: {{message}}",

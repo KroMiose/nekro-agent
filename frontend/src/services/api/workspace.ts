@@ -535,6 +535,33 @@ export interface WorkspaceResourceUpsertBody {
   enabled: boolean
 }
 
+export interface WorkspaceResourceSecretIssue {
+  resource_id: number
+  resource_name: string
+  reason: string
+}
+
+export interface WorkspaceResourceSecretHealth {
+  ok: boolean
+  total: number
+  plaintext_count: number
+  legacy_encrypted_count: number
+  invalid_count: number
+  issues: WorkspaceResourceSecretIssue[]
+}
+
+export interface WorkspaceResourceSecretRecoverResult {
+  ok: boolean
+  recovered_count: number
+  invalid_count: number
+  issues: WorkspaceResourceSecretIssue[]
+}
+
+export interface WorkspaceResourceSecretPurgeResult {
+  ok: boolean
+  purged_count: number
+}
+
 export const workspaceApi = {
   // 工作区 CRUD
   getList: async (): Promise<WorkspaceSummary[]> => {
@@ -701,6 +728,23 @@ export const workspaceApi = {
   getResources: async (): Promise<WorkspaceResourceSummary[]> => {
     const response = await axios.get<{ items: WorkspaceResourceSummary[] }>('/resources')
     return response.data.items
+  },
+
+  getResourceSecretHealth: async (): Promise<WorkspaceResourceSecretHealth> => {
+    const response = await axios.get<WorkspaceResourceSecretHealth>('/resources/secret-health')
+    return response.data
+  },
+
+  recoverResourceSecrets: async (legacySecret: string): Promise<WorkspaceResourceSecretRecoverResult> => {
+    const response = await axios.post<WorkspaceResourceSecretRecoverResult>('/resources/secret-recover', {
+      legacy_secret: legacySecret,
+    })
+    return response.data
+  },
+
+  purgeUnreadableResourceSecrets: async (): Promise<WorkspaceResourceSecretPurgeResult> => {
+    const response = await axios.post<WorkspaceResourceSecretPurgeResult>('/resources/secret-purge')
+    return response.data
   },
 
   getResourceDetail: async (resourceId: number): Promise<WorkspaceResourceDetail> => {
