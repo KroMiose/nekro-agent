@@ -264,7 +264,9 @@ class UnifiedConfigService:
 
             elif config_key.startswith("channel_config_"):
                 chat_key = config_key.replace("channel_config_", "")
-                adapter_key = chat_key.split("-")[0]
+                from nekro_agent.adapters import resolve_adapter_key_from_chat_key
+
+                adapter_key = resolve_adapter_key_from_chat_key(chat_key)
                 path = CHANNEL_CONFIG_DIR / adapter_key / f"{chat_key}.yaml"
                 instance = OverridableConfig.load_from_path(path)
 

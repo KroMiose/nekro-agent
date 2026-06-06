@@ -145,6 +145,8 @@ extend-exclude = [
     "plugins",
     "scripts",
     "nekro_agent_doc",
+    "sandbox/agentscope_ref",
+    ".sisyphus",
 ]
 
 [tool.ruff.lint]

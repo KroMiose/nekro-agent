@@ -86,6 +86,14 @@ ADAPTER_REGISTRY: Dict[str, AdapterSpec] = {
         description="基于 OpenILink SDK 的微信适配器",
         tags=("wechat", "openilink"),
     ),
+    "wechat_ilink_multi": AdapterSpec(
+        key="wechat_ilink_multi",
+        adapter_path="nekro_agent.adapters.wechat_ilink_multi.adapter.WeChatILinkMultiAdapter",
+        config_path="nekro_agent.adapters.wechat_ilink_multi.config.WeChatILinkMultiConfig",
+        name="WeChat iLink Multi",
+        description="基于 OpenILink 的微信多账号实例适配器",
+        tags=("wechat", "openilink", "multi-instance"),
+    ),
     "telegram": AdapterSpec(
         key="telegram",
         adapter_path="nekro_agent.adapters.telegram.adapter.TelegramAdapter",
@@ -138,6 +146,22 @@ def _import_string(path: str):
     module_path, attr_name = path.rsplit(".", 1)
     module = importlib.import_module(module_path)
     return getattr(module, attr_name)
+
+
+# chat_key 前缀 -> adapter_key 别名映射。
+# 多数适配器的 build_chat_key 前缀即 adapter_key，故 `chat_key.split("-")[0]` 可直接得到 adapter_key。
+# 但个别适配器（如 wechat_ilink_multi，键名较长且 channel_id 带实例作用域）使用更短的 build_chat_key
+# 前缀以规避 chat_key 64 字符上限，导致按 "-" 切分得到的前缀不等于 adapter_key。此处登记这些短前缀，
+# 供按 chat_key 反查 adapter_key 的配置解析层（config_resolver / config_service）使用。
+CHAT_KEY_PREFIX_ALIASES: Dict[str, str] = {
+    "wxim": "wechat_ilink_multi",
+}
+
+
+def resolve_adapter_key_from_chat_key(chat_key: str) -> str:
+    """从 chat_key 反解析出真正的 adapter_key，自动处理短前缀别名。"""
+    prefix = chat_key.split("-", 1)[0]
+    return CHAT_KEY_PREFIX_ALIASES.get(prefix, prefix)
 
 
 def get_adapter_spec(adapter_key: str) -> AdapterSpec:

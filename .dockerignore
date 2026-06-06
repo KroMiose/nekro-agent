@@ -154,4 +154,11 @@ temp
 # upload files
 uploads
 
+# 运行时数据与无关大目录（不应进入构建上下文）
+data
+sandbox
+**/node_modules
+.git
+.sisyphus
+
 # End of https://www.toptal.com/developers/gitignore/api/python
