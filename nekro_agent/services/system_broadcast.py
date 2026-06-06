@@ -227,6 +227,19 @@ class KbLibraryIndexProgressEvent(BaseModel):
     error_summary: str = ""
 
 
+class AdapterInstanceStatusEvent(BaseModel):
+    """适配器实例状态变化事件（实例生命周期状态变更时触发）。"""
+
+    type: Literal["adapter_instance_status"] = "adapter_instance_status"
+    adapter_key: str = Field(..., description="适配器唯一标识")
+    instance_key: str = Field(..., description="实例唯一标识")
+    status: str = Field(..., description="当前状态")
+    previous_status: str = Field(default="", description="变更前状态")
+    message: str = Field(default="", description="状态变更说明")
+    last_error: str = Field(default="", description="最近错误信息")
+    updated_at: int = Field(default=0, description="状态更新时间戳（ms）")
+
+
 SystemEvent = Annotated[
     Union[
         WorkspaceStatusEvent,
@@ -237,6 +250,7 @@ SystemEvent = Annotated[
         MemoryRecallActivityEvent,
         KbIndexProgressEvent,
         KbLibraryIndexProgressEvent,
+        AdapterInstanceStatusEvent,
     ],
     Field(discriminator="type"),
 ]
@@ -362,6 +376,16 @@ class KbLibraryIndexProgressState(BaseModel):
     error_summary: str = ""
 
 
+class AdapterInstanceStatusState(BaseModel):
+    adapter_key: str
+    instance_key: str
+    status: str
+    previous_status: str = ""
+    message: str = ""
+    last_error: str = ""
+    updated_at: int
+
+
 # ── 状态快照存储 ──────────────────────────────────────────────────────────────
 
 # domain → key → value（JSON 可序列化的状态字典）
@@ -378,6 +402,7 @@ def _update_state(
         MemoryRecallActivityEvent,
         KbIndexProgressEvent,
         KbLibraryIndexProgressEvent,
+        AdapterInstanceStatusEvent,
     ],
 ) -> None:
     """根据事件类型更新内存状态快照。
@@ -537,6 +562,19 @@ def _update_state(
         else:
             _state_store.get(domain, {}).pop(key, None)
 
+    elif isinstance(event, AdapterInstanceStatusEvent):
+        domain = "adapter_instance_status"
+        key = f"{event.adapter_key}:{event.instance_key}"
+        _state_store.setdefault(domain, {})[key] = AdapterInstanceStatusState(
+            adapter_key=event.adapter_key,
+            instance_key=event.instance_key,
+            status=event.status,
+            previous_status=event.previous_status,
+            message=event.message,
+            last_error=event.last_error,
+            updated_at=event.updated_at,
+        ).model_dump()
+
 
 def get_state_snapshot() -> Dict[str, Dict[str, dict]]:
     """返回当前全部状态快照的深拷贝。
@@ -576,6 +614,7 @@ async def publish_system_event(
         MemoryRecallActivityEvent,
         KbIndexProgressEvent,
         KbLibraryIndexProgressEvent,
+        AdapterInstanceStatusEvent,
     ],
 ) -> None:
     """向所有全局 SSE 订阅者广播事件，并同步更新状态快照。"""
@@ -679,3 +718,36 @@ async def publish_kb_library_index_progress(event: KbLibraryIndexProgressEvent) 
         )
 
     asyncio.create_task(_clear_later())
+
+
+async def publish_adapter_instance_status(
+    adapter_key: str,
+    instance_key: str,
+    status: str,
+    previous_status: str = "",
+    message: str = "",
+    last_error: str = "",
+    updated_at: int = 0,
+) -> None:
+    """发布适配器实例状态变更事件。
+
+    Args:
+        adapter_key: 适配器唯一标识
+        instance_key: 实例唯一标识
+        status: 当前状态
+        previous_status: 变更前状态
+        message: 状态变更说明
+        last_error: 最近错误信息
+        updated_at: 状态更新时间戳（ms）
+    """
+    await publish_system_event(
+        AdapterInstanceStatusEvent(
+            adapter_key=adapter_key,
+            instance_key=instance_key,
+            status=status,
+            previous_status=previous_status,
+            message=message,
+            last_error=last_error,
+            updated_at=updated_at,
+        )
+    )
