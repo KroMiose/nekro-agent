@@ -1662,7 +1662,7 @@ export default function PluginsManagementPage() {
 
   const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
     setIsComposing(false)
-    updateSearchTerm((e.target as HTMLInputElement).value)
+    updateSearchTerm(e.currentTarget.value)
   }
 
   const handleClearSearch = () => {

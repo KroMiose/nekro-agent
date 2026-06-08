@@ -1470,6 +1470,7 @@ function CommandParamsPanel({
   t: TFunction<'settings'>
 }) {
   const [open, setOpen] = useState(false)
+  const collapseId = 'command-params-collapse'
   const summaryText = items.length > 0
     ? t('commands.detail.paramCount', '{{count}} 个参数', { count: items.length })
     : emptyText
@@ -1488,6 +1489,7 @@ function CommandParamsPanel({
         component="button"
         type="button"
         aria-expanded={open}
+        aria-controls={collapseId}
         onClick={() => setOpen(value => !value)}
         sx={{
           width: '100%',
@@ -1544,7 +1546,7 @@ function CommandParamsPanel({
           </Box>
         </Stack>
       </Box>
-      <Collapse in={open} timeout="auto" unmountOnExit>
+      <Collapse id={collapseId} in={open} timeout="auto" unmountOnExit>
         <Box sx={{ px: 1.25, pb: 1.25 }}>
           <CommandParamsView items={items} emptyText={emptyText} t={t} />
         </Box>
