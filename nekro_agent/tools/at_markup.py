@@ -1,27 +1,33 @@
 import re
+from collections.abc import Iterable
 
-_USER_ID_PATTERN = r"(?P<uid>all|[A-Za-z0-9][A-Za-z0-9_.#\-]{2,127})"
+USER_ID_PATTERN = r"(?P<uid>all|[A-Za-z0-9][A-Za-z0-9_.#\-]{2,127})"
 _NICKNAME_VALUE = r"[^@\]\)>】）\n]+?"
 _CANONICAL_NICKNAME_VALUE = r"[^@\]\n]+?"
 _NICKNAME_GROUP = rf"(?P<nickname>{_NICKNAME_VALUE})"
 _CANONICAL_NICKNAME_GROUP = rf"(?P<nickname>{_CANONICAL_NICKNAME_VALUE})"
 _NICKNAME_SUFFIX = rf"(?:\s*[;；]\s*nickname\s*[=:：]\s*{_NICKNAME_GROUP})?"
-_TRAILING_PUNCT = r"(?=$|[\s,，。.!！？;；:：\)\]】>）])"
+TRAILING_PUNCT = r"(?=$|[\s,，。.!！？;；:：\)\]】>）])"
 _AT_BOUNDARY = r"(?<![\w\[])"
 _BARE_AT_BOUNDARY = r"(?<![\w\[/])"
-_ID_ASSIGN = rf"\s*id\s*[=:：]\s*{_USER_ID_PATTERN}"
+_ID_ASSIGN = rf"\s*id\s*[=:：]\s*{USER_ID_PATTERN}"
 _BRACKET_AT_CLOSE = r"\s*[;；]?\s*@?\s*[\]】]"
 _MAX_NORMALIZE_PASSES = 3
-_PROTECTED_TEXT_PATTERN = re.compile(r"`[^`\n]*`|https?://[^\s<>'\"，。！？、]+|[\w.+\-]+@[\w.\-]+\.[A-Za-z]{2,}")
+_PROTECTED_TEXT_PATTERN = re.compile(
+    r"```[\s\S]*?```|`[^`\n]*`|https?://[^\s<>'\"，。！？、]+|[\w.+\-]+@[\w.\-]+\.[A-Za-z]{2,}",
+)
 _PROTECTED_TOKEN_PREFIX = "\uE000AT_PROTECTED_"
 _PROTECTED_TOKEN_SUFFIX = "\uE001"
+_PROTECTED_TOKEN_PATTERN = re.compile(
+    rf"{re.escape(_PROTECTED_TOKEN_PREFIX)}(?P<index>\d+){re.escape(_PROTECTED_TOKEN_SUFFIX)}",
+)
 _AT_ALL_MARKUP_PATTERN = re.compile(r"\[@(?:id:)?all(?:;nickname:[^@\]\n]+)?@\]", re.IGNORECASE)
 
 AT_MARKUP_PATTERN = re.compile(
-    rf"\[@id:{_USER_ID_PATTERN}(?:;nickname:{_CANONICAL_NICKNAME_GROUP})?@\]",
+    rf"\[@id:{USER_ID_PATTERN}(?:;nickname:{_CANONICAL_NICKNAME_GROUP})?@\]",
 )
 
-_AT_MARKUP_PATTERNS: list[re.Pattern[str]] = [
+_GENERIC_AT_PATTERNS: list[re.Pattern[str]] = [
     re.compile(
         rf"[\(（]\s*@?\s*[\[【]\s*@?{_ID_ASSIGN}{_NICKNAME_SUFFIX}{_BRACKET_AT_CLOSE}\s*[\)）]",
         re.IGNORECASE,
@@ -44,21 +50,33 @@ _AT_MARKUP_PATTERNS: list[re.Pattern[str]] = [
         re.IGNORECASE,
     ),
     re.compile(
-        rf"{_AT_BOUNDARY}@{_ID_ASSIGN}{_NICKNAME_SUFFIX}\s*@{_TRAILING_PUNCT}",
+        rf"{_AT_BOUNDARY}@{_ID_ASSIGN}{_NICKNAME_SUFFIX}\s*@{TRAILING_PUNCT}",
         re.IGNORECASE,
     ),
     re.compile(
-        rf"{_AT_BOUNDARY}@{_ID_ASSIGN}{_TRAILING_PUNCT}",
+        rf"{_AT_BOUNDARY}@{_ID_ASSIGN}{TRAILING_PUNCT}",
         re.IGNORECASE,
     ),
-    re.compile(r"(?<!\w)<@!?(?P<uid>\d{4,20})>"),
-    re.compile(rf"{_BARE_AT_BOUNDARY}(?:@(?=\s*[\[【])\s*)?[\[【\(（]\s*@\s*(?P<uid>\d{{4,20}})\s*@?\s*[\]】\)）]"),
-    re.compile(rf"{_BARE_AT_BOUNDARY}@\s*(?P<uid>\d{{4,20}})\s*@\s*[\]】\)）>]"),
-    re.compile(rf"{_BARE_AT_BOUNDARY}@\s*(?P<uid>\d{{5,20}})\s*@?{_TRAILING_PUNCT}"),
 ]
 
+_DISCORD_AT_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(r"(?<!\w)<@!?(?P<uid>\d{4,20})>"),
+]
 
-def _build_at_markup(uid: str, nickname: str | None = None) -> str:
+_BARE_NUMERIC_AT_PATTERNS: list[re.Pattern[str]] = [
+    re.compile(rf"{_BARE_AT_BOUNDARY}(?:@(?=\s*[\[【])\s*)?[\[【\(（]\s*@\s*(?P<uid>\d{{4,20}})\s*@?\s*[\]】\)）]"),
+    re.compile(rf"{_BARE_AT_BOUNDARY}@\s*(?P<uid>\d{{4,20}})\s*@\s*[\]】\)）>]"),
+    re.compile(rf"{_BARE_AT_BOUNDARY}@\s*(?P<uid>\d{{5,20}})\s*@?{TRAILING_PUNCT}"),
+]
+
+_ALL_AT_MARKUP_PATTERNS: tuple[re.Pattern[str], ...] = (
+    *_GENERIC_AT_PATTERNS,
+    *_DISCORD_AT_PATTERNS,
+    *_BARE_NUMERIC_AT_PATTERNS,
+)
+
+
+def build_at_markup(uid: str, nickname: str | None = None) -> str:
     """将 uid/nickname 清理为标准 `[@id:...@]` 标记。"""
     uid = uid.strip()
     nickname = nickname.strip().strip(";；") if nickname else ""
@@ -68,38 +86,60 @@ def _build_at_markup(uid: str, nickname: str | None = None) -> str:
 
 
 def _replace_at_match(match: re.Match[str]) -> str:
-    return _build_at_markup(match.group("uid"), match.groupdict().get("nickname"))
+    return build_at_markup(match.group("uid"), match.groupdict().get("nickname"))
 
 
-def _protect_non_at_spans(text: str) -> tuple[str, list[str]]:
+def protect_spans(text: str, pattern: re.Pattern[str]) -> tuple[str, list[str]]:
+    """将指定 pattern 命中的片段替换为临时 token，并返回原始片段列表。"""
     protected_values: list[str] = []
 
     def replace_match(match: re.Match[str]) -> str:
         protected_values.append(match.group(0))
         return f"{_PROTECTED_TOKEN_PREFIX}{len(protected_values) - 1}{_PROTECTED_TOKEN_SUFFIX}"
 
-    return _PROTECTED_TEXT_PATTERN.sub(replace_match, text), protected_values
+    return pattern.sub(replace_match, text), protected_values
 
 
-def _restore_non_at_spans(text: str, protected_values: list[str]) -> str:
-    for index, value in enumerate(protected_values):
-        text = text.replace(f"{_PROTECTED_TOKEN_PREFIX}{index}{_PROTECTED_TOKEN_SUFFIX}", value)
+def restore_spans(text: str, protected_values: list[str]) -> str:
+    """恢复由 protect_spans 生成的临时 token。"""
+
+    def replace_match(match: re.Match[str]) -> str:
+        index = int(match.group("index"))
+        if index >= len(protected_values):
+            return match.group(0)
+        return protected_values[index]
+
+    return _PROTECTED_TOKEN_PATTERN.sub(replace_match, text)
+
+
+def protect_non_at_spans(text: str) -> tuple[str, list[str]]:
+    """保护 URL、邮箱、行内代码和围栏代码块，避免误改其中的 @ 文本。"""
+    return protect_spans(text, _PROTECTED_TEXT_PATTERN)
+
+
+def restore_non_at_spans(text: str, protected_values: list[str]) -> str:
+    """恢复由 protect_non_at_spans 保护的文本片段。"""
+    return restore_spans(text, protected_values)
+
+
+def _apply_patterns(text: str, patterns: Iterable[re.Pattern[str]]) -> str:
+    for pattern in patterns:
+        text = pattern.sub(_replace_at_match, text)
     return text
 
 
 def normalize_malformed_at_markup(text: str) -> str:
     """将跨平台通用的 AI 幻觉 @ 写法归一化为 `[@id:xxx@]`。"""
 
-    normalized, protected_values = _protect_non_at_spans(text)
+    normalized, protected_values = protect_non_at_spans(text)
     # 少数嵌套幻觉格式会分步变成下一轮可识别的形态，例如 `@[@id:xxx@]`。
     for _ in range(_MAX_NORMALIZE_PASSES):
         previous = normalized
-        for pattern in _AT_MARKUP_PATTERNS:
-            normalized = pattern.sub(_replace_at_match, normalized)
+        normalized = _apply_patterns(normalized, _ALL_AT_MARKUP_PATTERNS)
         if normalized == previous:
             break
 
-    return _restore_non_at_spans(normalized, protected_values)
+    return restore_non_at_spans(normalized, protected_values)
 
 
 def neutralize_at_all_markup(text: str) -> str:

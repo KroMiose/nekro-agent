@@ -170,6 +170,28 @@ def test_normalize_malformed_at_markup_preserves_text_outside_mentions() -> None
     assert normalize_malformed_at_markup(raw_text) == expected
 
 
+def test_normalize_malformed_at_markup_preserves_fenced_code_blocks() -> None:
+    uid = _next_user_id()
+    raw_text = (
+        "代码示例：\n"
+        "```python\n"
+        f"print('@id:{uid}@]')\n"
+        f"text = '<@{uid}>'\n"
+        "```\n"
+        f"正文 @id:{uid}@]"
+    )
+    expected = (
+        "代码示例：\n"
+        "```python\n"
+        f"print('@id:{uid}@]')\n"
+        f"text = '<@{uid}>'\n"
+        "```\n"
+        f"正文 [@id:{uid}@]"
+    )
+
+    assert normalize_malformed_at_markup(raw_text) == expected
+
+
 def test_normalize_malformed_at_markup_preserves_non_at_cq_segments_between_mentions() -> None:
     uid_a = _next_user_id()
     uid_b = _next_user_id()
@@ -323,6 +345,23 @@ def test_normalize_onebot_cq_at_markup_preserves_protected_text() -> None:
     assert normalize_onebot_cq_at_markup(text) == f"链接 https://example.com/?q=[CQ:at,qq={uid}] 目标 [@id:{uid}@]"
 
 
+def test_normalize_onebot_cq_at_markup_preserves_fenced_code_blocks() -> None:
+    uid = _next_user_id()
+    text = (
+        "```text\n"
+        f"[CQ:at,qq={uid}]\n"
+        "```\n"
+        f"目标 [CQ:at,qq={uid}]"
+    )
+
+    assert normalize_onebot_cq_at_markup(text) == (
+        "```text\n"
+        f"[CQ:at,qq={uid}]\n"
+        "```\n"
+        f"目标 [@id:{uid}@]"
+    )
+
+
 @pytest.mark.parametrize(
     ("raw_text", "expected"),
     [
@@ -334,6 +373,12 @@ def test_normalize_onebot_cq_at_markup_preserves_protected_text() -> None:
 )
 def test_neutralize_onebot_cq_at_all_markup(raw_text: str, expected: str) -> None:
     assert neutralize_onebot_cq_at_all_markup(raw_text) == expected
+
+
+def test_neutralize_onebot_cq_at_all_markup_does_not_touch_existing_internal_all() -> None:
+    text = "[CQ:at,qq=all] 已提醒，保留 [@id:all@]"
+
+    assert neutralize_onebot_cq_at_all_markup(text) == "@全体成员 已提醒，保留 [@id:all@]"
 
 
 def _ref_msg_id_cases() -> list[tuple[str | None, str | None]]:
