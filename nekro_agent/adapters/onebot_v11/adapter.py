@@ -181,6 +181,15 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         """清理适配器"""
         return
 
+    async def render_runtime_prompt(self) -> str:
+        """渲染 OneBot V11 适配器运行时提示词"""
+        return (
+            "<adapter_runtime_context name=\"OneBot V11\" adapter_key=\"onebot_v11\">\n"
+            "Do not use raw CQ codes in `message_text`; use `[@id:123@]` for mentions and "
+            "`send_msg_file` for images/files.\n"
+            "</adapter_runtime_context>"
+        )
+
     async def _try_send_enhanced_command_message(self, chat_key: str, message: str) -> bool:
         """OneBot V11: 以合并转发消息形式发送长文本"""
         try:

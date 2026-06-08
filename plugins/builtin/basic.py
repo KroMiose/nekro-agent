@@ -221,8 +221,7 @@ async def basic_prompt_inject(_ctx: AgentCtx):
         features["Reference_Message"] = True
     tips: str = (
         "When you reference a message, user can click it to jump to the referenced message. "
-        "Do not use raw CQ codes in `message_text`; use `[@id:123@]` for mentions and "
-        "`send_msg_file` for images/files."
+        "Use `send_msg_file` for images/files instead of embedding file-like markup in `message_text`."
     )
     return base_prompt + "\n".join([f"{k}: {v}" for k, v in features.items()]) + "\n" + tips
 
@@ -242,11 +241,11 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     Attention:
         1. Do not expose any unnecessary technical id or key in the message content.
         2. You can always send messages that are confident in the content, not content that you don't even know what it will be.
-        3. Do not write raw CQ codes in `message_text`. Use `[@id:123@]` for mentions; use `send_msg_file` for images/files.
+        3. Use `send_msg_file` for images/files instead of embedding file-like markup in `message_text`.
 
     Args:
         chat_key (str): 聊天频道标识
-        message_text (str): 消息内容。不要直接写 `[CQ:...]` 这类原始 CQ 码。
+        message_text (str): 消息文本内容。
         ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
 
     Example:
