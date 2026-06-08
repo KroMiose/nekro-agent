@@ -1,5 +1,5 @@
 from contextlib import suppress
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -9,6 +9,19 @@ from nekro_agent.schemas.i18n import i18n_text
 
 
 class EmailAccount(BaseModel):
+    DISPLAY_NAME: str = Field(
+        default="",
+        title="账户显示名称",
+        description="用于在账户列表、插件工具和选择器中区分邮箱账户；留空时显示邮箱地址",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="账户配置", en_US="Account Settings"),
+            i18n_title=i18n_text(zh_CN="账户显示名称", en_US="Account Display Name"),
+            i18n_description=i18n_text(
+                zh_CN="用于在账户列表、插件工具和选择器中区分邮箱账户；留空时显示邮箱地址。",
+                en_US="Used to distinguish email accounts in account lists, plugin tools, and selectors. When empty, the email address is displayed.",
+            ),
+        ).model_dump(),
+    )
     EMAIL_ACCOUNT: str = Field(
         default="QQ邮箱",
         title="邮箱提供商",
@@ -126,6 +139,19 @@ class EmailAccount(BaseModel):
             ),
         ).model_dump(),
     )
+    USE_PROXY: bool = Field(
+        default=False,
+        title="使用邮箱连接代理",
+        description="启用后，此账户的认证、IMAP/SMTP 或官方 API 连接会使用全局邮箱连接代理；关闭则直连",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="账户配置", en_US="Account Settings"),
+            i18n_title=i18n_text(zh_CN="使用邮箱连接代理", en_US="Use Mail Connection Proxy"),
+            i18n_description=i18n_text(
+                zh_CN="启用后，此账户的认证、IMAP/SMTP 或官方 API 连接会使用全局邮箱连接代理；关闭则直连。",
+                en_US="When enabled, this account uses the global mail connection proxy for authentication, IMAP/SMTP, or official API connections. When disabled, it connects directly.",
+            ),
+        ).model_dump(),
+    )
     USERNAME: str = Field(
         default="",
         title="邮箱用户名",
@@ -157,6 +183,18 @@ class EmailAccount(BaseModel):
             ),
         ).model_dump(),
     )
+    AUTH_TYPE: Literal["password", "oauth2"] = Field(default="password", title="认证方式")
+    TRANSPORT_TYPE: Literal["imap_smtp", "gmail_api", "microsoft_graph"] = Field(default="imap_smtp", title="收发信方式")
+    OAUTH_PROVIDER: Literal["", "google", "microsoft"] = Field(default="", title="OAuth 提供商")
+    CLIENT_ID: str = Field(default="", title="OAuth Client ID")
+    CLIENT_SECRET: str = Field(default="", title="OAuth Client Secret")
+    TENANT_ID: str = Field(default="common", title="Microsoft Tenant ID")
+    ACCESS_TOKEN: str = Field(default="", title="OAuth Access Token")
+    REFRESH_TOKEN: str = Field(default="", title="OAuth Refresh Token")
+    TOKEN_EXPIRES_AT: int = Field(default=0, title="OAuth Token 过期时间戳")
+    LAST_TEST_SUCCESS: Optional[bool] = Field(default=None, title="最近一次连接测试是否成功")
+    LAST_TEST_MESSAGE: str = Field(default="", title="最近一次连接测试消息")
+    LAST_TEST_TIME: int = Field(default=0, title="最近一次连接测试时间戳")
     SEND_ENABLED: bool = Field(
         default=False,
         title="启用发信",
@@ -220,16 +258,16 @@ class EmailConfig(BaseAdapterConfig):
     RECEIVE_ACCOUNTS: List[EmailAccount] = Field(
         default_factory=list,
         title="邮箱账户列表",
-        description="用于接收邮件的 IMAP 账户列表（主机、端口、SSL、用户名、密码）",
+        description="邮箱账户列表，请在 Email 适配器的账户管理页面维护",
         json_schema_extra=ExtraField(
-            required=True,
+            is_hidden=True,
             sub_item_name="邮箱账户",
-            placeholder="添加你的邮箱账户",
+            placeholder="请在 Email 适配器的账户管理页面添加邮箱账户",
             i18n_category=i18n_text(zh_CN="邮箱账户", en_US="Email Accounts"),
             i18n_title=i18n_text(zh_CN="邮箱账户列表", en_US="Email Account List"),
             i18n_description=i18n_text(
-                zh_CN="用于接收邮件的 IMAP 账户列表（主机、端口、SSL、用户名、密码）",
-                en_US="List of IMAP accounts used to receive emails, including host, port, SSL, username, and password.",
+                zh_CN="邮箱账户列表，请在 Email 适配器的账户管理页面维护。",
+                en_US="Email account list. Manage these accounts on the Email adapter account page.",
             ),
         ).model_dump(),
     )
@@ -284,6 +322,20 @@ class EmailConfig(BaseAdapterConfig):
             i18n_description=i18n_text(
                 zh_CN=r"启用后在读取并收集消息后将邮件标记为已读(\Seen)",
                 en_US=r"When enabled, emails will be marked as seen (\Seen) after they are fetched and collected.",
+            ),
+        ).model_dump(),
+    )
+    OAUTH_PROXY: str = Field(
+        default="",
+        title="邮箱连接代理",
+        description="全局代理地址，例如 http://127.0.0.1:7890。仅在账户开启使用邮箱连接代理时用于认证、IMAP/SMTP 或官方 API 连接；留空则所有账户不使用代理",
+        json_schema_extra=ExtraField(
+            placeholder="http://127.0.0.1:7890",
+            i18n_category=i18n_text(zh_CN="邮箱连接", en_US="Mail Connection"),
+            i18n_title=i18n_text(zh_CN="邮箱连接代理", en_US="Mail Connection Proxy"),
+            i18n_description=i18n_text(
+                zh_CN="全局代理地址，例如 http://127.0.0.1:7890。仅在账户开启使用邮箱连接代理时用于认证、IMAP/SMTP 或官方 API 连接；留空则所有账户不使用代理。",
+                en_US="Global proxy URL, for example http://127.0.0.1:7890. It is used for authentication, IMAP/SMTP, or official API connections only when an account enables the mail connection proxy. Leave empty to disable proxy for all accounts.",
             ),
         ).model_dump(),
     )
@@ -493,9 +545,12 @@ class EmailConfig(BaseAdapterConfig):
             self.IMAP_TIMEOUT = 30
         if not isinstance(self.STATUS_MAIL_TARGETS, list):
             self.STATUS_MAIL_TARGETS = []
+        legacy_proxy_enabled = bool(str(getattr(self, "OAUTH_PROXY", "") or "").strip())
         for account in self.RECEIVE_ACCOUNTS:
             if not hasattr(account, "RECEIVE_ENABLED"):
                 account.RECEIVE_ENABLED = True
+            if legacy_proxy_enabled and "USE_PROXY" not in account.model_fields_set:
+                account.USE_PROXY = True
 
         # 互斥校验：最多仅允许一个默认发件人
         def _validate_default_sender() -> None:

@@ -154,6 +154,11 @@ interface ExpandedRowsState {
   [configKey: string]: boolean
 }
 
+interface EmailSendAccountOption {
+  username: string
+  label: string
+}
+
 const getTypeColor = (type: string, isComplex: boolean = false) => {
   if (isComplex) {
     switch (type) {
@@ -953,7 +958,7 @@ export default function ConfigTable({
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [modelGroups, setModelGroups] = useState<Record<string, ModelGroupConfig>>({})
   const [modelTypes, setModelTypes] = useState<ModelTypeOption[]>([])
-  const [emailSendAccounts, setEmailSendAccounts] = useState<string[]>([])
+  const [emailSendAccounts, setEmailSendAccounts] = useState<EmailSendAccountOption[]>([])
 
   const [presets, setPresets] = useState<Preset[]>([])
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
@@ -1249,7 +1254,12 @@ export default function ConfigTable({
         const accounts = value
           .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
           .filter(item => item.SEND_ENABLED === true && typeof item.USERNAME === 'string' && item.USERNAME.trim())
-          .map(item => String(item.USERNAME))
+          .map(item => {
+            const username = String(item.USERNAME)
+            const displayName = typeof item.DISPLAY_NAME === 'string' ? item.DISPLAY_NAME.trim() : ''
+            const label = displayName ? `${displayName} (${username})` : username
+            return { username, label }
+          })
         setEmailSendAccounts(accounts)
       })
       .catch(() => {
@@ -1328,7 +1338,7 @@ export default function ConfigTable({
     }
 
     if (config.ref_email_accounts_send_enabled) {
-      const isInvalidValue = Boolean(rawValue && !emailSendAccounts.includes(rawValue))
+      const isInvalidValue = Boolean(rawValue && !emailSendAccounts.some(account => account.username === rawValue))
 
       return (
         <TextField
@@ -1346,8 +1356,8 @@ export default function ConfigTable({
             <em>{t('configTable.selectEmailAccount')}</em>
           </MenuItem>
           {emailSendAccounts.map(account => (
-            <MenuItem key={account} value={account}>
-              {account}
+            <MenuItem key={account.username} value={account.username}>
+              {account.label}
             </MenuItem>
           ))}
         </TextField>
