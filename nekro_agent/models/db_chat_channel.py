@@ -82,6 +82,7 @@ class DBChatChannel(Model):
         channel_id: str,
         channel_type: ChatType,
         channel_name: str = "",
+        chat_key: str | None = None,
     ) -> "DBChatChannel":
         """获取或创建聊天频道"""
         channel = await cls.get_or_none(adapter_key=adapter_key, channel_id=channel_id)
@@ -92,7 +93,7 @@ class DBChatChannel(Model):
                 channel_id=channel_id,
                 channel_type=channel_type.value,
                 channel_name=channel_name,
-                chat_key=f"{adapter_key}-{channel_id}",
+                chat_key=chat_key if chat_key is not None else f"{adapter_key}-{channel_id}",
                 is_active=default_status != ChannelStatus.DISABLED,
                 observe_mode=default_status == ChannelStatus.OBSERVE,
                 data=json.dumps({}),

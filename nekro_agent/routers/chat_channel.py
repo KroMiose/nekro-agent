@@ -27,6 +27,7 @@ from nekro_agent.services.config_resolver import config_resolver
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
+from nekro_agent.tools.path_convertor import sanitize_chat_key_for_path
 
 router = APIRouter(prefix="/chat-channel", tags=["ChatChannel"])
 
@@ -775,7 +776,7 @@ async def _send_message_via_webui(
 
         is_file_mode = False
         if file and file.filename:
-            safe_chat_key = Path(chat_key).name
+            safe_chat_key = sanitize_chat_key_for_path(Path(chat_key).name)
             safe_filename = Path(file.filename).name
             upload_dir = Path(USER_UPLOAD_DIR) / safe_chat_key
             upload_dir.mkdir(parents=True, exist_ok=True)
@@ -1003,8 +1004,8 @@ async def get_channel_delete_preview(
         DBMemEpisode.filter(origin_chat_key=chat_key).count(),
     )
 
-    upload_dir = Path(USER_UPLOAD_DIR) / chat_key
-    sandbox_dir = Path(SANDBOX_SHARED_HOST_DIR) / f"sandbox_{chat_key}"
+    upload_dir = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(chat_key)
+    sandbox_dir = Path(SANDBOX_SHARED_HOST_DIR) / f"sandbox_{sanitize_chat_key_for_path(chat_key)}"
 
     return ChannelDeletePreview(
         message_count=msg_count,
@@ -1046,14 +1047,14 @@ async def delete_chat_channel(
     await DBChatChannel.filter(chat_key=chat_key).delete()
 
     # 6. 清理文件系统（容错处理）
-    upload_dir = Path(USER_UPLOAD_DIR) / chat_key
+    upload_dir = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(chat_key)
     if upload_dir.exists():
         try:
             shutil.rmtree(upload_dir)
         except Exception as e:
             logger.warning(f"清理频道上传目录失败 {upload_dir}: {e}")
 
-    sandbox_dir = Path(SANDBOX_SHARED_HOST_DIR) / f"sandbox_{chat_key}"
+    sandbox_dir = Path(SANDBOX_SHARED_HOST_DIR) / f"sandbox_{sanitize_chat_key_for_path(chat_key)}"
     if sandbox_dir.exists():
         try:
             shutil.rmtree(sandbox_dir)
