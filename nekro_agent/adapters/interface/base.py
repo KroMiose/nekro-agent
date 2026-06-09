@@ -243,6 +243,10 @@ class BaseAdapter(ABC, Generic[TConfig]):
         """返回jinja模板"""
         return None
 
+    async def render_runtime_prompt(self) -> str:
+        """渲染适配器级运行时提示词"""
+        return ""
+
     @abstractmethod
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
         """推送消息到协议端
