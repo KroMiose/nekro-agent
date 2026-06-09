@@ -5,6 +5,7 @@ import {
   Box,
   Card,
   Chip,
+  Collapse,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -20,6 +21,7 @@ import {
 } from '@mui/material'
 import {
   ArrowOutward as ArrowOutwardIcon,
+  ExpandMore as ExpandMoreIcon,
   Send as SendIcon,
   Tune as TuneIcon,
 } from '@mui/icons-material'
@@ -34,7 +36,7 @@ import ActionButton from '../../components/common/ActionButton'
 import CommandOutputLog from '../chat-channel/components/sidebar/CommandOutputLog'
 import { commandsApi, type CommandState } from '../../services/api/commands'
 import { getLocalizedText } from '../../services/api/types'
-import { CARD_VARIANTS } from '../../theme/variants'
+import { CARD_VARIANTS, SCROLLBAR_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
 import type { ChannelDirectoryEntry } from '../../hooks/useChannelDirectory'
@@ -619,8 +621,10 @@ export default function CommandCenterPage() {
           minHeight: { xs: 'auto', lg: 0 },
           display: 'grid',
           gridTemplateColumns: isMobile ? '1fr' : 'minmax(320px, 420px) minmax(0, 1fr)',
+          gridTemplateRows: { xs: 'auto', lg: 'minmax(0, 1fr)' },
           gap: { xs: 1.5, md: 2 },
           minWidth: 0,
+          overflow: { xs: 'visible', lg: 'hidden' },
         }}
       >
         <Card
@@ -792,7 +796,20 @@ export default function CommandCenterPage() {
           </Box>
         </Card>
 
-        <Box sx={{ minHeight: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box
+          sx={{
+            height: { lg: '100%' },
+            minHeight: 0,
+            maxHeight: { lg: '100%' },
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            overflowX: 'hidden',
+            overflowY: { xs: 'visible', lg: 'auto' },
+            pr: { lg: 0.5 },
+            ...SCROLLBAR_VARIANTS.thin.styles,
+          }}
+        >
           <Card
             sx={{
               ...CARD_VARIANTS.default.styles,
@@ -800,6 +817,7 @@ export default function CommandCenterPage() {
               display: { xs: 'none', sm: 'flex' },
               flexDirection: 'column',
               gap: 2,
+              flex: '0 0 auto',
             }}
           >
             <Stack
@@ -886,16 +904,10 @@ export default function CommandCenterPage() {
                       value={selectedCommand.aliases.length > 0 ? selectedCommand.aliases.join(', ') : '-'}
                       monospace
                     />
-                    <DetailRow
-                      label={t('commands.detail.params', '参数')}
-                      value=""
-                      content={
-                        <CommandParamsView
-                          items={selectedCommandParams}
-                          emptyText={t('commands.detail.noParams', '此命令没有额外参数说明')}
-                          t={t}
-                        />
-                      }
+                    <CommandParamsPanel
+                      items={selectedCommandParams}
+                      emptyText={t('commands.detail.noParams', '此命令没有额外参数说明')}
+                      t={t}
                     />
                   </Stack>
 
@@ -1002,8 +1014,8 @@ export default function CommandCenterPage() {
             ref={executePanelRef}
             sx={{
               ...CARD_VARIANTS.default.styles,
-              flex: 1,
-              minHeight: 0,
+              flex: { xs: '0 0 auto', lg: '1 0 auto' },
+              minHeight: { xs: 'auto', lg: 520 },
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -1120,15 +1132,17 @@ export default function CommandCenterPage() {
 
             <Box
               sx={{
-                flex: 1,
+                flex: '1 1 260px',
                 minHeight: 260,
                 overflow: 'hidden',
+                boxSizing: 'border-box',
                 mx: 2,
                 mb: 2,
                 border: '1px solid',
                 borderColor: 'divider',
                 borderRadius: 2,
                 backgroundColor: alpha(theme.palette.background.paper, 0.08),
+                boxShadow: theme => `inset 0 -1px 0 ${theme.palette.divider}`,
               }}
             >
               {executeChatKey ? (
@@ -1213,16 +1227,10 @@ export default function CommandCenterPage() {
                 label={t('commands.detail.source', '来源')}
                 value={getSourceDetailLabel(selectedCommand, t)}
               />
-              <DetailRow
-                label={t('commands.detail.params', '参数')}
-                value=""
-                content={
-                  <CommandParamsView
-                    items={selectedCommandParams}
-                    emptyText={t('commands.detail.noParams', '此命令没有额外参数说明')}
-                    t={t}
-                  />
-                }
+              <CommandParamsPanel
+                items={selectedCommandParams}
+                emptyText={t('commands.detail.noParams', '此命令没有额外参数说明')}
+                t={t}
               />
               <DetailRow
                 label={t('commands.detail.permission', '生效权限')}
@@ -1448,6 +1456,101 @@ function DetailRow({
           {value}
         </Typography>
       )}
+    </Box>
+  )
+}
+
+function CommandParamsPanel({
+  items,
+  emptyText,
+  t,
+}: {
+  items: ParamSchemaItem[]
+  emptyText: string
+  t: TFunction<'settings'>
+}) {
+  const [open, setOpen] = useState(false)
+  const collapseId = 'command-params-collapse'
+  const summaryText = items.length > 0
+    ? t('commands.detail.paramCount', '{{count}} 个参数', { count: items.length })
+    : emptyText
+
+  return (
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 1.5,
+        overflow: 'hidden',
+        backgroundColor: 'action.hover',
+      }}
+    >
+      <Box
+        component="button"
+        type="button"
+        aria-expanded={open}
+        aria-controls={collapseId}
+        onClick={() => setOpen(value => !value)}
+        sx={{
+          width: '100%',
+          border: 0,
+          p: 0,
+          m: 0,
+          background: 'transparent',
+          color: 'inherit',
+          cursor: 'pointer',
+          textAlign: 'left',
+          font: 'inherit',
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{
+            px: 1.25,
+            py: 1,
+            minWidth: 0,
+            '&:hover': {
+              backgroundColor: 'action.selected',
+            },
+          }}
+        >
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {t('commands.detail.params', '参数')}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+              {summaryText}
+            </Typography>
+          </Box>
+          <Box
+            aria-hidden="true"
+            sx={{
+              width: 28,
+              height: 28,
+              borderRadius: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'text.secondary',
+              transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: theme =>
+                theme.transitions.create('transform', {
+                  duration: theme.transitions.duration.shortest,
+                }),
+              flexShrink: 0,
+            }}
+          >
+            <ExpandMoreIcon fontSize="small" />
+          </Box>
+        </Stack>
+      </Box>
+      <Collapse id={collapseId} in={open} timeout="auto" unmountOnExit>
+        <Box sx={{ px: 1.25, pb: 1.25 }}>
+          <CommandParamsView items={items} emptyText={emptyText} t={t} />
+        </Box>
+      </Collapse>
     </Box>
   )
 }
