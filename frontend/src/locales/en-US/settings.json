@@ -537,5 +537,114 @@
       "otherData": "Other Data",
       "agentData": "NekroAgent Data"
     }
+  },
+  "oobe": {
+    "title": "NekroAgent Setup",
+    "subtitle": "Configure the essential system and model settings before you start",
+    "manualSubtitle": "Review and update the essential setup",
+    "adminPasswordNote": "The WebUI admin password is still managed by deployment environment variables and is not changed here.",
+    "steps": {
+      "welcome": {
+        "title": "Start",
+        "description": "Review setup readiness"
+      },
+      "language": {
+        "title": "Choose Language",
+        "description": "Choose the display language for NekroAgent"
+      },
+      "system": {
+        "title": "System Basics",
+        "description": "Cloud service and default proxy"
+      },
+      "chat": {
+        "title": "Primary Chat Model",
+        "description": "Configure the default chat model group"
+      },
+      "embedding": {
+        "title": "Embedding Model",
+        "description": "Configure memory and knowledge vectors"
+      },
+      "finish": {
+        "title": "Confirm",
+        "description": "Save and enter the console"
+      }
+    },
+    "actions": {
+      "back": "Back",
+      "next": "Next",
+      "continue": "Continue",
+      "skip": "Skip for now",
+      "complete": "Complete setup",
+      "logout": "Log out",
+      "fetchModels": "Fetch models",
+      "test": "Connection test",
+      "showSecret": "Show secret",
+      "hideSecret": "Hide secret",
+      "openGuide": "Start guide"
+    },
+    "common": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "welcome": {
+      "body": "Set up the essential system settings and model groups.",
+      "footer": "Adapters, workspaces and presets can be configured later in the console."
+    },
+    "system": {
+      "languageTitle": "System Language",
+      "cloudTitle": "NekroAI Cloud",
+      "enableCloud": "Enable cloud service",
+      "cloudKey": "NekroAI API Key",
+      "cloudLink": "Open NekroAI Community to get an API key",
+      "proxyTitle": "Default System Proxy",
+      "proxy": "Default proxy URL",
+      "proxyHint": "Leave empty to use no default proxy. Model groups can still use their own proxy."
+    },
+    "model": {
+      "groupName": "Model Group Name",
+      "groupNameLocked": "OOBE always writes to the default model group name, so this cannot be changed here.",
+      "baseUrl": "API URL",
+      "apiKey": "API Key",
+      "proxy": "Model group proxy",
+      "chatModel": "Chat Model",
+      "embeddingModel": "Embedding Model",
+      "vision": "Enable vision",
+      "cot": "Enable external CoT",
+      "advancedConfig": "Advanced config",
+      "extraBodyHint": "Optional valid JSON object"
+    },
+    "embedding": {
+      "dimensionTitle": "Vector Dimensions",
+      "memoryDimension": "Memory Embedding Dimension",
+      "kbDimension": "Knowledge Base Embedding Dimension",
+      "dimensionHint": "Dimensions must match the selected embedding model and existing Qdrant indexes."
+    },
+    "finish": {
+      "system": "System Basics",
+      "chat": "Primary Chat Model",
+      "embedding": "Embedding Model",
+      "dimensions": "Vector Dimensions"
+    },
+    "validation": {
+      "modelFetchRequired": "Fill API URL and API key first",
+      "invalidJson": "Enter valid JSON",
+      "completeRequired": "Complete the primary chat model, embedding model and vector dimensions first."
+    },
+    "testResult": {
+      "success": "Connection test passed",
+      "failed": "Connection test failed",
+      "detail": "Actual model: {{model}}, latency: {{ms}}ms"
+    },
+    "notifications": {
+      "completeSuccess": "OOBE completed. You can re-enable this guide later in System Settings > Other.",
+      "completeFailed": "Failed to save setup",
+      "skipped": "OOBE skipped. You can re-enable this guide later in System Settings > Other.",
+      "skipFailed": "Failed to skip setup",
+      "testPassed": "Model connection test passed",
+      "testFailed": "Model test failed. Check the configuration.",
+      "testError": "Test request failed",
+      "fetchSuccess": "Fetched {{count}} models",
+      "fetchFailed": "Failed to fetch model list"
+    }
   }
 }

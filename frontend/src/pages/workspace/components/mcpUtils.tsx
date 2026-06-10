@@ -52,7 +52,8 @@ export const typeIcon = (type: McpServerType) => {
 export const emptyServer = (): McpServerConfig => ({
   name: '',
   type: 'stdio',
-  enabled: true,
+  auto_inject: false,
+  enabled: false,
   command: '',
   args: [],
   env: {},

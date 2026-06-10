@@ -106,7 +106,7 @@ export default function McpServicesPage() {
 
   const handleToggleEnabled = async (server: McpServerConfig) => {
     try {
-      await updateList(current => current.map(s => s.name === server.name ? { ...s, enabled: !s.enabled } : s))
+      await updateList(current => current.map(s => s.name === server.name ? { ...s, auto_inject: !s.auto_inject } : s))
     } catch (e) {
       notification.error((e as Error).message)
       throw e
@@ -124,6 +124,14 @@ export default function McpServicesPage() {
         ? t('mcpServices.import.successWithSkip', { count: toAdd.length, skipped })
         : t('mcpServices.import.success', { count: toAdd.length })
     )
+  }
+
+  const handleValidate = (server: McpServerConfig) => mcpApi.testAutoInjectServer(server)
+
+  const handleValidateSaved = async (name: string) => {
+    const result = await mcpApi.testSavedAutoInjectServer(name)
+    invalidate()
+    return result
   }
 
   return (
@@ -145,6 +153,8 @@ export default function McpServicesPage() {
         onDelete={handleDelete}
         onToggleEnabled={handleToggleEnabled}
         onImport={handleImport}
+        onValidate={handleValidate}
+        onValidateSaved={handleValidateSaved}
         cardVariant="global"
         title=""
         emptyText={hasActiveFilters ? t('mcpServices.empty.noMatch') : t('mcpServices.empty.title')}

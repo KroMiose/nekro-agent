@@ -62,26 +62,40 @@ class DBChatChannel(Model):
         table = "chat_channel"
 
     @classmethod
+    def _get_default_channel_status(cls, adapter_key: str, channel_type: ChatType) -> ChannelStatus:
+        try:
+            adapter = adapter_utils.get_adapter(adapter_key)
+            return ChannelStatus(adapter.get_default_channel_status(channel_type))
+        except Exception as e:
+            logger.debug(f"获取适配器默认频道状态失败，使用全局配置: {adapter_key}, {e!s}")
+
+        if channel_type == ChatType.GROUP and config.SESSION_GROUP_ACTIVE_DEFAULT:
+            return ChannelStatus.ACTIVE
+        if channel_type == ChatType.PRIVATE and config.SESSION_PRIVATE_ACTIVE_DEFAULT:
+            return ChannelStatus.ACTIVE
+        return ChannelStatus.DISABLED
+
+    @classmethod
     async def get_or_create(
         cls,
         adapter_key: str,
         channel_id: str,
         channel_type: ChatType,
         channel_name: str = "",
+        chat_key: str | None = None,
     ) -> "DBChatChannel":
         """获取或创建聊天频道"""
         channel = await cls.get_or_none(adapter_key=adapter_key, channel_id=channel_id)
         if not channel:
-            is_active = (channel_type == ChatType.GROUP and config.SESSION_GROUP_ACTIVE_DEFAULT) or (
-                channel_type == ChatType.PRIVATE and config.SESSION_PRIVATE_ACTIVE_DEFAULT
-            )
+            default_status = cls._get_default_channel_status(adapter_key=adapter_key, channel_type=channel_type)
             channel = await cls.create(
                 adapter_key=adapter_key,
                 channel_id=channel_id,
                 channel_type=channel_type.value,
                 channel_name=channel_name,
-                chat_key=f"{adapter_key}-{channel_id}",
-                is_active=is_active,
+                chat_key=chat_key if chat_key is not None else f"{adapter_key}-{channel_id}",
+                is_active=default_status != ChannelStatus.DISABLED,
+                observe_mode=default_status == ChannelStatus.OBSERVE,
                 data=json.dumps({}),
             )
         else:
@@ -118,6 +132,29 @@ class DBChatChannel(Model):
 
         adapter = adapter_utils.get_adapter(self.adapter_key)
         return (await adapter.get_channel_info(self.channel_id)).channel_name
+
+    def get_custom_channel_name(self) -> Optional[str]:
+        try:
+            data = json.loads(self.data or "{}")
+        except Exception:
+            return None
+        value = data.get("custom_channel_name")
+        return value if isinstance(value, str) and value else None
+
+    async def set_custom_channel_name(self, name: Optional[str]) -> None:
+        try:
+            data = json.loads(self.data or "{}")
+        except Exception:
+            data = {}
+
+        custom_name = name.strip() if name else ""
+        if custom_name:
+            data["custom_channel_name"] = custom_name
+        else:
+            data.pop("custom_channel_name", None)
+
+        self.data = json.dumps(data, ensure_ascii=False)
+        await self.save(update_fields=["data", "update_time"])
 
     async def reset_channel(self):
         """重置聊天频道"""

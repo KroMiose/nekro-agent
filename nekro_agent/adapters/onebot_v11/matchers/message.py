@@ -28,7 +28,11 @@ from nekro_agent.adapters.onebot_v11.tools.onebot_util import (
 from nekro_agent.core import config, logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
-from nekro_agent.schemas.chat_message import ChatMessageSegmentForward
+from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatMessageSegmentForward
+
+
+def _build_content_text_from_segments(content_data: list[ChatMessageSegment]) -> str:
+    return "".join(seg.text for seg in content_data if seg.text).strip()
 
 
 def register_matcher(adapter: BaseAdapter):
@@ -78,6 +82,8 @@ def register_matcher(adapter: BaseAdapter):
             if isinstance(seg, ChatMessageSegmentForward):
                 content_text = seg.text
                 break
+        if not content_text:
+            content_text = _build_content_text_from_segments(content_data)
 
         ignored_prefixes = (
             [config.AI_COMMAND_OUTPUT_PREFIX, *config.AI_IGNORED_PREFIXES]
@@ -148,7 +154,7 @@ def register_matcher(adapter: BaseAdapter):
             sender_name=sender_name,
             sender_nickname=sender_nickname,
             content_data=content_data,
-            content_text="",
+            content_text=_build_content_text_from_segments(content_data),
             is_tome=bool(msg_tome),
             timestamp=int(time.time()),
         )

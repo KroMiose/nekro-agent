@@ -62,15 +62,21 @@ async def list_users(
     query = DBUser.all()
 
     if search:
-        query = query.filter(
-            Q(username__icontains=search) | Q(platform_userid__icontains=search),
+        search_filter = (
+            Q(username__icontains=search)
+            | Q(adapter_key__icontains=search)
+            | Q(platform_userid__icontains=search)
         )
+        if ":" in search:
+            adapter_key, platform_userid = search.split(":", 1)
+            search_filter |= Q(adapter_key__icontains=adapter_key, platform_userid__icontains=platform_userid)
+        query = query.filter(search_filter)
 
-    if sort_by:
-        order_by = f"-{sort_by}" if sort_order == "desc" else sort_by
-        query = query.order_by(order_by)
-    else:
-        query = query.order_by("-id")
+    allowed_sort_fields = {"id", "username", "create_time", "adapter_key"}
+    sort_field = sort_by if sort_by in allowed_sort_fields else "id"
+    sort_direction = sort_order if sort_order in {"asc", "desc"} else "desc"
+    order_by = f"-{sort_field}" if sort_direction == "desc" else sort_field
+    query = query.order_by(order_by)
 
     total = await query.count()
     users = await query.offset((page - 1) * page_size).limit(page_size)
@@ -166,11 +172,7 @@ async def update_user(
     if not user:
         raise NotFoundError(resource="用户")
 
-    if user_data.access_key != OsEnv.SUPER_ACCESS_KEY:
-        raise UnauthorizedError
-
     user.username = user_data.username
-    user.perm_level = user_data.perm_level
     await user.save()
 
     return ActionResponse(ok=True)

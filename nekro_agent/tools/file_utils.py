@@ -15,6 +15,7 @@ from .path_convertor import (
     convert_filepath_to_sandbox_upload_path,
     convert_to_host_path,
     get_upload_file_path,
+    sanitize_chat_key_for_path,
 )
 
 
@@ -114,7 +115,7 @@ class FileSystem:
     @property
     def upload_path(self) -> Path:
         """获取当前频道的文件上传目录"""
-        return Path(USER_UPLOAD_DIR) / self.chat_key
+        return Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(self.chat_key)
 
     def get_file(self, file_path: Path | str) -> Path:
         """从 AI 提供的沙盒内互通路径获取可访问的文件对象

@@ -1488,11 +1488,18 @@ export default function PluginsManagementPage() {
   const notification = useNotification()
   const { t, i18n } = useTranslation('plugins')
   const searchTerm = searchParams.get('search') ?? ''
+  const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm)
+  const [isComposing, setIsComposing] = useState(false)
   const buildPluginsUrl = useCallback((nextPluginId?: string | null) => {
     const basePath = pluginsManagementPath(nextPluginId)
     const query = searchParams.toString()
     return query ? `${basePath}?${query}` : basePath
   }, [searchParams])
+
+  // 同步 URL 搜索参数到本地状态
+  useEffect(() => {
+    setLocalSearchTerm(searchTerm)
+  }, [searchTerm])
 
   // 获取插件列表 - 只获取基础列表，不获取详情
   const { data: plugins = [], isLoading } = useQuery({
@@ -1641,25 +1648,49 @@ export default function PluginsManagementPage() {
     setSearchParams(nextParams, { replace: true })
   }
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setLocalSearchTerm(value)
+    if (!isComposing) {
+      updateSearchTerm(value)
+    }
+  }
+
+  const handleCompositionStart = () => {
+    setIsComposing(true)
+  }
+
+  const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    setIsComposing(false)
+    updateSearchTerm(e.currentTarget.value)
+  }
+
+  const handleClearSearch = () => {
+    setLocalSearchTerm('')
+    updateSearchTerm('')
+  }
+
   const pluginListContent = (
     <>
       <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider', flexShrink: 0, bgcolor: 'background.paper' }}>
         <TextField
           placeholder={t('list.search')}
           size="small"
-          value={searchTerm}
-          onChange={e => updateSearchTerm(e.target.value)}
+          value={localSearchTerm}
+          onChange={handleSearchChange}
+          onCompositionStart={handleCompositionStart}
+          onCompositionEnd={handleCompositionEnd}
           variant="outlined"
           fullWidth
           slotProps={{
             input: {
-              endAdornment: searchTerm ? (
+              endAdornment: localSearchTerm ? (
                 <InputAdornment position="end">
                   <IconActionButton
                     size="small"
                     edge="end"
                     aria-label={t('actions.clear')}
-                    onClick={() => updateSearchTerm('')}
+                    onClick={handleClearSearch}
                   >
                     <CloseIcon fontSize="small" />
                   </IconActionButton>

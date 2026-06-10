@@ -15,7 +15,7 @@ import GroupIcon from '@mui/icons-material/Group'
 import PersonIcon from '@mui/icons-material/Person'
 import ForumIcon from '@mui/icons-material/Forum'
 import CircleIcon from '@mui/icons-material/Circle'
-import type { ChatChannel } from '../../../../services/api/chat-channel'
+import { getChannelDisplayName, type ChatChannel } from '../../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
 import { formatLastActiveTimeFromInput } from '../../../../utils/time'
 
@@ -77,6 +77,7 @@ export default function ChannelSelectorList({
         const selected = selectedChatKeys.has(channel.chat_key)
         const isGroup = channel.chat_type === 'group'
         const Icon = isGroup ? GroupIcon : PersonIcon
+        const displayName = getChannelDisplayName(channel)
 
         return (
           <ListItem
@@ -137,7 +138,7 @@ export default function ChannelSelectorList({
                     mb: 0.5,
                   }}
                 >
-                  <Tooltip title={channel.channel_name || channel.chat_key} placement="top" arrow>
+                  <Tooltip title={displayName} placement="top" arrow>
                     <Typography
                       variant="body2"
                       sx={{
@@ -147,7 +148,7 @@ export default function ChannelSelectorList({
                       }}
                       noWrap
                     >
-                      {channel.channel_name || channel.chat_key}
+                      {displayName}
                     </Typography>
                   </Tooltip>
 

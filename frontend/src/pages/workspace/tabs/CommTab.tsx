@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next'
 import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
 import { useChannelDirectoryContext } from '../../../contexts/ChannelDirectoryContext'
+import { getChannelDisplayName } from '../../../services/api/chat-channel'
 
 // ──────────────────────────────────────────
 // 通讯气泡内紧凑 Markdown 样式（模块级，避免每次渲染重建）
@@ -320,7 +321,7 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
   const renderChatKey = (chatKey: string) => {
     if (!chatKey || chatKey === '__user__') return null
     const ch = channelMap.get(chatKey)
-    const displayName = ch?.channel_name ?? chatKey
+    const displayName = ch ? getChannelDisplayName(ch) : chatKey
     return (
       <Tooltip title={`${chatKey}（点击查看频道）`} placement="top" arrow>
         <Typography
@@ -333,7 +334,7 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             textDecoration: 'underline',
             textDecorationStyle: 'dotted',
             cursor: 'pointer',
-            fontWeight: ch?.channel_name ? 500 : 400,
+            fontWeight: ch ? 500 : 400,
             '&:hover': { opacity: 0.75 },
           }}
         >

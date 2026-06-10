@@ -16,7 +16,7 @@ from PIL import Image
 from nekro_agent.core import logger
 from nekro_agent.core.config import CoreConfig
 from nekro_agent.core.os_env import USER_UPLOAD_DIR
-from nekro_agent.tools.path_convertor import is_url_path
+from nekro_agent.tools.path_convertor import is_url_path, sanitize_chat_key_for_path
 
 _APP_VERSION: str = ""
 
@@ -108,7 +108,7 @@ async def download_file(
             if not file_path:
                 file_name = file_name or f"{hashlib.md5(response.content).hexdigest()}{use_suffix}"
                 if from_chat_key:
-                    save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+                    save_path = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(from_chat_key) / Path(file_name)
                 else:
                     save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
                 save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -150,7 +150,7 @@ async def download_file_from_bytes(
     if not file_path:
         file_name = file_name or f"{hashlib.md5(bytes_data).hexdigest()}{use_suffix}"
         if from_chat_key:
-            save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+            save_path = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(from_chat_key) / Path(file_name)
         else:
             save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -186,7 +186,7 @@ async def download_file_from_base64(
     if not file_path:
         file_name = file_name or f"{hashlib.md5(base64_str.encode()).hexdigest()}{use_suffix}"
         if from_chat_key:
-            save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+            save_path = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(from_chat_key) / Path(file_name)
         else:
             save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -214,7 +214,7 @@ async def copy_to_upload_dir(
     if not file_name:
         file_name = f"{hashlib.md5(Path(file_path).read_bytes()).hexdigest()}{use_suffix}"
     if from_chat_key:
-        save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+        save_path = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(from_chat_key) / Path(file_name)
     else:
         save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
     save_path.parent.mkdir(parents=True, exist_ok=True)

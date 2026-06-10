@@ -225,7 +225,7 @@ async def run_code_in_sandbox(
                         f"{HOST_PIP_CACHE_DIR}:{CONTAINER_PIP_CACHE_DIR}:rw",
                         f"{HOST_PACKAGE_DIR}:{CONTAINER_PACKAGE_DIR}:rw",
                         f"{host_shared_dir}:{CONTAINER_SHARE_DIR}:rw",
-                        f"{USER_UPLOAD_DIR}/{from_chat_key}:{CONTAINER_UPLOAD_DIR}:ro",
+                        f"{USER_UPLOAD_DIR}/{_sanitize_docker_name_part(from_chat_key)}:{CONTAINER_UPLOAD_DIR}:ro",
                     ],
                     "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
                     "NanoCPUs": 1000000000,  # CPU 限制 (1 core)

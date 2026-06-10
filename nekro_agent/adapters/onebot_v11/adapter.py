@@ -15,17 +15,18 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.adapters.onebot_v11.matchers.message import register_matcher
 from nekro_agent.core import config, logger
+from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.schemas.i18n import i18n_text
 from nekro_agent.services.command.schemas import CommandResponse
-from nekro_agent.core.core_utils import ExtraField
 
 from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
 from .core.bot import get_bot
 from .tools.at_parser import SegAt, parse_at_from_text
+from .tools.cq_markup import neutralize_onebot_cq_at_all_markup
 from .tools.convertor import get_channel_type
 
 
@@ -71,6 +72,32 @@ class OnebotV11Config(BaseAdapterConfig):
             i18n_description=i18n_text(
                 zh_CN="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
                 en_US="When enabled, CQ codes in AI-generated messages will no longer be treated as plain text and will instead be parsed into rich messages by the protocol implementation.",
+            ),
+        ).model_dump(),
+    )
+    SESSION_GROUP_WELCOME_ENABLED: bool = Field(
+        default=True,
+        title="启用入群自动欢迎",
+        description="启用后群成员增加通知会触发 AI 自动欢迎",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="OneBot", en_US="OneBot"),
+            i18n_title=i18n_text(zh_CN="启用入群自动欢迎", en_US="Enable Group Welcome"),
+            i18n_description=i18n_text(
+                zh_CN="启用后群成员增加通知会触发 AI 自动欢迎",
+                en_US="When enabled, group member increase notices trigger AI welcome replies.",
+            ),
+        ).model_dump(),
+    )
+    SESSION_GROUP_LEAVE_NOTICE_ENABLED: bool = Field(
+        default=True,
+        title="启用退群提醒",
+        description="启用后群成员减少通知会触发 AI 退群提醒",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="OneBot", en_US="OneBot"),
+            i18n_title=i18n_text(zh_CN="启用退群提醒", en_US="Enable Group Leave Notice"),
+            i18n_description=i18n_text(
+                zh_CN="启用后群成员减少通知会触发 AI 退群提醒",
+                en_US="When enabled, group member decrease notices trigger AI leave notices.",
             ),
         ).model_dump(),
     )
@@ -153,6 +180,15 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
     async def cleanup(self) -> None:
         """清理适配器"""
         return
+
+    async def render_runtime_prompt(self) -> str:
+        """渲染 OneBot V11 适配器运行时提示词"""
+        return (
+            "<adapter_runtime_context name=\"OneBot V11\" adapter_key=\"onebot_v11\">\n"
+            "Do not use raw CQ codes in `message_text`; use `[@id:123@]` for mentions and "
+            "`send_msg_file` for images/files.\n"
+            "</adapter_runtime_context>"
+        )
 
     async def _try_send_enhanced_command_message(self, chat_key: str, message: str) -> bool:
         """OneBot V11: 以合并转发消息形式发送长文本"""
@@ -323,13 +359,14 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         for segment in request.segments:
             if segment.type == PlatformSendSegmentType.TEXT:
                 if segment.content.strip():
+                    content = neutralize_onebot_cq_at_all_markup(segment.content)
                     # NoneBot 特有功能：解析文本中的 @ 信息
-                    seg_data = await parse_at_from_text(segment.content, db_chat_channel)
+                    seg_data = await parse_at_from_text(content, db_chat_channel)
 
                     for seg in seg_data:
                         if isinstance(seg, str):
                             if seg.strip():
-                                message.append(MessageSegment.text(seg))
+                                self._append_text_message_segment(message, seg)
                         elif isinstance(seg, SegAt):  # SegAt 对象
                             message.append(MessageSegment.at(user_id=seg.platform_user_id))
 
@@ -350,6 +387,16 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         if message:
             return await self._send_to_chat(request.chat_key, message)
         return None
+
+    def _append_text_message_segment(self, message: Message, text: str) -> None:
+        """按配置决定普通文本中的 CQ 码是否解析为 OneBot 消息段。"""
+
+        if not self.config.RESOLVE_CQ_CODE:
+            message.append(MessageSegment.text(text))
+            return
+
+        for segment in Message(text):
+            message.append(segment)
 
     async def _send_files(self, chat_key: str, file_segments: List) -> None:
         """发送文件（物化到 uploads 目录后通过 OneBot 文件上传 API 发送）"""

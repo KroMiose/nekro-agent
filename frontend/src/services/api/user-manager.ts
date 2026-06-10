@@ -49,8 +49,6 @@ export interface UserFormData {
 
 export interface UserUpdateData {
   username: string
-  perm_level: number
-  access_key: string
 }
 
 export interface ActionResponse {

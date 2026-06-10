@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, useDeferredValue } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Box, Tab } from '@mui/material'
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'
 import { useQuery } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
 import { useTranslation } from 'react-i18next'
@@ -10,16 +11,18 @@ import type { ConfigItem } from '../../components/common/ConfigTable'
 import { useLocaleStore } from '../../stores/locale'
 import type { SupportedLocale } from '../../config/i18n'
 import { PanelTabs, PanelTabsContainer } from '../../components/common/NekroTabs'
+import ActionButton from '../../components/common/ActionButton'
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
   const { t } = useTranslation('settings')
   const { i18n } = useTranslation()
   const { setLocaleLocal } = useLocaleStore()
   const urlSearchText = searchParams.get('search') ?? ''
   const requestedCategory = searchParams.get('category') ?? ''
   const [searchInput, setSearchInput] = useState<string>(urlSearchText)
-  const deferredSearchInput = useDeferredValue(searchInput)
+  const [debouncedSearchInput, setDebouncedSearchInput] = useState<string>(urlSearchText)
 
   // 创建系统配置服务
   const configService = createConfigService('system')
@@ -57,13 +60,14 @@ export default function SettingsPage() {
 
   // 按分类组织配置，同时提取分类列表
   const { categories, configsByCategory } = useMemo(() => {
+    const visibleConfigs = configs.filter((config: ConfigItem) => !config.is_hidden)
     const seen = new Set<string>()
     const cats: string[] = []
     const grouped: Record<string, ConfigItem[]> = {}
 
     const otherLabel = t('system.otherCategory', '其他')
 
-    configs.forEach((config: ConfigItem) => {
+    visibleConfigs.forEach((config: ConfigItem) => {
       const category = resolveCategory(config)
       if (!seen.has(category)) {
         seen.add(category)
@@ -108,7 +112,7 @@ export default function SettingsPage() {
 
     return { categories: sortedCategories, configsByCategory: grouped }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configs, i18n.language, preferredCategoryOrder])
+  }, [configs, i18n.language, preferredCategoryOrder, t])
 
   const activeTab = useMemo(() => {
     if (categories.length === 0) {
@@ -122,7 +126,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setSearchInput(urlSearchText)
+    setDebouncedSearchInput(urlSearchText)
   }, [urlSearchText])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedSearchInput(searchInput)
+    }, 300)
+    return () => window.clearTimeout(timer)
+  }, [searchInput])
 
   useEffect(() => {
     if (categories.length === 0 || !activeTab) {
@@ -137,7 +149,7 @@ export default function SettingsPage() {
   }, [activeTab, categories.length, requestedCategory, searchParams, setSearchParams])
 
   useEffect(() => {
-    const normalizedSearch = deferredSearchInput.trim()
+    const normalizedSearch = debouncedSearchInput.trim()
     const currentSearch = searchParams.get('search') ?? ''
     const currentCategory = searchParams.get('category') ?? ''
     const normalizedCurrentSearch = currentSearch.trim()
@@ -147,7 +159,7 @@ export default function SettingsPage() {
 
     const nextParams = new URLSearchParams(searchParams)
     if (normalizedSearch) {
-      nextParams.set('search', deferredSearchInput)
+      nextParams.set('search', debouncedSearchInput)
     } else {
       nextParams.delete('search')
     }
@@ -155,7 +167,7 @@ export default function SettingsPage() {
       nextParams.set('category', activeTab)
     }
     setSearchParams(nextParams, { replace: true })
-  }, [activeTab, deferredSearchInput, searchParams, setSearchParams])
+  }, [activeTab, debouncedSearchInput, searchParams, setSearchParams])
 
   // 当系统配置刷新后，同步 SYSTEM_LANG 到前端 locale
   useEffect(() => {
@@ -177,13 +189,30 @@ export default function SettingsPage() {
     return configsByCategory[activeTab] || []
   }, [activeTab, configs, configsByCategory, searchInput])
 
-  const handleSearchChange = (text: string) => {
-    setSearchInput(text)
+  const handleSearchChange = (text: string | undefined) => {
+    setSearchInput(text ?? '')
   }
 
   const handleRefresh = () => {
     refetch()
   }
+
+  const otherCategoryLabel = t('system.otherCategory', '其他')
+  const guideToolbarAction = activeTab === otherCategoryLabel
+    ? (
+        <ActionButton
+          tone="secondary"
+          size="small"
+          startIcon={<RocketLaunchIcon />}
+          onClick={() => {
+            navigate('/oobe')
+          }}
+          sx={{ height: 38, flexShrink: 0, whiteSpace: 'nowrap' }}
+        >
+          {t('oobe.actions.openGuide')}
+        </ActionButton>
+      )
+    : null
 
   return (
     <Box
@@ -196,27 +225,29 @@ export default function SettingsPage() {
       }}
     >
       {/* 分类选项卡 */}
-      <PanelTabsContainer
+      <Box
         sx={{
           mb: 2,
           flexShrink: 0,
         }}
       >
-        <PanelTabs
-          value={categories.length > 0 ? activeTab : false}
-          onChange={(_, newValue) => {
-            const nextParams = new URLSearchParams(searchParams)
-            nextParams.set('category', newValue)
-            setSearchParams(nextParams, { replace: true })
-          }}
-          variant="scrollable"
-          scrollButtons="auto"
-        >
-          {categories.map((category) => (
-            <Tab key={category} label={category} value={category} />
-          ))}
-        </PanelTabs>
-      </PanelTabsContainer>
+        <PanelTabsContainer sx={{ minWidth: 0 }}>
+          <PanelTabs
+            value={categories.length > 0 ? activeTab : false}
+            onChange={(_, newValue) => {
+              const nextParams = new URLSearchParams(searchParams)
+              nextParams.set('category', newValue)
+              setSearchParams(nextParams, { replace: true })
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+          >
+            {categories.map((category) => (
+              <Tab key={category} label={category} value={category} />
+            ))}
+          </PanelTabs>
+        </PanelTabsContainer>
+      </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <ConfigTable
@@ -229,6 +260,7 @@ export default function SettingsPage() {
           onRefresh={handleRefresh}
           showSearchBar={true}
           showToolbar={true}
+          toolbarActions={guideToolbarAction}
           showCategoryColumn={Boolean(searchInput.trim())}
           emptyMessage={t('system.emptyMessage')}
         />

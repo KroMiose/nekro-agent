@@ -22,10 +22,12 @@ from nekro_agent.models.db_recurring_timer_job import DBRecurringTimerJob
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.errors import AdapterUnavailableError, NotFoundError, ValidationError
+from nekro_agent.services.channel_broadcaster import channel_broadcaster
 from nekro_agent.services.config_resolver import config_resolver
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
+from nekro_agent.tools.path_convertor import sanitize_chat_key_for_path
 
 router = APIRouter(prefix="/chat-channel", tags=["ChatChannel"])
 
@@ -36,6 +38,7 @@ class ChatChannelItem(BaseModel):
     id: int
     chat_key: str
     channel_name: Optional[str]
+    custom_channel_name: Optional[str]
     is_active: bool
     status: str
     chat_type: str
@@ -54,6 +57,7 @@ class ChatChannelDirectoryItem(BaseModel):
     id: int
     chat_key: str
     channel_name: Optional[str]
+    custom_channel_name: Optional[str]
     is_active: bool
     status: str
     chat_type: str
@@ -94,6 +98,10 @@ class ActionResponse(BaseModel):
     ok: bool = True
 
 
+class UpdateCustomChannelNameRequest(BaseModel):
+    custom_channel_name: Optional[str] = None
+
+
 class ChannelDeletePreview(BaseModel):
     message_count: int
     timer_job_count: int
@@ -120,7 +128,7 @@ async def get_chat_channel_list(
 
     if search:
         query = query.filter(
-            Q(chat_key__contains=search) | Q(channel_name__contains=search),
+            Q(chat_key__contains=search) | Q(channel_name__contains=search) | Q(data__contains=search),
         )
     if chat_type:
         query = query.filter(channel_type=chat_type)
@@ -182,6 +190,7 @@ async def get_chat_channel_list(
                 id=channel.id,
                 chat_key=channel.chat_key,
                 channel_name=channel.channel_name,
+                custom_channel_name=channel.get_custom_channel_name(),
                 is_active=channel.is_active,
                 status=channel.channel_status,
                 chat_type=channel.chat_type.value,
@@ -215,6 +224,7 @@ async def get_chat_channel_directory(
             id=channel.id,
             chat_key=channel.chat_key,
             channel_name=channel.channel_name,
+            custom_channel_name=channel.get_custom_channel_name(),
             is_active=channel.is_active,
             status=channel.channel_status,
             chat_type=channel.chat_type.value,
@@ -314,6 +324,7 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
         id=channel.id,
         chat_key=channel.chat_key,
         channel_name=channel.channel_name,
+        custom_channel_name=channel.get_custom_channel_name(),
         is_active=channel.is_active,
         status=channel.channel_status,
         chat_type=channel.chat_type.value,
@@ -342,6 +353,14 @@ async def set_chat_channel_active(
         raise NotFoundError(resource="聊天频道")
 
     await channel.set_channel_status("active" if is_active else "disabled")
+    await channel_broadcaster.publish_update(
+        event_type="updated",
+        chat_key=channel.chat_key,
+        channel_name=channel.channel_name,
+        custom_channel_name=channel.get_custom_channel_name(),
+        is_active=channel.is_active,
+        status=channel.channel_status,
+    )
     return ActionResponse(ok=True)
 
 
@@ -369,6 +388,41 @@ async def set_chat_channel_status(
         return ActionResponse(ok=False)
 
     await channel.set_channel_status(status)
+    await channel_broadcaster.publish_update(
+        event_type="updated",
+        chat_key=channel.chat_key,
+        channel_name=channel.channel_name,
+        custom_channel_name=channel.get_custom_channel_name(),
+        is_active=channel.is_active,
+        status=channel.channel_status,
+    )
+    return ActionResponse(ok=True)
+
+
+@router.put("/{chat_key}/custom-name", summary="设置聊天频道自定义名称")
+@require_role(Role.Admin)
+async def set_chat_channel_custom_name(
+    chat_key: str,
+    payload: UpdateCustomChannelNameRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionResponse:
+    channel = await DBChatChannel.filter(chat_key=chat_key).first()
+    if not channel:
+        raise NotFoundError(resource="聊天频道")
+
+    custom_channel_name = payload.custom_channel_name.strip() if payload.custom_channel_name else ""
+    if len(custom_channel_name) > 64:
+        raise ValidationError(reason="频道自定义名称不能超过 64 个字符")
+
+    await channel.set_custom_channel_name(custom_channel_name or None)
+    await channel_broadcaster.publish_update(
+        event_type="updated",
+        chat_key=channel.chat_key,
+        channel_name=channel.channel_name,
+        custom_channel_name=channel.get_custom_channel_name(),
+        is_active=channel.is_active,
+        status=channel.channel_status,
+    )
     return ActionResponse(ok=True)
 
 
@@ -722,7 +776,7 @@ async def _send_message_via_webui(
 
         is_file_mode = False
         if file and file.filename:
-            safe_chat_key = Path(chat_key).name
+            safe_chat_key = sanitize_chat_key_for_path(Path(chat_key).name)
             safe_filename = Path(file.filename).name
             upload_dir = Path(USER_UPLOAD_DIR) / safe_chat_key
             upload_dir.mkdir(parents=True, exist_ok=True)
@@ -950,8 +1004,8 @@ async def get_channel_delete_preview(
         DBMemEpisode.filter(origin_chat_key=chat_key).count(),
     )
 
-    upload_dir = Path(USER_UPLOAD_DIR) / chat_key
-    sandbox_dir = Path(SANDBOX_SHARED_HOST_DIR) / f"sandbox_{chat_key}"
+    upload_dir = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(chat_key)
+    sandbox_dir = Path(SANDBOX_SHARED_HOST_DIR) / f"sandbox_{sanitize_chat_key_for_path(chat_key)}"
 
     return ChannelDeletePreview(
         message_count=msg_count,
@@ -993,14 +1047,14 @@ async def delete_chat_channel(
     await DBChatChannel.filter(chat_key=chat_key).delete()
 
     # 6. 清理文件系统（容错处理）
-    upload_dir = Path(USER_UPLOAD_DIR) / chat_key
+    upload_dir = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(chat_key)
     if upload_dir.exists():
         try:
             shutil.rmtree(upload_dir)
         except Exception as e:
             logger.warning(f"清理频道上传目录失败 {upload_dir}: {e}")
 
-    sandbox_dir = Path(SANDBOX_SHARED_HOST_DIR) / f"sandbox_{chat_key}"
+    sandbox_dir = Path(SANDBOX_SHARED_HOST_DIR) / f"sandbox_{sanitize_chat_key_for_path(chat_key)}"
     if sandbox_dir.exists():
         try:
             shutil.rmtree(sandbox_dir)

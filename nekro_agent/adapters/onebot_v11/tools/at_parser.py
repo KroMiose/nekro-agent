@@ -7,6 +7,7 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel
 
+from nekro_agent.adapters.onebot_v11.tools.cq_markup import normalize_onebot_cq_at_markup
 from nekro_agent.adapters.onebot_v11.tools.onebot_util import get_user_group_card_name
 from nekro_agent.core.config import config
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -39,6 +40,7 @@ async def parse_at_from_text(text: str, db_chat_channel: DBChatChannel) -> List[
         >>> parse_at_from_text("hello world")
         ['hello world']
     """
+    text = normalize_onebot_cq_at_markup(text)
     adapter = db_chat_channel.adapter
     result = []
     start = 0

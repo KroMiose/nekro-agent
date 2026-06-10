@@ -14,10 +14,19 @@ from nekro_agent.schemas.workspace_resource import (
     WorkspaceResourceConflict,
     WorkspaceResourceCreate,
     WorkspaceResourceDetail,
+    WorkspaceResourceSecretHealthResponse,
+    WorkspaceResourceSecretIssue,
+    WorkspaceResourceSecretRecoverResponse,
     WorkspaceResourceSummary,
     WorkspaceResourceUpdate,
 )
-from nekro_agent.services.resources.crypto import decrypt_secret_payload, encrypt_secret_payload
+from nekro_agent.services.resources.crypto import (
+    SecretPayloadDecodeError,
+    SecretPayloadFormat,
+    decode_secret_payload,
+    decrypt_secret_payload,
+    encrypt_secret_payload,
+)
 from nekro_agent.services.resources.registry import get_resource_template
 
 
@@ -79,7 +88,9 @@ class WorkspaceResourceService:
                     public_payload[field.field_key] = field.value
         return public_payload, secret_payload
 
-    def _merge_field_values(self, fields: list[ResourceField], public_payload: dict[str, str], secret_payload: dict[str, str]) -> list[ResourceField]:
+    def _merge_field_values(
+        self, fields: list[ResourceField], public_payload: dict[str, str], secret_payload: dict[str, str]
+    ) -> list[ResourceField]:
         result: list[ResourceField] = []
         for field in self._sorted_fields(fields):
             field = field.model_copy(deep=True)
@@ -121,7 +132,10 @@ class WorkspaceResourceService:
     async def _build_detail(self, resource: DBWorkspaceResource) -> WorkspaceResourceDetail:
         summary = await self._build_summary(resource)
         fields = [ResourceField.model_validate(item) for item in (resource.schema_json or [])]
-        secret_payload = decrypt_secret_payload(resource.secret_payload_encrypted)
+        try:
+            secret_payload = decrypt_secret_payload(resource.secret_payload_encrypted)
+        except SecretPayloadDecodeError:
+            secret_payload = {}
         merged_fields = self._merge_field_values(fields, dict(resource.public_payload or {}), secret_payload)
         return WorkspaceResourceDetail(**summary.model_dump(), fields=merged_fields)
 
@@ -206,11 +220,101 @@ class WorkspaceResourceService:
         if not fields:
             raise ValidationError(reason="资源至少需要一个字段")
         existing_keys: set[str] = set()
-        normalized = [self._normalize_field(field, index, existing_keys) for index, field in enumerate(self._sorted_fields(fields))]
+        normalized = [
+            self._normalize_field(field, index, existing_keys)
+            for index, field in enumerate(self._sorted_fields(fields))
+        ]
         return normalized
 
     def _build_env_name(self, resource_key: str, field_key: str) -> str:
         return f"NEKRO_RESOURCE_{self._slugify(resource_key, upper=True)}_{self._slugify(field_key, upper=True)}"
+
+    async def check_secret_payload_health(self) -> WorkspaceResourceSecretHealthResponse:
+        resources = await DBWorkspaceResource.all().order_by("name", "id")
+        plaintext_count = 0
+        legacy_encrypted_count = 0
+        invalid_count = 0
+        issues: list[WorkspaceResourceSecretIssue] = []
+
+        for resource in resources:
+            try:
+                result = decode_secret_payload(resource.secret_payload_encrypted)
+            except Exception as e:
+                invalid_count += 1
+                issues.append(
+                    WorkspaceResourceSecretIssue(
+                        resource_id=resource.id,
+                        resource_name=resource.name,
+                        reason=str(e),
+                    )
+                )
+                continue
+            if result.format in (SecretPayloadFormat.EMPTY, SecretPayloadFormat.PLAIN):
+                plaintext_count += 1
+            elif result.format == SecretPayloadFormat.LEGACY_ENCRYPTED:
+                legacy_encrypted_count += 1
+
+        return WorkspaceResourceSecretHealthResponse(
+            ok=invalid_count == 0,
+            total=len(resources),
+            plaintext_count=plaintext_count,
+            legacy_encrypted_count=legacy_encrypted_count,
+            invalid_count=invalid_count,
+            issues=issues,
+        )
+
+    async def recover_legacy_secret_payloads(self, legacy_secret: str) -> WorkspaceResourceSecretRecoverResponse:
+        resources = await DBWorkspaceResource.all().order_by("name", "id")
+        recovered_count = 0
+        issues: list[WorkspaceResourceSecretIssue] = []
+
+        for resource in resources:
+            try:
+                result = decode_secret_payload(resource.secret_payload_encrypted)
+            except SecretPayloadDecodeError:
+                try:
+                    result = decode_secret_payload(resource.secret_payload_encrypted, legacy_secret=legacy_secret)
+                except Exception as e:
+                    issues.append(
+                        WorkspaceResourceSecretIssue(
+                            resource_id=resource.id,
+                            resource_name=resource.name,
+                            reason=str(e),
+                        )
+                    )
+                    continue
+            except Exception as e:
+                issues.append(
+                    WorkspaceResourceSecretIssue(
+                        resource_id=resource.id,
+                        resource_name=resource.name,
+                        reason=str(e),
+                    )
+                )
+                continue
+            if result.format == SecretPayloadFormat.LEGACY_ENCRYPTED:
+                resource.secret_payload_encrypted = encrypt_secret_payload(result.payload)
+                await resource.save(update_fields=["secret_payload_encrypted", "update_time"])
+                recovered_count += 1
+
+        return WorkspaceResourceSecretRecoverResponse(
+            ok=not issues,
+            recovered_count=recovered_count,
+            invalid_count=len(issues),
+            issues=issues,
+        )
+
+    async def purge_unreadable_secret_payloads(self) -> int:
+        resources = await DBWorkspaceResource.all().order_by("name", "id")
+        purged_count = 0
+        for resource in resources:
+            try:
+                decode_secret_payload(resource.secret_payload_encrypted)
+            except Exception:
+                resource.secret_payload_encrypted = ""
+                await resource.save(update_fields=["secret_payload_encrypted", "update_time"])
+                purged_count += 1
+        return purged_count
 
     async def check_bind_conflicts(self, workspace_id: int, resource_id: int) -> list[WorkspaceResourceConflict]:
         target = await self.get_resource_or_404(resource_id)
@@ -268,7 +372,9 @@ class WorkspaceResourceService:
         await self.refresh_workspace_cache(workspace_id)
         return await self._build_binding(binding, resource=resource)
 
-    async def _build_binding(self, binding: DBWorkspaceResourceBinding, *, resource: DBWorkspaceResource | None = None) -> WorkspaceResourceBinding:
+    async def _build_binding(
+        self, binding: DBWorkspaceResourceBinding, *, resource: DBWorkspaceResource | None = None
+    ) -> WorkspaceResourceBinding:
         resource = resource or await self.get_resource_or_404(binding.resource_id)
         return WorkspaceResourceBinding(
             binding_id=binding.id,
@@ -285,7 +391,11 @@ class WorkspaceResourceService:
             return []
         resources = await DBWorkspaceResource.filter(id__in=[item.resource_id for item in bindings]).all()
         resource_map = {item.id: item for item in resources}
-        return [await self._build_binding(binding, resource=resource_map[binding.resource_id]) for binding in bindings if binding.resource_id in resource_map]
+        return [
+            await self._build_binding(binding, resource=resource_map[binding.resource_id])
+            for binding in bindings
+            if binding.resource_id in resource_map
+        ]
 
     async def unbind_resource(self, workspace_id: int, resource_id: int) -> None:
         binding = await DBWorkspaceResourceBinding.get_or_none(workspace_id=workspace_id, resource_id=resource_id)
@@ -306,7 +416,9 @@ class WorkspaceResourceService:
         await self.refresh_workspace_cache(workspace_id)
 
     async def resolve_workspace_resources_to_env(self, workspace_id: int) -> dict[str, str]:
-        bindings = await DBWorkspaceResourceBinding.filter(workspace_id=workspace_id, enabled=True).order_by("sort_order", "id")
+        bindings = await DBWorkspaceResourceBinding.filter(workspace_id=workspace_id, enabled=True).order_by(
+            "sort_order", "id"
+        )
         if not bindings:
             return {}
         resources = await DBWorkspaceResource.filter(id__in=[item.resource_id for item in bindings], enabled=True).all()
@@ -318,12 +430,17 @@ class WorkspaceResourceService:
             if resource is None:
                 continue
             fields = [ResourceField.model_validate(item) for item in (resource.schema_json or [])]
-            secret_payload = decrypt_secret_payload(resource.secret_payload_encrypted)
+            try:
+                secret_payload = decrypt_secret_payload(resource.secret_payload_encrypted)
+            except SecretPayloadDecodeError as e:
+                raise ValidationError(reason=f"资源“{resource.name}”的敏感字段不可用，请在资源中心恢复或重新填写") from e
             public_payload = dict(resource.public_payload or {})
             for field in fields:
                 if field.export_mode != "env":
                     continue
-                value = secret_payload.get(field.field_key, "") if field.secret else public_payload.get(field.field_key, "")
+                value = (
+                    secret_payload.get(field.field_key, "") if field.secret else public_payload.get(field.field_key, "")
+                )
                 if not value:
                     continue
                 env_name = self._build_env_name(resource.resource_key, field.field_key)
@@ -382,7 +499,9 @@ class WorkspaceResourceService:
         WorkspaceService.update_claude_md(workspace)
 
     async def refresh_related_workspace_caches(self, resource_id: int) -> None:
-        workspace_ids = await DBWorkspaceResourceBinding.filter(resource_id=resource_id).values_list("workspace_id", flat=True)
+        workspace_ids = await DBWorkspaceResourceBinding.filter(resource_id=resource_id).values_list(
+            "workspace_id", flat=True
+        )
         for workspace_id in workspace_ids:
             await self.refresh_workspace_cache(int(workspace_id))
 

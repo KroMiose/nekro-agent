@@ -10,6 +10,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 
 from nekro_agent.adapters import load_adapters_api
+from nekro_agent.adapters.email.routers import router as email_adapter_config_router
 from nekro_agent.core.args import Args
 from nekro_agent.core.exception_handlers import register_exception_handlers
 from nekro_agent.core.logger import logger
@@ -144,6 +145,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(cloud_auth_router)
     api.include_router(cloud_announcement_router)
     api.include_router(adapters_router)
+    api.include_router(email_adapter_config_router, prefix="/adapters/email", tags=["Adapter:email"])
     api.include_router(common_router)
     api.include_router(space_cleanup_router)
     api.include_router(timers_router)

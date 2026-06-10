@@ -77,6 +77,11 @@ async def run_agent(
         ctx,
         activation_enabled=activation_enabled,
     )
+    adapter_runtime_prompt = await ctx.adapter.render_runtime_prompt()
+    runtime_prompts = [
+        prompt for prompt in (adapter_runtime_prompt, rendered_plugins.runtime_prompt) if prompt.strip()
+    ]
+    runtime_prompt = "\n\n".join(runtime_prompts)
     logger.debug(f"[run_agent] {chat_key} | 插件 prompt 渲染完成，开始构建 system prompt")
 
     from nekro_agent.services.system_broadcast import AgentRuntimeStatusEvent, publish_system_event
@@ -123,7 +128,7 @@ async def run_agent(
         bot_platform_id=self_info.user_id,
         chat_preset=preset.content,
         plugins_prompt=rendered_plugins.system_prompt,
-        plugins_runtime_prompt=rendered_plugins.runtime_prompt,
+        plugins_runtime_prompt=runtime_prompt,
         plugin_activation_rules=build_plugin_activation_rules() if activation_enabled else "",
         enable_cot=used_model_group.ENABLE_COT,
         chat_key_rules="\n".join(f"- {r}" for r in db_chat_channel.adapter.chat_key_rules),
@@ -286,7 +291,7 @@ async def run_agent(
                 chat_key=chat_key,
                 db_chat_channel=db_chat_channel,
                 one_time_code=one_time_code,
-                plugin_injected_prompt=rendered_plugins.runtime_prompt,
+                plugin_injected_prompt=runtime_prompt,
                 record_sta_timestamp=history_render_until_time,
                 model_group=used_model_group,
                 config=config,

@@ -120,7 +120,7 @@ const UserManagerPage: React.FC = () => {
             onSetPreventTrigger={setPreventTrigger}
             onResetPassword={resetPassword}
             onUpdateUser={updateUser}
-            showEditButton={!isMobile && false}
+            showEditButton={false}
             tableProps={{
               stickyHeader: true,
               sx: {

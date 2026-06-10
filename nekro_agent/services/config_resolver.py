@@ -19,7 +19,10 @@ class ConfigResolver:
             CoreConfig: 一个包含已解析配置的新 CoreConfig 实例
         """
         # 1. 获取所有配置层
-        adapter_key = chat_key.split("-")[0]
+        # 通过别名感知的解析获取 adapter_key（部分适配器的 chat_key 短前缀 != adapter_key）
+        from nekro_agent.adapters import resolve_adapter_key_from_chat_key
+
+        adapter_key = resolve_adapter_key_from_chat_key(chat_key)
 
         # 系统配置是基础
         effective_config_data = system_config.model_dump()

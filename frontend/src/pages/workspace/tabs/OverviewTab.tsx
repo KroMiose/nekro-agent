@@ -58,10 +58,12 @@ import { pluginsManagementPath } from '../../../router/routes'
 import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
 import { useChannelDirectoryContext } from '../../../contexts/ChannelDirectoryContext'
+import { getChannelDisplayName } from '../../../services/api/chat-channel'
 
 type ChannelOption = {
   chat_key: string
   channel_name: string | null
+  custom_channel_name: string | null
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -329,10 +331,18 @@ export default function OverviewTab({
   const autocompleteOptions = allChannels.map(ch => ({
     chat_key: ch.chat_key,
     channel_name: ch.channel_name,
+    custom_channel_name: ch.custom_channel_name,
   }))
   const alreadyBound = selectedChannel
     ? boundChannels.some(item => item.chat_key === selectedChannel.chat_key)
     : false
+
+  const primaryChannelInfo = primaryChannel ? channelMap.get(primaryChannel.chat_key) : undefined
+  const primaryChannelName = primaryChannel
+    ? primaryChannelInfo
+      ? getChannelDisplayName(primaryChannelInfo)
+      : primaryChannel.chat_key
+    : undefined
 
   // 技能统计
   const skillCount = workspace.skill_count ?? 0
@@ -525,7 +535,7 @@ export default function OverviewTab({
           icon={<HubIcon sx={{ fontSize: 20 }} />}
           label={t('detail.overview.statCards.channels')}
           value={channelsLoading ? undefined : boundChannels.length}
-          subtitle={primaryChannel ? channelMap.get(primaryChannel.chat_key)?.channel_name ?? primaryChannel.chat_key : undefined}
+          subtitle={primaryChannelName}
           color={theme.palette.primary.main}
           loading={channelsLoading}
           onClick={onNavigateToConfig}
@@ -748,9 +758,10 @@ export default function OverviewTab({
               options={autocompleteOptions}
               value={selectedChannel}
               onChange={(_, val) => setSelectedChannel(val)}
-              getOptionLabel={opt => (
-                opt.channel_name ? `${opt.channel_name} (${opt.chat_key})` : opt.chat_key
-              )}
+              getOptionLabel={opt => {
+                const displayName = getChannelDisplayName(opt)
+                return displayName === opt.chat_key ? opt.chat_key : `${displayName} (${opt.chat_key})`
+              }}
               isOptionEqualToValue={(opt, val) => opt.chat_key === val.chat_key}
               getOptionDisabled={opt => boundChannels.some(item => item.chat_key === opt.chat_key)}
               renderInput={params => (
@@ -773,9 +784,9 @@ export default function OverviewTab({
               renderOption={(props, opt) => (
                 <Box component="li" {...props} key={opt.chat_key}>
                   <Box>
-                    {opt.channel_name && (
+                    {getChannelDisplayName(opt) !== opt.chat_key && (
                       <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                        {opt.channel_name}
+                        {getChannelDisplayName(opt)}
                       </Typography>
                     )}
                     <Typography
@@ -854,7 +865,7 @@ export default function OverviewTab({
                             flexShrink: 0,
                           }}
                         >
-                          {info?.channel_name ?? channel.chat_key}
+                          {info ? getChannelDisplayName(info) : channel.chat_key}
                         </Typography>
                       </Tooltip>
                       {channel.is_primary && (

@@ -30,7 +30,7 @@ import {
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { chatChannelApi } from '../../../services/api/chat-channel'
+import { chatChannelApi, getChannelDisplayName } from '../../../services/api/chat-channel'
 import BasicInfo from './detail-tabs/BasicInfo'
 import MessageHistory from './detail-tabs/MessageHistory'
 import OverrideSettings from './detail-tabs/OverrideSettings'
@@ -82,7 +82,8 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
     mutationFn: (status: 'active' | 'observe' | 'disabled') => chatChannelApi.setStatus(chatKey, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
-      queryClient.invalidateQueries({ queryKey: ['chat-channels'] })
+      queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
+      queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
     },
   })
 
@@ -100,7 +101,8 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
     setIsRefreshing(true)
     try {
       await queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
-      await queryClient.invalidateQueries({ queryKey: ['chat-channels'] })
+      await queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
+      await queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
     } finally {
       setIsRefreshing(false)
     }
@@ -195,7 +197,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
               <Box className="flex-1 overflow-hidden">
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                   <Typography variant="h6" className="font-medium truncate">
-                    {channel?.channel_name || t('channelDetail.unnamedChat')}
+                    {channel ? getChannelDisplayName(channel) : t('channelDetail.unnamedChat')}
                   </Typography>
                   <Chip
                     size="small"
@@ -337,7 +339,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
                   <Card sx={CARD_VARIANTS.default.styles}>
                     <DangerZone
                       chatKey={chatKey}
-                      channelName={channel?.channel_name ?? null}
+                      channelName={channel ? getChannelDisplayName(channel) : null}
                       onDeleted={() => onBack?.()}
                     />
                   </Card>

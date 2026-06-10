@@ -1,4 +1,5 @@
 import hashlib
+import re
 import uuid
 from enum import Enum
 from pathlib import Path
@@ -6,6 +7,21 @@ from typing import Optional
 
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR
+
+
+def sanitize_chat_key_for_path(chat_key: str) -> str:
+    """将 chat_key 规整为文件系统 / Docker 卷路径安全的目录名。
+
+    多数适配器的 chat_key 仅含 ``[a-zA-Z0-9_.-]``，此函数对其为恒等变换；
+    但部分适配器（如 wechat_ilink_multi）的 chat_key 含 ``:`` 等字符，直接作为
+    Docker 卷 ``源:目标:模式`` 的路径片段会破坏挂载语义，且与已做清洗的挂载源不一致，
+    导致写入目录与沙盒挂载目录错位、入站文件在沙盒内不可见。
+
+    注意：此处的正则必须与 ``services/sandbox/runner.py:_sanitize_docker_name_part``
+    保持一致，否则上传写入路径与沙盒挂载源会再次错位。
+    """
+    sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", chat_key)
+    return sanitized or "unknown"
 
 
 class PathLocation(Enum):
@@ -113,7 +129,7 @@ def convert_to_host_path(
 
     # 根据位置类型构建宿主机路径
     if location == PathLocation.UPLOADS:
-        return uploads_dir / chat_key / relative_path
+        return uploads_dir / sanitize_chat_key_for_path(chat_key) / relative_path
     if location == PathLocation.SHARED:
         _validate_shared_path(container_key)
         return shared_dir / str(container_key) / relative_path
@@ -193,7 +209,7 @@ def convert_filename_to_access_path(filename: str | Path, chat_key: str) -> Path
     Returns:
         Path: 访问路径
     """
-    return Path(USER_UPLOAD_DIR) / chat_key / Path(filename).name
+    return Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(chat_key) / Path(filename).name
 
 
 def get_upload_file_path(from_chat_key: str, file_name: str = "", use_suffix: str = "", seed: str = "") -> str:
@@ -208,6 +224,6 @@ def get_upload_file_path(from_chat_key: str, file_name: str = "", use_suffix: st
         if not seed:
             seed = str(uuid.uuid4())
         file_name = f"{hashlib.md5(seed.encode()).hexdigest()}{use_suffix}"
-    save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+    save_path = Path(USER_UPLOAD_DIR) / sanitize_chat_key_for_path(from_chat_key) / Path(file_name)
     save_path.parent.mkdir(parents=True, exist_ok=True)
     return str(save_path)

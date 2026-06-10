@@ -26,6 +26,7 @@ export interface ChatChannel {
   id: number
   chat_key: string
   channel_name: string | null
+  custom_channel_name: string | null
   is_active: boolean
   status: 'active' | 'observe' | 'disabled'
   chat_type: string
@@ -39,6 +40,7 @@ export interface ChannelDirectoryEntry {
   id: number
   chat_key: string
   channel_name: string | null
+  custom_channel_name: string | null
   is_active: boolean
   status: 'active' | 'observe' | 'disabled'
   chat_type: string
@@ -151,6 +153,7 @@ export interface ChannelListStreamEvent {
   event_type: string
   chat_key: string
   channel_name?: string | null
+  custom_channel_name?: string | null
   is_active?: boolean | null
   status?: string | null
 }
@@ -159,6 +162,10 @@ const channelListStreamManager = createSharedEventStreamManager({
   endpoint: '/chat-channel/list/stream',
   closeDelayMs: 1500,
 })
+
+export function getChannelDisplayName(channel: Pick<ChatChannel, 'chat_key' | 'channel_name' | 'custom_channel_name'>): string {
+  return channel.custom_channel_name?.trim() || channel.channel_name?.trim() || channel.chat_key
+}
 
 export const chatChannelApi = {
   getList: async (params: {
@@ -223,6 +230,13 @@ export const chatChannelApi = {
   setPreset: async (chatKey: string, presetId: number | null): Promise<ActionResponse> => {
     const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/preset`, null, {
       params: { preset_id: presetId },
+    })
+    return response.data
+  },
+
+  setCustomChannelName: async (chatKey: string, customChannelName: string | null): Promise<ActionResponse> => {
+    const response = await axios.put<ActionResponse>(`/chat-channel/${encodeURIComponent(chatKey)}/custom-name`, {
+      custom_channel_name: customChannelName,
     })
     return response.data
   },

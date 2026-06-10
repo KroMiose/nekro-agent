@@ -13,6 +13,10 @@ export interface ConfigInfo {
   field_count: number
 }
 
+export interface UiOnboardingGuideStatus {
+  should_show: boolean
+}
+
 export interface FetchModelsRequest {
   base_url: string
   api_key: string
@@ -50,6 +54,11 @@ export const unifiedConfigApi = {
   // 获取所有配置键
   getConfigKeys: async (): Promise<string[]> => {
     const response = await axios.get<string[]>('/config/keys')
+    return response.data
+  },
+
+  getUiOnboardingGuideStatus: async (): Promise<UiOnboardingGuideStatus> => {
+    const response = await axios.get<UiOnboardingGuideStatus>('/config/ui-onboarding-guide/status')
     return response.data
   },
 

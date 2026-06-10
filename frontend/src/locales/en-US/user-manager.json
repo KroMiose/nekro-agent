@@ -1,7 +1,7 @@
 {
   "title": "User Management",
   "search": {
-    "placeholder": "Search username or QQ number",
+    "placeholder": "Search username, platform, or platform user ID",
     "noResults": "No matching users found"
   },
   "actions": {
@@ -52,6 +52,7 @@
   "tooltips": {
     "view": "View Details",
     "edit": "Edit User",
+    "editUsername": "Edit username: {{username}}",
     "ban": "Ban User",
     "unban": "Unban User",
     "preventTrigger": "Prevent Trigger",

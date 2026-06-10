@@ -25,9 +25,7 @@ class UserCreate(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    access_key: str
     username: str
-    perm_level: int
 
 
 class UpdatePassword(BaseModel):
