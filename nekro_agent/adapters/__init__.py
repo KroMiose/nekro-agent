@@ -38,6 +38,14 @@ ADAPTER_REGISTRY: Dict[str, AdapterSpec] = {
         default_enabled=True,
         tags=("qq", "onebot", "v11"),
     ),
+    "qqbot_openclaw": AdapterSpec(
+        key="qqbot_openclaw",
+        adapter_path="nekro_agent.adapters.qqbot_openclaw.adapter.QQBotOpenClawAdapter",
+        config_path="nekro_agent.adapters.qqbot_openclaw.config.QQBotOpenClawConfig",
+        name="QQBot OpenClaw",
+        description="基于 OpenClaw QQBot 渠道行为实现的 QQ 适配器",
+        tags=("qq", "qqbot", "openclaw"),
+    ),
     "minecraft": AdapterSpec(
         key="minecraft",
         adapter_path="nekro_agent.adapters.minecraft.adapter.MinecraftAdapter",
@@ -155,6 +163,7 @@ def _import_string(path: str):
 # 供按 chat_key 反查 adapter_key 的配置解析层（config_resolver / config_service）使用。
 CHAT_KEY_PREFIX_ALIASES: Dict[str, str] = {
     "wxim": "wechat_ilink_multi",
+    "qqoc": "qqbot_openclaw",
 }
 
 

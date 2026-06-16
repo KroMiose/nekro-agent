@@ -25,7 +25,7 @@ class DBMemEpisode(Model):
     id = fields.IntField(pk=True, generated=True, description="主键 ID")
     workspace_id = fields.IntField(index=True, description="工作区 ID")
     origin_chat_key = fields.CharField(
-        max_length=128,
+        max_length=256,
         null=True,
         index=True,
         description="Episode 来源聊天频道",
