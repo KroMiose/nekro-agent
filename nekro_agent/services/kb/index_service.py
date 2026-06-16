@@ -15,7 +15,7 @@ from nekro_agent.services.kb.chunker import split_text_into_chunks
 from nekro_agent.services.kb.extractors import extract_source_file
 from nekro_agent.services.kb.qdrant_manager import kb_qdrant_manager
 from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
-from nekro_agent.services.memory.embedding_service import embed_batch, get_memory_embedding_dimension
+from nekro_agent.services.memory.embedding_service import embed_kb_batch, get_kb_embedding_dimension
 from nekro_agent.services.system_broadcast import KbIndexProgressEvent, publish_kb_index_progress
 from nekro_agent.services.workspace.manager import WorkspaceService
 
@@ -76,7 +76,7 @@ async def _publish_index_progress(
 
 
 async def ensure_kb_collection() -> bool:
-    return await kb_qdrant_manager.ensure_collection(get_memory_embedding_dimension())
+    return await kb_qdrant_manager.ensure_collection(get_kb_embedding_dimension())
 
 
 async def index_document(document: DBKBDocument) -> int:
@@ -161,7 +161,7 @@ async def index_document(document: DBKBDocument) -> int:
     for batch_start in range(0, len(created_chunks), _INDEX_BATCH_SIZE):
         db_batch = created_chunks[batch_start : batch_start + _INDEX_BATCH_SIZE]
         draft_batch = drafts[batch_start : batch_start + _INDEX_BATCH_SIZE]
-        embeddings = await embed_batch([draft.content for draft in draft_batch])
+        embeddings = await embed_kb_batch([draft.content for draft in draft_batch])
         for db_chunk, draft, embedding in zip(db_batch, draft_batch, embeddings, strict=False):
             if embedding is None:
                 failed_embeddings += 1

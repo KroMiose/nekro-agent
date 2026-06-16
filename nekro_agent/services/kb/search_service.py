@@ -29,7 +29,7 @@ from nekro_agent.services.kb.library_service import (
     read_asset_normalized_content,
 )
 from nekro_agent.services.kb.qdrant_manager import kb_qdrant_manager
-from nekro_agent.services.memory.embedding_service import embed_text
+from nekro_agent.services.memory.embedding_service import embed_kb_text
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 logger = get_sub_logger("kb.search")
@@ -688,7 +688,7 @@ async def search_workspace_kb(
 
     query_vector: list[float] | None = None
     try:
-        query_vector = await embed_text(query)
+        query_vector = await embed_kb_text(query)
     except Exception as e:
         logger.warning(f"知识库 embedding 检索失败，回退关键词检索: workspace_id={workspace_id}, error={e}")
     vector_hits: list[_ScoredHit] = []

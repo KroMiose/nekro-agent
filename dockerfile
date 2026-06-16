@@ -64,17 +64,20 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 # 首先复制依赖文件和 README（pyproject.toml 需要），利用缓存
 COPY pyproject.toml uv.lock README.md ./
 
+# 先安装第三方依赖，避免源码变更时重复下载依赖
+RUN uv sync --frozen --no-dev --no-install-project
+
 # 复制入口脚本（force-include 需要）
 COPY run_bot.py ./
-
-# 使用 UV 安装依赖（包括 nb-cli）
-RUN uv sync --frozen --no-dev
 
 # 复制应用代码
 COPY nekro_agent ./nekro_agent
 COPY plugins ./plugins
 COPY migrations ./migrations
 COPY .env.prod ./
+
+# 安装当前项目，确保运行期不再触发本地包构建
+RUN uv sync --frozen --no-dev
 
 # 从前端构建产物复制静态文件
 COPY --from=frontend-dist /frontend-dist ${STATIC_DIR}
@@ -86,4 +89,4 @@ EXPOSE 8021
 HEALTHCHECK --interval=10s --timeout=3s CMD curl -f http://127.0.0.1:8021/api/health || exit 1
 
 # 启动应用
-CMD ["uv", "run", "bot", "--env=prod"]
+CMD ["/app/.venv/bin/bot", "--env=prod"]

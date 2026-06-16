@@ -3,12 +3,14 @@
 提供文本向量化功能，复用项目现有的 OpenAI 兼容 API。
 """
 
+from __future__ import annotations
+
 import asyncio
 from typing import Any
 
 import httpx
 
-from nekro_agent.core.config import config
+from nekro_agent.core.config import ModelConfigGroup, config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.services.agent.openai import gen_openai_embeddings
 
@@ -27,6 +29,41 @@ def get_memory_embedding_dimension() -> int:
 def get_memory_embedding_model_group() -> str:
     """获取记忆系统当前配置的 embedding 模型组"""
     return config.MEMORY_EMBEDDING_MODEL_GROUP
+
+
+def get_kb_embedding_dimension() -> int:
+    """获取知识库当前配置的 embedding 维度"""
+    return max(1, int(config.KB_EMBEDDING_DIMENSION))
+
+
+def get_kb_embedding_model_group() -> str:
+    """获取知识库当前配置的 embedding 模型组"""
+    return config.KB_EMBEDDING_MODEL_GROUP.strip()
+
+
+def validate_kb_embedding_model_group() -> ModelConfigGroup:
+    """校验知识库 embedding 模型组存在且类型正确"""
+    group_name = get_kb_embedding_model_group()
+    if not group_name:
+        raise ValueError("知识库 Embedding 模型组未配置")
+
+    try:
+        model_group = config.get_model_group_info(group_name)
+    except KeyError as e:
+        raise ValueError(f"知识库 Embedding 模型组 '{group_name}' 不存在") from e
+
+    if model_group.MODEL_TYPE != "embedding":
+        raise ValueError(
+            f"知识库 Embedding 模型组 '{group_name}' 类型不是 embedding，当前为 {model_group.MODEL_TYPE}",
+        )
+
+    return model_group
+
+
+def ensure_kb_embedding_available() -> tuple[str, int]:
+    """校验并返回知识库 embedding 当前配置"""
+    validate_kb_embedding_model_group()
+    return get_kb_embedding_model_group(), get_kb_embedding_dimension()
 
 
 class EmbeddingService:
@@ -199,6 +236,25 @@ class EmbeddingService:
 
 # 全局单例
 embedding_service = EmbeddingService()
+_kb_embedding_service_cache: tuple[str, int, EmbeddingService] | None = None
+
+
+def get_kb_embedding_service() -> EmbeddingService:
+    """获取知识库 embedding 服务单例，配置变更时自动刷新"""
+    global _kb_embedding_service_cache
+
+    model_group, dimension = ensure_kb_embedding_available()
+    if _kb_embedding_service_cache is not None:
+        cached_group, cached_dimension, cached_service = _kb_embedding_service_cache
+        if cached_group == model_group and cached_dimension == dimension:
+            return cached_service
+
+    service = EmbeddingService(
+        model_group=model_group,
+        dimension=dimension,
+    )
+    _kb_embedding_service_cache = (model_group, dimension, service)
+    return service
 
 
 async def embed_text(text: str) -> list[float]:
@@ -209,3 +265,13 @@ async def embed_text(text: str) -> list[float]:
 async def embed_batch(texts: list[str]) -> list[list[float] | None]:
     """便捷函数：批量生成文本向量"""
     return await embedding_service.embed_batch(texts)
+
+
+async def embed_kb_text(text: str) -> list[float]:
+    """便捷函数：使用知识库独立配置生成文本向量"""
+    return await get_kb_embedding_service().embed_text(text)
+
+
+async def embed_kb_batch(texts: list[str]) -> list[list[float] | None]:
+    """便捷函数：使用知识库独立配置批量生成文本向量"""
+    return await get_kb_embedding_service().embed_batch(texts)

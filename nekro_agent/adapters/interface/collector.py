@@ -27,11 +27,24 @@ async def collect_message(
 ) -> None:
     """适配器消息收集器"""
 
+    try:
+        chat_key = adapter.build_chat_key(platform_channel.channel_id)
+    except Exception:
+        # build_chat_key 默认为纯字符串拼接、正常不会抛错；若某适配器重写后异常，此处不打断消息收集，
+        # 回退到 DBChatChannel 的默认 chat_key。但必须记日志暴露问题，避免静默写入不一致的 chat_key。
+        logger.warning(
+            f"适配器 build_chat_key 失败，回退默认 chat_key: adapter={adapter.key}, "
+            f"channel_id={platform_channel.channel_id}",
+            exc_info=True,
+        )
+        chat_key = None
+
     db_chat_channel: DBChatChannel = await DBChatChannel.get_or_create(
         adapter_key=adapter.key,
         channel_id=platform_channel.channel_id,
         channel_type=platform_channel.channel_type,
         channel_name=platform_channel.channel_name,
+        chat_key=chat_key,
     )
 
     # 命令检测与执行（在 is_active 检查之前，确保 na_on 等命令在频道关闭时仍可用）

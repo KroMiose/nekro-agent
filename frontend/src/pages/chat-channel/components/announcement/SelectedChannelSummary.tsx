@@ -6,7 +6,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import GroupIcon from '@mui/icons-material/Group'
 import PersonIcon from '@mui/icons-material/Person'
-import type { ChatChannel } from '../../../../services/api/chat-channel'
+import { getChannelDisplayName, type ChatChannel } from '../../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
 import IconActionButton from '../../../../components/common/IconActionButton'
 
@@ -70,7 +70,7 @@ export default function SelectedChannelSummary({
               <Chip
                 key={channel.chat_key}
                 icon={channel.chat_type === 'group' ? <GroupIcon /> : <PersonIcon />}
-                label={channel.channel_name || channel.chat_key}
+                label={getChannelDisplayName(channel)}
                 onDelete={() => onRemove(channel.chat_key)}
                 deleteIcon={<CloseIcon />}
                 variant="outlined"

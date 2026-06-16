@@ -27,6 +27,7 @@ import type { CommandOutputSegment } from '../../services/api/commands'
 import { CARD_VARIANTS } from '../../theme/variants'
 import IconActionButton from '../../components/common/IconActionButton'
 import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
+import { getChannelDisplayName } from '../../services/api/chat-channel'
 
 interface OutputEntry {
   command_name: string
@@ -175,7 +176,7 @@ export default function CommandOutputPage() {
                 channels.map((ch) => (
                   <MenuItem key={ch.chat_key} value={ch.chat_key}>
                     <Typography variant="body2" component="span" noWrap>
-                      {ch.channel_name || ch.chat_key}
+                      {getChannelDisplayName(ch)}
                     </Typography>
                     <Typography
                       variant="caption"

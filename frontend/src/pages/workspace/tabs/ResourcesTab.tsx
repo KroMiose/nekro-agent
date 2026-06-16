@@ -1017,6 +1017,9 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
   const [editingResourceId, setEditingResourceId] = useState<number | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceResourceBinding['resource'] | null>(null)
   const [dragBindingId, setDragBindingId] = useState<number | null>(null)
+  const [recoverDialogOpen, setRecoverDialogOpen] = useState(false)
+  const [purgeDialogOpen, setPurgeDialogOpen] = useState(false)
+  const [legacySecret, setLegacySecret] = useState('')
 
   const { data: templates = [] } = useQuery({
     queryKey: ['resource-templates'],
@@ -1025,6 +1028,10 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
   const { data: resources = [] } = useQuery({
     queryKey: ['resources'],
     queryFn: () => workspaceApi.getResources(),
+  })
+  const { data: secretHealth } = useQuery({
+    queryKey: ['resource-secret-health'],
+    queryFn: () => workspaceApi.getResourceSecretHealth(),
   })
   const { data: bindings = [] } = useQuery({
     queryKey: ['workspace-resources', workspace?.id],
@@ -1037,15 +1044,21 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
     enabled: editingResourceId !== null,
   })
 
-  const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ['resources'] })
+  const invalidateAll = async () => {
+    const refreshTasks = [
+      queryClient.invalidateQueries({ queryKey: ['resources'] }),
+      queryClient.invalidateQueries({ queryKey: ['resource-secret-health'] }),
+    ]
     if (workspace) {
-      queryClient.invalidateQueries({ queryKey: ['workspace-resources', workspace.id] })
-      queryClient.invalidateQueries({ queryKey: ['workspace', workspace.id] })
+      refreshTasks.push(
+        queryClient.invalidateQueries({ queryKey: ['workspace-resources', workspace.id] }),
+        queryClient.invalidateQueries({ queryKey: ['workspace', workspace.id] }),
+      )
     }
     if (editingResourceId !== null) {
-      queryClient.invalidateQueries({ queryKey: ['resource-detail', editingResourceId] })
+      refreshTasks.push(queryClient.invalidateQueries({ queryKey: ['resource-detail', editingResourceId] }))
     }
+    await Promise.all(refreshTasks)
   }
 
   const createMutation = useMutation({
@@ -1121,6 +1134,27 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
     onSuccess: () => invalidateAll(),
   })
 
+  const recoverSecretsMutation = useMutation({
+    mutationFn: (secret: string) => workspaceApi.recoverResourceSecrets(secret),
+    onSuccess: async result => {
+      await invalidateAll()
+      notification.success(t('detail.resources.secretHealth.recoverSuccess', { count: result.recovered_count }))
+      setRecoverDialogOpen(false)
+      setLegacySecret('')
+    },
+    onError: (error: Error) => notification.error(t('detail.resources.secretHealth.recoverFailed', { message: error.message })),
+  })
+
+  const purgeSecretsMutation = useMutation({
+    mutationFn: () => workspaceApi.purgeUnreadableResourceSecrets(),
+    onSuccess: async result => {
+      await invalidateAll()
+      notification.success(t('detail.resources.secretHealth.purgeSuccess', { count: result.purged_count }))
+      setPurgeDialogOpen(false)
+    },
+    onError: (error: Error) => notification.error(t('detail.resources.secretHealth.purgeFailed', { message: error.message })),
+  })
+
   const mountedResourceIds = useMemo(() => new Set(bindings.map(item => item.resource_id)), [bindings])
 
   const filteredResources = useMemo(() => {
@@ -1137,6 +1171,36 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
   const availableCount = resources.length
   const aliasResourceCount = resources.filter(item => item.fixed_aliases.length > 0).length
   const sharedCount = resources.filter(item => item.bound_workspace_count > 1).length
+  const showSecretHealthAlert = Boolean(secretHealth && !secretHealth.ok)
+  const secretHealthAlert = showSecretHealthAlert ? (
+    <Alert
+      severity="warning"
+      action={(
+        <Stack direction="row" spacing={1}>
+          <ActionButton size="small" onClick={() => setRecoverDialogOpen(true)}>
+            {t('detail.resources.secretHealth.recoverAction')}
+          </ActionButton>
+          <ActionButton size="small" tone="danger" onClick={() => setPurgeDialogOpen(true)}>
+            {t('detail.resources.secretHealth.purgeAction')}
+          </ActionButton>
+        </Stack>
+      )}
+    >
+      <Stack spacing={0.5}>
+        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+          {t('detail.resources.secretHealth.title')}
+        </Typography>
+        <Typography variant="body2">
+          {t('detail.resources.secretHealth.description', { count: secretHealth?.invalid_count ?? 0 })}
+        </Typography>
+        {secretHealth?.issues?.slice(0, 3).map(issue => (
+          <Typography key={issue.resource_id} variant="caption" color="text.secondary">
+            {issue.resource_name}: {issue.reason}
+          </Typography>
+        ))}
+      </Stack>
+    </Alert>
+  ) : null
 
   const initialCreateValue: WorkspaceResourceUpsertBody = useMemo(() => createEmptyResourceValue(), [])
 
@@ -1189,6 +1253,71 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
   const handleOpenWorkspaceMounts = (workspaceId: number) => {
     navigate(workspaceDetailPath(workspaceId, 'resources'))
   }
+
+  const resourceSecretDialogs = (
+    <>
+      <Dialog
+        open={recoverDialogOpen}
+        onClose={() => !recoverSecretsMutation.isPending && setRecoverDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        disableRestoreFocus
+      >
+        <DialogTitle>{t('detail.resources.secretHealth.recoverTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5} sx={{ pt: 0.5 }}>
+            <DialogContentText>{t('detail.resources.secretHealth.recoverContent')}</DialogContentText>
+            <TextField
+              type="password"
+              label="NEKRO_JWT_SECRET_KEY"
+              value={legacySecret}
+              onChange={event => setLegacySecret(event.target.value)}
+              fullWidth
+              autoComplete="off"
+              slotProps={{ htmlInput: NO_AUTOFILL_INPUT_PROPS }}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton onClick={() => setRecoverDialogOpen(false)} disabled={recoverSecretsMutation.isPending}>
+            {t('actions.cancel', { ns: 'common' })}
+          </ActionButton>
+          <ActionButton
+            variant="contained"
+            onClick={() => recoverSecretsMutation.mutate(legacySecret)}
+            disabled={!legacySecret.trim() || recoverSecretsMutation.isPending}
+          >
+            {t('detail.resources.secretHealth.recoverConfirm')}
+          </ActionButton>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={purgeDialogOpen}
+        onClose={() => !purgeSecretsMutation.isPending && setPurgeDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        disableRestoreFocus
+      >
+        <DialogTitle>{t('detail.resources.secretHealth.purgeTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t('detail.resources.secretHealth.purgeContent')}</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton onClick={() => setPurgeDialogOpen(false)} disabled={purgeSecretsMutation.isPending}>
+            {t('actions.cancel', { ns: 'common' })}
+          </ActionButton>
+          <ActionButton
+            tone="danger"
+            variant="contained"
+            onClick={() => purgeSecretsMutation.mutate()}
+            disabled={purgeSecretsMutation.isPending}
+          >
+            {t('detail.resources.secretHealth.purgeConfirm')}
+          </ActionButton>
+        </DialogActions>
+      </Dialog>
+    </>
+  )
 
   if (!inWorkspace) {
     return (
@@ -1244,6 +1373,8 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
                   </Box>
                 </Box>
 
+                {secretHealthAlert}
+
                 {filteredResources.length === 0 ? (
                   <Box
                     sx={{
@@ -1277,7 +1408,7 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
           </Card>
         </Box>
 
-      <ResourceEditorDialog
+        <ResourceEditorDialog
           open={editorOpen}
           mode={editorMode}
           templates={templates}
@@ -1349,11 +1480,13 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
             </ActionButton>
           </DialogActions>
         </Dialog>
+        {resourceSecretDialogs}
       </>
     )
   }
 
   return (
+    <>
     <Stack spacing={2}>
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <StatCard
@@ -1369,6 +1502,8 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
           color={theme.palette.info.main}
         />
       </Box>
+
+      {secretHealthAlert}
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, xl: 5 }}>
@@ -1499,5 +1634,7 @@ export default function ResourcesTab({ workspace }: { workspace?: WorkspaceDetai
         </Grid>
       </Grid>
     </Stack>
+    {resourceSecretDialogs}
+    </>
   )
 }

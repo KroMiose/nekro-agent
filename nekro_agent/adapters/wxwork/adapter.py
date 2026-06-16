@@ -12,12 +12,20 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformUser,
 )
 from nekro_agent.core.logger import get_sub_logger
-from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.schemas.chat_message import (
+    ChatMessageSegment,
+    ChatMessageSegmentFile,
+    ChatMessageSegmentImage,
+    ChatMessageSegmentType,
+    ChatType,
+)
 
 from .client import WxWorkLongConnectionClient
 from .config import WxWorkConfig
-from .parser import dump_frame_for_log, parse_message_frame
+from . import media as wxwork_media
+from .parser import ParsedWxWorkAttachment, ParsedWxWorkMessage, dump_frame_for_log, parse_message_frame
 from .tools import SegAt, parse_at_from_text
+from .user_resolver import WxWorkUserResolver
 
 
 logger = get_sub_logger("adapter.wxwork")
@@ -26,9 +34,18 @@ WXWORK_MAX_TEXT_LINES_PER_MESSAGE = 2000
 
 class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
     client: Optional[WxWorkLongConnectionClient]
+    user_resolver: WxWorkUserResolver
+    image_normalize_options: wxwork_media.WxWorkImageNormalizeOptions
 
     def __init__(self, config_cls: Type[WxWorkConfig] = WxWorkConfig):
         super().__init__(config_cls)
+        self.user_resolver = WxWorkUserResolver(self)
+        self.image_normalize_options = wxwork_media.WxWorkImageNormalizeOptions(
+            target_max_kb=self.config.INBOUND_IMAGE_TARGET_MAX_KB,
+            min_quality=self.config.INBOUND_IMAGE_MIN_QUALITY,
+            initial_quality=self.config.INBOUND_IMAGE_INITIAL_QUALITY,
+            min_edge=self.config.INBOUND_IMAGE_MIN_EDGE,
+        )
         if self.config.BOT_ID and self.config.BOT_SECRET:
             self.client = WxWorkLongConnectionClient(
                 bot_id=self.config.BOT_ID,
@@ -75,6 +92,7 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
     async def cleanup(self) -> None:
         if self.client is not None:
             await self.client.stop()
+        await self.user_resolver.aclose()
         logger.info("企业微信 AI Bot 适配器已清理")
 
     async def handle_message_callback(self, frame: dict[str, Any]) -> None:
@@ -88,6 +106,9 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
 
         if not self.config.ENABLE_TEXT_MESSAGE_COLLECTION:
             return
+
+        await self._resolve_message_user_name(parsed)
+        await self._materialize_incoming_attachments(parsed)
 
         await collect_message(
             self,
@@ -135,10 +156,11 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
         )
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:  # noqa: ARG002
+        user_name = await self.user_resolver.resolve_user_name(user_id, "")
         return PlatformUser(
             platform_name="wxwork",
             user_id=user_id,
-            user_name=user_id,
+            user_name=user_name,
             user_avatar="",
         )
 
@@ -260,6 +282,118 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
 
         await flush_text()
         return last_response
+
+    async def _materialize_incoming_attachments(self, parsed: ParsedWxWorkMessage) -> None:
+        if self.client is None or not parsed.attachments:
+            return
+
+        attachment_segments: list[ChatMessageSegment] = []
+        for index, attachment in enumerate(parsed.attachments, start=1):
+            segment = await self._build_attachment_segment_safe(
+                parsed=parsed,
+                attachment=attachment,
+                fallback_index=index,
+            )
+            if segment is not None:
+                attachment_segments.append(segment)
+
+        if not attachment_segments:
+            return
+
+        self._merge_attachment_segments_into_message(parsed, attachment_segments)
+
+    async def _build_attachment_segment_safe(
+        self,
+        *,
+        parsed: ParsedWxWorkMessage,
+        attachment: ParsedWxWorkAttachment,
+        fallback_index: int,
+    ) -> ChatMessageSegment | None:
+        if self.client is None:
+            return None
+
+        if not attachment.url or not attachment.aeskey:
+            logger.warning(
+                "WeCom AI Bot 入站附件缺少下载字段，已跳过: "
+                f"type={attachment.media_type}, url={bool(attachment.url)}, aeskey={bool(attachment.aeskey)}"
+            )
+            return None
+
+        try:
+            raw_bytes = await self.client.download_media(url=attachment.url, aeskey=attachment.aeskey)
+            return await self._build_attachment_segment(
+                parsed=parsed,
+                segment_type=attachment.segment_type,
+                raw_bytes=raw_bytes,
+                file_name=attachment.file_name,
+                fallback_index=fallback_index,
+            )
+        except Exception as exc:
+            logger.exception(f"下载或解密企业微信 AI Bot 入站附件失败: type={attachment.media_type}, error={exc}")
+            return None
+
+    def _merge_attachment_segments_into_message(
+        self,
+        parsed: ParsedWxWorkMessage,
+        attachment_segments: list[ChatMessageSegment],
+    ) -> None:
+        message = parsed.message
+
+        if message.content_data and message.content_data[0].type == ChatMessageSegmentType.TEXT:
+            if message.content_text:
+                message.content_data[0].text = message.content_text
+            else:
+                message.content_data = []
+
+        message.content_data.extend(attachment_segments)
+        if not message.content_text:
+            message.content_text = "\n".join(segment.text for segment in attachment_segments if segment.text).strip()
+
+    async def _build_attachment_segment(
+        self,
+        *,
+        parsed: ParsedWxWorkMessage,
+        segment_type: ChatMessageSegmentType,
+        raw_bytes: bytes,
+        file_name: str,
+        fallback_index: int,
+    ) -> ChatMessageSegment:
+        normalized_file_name = wxwork_media.build_attachment_filename(
+            segment_type=segment_type,
+            raw_bytes=raw_bytes,
+            original_file_name=file_name,
+            fallback_index=fallback_index,
+        )
+        from_chat_key = f"{self.key}-{parsed.channel.channel_id}"
+
+        if segment_type == ChatMessageSegmentType.IMAGE:
+            image_bytes, normalized_file_name = wxwork_media.normalize_incoming_image(
+                raw_bytes,
+                normalized_file_name,
+                options=self.image_normalize_options,
+            )
+            segment = await ChatMessageSegmentImage.create_from_bytes(
+                image_bytes,
+                from_chat_key=from_chat_key,
+                file_name=normalized_file_name,
+            )
+        else:
+            segment = await ChatMessageSegmentFile.create_from_bytes(
+                raw_bytes,
+                from_chat_key=from_chat_key,
+                file_name=normalized_file_name,
+            )
+
+        return segment
+
+    async def _resolve_message_user_name(self, parsed: ParsedWxWorkMessage) -> None:
+        resolved_name = await self.user_resolver.resolve_user_name(parsed.user.user_id, parsed.user.user_name)
+        self._apply_resolved_user_name(parsed, resolved_name)
+
+    def _apply_resolved_user_name(self, parsed: ParsedWxWorkMessage, user_name: str) -> None:
+        parsed.user.user_name = user_name
+        parsed.message.sender_name = user_name
+        parsed.message.sender_nickname = user_name
 
     def _split_text_message_chunks(self, content: str) -> list[str]:
         if not content:

@@ -389,6 +389,28 @@
     "deleteDialog": {
       "title": "Remove Auto-Inject Service",
       "content": "Remove \"{{name}}\" from the auto-inject list? Existing workspace configurations will not be affected."
+    },
+    "validate": {
+      "button": "Validate",
+      "pending": "Handshaking…",
+      "success": "{{name}} {{version}} handshake OK",
+      "toolsAndLatency": "{{count}} tools, {{latency}}ms",
+      "errorKind": {
+        "schema": "Invalid configuration",
+        "spawn_failed": "Failed to spawn process (check command and args)",
+        "handshake_timeout": "Handshake timed out (server not running or unreachable)",
+        "transport_error": "Transport error (connection failed / URL unreachable)",
+        "container_not_running": "Workspace container is not running; start it first for stdio validation",
+        "invalid_response": "Invalid handshake response (peer may not be an MCP server)"
+      },
+      "chip": {
+        "validated": "Verified",
+        "unvalidated": "Unverified",
+        "failed": "Failed",
+        "validatedTooltip": "Verified at {{time}} UTC · {{tools}} tools. Active in .mcp.json; CC will see it.",
+        "unvalidatedTooltip": "Not yet verified. Click ▶ to run a handshake. Unverified servers are skipped from .mcp.json and stay hidden from CC.",
+        "failedTooltip": "Last validation failed; not written to .mcp.json"
+      }
     }
   },
   "detail": {
@@ -740,8 +762,23 @@
       }
     },
     "mcp": {
-      "title": "MCP Service Configuration",
-      "empty": "No MCP servers configured. Add from templates to get started.",
+      "title": "MCP Services",
+      "empty": "No MCP servers attached to this workspace yet",
+      "emptyHint": "Click \"Add MCP Service\" to pick from the global library",
+      "workspaceHint": "{{total}} attached, {{validated}} verified",
+      "addBtn": "Add MCP Service",
+      "addSuccess": "MCP server attached to this workspace",
+      "addFailed": "Add failed: {{message}}",
+      "removeTooltip": "Remove from this workspace (does not delete the global library entry)",
+      "removeSuccess": "Removed {{name}} from this workspace",
+      "removeFailed": "Remove failed: {{message}}",
+      "manageLibrary": "Manage MCP Library",
+      "libraryEmpty": "The global MCP library is empty. Go to the MCP Services management page to add entries.",
+      "autoInjectTooltip": "Auto-injected into newly created workspaces",
+      "addDialog": {
+        "title": "Add MCP Service",
+        "empty": "All servers from the global library are already attached. Add new entries in the MCP library to extend it."
+      },
       "fromTemplate": "From Template",
       "addManual": "Add Manually",
       "addServer": "Add Server",
@@ -783,8 +820,8 @@
         "url": "Server URL",
         "headersLabel": "HTTP Headers",
         "cancel": "Cancel",
-        "stdioHint": "Only package manager commands (npx / uvx / bunx / pnpx) are supported. Local file paths on the host are not supported.",
-        "stdioCommandError": "Only npx, uvx, bunx, pnpx commands are supported"
+        "stdioHint": "Only npx / uvx package manager commands are supported (CC sandbox ships Node.js 20 and astral-sh/uv). Local file paths on the host are not supported.",
+        "stdioCommandError": "Only npx and uvx commands are supported"
       },
       "registry": {
         "title": "Add MCP Server from Template",
@@ -883,6 +920,22 @@
         "contentWithBindings": "Resource \"{{name}}\" is currently mounted in {{count}} workspaces. Deleting it will remove those mounts at the same time, and this action cannot be undone.",
         "boundListTitle": "Affected Workspaces",
         "confirm": "Delete Resource"
+      },
+      "secretHealth": {
+        "title": "Resource sensitive fields are unavailable",
+        "description": "{{count}} resources contain sensitive fields that cannot be read. This usually happens after moving devices when NEKRO_JWT_SECRET_KEY differs from the old environment.",
+        "recoverAction": "Recover with old key",
+        "purgeAction": "Clear invalid fields",
+        "recoverTitle": "Recover Resources with Old Key",
+        "recoverContent": "Enter the NEKRO_JWT_SECRET_KEY used on the old device when these resources were created. After recovery, legacy ciphertext will be converted to plaintext JSON readable by the current version.",
+        "recoverConfirm": "Recover",
+        "purgeTitle": "Clear Invalid Sensitive Fields",
+        "purgeContent": "This clears all currently unreadable sensitive field values. Non-sensitive data such as hosts, usernames, and notes will be kept. You will need to edit the resources again to fill passwords, tokens, or private keys.",
+        "purgeConfirm": "Clear Fields",
+        "recoverSuccess": "Recovered sensitive fields for {{count}} resources",
+        "recoverFailed": "Recovery failed: {{message}}",
+        "purgeSuccess": "Cleared invalid sensitive fields for {{count}} resources",
+        "purgeFailed": "Clear failed: {{message}}"
       },
       "notifications": {
         "created": "Resource created",
@@ -1163,6 +1216,9 @@
         "failed": "Failed"
       }
     },
+    "config": {
+      "embeddingRequired": "The knowledge base embedding model group is missing or invalid. Make sure `KB_EMBEDDING_MODEL_GROUP` exists and its model type is `embedding` before creating, uploading, or reindexing knowledge."
+    },
     "form": {
       "title": "Title",
       "format": "Text Format",
@@ -1382,6 +1438,9 @@
         "ready": "Completed",
         "failed": "Failed"
       }
+    },
+    "config": {
+      "embeddingRequired": "The knowledge base embedding model group is missing or invalid. Make sure `KB_EMBEDDING_MODEL_GROUP` exists and its model type is `embedding` before creating, uploading, or reindexing global knowledge."
     },
     "form": {
       "title": "Title",

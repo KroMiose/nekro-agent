@@ -14,10 +14,6 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
   CircularProgress,
   Typography,
   Switch,
@@ -121,8 +117,6 @@ const UserTable: React.FC<UserTableProps> = ({
   const [newPassword, setNewPassword] = useState<string>('')
   const [editFormData, setEditFormData] = useState({
     username: '',
-    perm_level: 0,
-    access_key: '',
   })
   const [isPermanentBan, setIsPermanentBan] = useState(false)
   const [isPermanentPreventTrigger, setIsPermanentPreventTrigger] = useState(false)
@@ -168,8 +162,6 @@ const UserTable: React.FC<UserTableProps> = ({
     setSelectedUser(user)
     setEditFormData({
       username: user.username,
-      perm_level: user.perm_level,
-      access_key: '',
     })
     setEditDialogOpen(true)
   }
@@ -561,7 +553,18 @@ const UserTable: React.FC<UserTableProps> = ({
                 ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
               }}
             >
-              {t('table.adapterPlatform')}
+              <TableSortLabel
+                active={sorting.field === 'adapter_key'}
+                direction={sorting.field === 'adapter_key' ? sorting.order : 'asc'}
+                onClick={() => handleRequestSort('adapter_key')}
+              >
+                {t('table.adapterPlatform')}
+                {sorting.field === 'adapter_key' ? (
+                  <Box component="span" sx={srOnlyStyle}>
+                    {sorting.order === 'desc' ? t('sort.desc') : t('sort.asc')}
+                  </Box>
+                ) : null}
+              </TableSortLabel>
             </TableCell>
             <TableCell
               sx={{
@@ -644,15 +647,22 @@ const UserTable: React.FC<UserTableProps> = ({
                 <TableRow key={user.id} hover sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
                   <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>{user.id}</TableCell>
                   <TableCell sx={{ ...UNIFIED_TABLE_STYLES.cell, maxWidth: 0 } as SxProps<Theme>}>
-                    <Tooltip title={user.username} placement="top">
-                      <Typography
-                        variant="body2"
-                        noWrap
-                        sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
-                      >
-                        {user.username}
-                      </Typography>
-                    </Tooltip>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                      <Tooltip title={user.username} placement="top">
+                        <Typography
+                          variant="body2"
+                          noWrap
+                          sx={{ overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}
+                        >
+                          {user.username}
+                        </Typography>
+                      </Tooltip>
+                      <Tooltip title={t('tooltips.editUsername', { username: user.username })}>
+                        <IconActionButton size="small" onClick={() => handleEditClick(user)}>
+                          <EditIcon fontSize="small" />
+                        </IconActionButton>
+                      </Tooltip>
+                    </Box>
                   </TableCell>
                   <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                     <Typography variant="body2" color="text.primary">
@@ -897,32 +907,6 @@ const UserTable: React.FC<UserTableProps> = ({
             margin="normal"
             required
           />
-          <FormControl fullWidth margin="normal">
-            <InputLabel>{t('form.permLevel')}</InputLabel>
-            <Select
-              value={editFormData.perm_level}
-              onChange={e =>
-                setEditFormData({ ...editFormData, perm_level: Number(e.target.value) })
-              }
-              label={t('form.permLevel')}
-            >
-              <MenuItem value={0}>{t('roles.guest', { ns: 'common' })}</MenuItem>
-              <MenuItem value={1}>{t('roles.user', { ns: 'common' })}</MenuItem>
-              <MenuItem value={2}>{t('roles.admin', { ns: 'common' })}</MenuItem>
-              <MenuItem value={3}>{t('roles.superAdmin', { ns: 'common' })}</MenuItem>
-            </Select>
-          </FormControl>
-          <TextField
-            fullWidth
-            label={t('form.accessKey')}
-            type="password"
-            value={editFormData.access_key}
-            onChange={e => setEditFormData({ ...editFormData, access_key: e.target.value })}
-            margin="normal"
-            autoComplete="new-password"
-            required
-            helperText={t('form.accessKeyHelper')}
-          />
         </DialogContent>
         <DialogActions>
           <ActionButton tone="secondary" onClick={() => setEditDialogOpen(false)}>
@@ -931,7 +915,7 @@ const UserTable: React.FC<UserTableProps> = ({
           <ActionButton
             tone="primary"
             onClick={handleEditConfirm}
-            disabled={!editFormData.username || !editFormData.access_key}
+            disabled={!editFormData.username.trim()}
           >
             {t('actions.save', { ns: 'common' })}
           </ActionButton>

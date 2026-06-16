@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -99,6 +100,11 @@ chat_key_sandbox_cleanup_task_map: Dict[str, asyncio.Task] = {}
 semaphore = asyncio.Semaphore(config.SANDBOX_MAX_CONCURRENT)
 
 
+def _sanitize_docker_name_part(value: str) -> str:
+    sanitized = re.sub(r"[^a-zA-Z0-9_.-]", "_", value)
+    return sanitized or "unknown"
+
+
 async def limited_run_code(
     code_run_data: ParsedCodeRunData,
     from_chat_key: str,
@@ -152,7 +158,7 @@ async def run_code_in_sandbox(
     generation_time_ms = llm_response.generation_time_ms if llm_response else 0
 
     # container_key = f'{time.strftime("%Y%m%d%H%M%S")}_{os.urandom(4).hex()}'
-    container_key = f"sandbox_{from_chat_key}"
+    container_key = f"sandbox_{_sanitize_docker_name_part(from_chat_key)}"
     container_name = f"nekro-agent-sandbox-{container_key}-{os.urandom(4).hex()}"
 
     host_shared_dir = Path(HOST_SHARED_DIR / container_key)
@@ -201,7 +207,7 @@ async def run_code_in_sandbox(
             if "404" in str(e):
                 logger.debug(f"沙盒容器已不存在: {from_chat_key} | {container_name}")
             else:
-                logger.error(f"清理过期沙盒失败: {e}")
+                logger.warning(f"清理过期沙盒失败: {e}")
         del chat_key_sandbox_container_map[from_chat_key]
 
     # 启动容器
@@ -219,7 +225,7 @@ async def run_code_in_sandbox(
                         f"{HOST_PIP_CACHE_DIR}:{CONTAINER_PIP_CACHE_DIR}:rw",
                         f"{HOST_PACKAGE_DIR}:{CONTAINER_PACKAGE_DIR}:rw",
                         f"{host_shared_dir}:{CONTAINER_SHARE_DIR}:rw",
-                        f"{USER_UPLOAD_DIR}/{from_chat_key}:{CONTAINER_UPLOAD_DIR}:ro",
+                        f"{USER_UPLOAD_DIR}/{_sanitize_docker_name_part(from_chat_key)}:{CONTAINER_UPLOAD_DIR}:ro",
                     ],
                     "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
                     "NanoCPUs": 1000000000,  # CPU 限制 (1 core)

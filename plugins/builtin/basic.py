@@ -61,6 +61,8 @@ from nekro_agent.tools.common_util import (
     calculate_text_similarity,
     download_file,
 )
+from nekro_agent.tools.at_markup import neutralize_at_all_markup
+from nekro_agent.tools.message_id import normalize_ref_msg_id
 from nekro_agent.tools.path_convertor import (
     convert_filename_to_sandbox_upload_path,
     convert_to_host_path,
@@ -83,7 +85,7 @@ plugin = NekroPlugin(
         en_US="Provides basic chat messaging, image/file sending and other fundamental features",
     ),
     # 开放给各适配器使用（文本/文件发送可用，头像工具仅在 OneBot 下提供）
-    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu", "wxwork", "wxwork_corp_app"],
+    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu", "wxwork", "wxwork_corp_app", "wechat_openilink", "wechat_ilink_multi"],
     allow_sleep=False,
     sleep_brief="提供发送文本、文件和基础互动能力，是多数对话都会依赖的基础插件。",
 )
@@ -217,7 +219,10 @@ async def basic_prompt_inject(_ctx: AgentCtx):
     base_prompt = "Current Adapter Support Feature:\n"
     if _ctx.adapter_key in ["onebot_v11"]:
         features["Reference_Message"] = True
-    tips: str = "When you reference a message, user can click it to jump to the referenced message."
+    tips: str = (
+        "When you reference a message, user can click it to jump to the referenced message. "
+        "Use `send_msg_file` for images/files instead of embedding file-like markup in `message_text`."
+    )
     return base_prompt + "\n".join([f"{k}: {v}" for k, v in features.items()]) + "\n" + tips
 
 
@@ -236,11 +241,12 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     Attention:
         1. Do not expose any unnecessary technical id or key in the message content.
         2. You can always send messages that are confident in the content, not content that you don't even know what it will be.
+        3. Use `send_msg_file` for images/files instead of embedding file-like markup in `message_text`.
 
     Args:
         chat_key (str): 聊天频道标识
-        message_text (str): 消息内容
-        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`，若需要引用时传递，不需要在 `message_text` 中重复说明被引用消息!)
+        message_text (str): 消息文本内容。
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
 
     Example:
         # Send some valid message
@@ -265,8 +271,10 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     if not message_text.strip():
         raise Exception("Error: The message content cannot be empty.")
 
+    ref_msg_id = normalize_ref_msg_id(ref_msg_id)
+
     if not config.ALLOW_AT_ALL:
-        message_text = message_text.replace("[@all@]", "@全体成员")
+        message_text = neutralize_at_all_markup(message_text)
 
     # 拒绝包含 [image:xxx...] 的图片消息
     if re.match(r"^.*\[image:.*\]$", message_text) and len(message_text) > 100:
@@ -314,7 +322,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     except Exception as e:
         core.logger.exception(f"发送消息失败: {e}")
         raise Exception(
-            "Error sending text message to chat: Make sure the chat key is valid, you have permission to speak and message is not too long.",
+            "Error sending text message to chat: make sure the chat key is valid, you have permission to speak, and the message is not too long.",
         ) from e
 
     # 更新消息缓存
@@ -336,6 +344,7 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str, ref_msg_i
         ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
     """
     global SEND_FILE_CACHE
+    ref_msg_id = normalize_ref_msg_id(ref_msg_id)
     file_container_path = file_path  # 防止误导llm
     if not isinstance(file_container_path, str):
         raise TypeError("Error: The file argument must be a string with the correct file shared path or URL.")

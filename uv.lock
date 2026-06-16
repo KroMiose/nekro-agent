@@ -592,6 +592,15 @@ wheels = [
 ]
 
 [[package]]
+name = "defusedxml"
+version = "0.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/d5/c66da9b79e5bdb124974bfe172b4daf3c984ebd9c2a06e2b8a4dc7331c72/defusedxml-0.7.1.tar.gz", hash = "sha256:1bb3032db185915b62d7c6209c5a8792be6a32ab2fedacc84e01b52c51aa3e69", size = 75520, upload-time = "2021-03-08T10:59:26.269Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/6c/aa3f2f849e01cb6a001cd8554a88d4c77c5c1a31c95bdf1cf9301e6d9ef4/defusedxml-0.7.1-py2.py3-none-any.whl", hash = "sha256:a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61", size = 25604, upload-time = "2021-03-08T10:59:24.45Z" },
+]
+
+[[package]]
 name = "dictdiffer"
 version = "0.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1374,6 +1383,7 @@ dependencies = [
     { name = "bcrypt" },
     { name = "chinesecalendar" },
     { name = "croniter" },
+    { name = "defusedxml" },
     { name = "discord-py" },
     { name = "docker" },
     { name = "gitpython" },
@@ -1409,6 +1419,7 @@ dependencies = [
     { name = "tortoise-orm" },
     { name = "tzlocal" },
     { name = "websockets" },
+    { name = "wechatbot-sdk" },
 ]
 
 [package.optional-dependencies]
@@ -1436,6 +1447,7 @@ requires-dist = [
     { name = "bcrypt", specifier = ">=4.2.0,<5.0.0" },
     { name = "chinesecalendar", specifier = ">=1.11.0" },
     { name = "croniter", specifier = ">=6.0.0" },
+    { name = "defusedxml", specifier = ">=0.7.1,<1.0.0" },
     { name = "discord-py", specifier = ">=2.5.2,<3.0.0" },
     { name = "docker", specifier = ">=7.1.0,<8.0.0" },
     { name = "gitpython", specifier = ">=3.1.44,<4.0.0" },
@@ -1479,6 +1491,7 @@ requires-dist = [
     { name = "tzlocal", specifier = ">=5.2,<6.0" },
     { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.23.2,<1.0.0" },
     { name = "websockets", specifier = ">=15.0.1,<16.0.0" },
+    { name = "wechatbot-sdk", specifier = ">=0.1.0,<1.0.0" },
 ]
 provides-extras = ["dev"]
 
@@ -2859,6 +2872,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/83/de1f7709376dc3ca9b7eeb4b9a07b4526b14876b6d372a4dc62312bebee0/websockets-15.0.1-cp312-cp312-win32.whl", hash = "sha256:c338ffa0520bdb12fbc527265235639fb76e7bc7faafbb93f6ba80d9c06578a9", size = 176395, upload-time = "2025-03-05T20:02:33.017Z" },
     { url = "https://files.pythonhosted.org/packages/7d/71/abf2ebc3bbfa40f391ce1428c7168fb20582d0ff57019b69ea20fa698043/websockets-15.0.1-cp312-cp312-win_amd64.whl", hash = "sha256:fcd5cf9e305d7b8338754470cf69cf81f420459dbae8a3b40cee57417f4614a7", size = 176841, upload-time = "2025-03-05T20:02:34.498Z" },
     { url = "https://files.pythonhosted.org/packages/fa/a8/5b41e0da817d64113292ab1f8247140aac61cbf6cfd085d6a0fa77f4984f/websockets-15.0.1-py3-none-any.whl", hash = "sha256:f7a866fbc1e97b5c617ee4116daaa09b722101d4a3c170c787450ba409f9736f", size = 169743, upload-time = "2025-03-05T20:03:39.41Z" },
+]
+
+[[package]]
+name = "wechatbot-sdk"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "aiohttp" },
+    { name = "cryptography" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/42/fe/fc419ff228e64a5d02de7ad06a5b663dcef10502e10a2263ae667b7aa80b/wechatbot_sdk-0.2.1.tar.gz", hash = "sha256:7c06d252fdc35110e0ef6fdd701469c04a1436a602b1088e4d3c30f944ec01c3", size = 14824, upload-time = "2026-04-17T15:21:16.929Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/96/20/ddb52f93bc90e38d4112ba427a8ec7867a82fdea30e593540fe78b7dfd76/wechatbot_sdk-0.2.1-py3-none-any.whl", hash = "sha256:957e13161c9d689806cd78c39d5c050f1365ede4cfa8653ce4a7395ce1278b19", size = 16608, upload-time = "2026-04-17T15:21:15.526Z" },
 ]
 
 [[package]]

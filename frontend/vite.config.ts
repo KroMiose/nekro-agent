@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
       include: ['@monaco-editor/react'], // 预构建Monaco Editor
     },
     server: {
+      host: '0.0.0.0',
       proxy: {
         // API 请求代理
         '/api': {

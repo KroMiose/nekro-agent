@@ -25,6 +25,7 @@ from nekro_agent.schemas.agent_message import (
 )
 from nekro_agent.services.agent.resolver import fix_raw_response
 from nekro_agent.tools.common_util import download_file
+from nekro_agent.tools.message_id import normalize_ref_msg_id
 from nekro_agent.tools.path_convertor import (
     convert_to_host_path,
     is_url_path,
@@ -99,6 +100,7 @@ class UniversalChatService:
             return
 
         # 构建协议端发送请求
+        ref_msg_id = normalize_ref_msg_id(ref_msg_id)
         send_request = PlatformSendRequest(
             chat_key=chat_key,
             segments=processed_segments,
@@ -132,7 +134,24 @@ class UniversalChatService:
         if record:
             from nekro_agent.services.message_service import message_service
 
-            await message_service.push_bot_message(chat_key, messages, plt_response, ref_msg_id=ref_msg_id)
+            try:
+                await message_service.push_bot_message(
+                    chat_key,
+                    messages,
+                    plt_response,
+                    ref_msg_id=ref_msg_id,
+                    normalize_at_markup=False,
+                )
+            except TypeError as exc:
+                if "normalize_at_markup" not in str(exc):
+                    raise
+                logger.warning("push_bot_message 运行时钩子不兼容 normalize_at_markup，已使用旧签名重试")
+                await message_service.push_bot_message(
+                    chat_key,
+                    messages,
+                    plt_response,
+                    ref_msg_id=ref_msg_id,
+                )
 
     async def _preprocess_messages(
         self,
@@ -161,6 +180,7 @@ class UniversalChatService:
             if agent_message_type == AgentMessageSegmentType.TEXT:
                 # 处理文本消息 - 只做基本的修复，不解析@
                 content = fix_raw_response(content)
+                agent_message.content = content
 
                 if content.strip():
                     processed_segments.append(PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=content))

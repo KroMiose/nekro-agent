@@ -244,6 +244,7 @@ class UnifiedConfigService:
         if instance:
             return instance
 
+
         # 2. 尝试动态加载
         try:
             from nekro_agent.core.overridable_config import OverridableConfig
@@ -263,7 +264,9 @@ class UnifiedConfigService:
 
             elif config_key.startswith("channel_config_"):
                 chat_key = config_key.replace("channel_config_", "")
-                adapter_key = chat_key.split("-")[0]
+                from nekro_agent.adapters import resolve_adapter_key_from_chat_key
+
+                adapter_key = resolve_adapter_key_from_chat_key(chat_key)
                 path = CHANNEL_CONFIG_DIR / adapter_key / f"{chat_key}.yaml"
                 instance = OverridableConfig.load_from_path(path)
 
@@ -531,6 +534,7 @@ class ConfigService:
                 "required",
                 "is_hidden",
                 "ref_model_groups",
+                "ref_email_accounts_send_enabled",
                 "model_type",
                 "sub_item_name",
                 "enable_toggle",

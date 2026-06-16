@@ -16,6 +16,7 @@ import {
   QuestionAnswer as QuestionAnswerIcon,
   Chat as ChatIcon,
   Send as SendIcon,
+  QrCode2 as QrCodeIcon,
   Email as EmailIcon,
 } from '@mui/icons-material'
 import i18next from './i18n'
@@ -40,7 +41,9 @@ import AdapterAdvancedPage from '../pages/adapter/AdapterAdvancedPage'
 import AdapterOverrideConfigPage from '../pages/adapter/AdapterOverrideConfigPage'
 import OneBotV11NapCatPage from '../pages/adapter/onebot_v11/napcat'
 import OneBotV11LogsPage from '../pages/adapter/onebot_v11/logs'
+import WechatOpenILinkLoginPage from '../pages/adapter/wechat_openilink/login'
 import EmailsPage from '../pages/adapter/email/emails'
+import EmailAccountsPage from '../pages/adapter/email/accounts'
 
 export interface AdapterTabConfig {
   label: string
@@ -81,6 +84,7 @@ const ADAPTER_ICON_ASSETS: Partial<Record<string, string>> = {
   discord: discordIcon,
   sse: sseIcon,
   wechatpad: wechatIcon,
+  wechat_openilink: wechatIcon,
   telegram: telegramIcon,
   email: emailIcon,
   feishu: feishuIcon,
@@ -355,6 +359,55 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     ],
   },
 
+  // WeChat OpenILink 适配器配置
+  wechat_openilink: {
+    key: 'wechat_openilink',
+    visual: {
+      displayName: 'names.wechat_openilink',
+      iconText: '微信',
+      navIcon: <ChatIcon />,
+      description: '基于 OpenILink SDK 的微信适配器（MVP: 文本收发）',
+      tags: ['微信', 'OpenILink', '聊天', 'IM'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.login',
+        value: 'login',
+        icon: <QrCodeIcon fontSize="small" />,
+        path: 'login',
+        component: <WechatOpenILinkLoginPage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
   // Telegram 适配器配置
   telegram: {
     key: 'telegram',
@@ -405,8 +458,8 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
       iconText: 'Mail',
       navIcon: <EmailIcon />,
       description:
-        '邮箱适配器，支持通过IMAP/SMTP协议收发邮件，将同一邮箱账户的邮件归属到同一聊天中',
-      tags: ['Email', '邮件', 'IMAP', 'SMTP', '聊天'],
+        '邮箱适配器，支持多账户收发、Gmail/Outlook 官方登录、邮件同步、附件流转和收件诊断',
+      tags: ['Email', '邮件', 'IMAP', 'SMTP', 'OAuth', '附件'],
     },
     tabs: [
       {
@@ -429,6 +482,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.accounts',
+        value: 'accounts',
+        icon: <EmailIcon fontSize="small" />,
+        path: 'accounts',
+        component: <EmailAccountsPage />,
       },
       {
         label: 'tabs.emails',

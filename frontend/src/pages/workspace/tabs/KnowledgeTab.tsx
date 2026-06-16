@@ -65,12 +65,14 @@ import {
   WorkspaceDetail,
 } from '../../../services/api/workspace'
 import { useNotification } from '../../../hooks/useNotification'
+import { useKbEmbeddingGuard } from '../../../hooks/useKbEmbeddingGuard'
 import { KbIndexProgressInfo, useSystemEventsContext } from '../../../contexts/SystemEventsContext'
 import { CARD_VARIANTS, CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../../theme/variants'
 import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
 import SearchField from '../../../components/common/SearchField'
 import StatCard from '../../../components/common/StatCard'
+import { KbEmbeddingWarning } from '../components/KbEmbeddingWarning'
 import ReferenceGraph from '../components/ReferenceGraph'
 import KBGraphDialog from '../components/KBGraphDialog'
 import KBBatchActionsButton from '../components/KBBatchActionsButton'
@@ -295,6 +297,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     queryKey: ['kb-library-assets'],
     queryFn: () => kbLibraryApi.list(),
   })
+  const {
+    kbEmbeddingConfigMessage,
+    kbEmbeddingShowWarning,
+    withEmbeddingGuard,
+  } = useKbEmbeddingGuard('knowledge.config.embeddingRequired')
 
   const documents = documentsQuery.data ?? EMPTY_DOCUMENTS
   const globalAssets = globalAssetsQuery.data ?? EMPTY_GLOBAL_ASSETS
@@ -1720,12 +1727,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
             </Tooltip>
             <KBBatchActionsButton
               label={t('knowledge.actions.batchActions', { count: selectedEntryCount })}
-              disabled={
+              disabled={withEmbeddingGuard(
                 selectedEntryCount === 0 ||
                 bulkDeleteSelectedMutation.isPending ||
                 bulkReindexSelectedMutation.isPending ||
-                bulkDisableSelectedMutation.isPending
-              }
+                bulkDisableSelectedMutation.isPending,
+              )}
               actions={[
                 {
                   key: 'delete',
@@ -1745,11 +1752,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                       documentIds: selectedDocumentIds,
                       assetIds: selectedAssetIds,
                     }),
-                  disabled:
+                  disabled: withEmbeddingGuard(
                     selectedEntryCount === 0 ||
                     bulkDeleteSelectedMutation.isPending ||
                     bulkReindexSelectedMutation.isPending ||
                     bulkDisableSelectedMutation.isPending,
+                  ),
                 },
                 {
                   key: 'disable-index',
@@ -1775,7 +1783,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               startIcon={<AddIcon />}
               endIcon={<ArrowDropDownIcon />}
               onClick={handleAddMenuOpen}
-              disabled={globalAssetsQuery.isLoading}
+              disabled={withEmbeddingGuard(globalAssetsQuery.isLoading)}
             >
               {t('knowledge.actions.addFile')}
             </ActionButton>
@@ -1786,14 +1794,18 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-              <MenuItem onClick={handleOpenUploadDialog}>{t('knowledge.actions.uploadFile')}</MenuItem>
-              <MenuItem onClick={handleOpenBatchUploadDialog}>{t('knowledge.actions.batchUpload')}</MenuItem>
-              <MenuItem onClick={handleOpenCreateDialog}>{t('knowledge.actions.createText')}</MenuItem>
+              <MenuItem onClick={handleOpenUploadDialog} disabled={withEmbeddingGuard()}>{t('knowledge.actions.uploadFile')}</MenuItem>
+              <MenuItem onClick={handleOpenBatchUploadDialog} disabled={withEmbeddingGuard()}>{t('knowledge.actions.batchUpload')}</MenuItem>
+              <MenuItem onClick={handleOpenCreateDialog} disabled={withEmbeddingGuard()}>{t('knowledge.actions.createText')}</MenuItem>
               <MenuItem onClick={handleReuseDialogOpen}>{t('knowledge.actions.reuseGlobal')}</MenuItem>
             </Menu>
           </Box>
         </Box>
       </Card>
+
+      {kbEmbeddingShowWarning && (
+        <KbEmbeddingWarning message={kbEmbeddingConfigMessage} sx={{ mb: 2, flexShrink: 0 }} />
+      )}
 
       {searchResult?.next_action_hint && (
         <Alert severity="info" sx={{ mb: 2, flexShrink: 0 }}>
@@ -2217,7 +2229,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 tone="secondary"
                 startIcon={<ReindexIcon />}
                 onClick={() => reindexMutation.mutate(selectedDocumentMeta.id)}
-                disabled={reindexMutation.isPending}
+                disabled={withEmbeddingGuard(reindexMutation.isPending)}
                 sx={compactActionSx}
               >
                 {t('knowledge.actions.reindex')}
@@ -2259,7 +2271,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 tone="secondary"
                 startIcon={<ReindexIcon />}
                 onClick={() => reindexAssetMutation.mutate(selectedAssetMeta.id)}
-                disabled={reindexAssetMutation.isPending}
+                disabled={withEmbeddingGuard(reindexAssetMutation.isPending)}
                 sx={compactActionSx}
               >
                 {t('knowledge.actions.reindex')}
@@ -2299,6 +2311,9 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         <DialogTitle>{t('knowledge.dialogs.createTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {kbEmbeddingShowWarning && (
+              <KbEmbeddingWarning message={kbEmbeddingConfigMessage} />
+            )}
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
               <TextField
                 label={t('knowledge.form.title')}
@@ -2363,7 +2378,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           <ActionButton onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>
             {t('knowledge.actions.cancel')}
           </ActionButton>
-          <ActionButton tone="primary" onClick={handleCreateSubmit} disabled={createMutation.isPending || !createForm.title.trim() || !createForm.content.trim()}>
+          <ActionButton
+            tone="primary"
+            onClick={handleCreateSubmit}
+            disabled={withEmbeddingGuard(createMutation.isPending || !createForm.title.trim() || !createForm.content.trim())}
+          >
             {createMutation.isPending ? t('knowledge.actions.creating') : t('knowledge.actions.create')}
           </ActionButton>
         </DialogActions>
@@ -2383,12 +2402,16 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         </DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
+            {kbEmbeddingShowWarning && (
+              <KbEmbeddingWarning message={kbEmbeddingConfigMessage} />
+            )}
             {batchQueue.length === 0 ? (
               <Stack spacing={1.5}>
                 <ActionButton
                   tone="secondary"
                   startIcon={<FolderOpenIcon />}
                   onClick={() => batchInputRef.current?.click()}
+                  disabled={withEmbeddingGuard()}
                 >
                   {t('knowledge.actions.chooseFiles')}
                 </ActionButton>
@@ -2397,6 +2420,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                   tone="secondary"
                   startIcon={<ImportFolderIcon />}
                   onClick={() => dirInputRef.current?.click()}
+                  disabled={withEmbeddingGuard()}
                 >
                   {t('knowledge.actions.importFolder')}
                 </ActionButton>
@@ -2511,6 +2535,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                       tone="secondary"
                       startIcon={<ImportFolderIcon />}
                       onClick={() => dirInputRef.current?.click()}
+                      disabled={withEmbeddingGuard()}
                     >
                       {t('knowledge.actions.reChooseFolder')}
                     </ActionButton>
@@ -2519,6 +2544,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                       tone="secondary"
                       startIcon={<FolderOpenIcon />}
                       onClick={() => batchInputRef.current?.click()}
+                      disabled={withEmbeddingGuard()}
                     >
                       {t('knowledge.actions.reChooseFiles')}
                     </ActionButton>
@@ -2555,6 +2581,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
             <ActionButton
               tone="primary"
               onClick={() => startBatchUpload(batchQueue.filter(i => i.status === 'waiting'))}
+              disabled={withEmbeddingGuard()}
             >
               {t('knowledge.actions.startUpload', { count: batchQueue.filter(i => i.status === 'waiting').length })}
             </ActionButton>
@@ -2708,7 +2735,15 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         <DialogTitle>{t('knowledge.dialogs.uploadTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <ActionButton tone="secondary" startIcon={<FolderOpenIcon />} onClick={() => uploadInputRef.current?.click()}>
+            {kbEmbeddingShowWarning && (
+              <KbEmbeddingWarning message={kbEmbeddingConfigMessage} />
+            )}
+            <ActionButton
+              tone="secondary"
+              startIcon={<FolderOpenIcon />}
+              onClick={() => uploadInputRef.current?.click()}
+              disabled={withEmbeddingGuard()}
+            >
               {uploadFile ? uploadFile.name : t('knowledge.actions.chooseFile')}
             </ActionButton>
             <Alert severity="info">
@@ -2764,7 +2799,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           >
             {t('knowledge.actions.cancel')}
           </ActionButton>
-          <ActionButton tone="primary" onClick={handleUploadSubmit} disabled={uploadMutation.isPending || !uploadFile}>
+          <ActionButton
+            tone="primary"
+            onClick={handleUploadSubmit}
+            disabled={withEmbeddingGuard(uploadMutation.isPending || !uploadFile)}
+          >
             {uploadMutation.isPending ? t('knowledge.actions.uploading') : t('knowledge.actions.upload')}
           </ActionButton>
         </DialogActions>

@@ -98,7 +98,7 @@ if env_file and not env_file.exists():
 
 # 添加 Nekro 环境变量到系统环境变量
 if env_file:
-    for line in env_file.read_text().splitlines():
+    for line in env_file.read_text(encoding="utf-8").splitlines():
         if "=" in line and not line.startswith("#"):
             key, value = line.split("=", 1)
             if key.startswith("NEKRO_"):

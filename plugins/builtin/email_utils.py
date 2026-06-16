@@ -74,11 +74,11 @@
 """
 
 import asyncio
+import base64
 import email
 import imaplib
 import os
 import re
-import smtplib
 import time
 from datetime import datetime, timedelta
 from email.header import decode_header
@@ -327,7 +327,7 @@ async def send_email_attachment(
 
 
 @plugin.mount_sandbox_method(
-    method_type=SandboxMethodType.TOOL,
+    method_type=SandboxMethodType.AGENT,
     name="get_email_accounts",
     description="获取当前所有邮箱账户信息",
 )
@@ -344,6 +344,8 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
 
     返回:
         List[Dict[str, Any]]: 邮箱账户列表，每个账户包含以下字段:
+            - display_name (str): 用户配置的账户显示名称
+            - display_label (str): 展示用账户标签
             - email_address (str): 邮箱地址
             - provider (str): 邮箱服务商名称（如 "QQ邮箱"、"163邮箱"）
             - send_enabled (bool): 是否启用发信功能
@@ -352,6 +354,12 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
     def _raise_if_no_adapter(adapter) -> None:
         if not adapter:
             raise Exception("邮箱适配器未启用或未找到")
+
+    def _build_display_label(account: EmailAccount) -> str:
+        display_name = account.DISPLAY_NAME.strip()
+        if display_name and account.USERNAME:
+            return f"{display_name} ({account.USERNAME})"
+        return display_name or account.USERNAME or account.EMAIL_ACCOUNT
 
     try:
         # 获取邮箱适配器
@@ -370,6 +378,8 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
             if account.ENABLED:
                 accounts.append(
                     {
+                        "display_name": account.DISPLAY_NAME,
+                        "display_label": _build_display_label(account),
                         "email_address": account.USERNAME,
                         "provider": account.EMAIL_ACCOUNT,
                         "send_enabled": account.SEND_ENABLED,
@@ -426,10 +436,6 @@ async def send_email(
         if not sender:
             raise Exception("没有找到可用的发件人账户")
 
-    def _raise_if_no_smtp_host(host: str, email_account: str) -> None:
-        if not host:
-            raise Exception(f"未找到 {email_account} 的SMTP配置")
-
     try:
         # 获取邮箱适配器
         email_adapter = adapter_utils.get_adapter("email")
@@ -461,17 +467,6 @@ async def send_email(
         _raise_if_no_sender(sender_account)
         assert sender_account is not None  # Type narrowing for Pylance
 
-        # 获取SMTP配置（支持自定义提供商）
-        provider_config = email_adapter.get_provider_config_for_account(sender_account)
-        smtp_host = provider_config.get("smtp_host", "")
-        smtp_port = int(provider_config.get("smtp_port", 587))
-        smtp_ssl_port = int(provider_config.get("smtp_ssl_port", smtp_port))
-        # 将字符串 "true"/"false" 转换为布尔值
-        use_ssl_str = provider_config.get("smtp_use_ssl", "false").lower()
-        use_ssl_preferred = use_ssl_str == "true"
-
-        _raise_if_no_smtp_host(smtp_host, sender_account.EMAIL_ACCOUNT)
-
         # 创建邮件
         msg = MIMEMultipart()
         msg["From"] = sender_account.USERNAME
@@ -479,41 +474,8 @@ async def send_email(
         msg["Subject"] = subject
         msg.attach(MIMEText(content, "plain", "utf-8"))
 
-        async def _send_mail(use_ssl: bool, port: int) -> None:
-            def _sync_send() -> None:
-                if use_ssl:
-                    with smtplib.SMTP_SSL(smtp_host, port, timeout=60) as server:
-                        server.login(sender_account.USERNAME, sender_account.PASSWORD)
-                        server.send_message(msg)
-                else:
-                    with smtplib.SMTP(smtp_host, port, timeout=60) as server:
-                        server.starttls()
-                        server.login(sender_account.USERNAME, sender_account.PASSWORD)
-                        server.send_message(msg)
-
-            return await asyncio.to_thread(_sync_send)
-
-        try:
-            await _send_mail(use_ssl_preferred, smtp_ssl_port if use_ssl_preferred else smtp_port)
-        except Exception as e:
-            # 只在连接/认证错误时重试，避免邮件重复发送
-            error_msg = str(e).lower()
-            error_str = str(e)
-
-            # QQ 邮箱等可能在邮件发送成功后返回特殊响应码（如 -1）
-            # 这种情况下邮件实际已发送，不应重试
-            if "(-1," in error_str:
-                logger.warning(f"邮件可能已发送成功，但收到特殊响应码: {e}")
-                # 不抛出异常，视为发送成功
-            elif not use_ssl_preferred and (
-                "connect" in error_msg or "ssl" in error_msg or "tls" in error_msg or "certificate" in error_msg
-            ):
-                # 只在连接相关错误时尝试 SSL
-                logger.info(f"非 SSL 连接失败，尝试使用 SSL 连接: {e}")
-                await _send_mail(True, smtp_ssl_port)
-            else:
-                # 其他错误直接抛出
-                raise
+        client = email_adapter.email_clients.get(sender_account.USERNAME) or email_adapter._create_email_client(sender_account)
+        await client.send_message(msg)
     except Exception as e:
         logger.error(f"发送邮件失败: {e}")
         return {
@@ -875,7 +837,7 @@ async def _fetch_email_content(_ctx: AgentCtx, conn, account_username, email_id,
 
 
 @plugin.mount_sandbox_method(
-    method_type=SandboxMethodType.TOOL,
+    method_type=SandboxMethodType.AGENT,
     name="get_email_content",
     description="获取指定邮箱和邮件ID的邮件内容",
 )
@@ -918,16 +880,12 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         if not adapter:
             raise Exception("邮箱适配器未启用或未找到")
 
-    def _raise_if_account_not_connected(username: str, connections: dict) -> None:
-        if username not in connections:
+    def _raise_if_account_not_connected(username: str, clients: dict) -> None:
+        if username not in clients:
             raise Exception(f"账户 {username} 未连接或不存在")
 
-    def _raise_if_fetch_failed(status: str, msg_data, eid: str) -> None:
-        if status != "OK" or not msg_data or len(msg_data) == 0:
-            raise Exception(f"获取邮件 {eid} 失败")
-
     def _raise_if_invalid_type(raw: Any, eid: str) -> None:
-        if not isinstance(raw, bytes):
+        if not isinstance(raw, bytes) or not raw:
             raise TypeError(f"邮件 {eid} 数据类型错误")
 
     try:
@@ -970,9 +928,9 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         email_adapter = cast(EmailAdapter, base_adapter)
 
         # 检查账户是否存在且已连接
-        _raise_if_account_not_connected(account_username, email_adapter.imap_connections)
+        _raise_if_account_not_connected(account_username, email_adapter.email_clients)
 
-        # 获取该账户的锁，确保IMAP操作的线程安全
+        # 获取该账户的锁，确保邮件客户端操作的线程安全
         lock = email_adapter.imap_locks.get(account_username)
         if not lock:
             # 如果锁不存在，这是初始化/重连的不一致状态，按需创建避免静默降级
@@ -981,15 +939,8 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
             email_adapter.imap_locks[account_username] = lock
 
         async with lock:
-            # 使用适配器的辅助方法选择文件夹
-            conn = await email_adapter.select_default_mailbox(account_username)
-
-            # 使用适配器的 imap_fetch 辅助方法
-            status, msg_data = await email_adapter.imap_fetch(conn, email_id.encode(), "(RFC822)")
-            _raise_if_fetch_failed(status, msg_data, email_id)
-
-            # 解析邮件
-            raw_email = msg_data[0][1]
+            raw_content = await email_adapter.email_clients[account_username].get_raw_email_content(email_id)
+            raw_email = base64.b64decode(raw_content.raw_email_base64) if raw_content.raw_email_base64 else b""
             _raise_if_invalid_type(raw_email, email_id)
 
         email_message = email.message_from_bytes(raw_email)
@@ -1135,7 +1086,4 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         }
     except Exception as e:
         logger.error(f"获取邮件内容失败: {e}")
-        return {
-            "success": False,
-            "message": f"获取邮件内容失败: {e!s}",
-        }
+        raise Exception(f"获取邮件内容失败: {e!s}") from e

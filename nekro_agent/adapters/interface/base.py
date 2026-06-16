@@ -12,6 +12,7 @@ from nekro_agent.core.core_utils import ConfigBase, ExtraField
 if TYPE_CHECKING:
     from nekro_agent.schemas.agent_message import AgentMessageSegment
     from nekro_agent.services.command.schemas import CommandResponse
+from nekro_agent.core import config
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.schemas.i18n import i18n_text
@@ -78,7 +79,6 @@ class BaseAdapterConfig(ConfigBase):
             ),
         ).model_dump(),
     )
-
     # 命令系统配置
     COMMAND_PREFIX: str = Field(
         default="/",
@@ -243,6 +243,10 @@ class BaseAdapter(ABC, Generic[TConfig]):
         """返回jinja模板"""
         return None
 
+    async def render_runtime_prompt(self) -> str:
+        """渲染适配器级运行时提示词"""
+        return ""
+
     @abstractmethod
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
         """推送消息到协议端
@@ -269,6 +273,13 @@ class BaseAdapter(ABC, Generic[TConfig]):
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:
         """获取频道信息"""
         raise NotImplementedError
+
+    def get_default_channel_status(self, channel_type: ChatType) -> str:
+        if channel_type == ChatType.GROUP:
+            return "active" if config.SESSION_GROUP_ACTIVE_DEFAULT else "disabled"
+        if channel_type == ChatType.PRIVATE:
+            return "active" if config.SESSION_PRIVATE_ACTIVE_DEFAULT else "disabled"
+        return "active"
 
     @property
     def supports_webui_send(self) -> bool:

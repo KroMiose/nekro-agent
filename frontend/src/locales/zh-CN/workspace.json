@@ -389,6 +389,28 @@
     "deleteDialog": {
       "title": "移除自动注入服务",
       "content": "确定要从自动注入列表中移除「{{name}}」吗？已有工作区中的配置不受影响。"
+    },
+    "validate": {
+      "button": "验证连接",
+      "pending": "正在握手…",
+      "success": "{{name}} {{version}} 握手成功",
+      "toolsAndLatency": "提供 {{count}} 个工具，耗时 {{latency}}ms",
+      "errorKind": {
+        "schema": "配置不合法",
+        "spawn_failed": "进程启动失败（检查 command 与 args）",
+        "handshake_timeout": "握手超时（检查服务器是否启动 / 网络可达）",
+        "transport_error": "传输层错误（连接失败 / URL 不可达）",
+        "container_not_running": "工作区容器未运行，stdio 类型需先启动工作区",
+        "invalid_response": "握手响应无效（对方可能不是 MCP 服务）"
+      },
+      "chip": {
+        "validated": "已验证",
+        "unvalidated": "未验证",
+        "failed": "验证失败",
+        "validatedTooltip": "已通过验证 · {{time}} UTC · {{tools}} 个工具。已写入 .mcp.json，CC 可见。",
+        "unvalidatedTooltip": "尚未通过验证。点击 ▶ 按钮发起一次握手；未验证的服务器不会写入 .mcp.json，CC 不可见。",
+        "failedTooltip": "最近一次验证失败，未写入 .mcp.json"
+      }
     }
   },
   "detail": {
@@ -740,8 +762,23 @@
       }
     },
     "mcp": {
-      "title": "MCP 服务配置",
-      "empty": "暂未配置 MCP 服务器，从模板添加快速开始",
+      "title": "MCP 服务",
+      "empty": "本工作区还没有加入任何 MCP 服务",
+      "emptyHint": "点击「添加 MCP 服务」从全局 MCP 库挑选",
+      "workspaceHint": "共 {{total}} 个已加入，{{validated}} 个已通过验证",
+      "addBtn": "添加 MCP 服务",
+      "addSuccess": "MCP 服务已加入本工作区",
+      "addFailed": "添加失败：{{message}}",
+      "removeTooltip": "从本工作区移除（不删除全局库条目）",
+      "removeSuccess": "已从本工作区移除 {{name}}",
+      "removeFailed": "移除失败：{{message}}",
+      "manageLibrary": "管理 MCP 库",
+      "libraryEmpty": "全局 MCP 库还没有任何服务，请到「MCP 服务」管理页添加",
+      "autoInjectTooltip": "新建工作区时会自动启用此服务",
+      "addDialog": {
+        "title": "添加 MCP 服务",
+        "empty": "全局库中所有服务都已加入本工作区。如需更多，请到 MCP 库添加新服务。"
+      },
       "fromTemplate": "从模板添加",
       "addManual": "手动添加",
       "addServer": "添加服务",
@@ -783,8 +820,8 @@
         "url": "服务器 URL",
         "headersLabel": "HTTP 请求头",
         "cancel": "取消",
-        "stdioHint": "仅支持 npx / uvx / bunx / pnpx 等包管理器命令，不支持引用宿主机本地文件路径",
-        "stdioCommandError": "仅支持 npx、uvx、bunx、pnpx 命令"
+        "stdioHint": "仅支持 npx / uvx 包管理器命令（CC 沙盒已预装 Node.js 20 与 astral-sh/uv），不支持引用宿主机本地文件路径",
+        "stdioCommandError": "仅支持 npx、uvx 命令"
       },
       "registry": {
         "title": "从模板添加 MCP 服务器",
@@ -883,6 +920,22 @@
         "contentWithBindings": "资源“{{name}}”当前已被 {{count}} 个工作区挂载。确认删除后，这些挂载会一并移除，且此操作不可撤销。",
         "boundListTitle": "受影响的工作区",
         "confirm": "删除资源"
+      },
+      "secretHealth": {
+        "title": "检测到资源敏感字段不可用",
+        "description": "{{count}} 条资源的敏感字段无法读取，通常是迁移设备后 NEKRO_JWT_SECRET_KEY 与旧环境不一致导致。",
+        "recoverAction": "使用旧密钥恢复",
+        "purgeAction": "抹除失效字段",
+        "recoverTitle": "使用旧密钥恢复资源",
+        "recoverContent": "请输入旧设备创建这些资源时使用的 NEKRO_JWT_SECRET_KEY。恢复成功后，旧密文会转换为当前版本可读取的明文 JSON。",
+        "recoverConfirm": "开始恢复",
+        "purgeTitle": "抹除失效敏感字段",
+        "purgeContent": "此操作会清空所有当前无法解密的敏感字段值，主机、用户名、备注等非敏感信息会保留。清空后需要重新编辑资源填写密码、令牌或私钥。",
+        "purgeConfirm": "确认抹除",
+        "recoverSuccess": "已恢复 {{count}} 条资源敏感字段",
+        "recoverFailed": "恢复失败：{{message}}",
+        "purgeSuccess": "已抹除 {{count}} 条失效敏感字段",
+        "purgeFailed": "抹除失败：{{message}}"
       },
       "notifications": {
         "created": "资源已创建",
@@ -1163,6 +1216,9 @@
         "failed": "失败"
       }
     },
+    "config": {
+      "embeddingRequired": "知识库 Embedding 模型组尚未配置或配置无效。请先前往系统设置确认 `KB_EMBEDDING_MODEL_GROUP` 存在且类型为 embedding，再创建、上传或重建知识库索引。"
+    },
     "form": {
       "title": "标题",
       "format": "文本格式",
@@ -1382,6 +1438,9 @@
         "ready": "已完成",
         "failed": "失败"
       }
+    },
+    "config": {
+      "embeddingRequired": "知识库 Embedding 模型组尚未配置或配置无效。请先前往系统设置确认 `KB_EMBEDDING_MODEL_GROUP` 存在且类型为 embedding，再创建、上传或重建全局知识库索引。"
     },
     "form": {
       "title": "标题",

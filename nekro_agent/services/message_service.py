@@ -25,7 +25,7 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegmentType,
     convert_agent_message_to_prompt,
 )
-from nekro_agent.schemas.chat_message import ChatMessage, ChatMessageSegmentType, ChatType
+from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.errors import AdapterUnavailableError
 from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.channel_broadcaster import channel_broadcaster
@@ -33,6 +33,7 @@ from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
 from nekro_agent.services.message_broadcaster import message_broadcaster
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.quota_service import quota_service
+from nekro_agent.tools.at_markup import AT_MARKUP_PATTERN, normalize_malformed_at_markup
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_forbidden_message,
@@ -380,12 +381,13 @@ class MessageService:
         should_trigger = explicit_triggered or random_triggered or content_triggered
         should_notify_quota_exhausted = explicit_triggered or content_triggered
 
-        # 纯媒体消息（无文本内容）不触发 AI 回复，仅记录
+        # 私聊纯媒体消息（无文本内容）不触发 AI 回复，仅记录；群聊仍允许直接触发
         _MEDIA_TYPES = {"file", "image", "voice", "video"}
         _MEDIA_OR_AT_TYPES = _MEDIA_TYPES | {"at"}
-        if should_trigger and all(seg.type in _MEDIA_OR_AT_TYPES for seg in message.content_data):
+        is_media_only_message = all(seg.type in _MEDIA_OR_AT_TYPES for seg in message.content_data)
+        if should_trigger and db_chat_channel.chat_type == ChatType.PRIVATE and is_media_only_message:
             if any(seg.type in _MEDIA_TYPES for seg in message.content_data):
-                logger.info(f"纯媒体消息，仅记录不触发: {message.content_text[:32]}...")
+                logger.info(f"私聊纯媒体消息，仅记录不触发: {message.content_text[:32]}...")
                 should_trigger = False
 
         if not should_ignore and should_trigger:
@@ -496,6 +498,7 @@ class MessageService:
         plt_response: Optional[PlatformSendResponse] = None,
         db_chat_channel: Optional[DBChatChannel] = None,
         ref_msg_id: Optional[str] = None,
+        normalize_at_markup: bool = True,
     ):
         """推送机器人消息"""
         logger.info(f"Pushing Bot Message To Chat {chat_key}")
@@ -504,6 +507,11 @@ class MessageService:
 
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
+
+        if normalize_at_markup:
+            for msg in agent_messages:
+                if msg.type == AgentMessageSegmentType.TEXT:
+                    msg.content = normalize_malformed_at_markup(msg.content)
 
         content_text = convert_agent_message_to_prompt(agent_messages)
 
@@ -544,8 +552,7 @@ class MessageService:
             elif msg.type == AgentMessageSegmentType.TEXT:
                 # 处理 AI 生成的 @提及 [@id:qq_id@]
                 text = msg.content
-                ai_marker_pattern = r'\[@id:(\d+)@\]'
-                matches = list(re.finditer(ai_marker_pattern, text))
+                matches = list(AT_MARKUP_PATTERN.finditer(text))
 
                 if matches:
                     # 有 AI 标记，需要解析并替换
@@ -563,13 +570,14 @@ class MessageService:
                                 )
 
                         # 从用户管理里查询昵称
-                        qq_id = match.group(1)
+                        qq_id = match.group("uid")
+                        marked_nickname = match.group("nickname")
                         user = await DBUser.get_by_union_id(
                             adapter_key=db_chat_channel.adapter_key,
                             platform_userid=qq_id,
                         )
 
-                        nickname = user.username if user else f"User_{qq_id}"
+                        nickname = marked_nickname or (user.username if user else f"User_{qq_id}")
                         content_data.append(
                             {
                                 "type": "at",

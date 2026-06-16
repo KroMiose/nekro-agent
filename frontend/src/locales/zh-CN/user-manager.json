@@ -1,7 +1,7 @@
 {
   "title": "用户管理",
   "search": {
-    "placeholder": "搜索用户名或QQ号",
+    "placeholder": "搜索用户名、适配平台或平台用户ID",
     "noResults": "未找到匹配的用户"
   },
   "actions": {
@@ -52,6 +52,7 @@
   "tooltips": {
     "view": "查看详情",
     "edit": "编辑用户",
+    "editUsername": "修改用户名：{{username}}",
     "ban": "封禁用户",
     "unban": "解除封禁",
     "preventTrigger": "禁止触发",
