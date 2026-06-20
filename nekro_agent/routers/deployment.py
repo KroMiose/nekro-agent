@@ -17,6 +17,9 @@ from nekro_agent.services.deployment.schemas import (
     DeploymentCapabilitiesResponse,
     DeploymentCreateBackupRequest,
     DeploymentInstanceResponse,
+    DeploymentJobLogsResponse,
+    DeploymentJobResponse,
+    DeploymentProxyErrorResponse,
     DeploymentRestoreRequest,
     DeploymentUpdateRequest,
 )
@@ -102,6 +105,15 @@ def _error_response(exc: DeploymentProxyError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content=exc.payload())
 
 
+DEPLOYMENT_ERROR_RESPONSES = {
+    400: {"model": DeploymentProxyErrorResponse},
+    404: {"model": DeploymentProxyErrorResponse},
+    409: {"model": DeploymentProxyErrorResponse},
+    502: {"model": DeploymentProxyErrorResponse},
+    503: {"model": DeploymentProxyErrorResponse},
+}
+
+
 @router.get("/capabilities", summary="获取部署更新能力", response_model=DeploymentCapabilitiesResponse)
 async def get_deployment_capabilities(
     _current_user: DBUser = Depends(get_current_active_user),
@@ -110,7 +122,12 @@ async def get_deployment_capabilities(
     return await client.get_capabilities()
 
 
-@router.get("/instance", summary="获取当前部署实例", response_model=DeploymentInstanceResponse)
+@router.get(
+    "/instance",
+    summary="获取当前部署实例",
+    response_model=DeploymentInstanceResponse,
+    responses=DEPLOYMENT_ERROR_RESPONSES,
+)
 async def get_deployment_instance(
     _current_user: DBUser = Depends(get_current_active_user),
     client: DeploymentDaemonClient = Depends(get_deployment_client),
@@ -129,7 +146,12 @@ async def get_deployment_agent_version(
     return await build_agent_version_response(fetch_latest_version)
 
 
-@router.post("/update", summary="创建部署更新任务", response_model=None)
+@router.post(
+    "/update",
+    summary="创建部署更新任务",
+    response_model=DeploymentJobResponse,
+    responses=DEPLOYMENT_ERROR_RESPONSES,
+)
 async def create_deployment_update(
     body: DeploymentUpdateRequest,
     current_user: DBUser = Depends(get_current_active_user),
@@ -141,7 +163,12 @@ async def create_deployment_update(
         return _error_response(exc)
 
 
-@router.get("/backups", summary="查询部署备份列表", response_model=DeploymentBackupsResponse)
+@router.get(
+    "/backups",
+    summary="查询部署备份列表",
+    response_model=DeploymentBackupsResponse,
+    responses=DEPLOYMENT_ERROR_RESPONSES,
+)
 async def list_deployment_backups(
     name: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
@@ -154,7 +181,12 @@ async def list_deployment_backups(
         return _error_response(exc)
 
 
-@router.post("/backup", summary="创建部署备份任务", response_model=None)
+@router.post(
+    "/backup",
+    summary="创建部署备份任务",
+    response_model=DeploymentJobResponse,
+    responses=DEPLOYMENT_ERROR_RESPONSES,
+)
 async def create_deployment_backup(
     body: DeploymentCreateBackupRequest,
     current_user: DBUser = Depends(get_current_active_user),
@@ -166,7 +198,12 @@ async def create_deployment_backup(
         return _error_response(exc)
 
 
-@router.post("/restore", summary="创建部署还原任务", response_model=None)
+@router.post(
+    "/restore",
+    summary="创建部署还原任务",
+    response_model=DeploymentJobResponse,
+    responses=DEPLOYMENT_ERROR_RESPONSES,
+)
 async def create_deployment_restore(
     body: DeploymentRestoreRequest,
     current_user: DBUser = Depends(get_current_active_user),
@@ -178,7 +215,12 @@ async def create_deployment_restore(
         return _error_response(exc)
 
 
-@router.get("/jobs/{job_id}", summary="查询部署更新任务", response_model=None)
+@router.get(
+    "/jobs/{job_id}",
+    summary="查询部署更新任务",
+    response_model=DeploymentJobResponse,
+    responses=DEPLOYMENT_ERROR_RESPONSES,
+)
 async def get_deployment_job(
     job_id: str,
     _current_user: DBUser = Depends(get_current_active_user),
@@ -190,7 +232,12 @@ async def get_deployment_job(
         return _error_response(exc)
 
 
-@router.get("/jobs/{job_id}/logs", summary="查询部署更新日志", response_model=None)
+@router.get(
+    "/jobs/{job_id}/logs",
+    summary="查询部署更新日志",
+    response_model=DeploymentJobLogsResponse,
+    responses=DEPLOYMENT_ERROR_RESPONSES,
+)
 async def get_deployment_job_logs(
     job_id: str,
     after_seq: int | None = Query(default=None, ge=0),
@@ -227,7 +274,12 @@ async def stream_deployment_job_events(
     return EventSourceResponse(event_generator())
 
 
-@router.post("/jobs/{job_id}/cancel", summary="取消部署更新任务", response_model=None)
+@router.post(
+    "/jobs/{job_id}/cancel",
+    summary="取消部署更新任务",
+    response_model=DeploymentJobResponse,
+    responses=DEPLOYMENT_ERROR_RESPONSES,
+)
 async def cancel_deployment_job(
     job_id: str,
     _current_user: DBUser = Depends(get_current_active_user),

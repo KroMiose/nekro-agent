@@ -107,6 +107,25 @@ def test_all_deployment_routes_require_active_user_dependency() -> None:
         assert get_current_active_user in dependency_calls
 
 
+def test_deployment_proxy_routes_have_explicit_response_models() -> None:
+    proxy_paths = {
+        "/deployment/instance",
+        "/deployment/update",
+        "/deployment/backups",
+        "/deployment/backup",
+        "/deployment/restore",
+        "/deployment/jobs/{job_id}",
+        "/deployment/jobs/{job_id}/logs",
+        "/deployment/jobs/{job_id}/cancel",
+    }
+    routes = {route.path: route for route in router.routes if getattr(route, "path", None) in proxy_paths}
+
+    assert set(routes) == proxy_paths
+    for route in routes.values():
+        assert route.response_model is not None
+        assert 503 in route.responses
+
+
 def test_extract_latest_agent_version_from_cloud_payload() -> None:
     payload = {"success": True, "data": {"latestVersion": "2.3.3"}}
 

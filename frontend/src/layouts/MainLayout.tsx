@@ -128,7 +128,7 @@ function MainLayoutContent() {
   // 侧边栏宽度：英文模式需要更宽以容纳较长的文本
   const drawerWidth = currentLocale === 'en-US' ? 260 : 240
 
-  const menuItems = useMemo(() => createMenuItems(currentLocale), [currentLocale])
+  const menuItems = useMemo(() => createMenuItems(), [])
 
   // 使用壁纸store
   const { mainWallpaper, mainWallpaperMode, mainWallpaperBlur, mainWallpaperDim } =

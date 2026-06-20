@@ -68,6 +68,33 @@ async def test_capabilities_token_missing_returns_unavailable_reason(tmp_path: P
 
 
 @pytest.mark.asyncio
+async def test_capabilities_token_read_error_maps_to_daemon_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        raise AssertionError("daemon should not be called")
+
+    config = _config(tmp_path)
+    token_path = Path(config.token_file or "")
+    original_read_bytes = Path.read_bytes
+
+    def read_bytes(path: Path) -> bytes:
+        if path == token_path:
+            raise PermissionError("permission denied")
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", read_bytes)
+    client = _client(config, httpx.MockTransport(handler))
+
+    response = await client.get_capabilities()
+
+    assert response.enabled is False
+    assert response.unavailable_reason is not None
+    assert response.unavailable_reason.code == "daemon_unavailable"
+
+
+@pytest.mark.asyncio
 async def test_capabilities_network_error_maps_to_daemon_unavailable(tmp_path: Path) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("connection refused", request=request)

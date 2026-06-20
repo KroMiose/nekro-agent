@@ -264,7 +264,7 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
 export const PAGE_CONFIGS = getPageConfigs()
 
 // 转换配置为菜单项的工具函数
-export const createMenuItems = (_locale?: string) => {
+export const createMenuItems = () => {
   return getPageConfigs()
     .map(config => {
       if ('children' in config) {

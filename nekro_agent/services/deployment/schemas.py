@@ -30,6 +30,16 @@ class DeploymentInstanceResponse(BaseModel):
     compose_ok: bool = False
 
 
+class DeploymentProxyErrorInfo(BaseModel):
+    code: str
+    message: str
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class DeploymentProxyErrorResponse(BaseModel):
+    error: DeploymentProxyErrorInfo
+
+
 class DeploymentAgentVersionResponse(BaseModel):
     current_version: str
     latest_version: str | None = None
@@ -74,3 +84,58 @@ class DeploymentRestoreRequest(BaseModel):
 
     backup_id: str
     client_request_id: str | None = None
+
+
+class DeploymentJobProgress(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    current: int | None = None
+    total: int | None = None
+    label: str | None = None
+
+
+class DeploymentJobError(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    code: str
+    message: str
+    details: dict[str, Any] | None = None
+
+
+class DeploymentJobResult(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class DeploymentJobResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    job_id: str
+    type: str | None = None
+    status: str
+    phase: str | None = None
+    progress: DeploymentJobProgress | None = None
+    created_at: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None
+    exit_code: int | None = None
+    message: str | None = None
+    error: DeploymentJobError | None = None
+    result: DeploymentJobResult | None = None
+
+
+class DeploymentLogEntry(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    seq: int
+    ts: str | None = None
+    level: str
+    stream: str
+    line: str
+
+
+class DeploymentJobLogsResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    job_id: str
+    logs: list[DeploymentLogEntry] = Field(default_factory=list)
+    next_after_seq: int | None = None

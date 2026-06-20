@@ -206,7 +206,9 @@ class DeploymentDaemonClient:
         params: dict[str, int] = {"limit": limit}
         if after_seq is not None:
             params["after_seq"] = after_seq
-        return await self._request_json("GET", f"/jobs/{job_id}/logs", config=self._load_available_config(), params=params)
+        return await self._request_json(
+            "GET", f"/jobs/{job_id}/logs", config=self._load_available_config(), params=params
+        )
 
     async def cancel_job(self, job_id: str) -> dict[str, Any]:
         capabilities = await self.get_capabilities()
@@ -250,7 +252,14 @@ class DeploymentDaemonClient:
                 code="daemon_token_missing",
                 message="未找到 NA-Tools daemon token，请重新运行 na-tools bind 或检查 daemon 配置",
             )
-        if not token_path.read_bytes().strip():
+        try:
+            token = token_path.read_bytes().strip()
+        except OSError:
+            return UnavailableReason(
+                code="daemon_unavailable",
+                message="无法读取 NA-Tools daemon token，请检查文件权限或重新运行 na-tools bind",
+            )
+        if not token:
             return UnavailableReason(
                 code="daemon_token_missing",
                 message="NA-Tools daemon token 为空，请重新运行 na-tools bind",
@@ -312,8 +321,12 @@ class DeploymentDaemonClient:
     ) -> AsyncIterator[dict[str, str]]:
         request = self._build_request("GET", path, config=config, params=params)
         try:
-            async with self._create_client(config, timeout=httpx.Timeout(connect=8.0, read=None, write=8.0, pool=8.0)) as client:
-                async with client.stream("GET", request.url, headers={**request.headers, "Accept": "text/event-stream"}) as response:
+            async with self._create_client(
+                config, timeout=httpx.Timeout(connect=8.0, read=None, write=8.0, pool=8.0)
+            ) as client:
+                async with client.stream(
+                    "GET", request.url, headers={**request.headers, "Accept": "text/event-stream"}
+                ) as response:
                     if response.status_code >= 400:
                         payload = await _json_payload_from_streaming_response(response)
                         raise _daemon_error(response.status_code, payload)
@@ -338,7 +351,14 @@ class DeploymentDaemonClient:
         body = _json_bytes(json_body)
         url = httpx.URL(f"{config.api_base}{path}", params={k: v for k, v in (params or {}).items() if v is not None})
         path_with_query = url.raw_path.decode("ascii")
-        token = Path(config.token_file or "").read_bytes().strip()
+        try:
+            token = Path(config.token_file or "").read_bytes().strip()
+        except OSError as exc:
+            raise DeploymentProxyError(
+                503,
+                "daemon_unavailable",
+                "无法读取 NA-Tools daemon token，请检查文件权限或重新运行 na-tools bind",
+            ) from exc
         headers = build_signature_headers(
             token=token,
             instance_id=config.instance_id or "",
@@ -464,9 +484,7 @@ def _message_for_reason(code: str) -> str:
         "env_missing": "未找到实例环境配置，请重新运行 na-tools bind",
         "docker_unavailable": "Docker 或 Docker Compose 当前不可用",
         "docker_not_running": "宿主 Docker 未运行或无法连接",
-        "docker_permission_denied": (
-            "NA-Tools daemon 无权访问宿主 Docker，请用具备 Docker 权限的用户重启 daemon"
-        ),
+        "docker_permission_denied": ("NA-Tools daemon 无权访问宿主 Docker，请用具备 Docker 权限的用户重启 daemon"),
         "docker_socket_missing": "未找到宿主 Docker socket，请确认 Docker 已启动",
     }.get(code, "NA-Tools daemon 当前不可用")
 
