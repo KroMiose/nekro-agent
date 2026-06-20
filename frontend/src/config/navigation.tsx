@@ -197,12 +197,6 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
     icon: <CodeIcon />,
   },
   {
-    path: '/settings/deployment',
-    text: t('menu.deployment'),
-    translationKey: 'menu.deployment',
-    icon: <SystemUpdateAltIcon />,
-  },
-  {
     path: '/adapters',
     text: t('menu.adapters'),
     translationKey: 'menu.adapters',
@@ -219,6 +213,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         text: t('menu.systemSettings'),
         translationKey: 'menu.systemSettings',
         icon: <TuneIcon />,
+        parent: 'settings',
+      },
+      {
+        path: '/settings/deployment',
+        text: t('menu.deployment'),
+        translationKey: 'menu.deployment',
+        icon: <SystemUpdateAltIcon />,
         parent: 'settings',
       },
       {
