@@ -24,6 +24,7 @@
     "commandCenter": "Command Center",
     "theme": "Theme",
     "spaceCleanup": "Space Cleanup",
+    "deployment": "Deployment Update",
     "commands": "Commands",
     "commandSystem": "Command System",
     "commandOutput": "Command Execute",

@@ -55,6 +55,7 @@ import { useLocaleStore } from '../stores/locale'
 import ActionButton from '../components/common/ActionButton'
 import IconActionButton from '../components/common/IconActionButton'
 import { oobeApi } from '../services/api/oobe'
+import { authApi } from '../services/api/auth'
 
 const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro', 'agent', 'agent']
 let initialLocaleSyncPromise: Promise<void> | null = null
@@ -63,7 +64,7 @@ let initialVersionPromise: Promise<string> | null = null
 function MainLayoutContent() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { userInfo, logout } = useAuthStore()
+  const { token, userInfo, logout, setUserInfo } = useAuthStore()
   const theme = useTheme()
   const [starCount, setStarCount] = useState<number | null>(null)
   const [version, setVersion] = useState('0.0.0')
@@ -102,12 +103,32 @@ function MainLayoutContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (!token || userInfo) {
+      return
+    }
+
+    let cancelled = false
+    authApi
+      .getUserInfo()
+      .then(nextUserInfo => {
+        if (!cancelled) {
+          setUserInfo(nextUserInfo)
+        }
+      })
+      .catch(() => {
+        // axios 拦截器会处理失效登录；这里不阻塞主布局渲染。
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [token, userInfo, setUserInfo])
+
   // 侧边栏宽度：英文模式需要更宽以容纳较长的文本
   const drawerWidth = currentLocale === 'en-US' ? 260 : 240
 
-  // 动态生成菜单项（响应语言变化）
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const menuItems = useMemo(() => createMenuItems(), [currentLocale])
+  const menuItems = useMemo(() => createMenuItems(currentLocale), [currentLocale])
 
   // 使用壁纸store
   const { mainWallpaper, mainWallpaperMode, mainWallpaperBlur, mainWallpaperDim } =
