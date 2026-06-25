@@ -1,5 +1,5 @@
 import time
-from typing import Optional, Union
+from typing import Optional, Set, Union
 
 from nonebot import on_message, on_notice
 from nonebot.adapters.onebot.v11 import (
@@ -33,6 +33,20 @@ from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatMessageSegm
 
 def _build_content_text_from_segments(content_data: list[ChatMessageSegment]) -> str:
     return "".join(seg.text for seg in content_data if seg.text).strip()
+
+# 用于去重的文件路径缓存，限制大小防止内存泄漏
+_FILE_PATH_SEEN: Set[str] = set()
+_FILE_PATH_CACHE_MAX = 1000
+
+
+def _mark_path_seen(file_path: str) -> bool:
+    """标记文件路径已处理，返回 True 表示是新文件（未重复），False 表示已见过（重复）。"""
+    if len(_FILE_PATH_SEEN) > _FILE_PATH_CACHE_MAX:
+        _FILE_PATH_SEEN.clear()
+    if file_path in _FILE_PATH_SEEN:
+        return False
+    _FILE_PATH_SEEN.add(file_path)
+    return True
 
 
 def register_matcher(adapter: BaseAdapter):
@@ -139,6 +153,19 @@ def register_matcher(adapter: BaseAdapter):
         # 消息内容处理
         content_data, msg_tome, message_id = await convert_chat_message(event, False, bot, db_chat_channel, adapter)
         if not content_data:  # 忽略无法转换的消息
+            return
+
+        # 去重：过滤掉已经处理过的文件（通过 GroupUploadNoticeEvent 和 GroupMessageEvent 指向同一文件）
+        from nekro_agent.schemas.chat_message import ChatMessageSegmentType
+        filtered_content = []
+        for seg in content_data:
+            if seg.type == ChatMessageSegmentType.FILE and hasattr(seg, "local_path"):
+                if not _mark_path_seen(seg.local_path):
+                    logger.debug(f"跳过重复文件: {seg.local_path}")
+                    continue
+            filtered_content.append(seg)
+        content_data = filtered_content
+        if not content_data:
             return
 
         sender_nickname: str = await get_user_name(
