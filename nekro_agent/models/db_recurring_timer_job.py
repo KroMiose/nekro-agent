@@ -15,7 +15,7 @@ class DBRecurringTimerJob(Model):
     # 对外任务ID：默认 4 位，必要时自动扩展位数；全局唯一
     job_id = fields.CharField(max_length=12, unique=True, index=True, description="对外任务ID（短ID，全局唯一）")
 
-    chat_key = fields.CharField(max_length=64, index=True, description="目标聊天频道唯一标识")
+    chat_key = fields.CharField(max_length=256, index=True, description="目标聊天频道唯一标识")
 
     title = fields.CharField(max_length=128, null=True, description="任务标题（可选）")
     event_desc = fields.TextField(description="触发时提供给 Agent 的事件描述（上下文）")
@@ -52,4 +52,3 @@ class DBRecurringTimerJob(Model):
 
     class Meta:  # type: ignore
         table = "recurring_timer_job"
-

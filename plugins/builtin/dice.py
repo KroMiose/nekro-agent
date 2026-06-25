@@ -16,7 +16,7 @@
 
 ## 命令列表
 
-**注意：所有命令目前仅在 OneBot v11 适配器下可用。**
+**注意：命令仅在支持文本发送的聊天适配器下可用。**
 
 - `dice_assert <1-20>`: 预设下一次掷骰的结果。
 - `dice_lock <1-20>`: 锁定之后所有掷骰的结果。
@@ -40,7 +40,7 @@ plugin = NekroPlugin(
     version="0.2.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
-    support_adapter=["onebot_v11", "discord"],
+    support_adapter=["onebot_v11", "discord", "qqbot_openclaw"],
     i18n_name=i18n.i18n_text(
         zh_CN="掷骰姬",
         en_US="Dice Roller",

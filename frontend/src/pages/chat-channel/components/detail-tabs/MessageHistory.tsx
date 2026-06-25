@@ -7,8 +7,6 @@ import {
   useTheme,
   Dialog,
   TextField,
-  Snackbar,
-  Alert,
   Tooltip,
   Chip,
   Card,
@@ -38,6 +36,7 @@ import MarkdownRenderer from '../../../../components/common/MarkdownRenderer'
 import SegmentedControl from '../../../../components/common/SegmentedControl'
 import ActionButton from '../../../../components/common/ActionButton'
 import IconActionButton from '../../../../components/common/IconActionButton'
+import { useNotification } from '../../../../hooks/useNotification'
 
 // 防抖函数
 function debounce<T extends (...args: unknown[]) => unknown>(
@@ -817,11 +816,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
-    open: false,
-    message: '',
-    severity: 'success',
-  })
+  const notification = useNotification()
 
   // @ 用户选择
   const [atAnchorEl, setAtAnchorEl] = useState<HTMLElement | null>(null)
@@ -979,35 +974,35 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
       if (res.ok) {
         setInputValue('')
         setAttachedFile(null)
-        setSnack({ open: true, message: t('messageHistory.sendSuccess'), severity: 'success' })
+        notification.success(t('messageHistory.sendSuccess'))
         // 刷新消息列表
         await queryClient.invalidateQueries({ queryKey: ['chat-messages', chatKey] })
         // 滚动到底部
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 300)
       } else {
-        setSnack({ open: true, message: `${t('messageHistory.sendFailed')}: ${res.error || ''}`, severity: 'error' })
+        notification.error(`${t('messageHistory.sendFailed')}: ${res.error || ''}`)
       }
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : String(e)
-      setSnack({ open: true, message: `${t('messageHistory.sendFailed')}: ${errMsg}`, severity: 'error' })
+      notification.error(`${t('messageHistory.sendFailed')}: ${errMsg}`)
     } finally {
       setSending(false)
     }
-  }, [inputValue, attachedFile, sending, chatKey, senderType, queryClient, t])
+  }, [inputValue, attachedFile, sending, chatKey, senderType, queryClient, t, notification])
 
   // 戳一戳
   const handlePoke = useCallback(async (targetUserId: string) => {
     try {
       const res = await chatChannelApi.sendPoke(chatKey, targetUserId)
       if (res.ok) {
-        setSnack({ open: true, message: t('messageHistory.pokeSent'), severity: 'success' })
+        notification.success(t('messageHistory.pokeSent'))
       } else {
-        setSnack({ open: true, message: t('messageHistory.pokeFailed'), severity: 'error' })
+        notification.error(t('messageHistory.pokeFailed'))
       }
     } catch {
-      setSnack({ open: true, message: t('messageHistory.pokeFailed'), severity: 'error' })
+      notification.error(t('messageHistory.pokeFailed'))
     }
-  }, [chatKey, t])
+  }, [chatKey, t, notification])
 
   // 回车发送（IME 输入法确认时不触发）
   const handleKeyDown = useCallback(
@@ -1834,22 +1829,6 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
         </List>
       </Popover>
 
-      {/* 提示 */}
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={3000}
-        onClose={() => setSnack(s => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
-          severity={snack.severity}
-          onClose={() => setSnack(s => ({ ...s, open: false }))}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snack.message}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

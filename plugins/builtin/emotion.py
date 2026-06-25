@@ -16,7 +16,7 @@
 
 ## 命令列表
 
-**注意：所有命令目前仅在 OneBot v11 适配器下可用。**
+**注意：命令仅在支持图片收发的聊天适配器下可用。**
 
 - `emo_search <关键词>`: 语义搜索表情包。
 - `emo_stats`: 查看表情包统计信息。
@@ -76,7 +76,7 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
-    support_adapter=["onebot_v11", "discord"],
+    support_adapter=["onebot_v11", "discord", "qqbot_openclaw"],
     i18n_name=i18n.i18n_text(
         zh_CN="表情包插件",
         en_US="Emotion Pack Plugin",

@@ -44,6 +44,7 @@ import OneBotV11LogsPage from '../pages/adapter/onebot_v11/logs'
 import WechatOpenILinkLoginPage from '../pages/adapter/wechat_openilink/login'
 import EmailsPage from '../pages/adapter/email/emails'
 import EmailAccountsPage from '../pages/adapter/email/accounts'
+import QQBotOpenClawOnboardingPage from '../pages/adapter/qqbot_openclaw/onboarding'
 
 export interface AdapterTabConfig {
   label: string
@@ -79,6 +80,7 @@ export interface AdapterStatusDisplay {
 
 const ADAPTER_ICON_ASSETS: Partial<Record<string, string>> = {
   onebot_v11: qqIcon,
+  qqbot_openclaw: qqIcon,
   minecraft: minecraftIcon,
   bilibili_live: bilibiliIcon,
   discord: discordIcon,
@@ -138,6 +140,55 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         icon: <LogsIcon fontSize="small" />,
         path: 'logs',
         component: <OneBotV11LogsPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
+  // QQBot OpenClaw 适配器配置
+  qqbot_openclaw: {
+    key: 'qqbot_openclaw',
+    visual: {
+      displayName: 'names.qqbot_openclaw',
+      iconText: 'QQ',
+      navIcon: <SmartToyIcon />,
+      description: '基于 OpenClaw QQBot 渠道行为实现的 QQ 私聊与群聊适配器',
+      tags: ['QQ', 'OpenClaw', 'QQBot', '聊天'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.onboarding',
+        value: 'onboarding',
+        icon: <QrCodeIcon fontSize="small" />,
+        path: 'onboarding',
+        component: <QQBotOpenClawOnboardingPage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
       },
       {
         label: 'tabs.advanced',

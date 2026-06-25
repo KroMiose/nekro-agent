@@ -181,7 +181,11 @@ def segment_from_dict(data: Dict) -> ChatMessageSegment:
         return ChatMessageSegment.model_validate(data)
     if segment_type == ChatMessageSegmentType.IMAGE:
         return ChatMessageSegmentImage.model_validate(data)
-    if segment_type == ChatMessageSegmentType.FILE:
+    if segment_type in {
+        ChatMessageSegmentType.FILE,
+        ChatMessageSegmentType.VOICE,
+        ChatMessageSegmentType.VIDEO,
+    }:
         return ChatMessageSegmentFile.model_validate(data)
     if segment_type == ChatMessageSegmentType.AT:
         return ChatMessageSegmentAt.model_validate(data)
