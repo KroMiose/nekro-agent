@@ -18,6 +18,7 @@ import {
   Workspaces as WorkspacesIcon,
   ListAlt as ListAltIcon,
   Schedule as ScheduleIcon,
+  SystemUpdateAlt as SystemUpdateAltIcon,
 } from '@mui/icons-material'
 import i18next from './i18n'
 
@@ -215,6 +216,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'settings',
       },
       {
+        path: '/settings/deployment',
+        text: t('menu.deployment'),
+        translationKey: 'menu.deployment',
+        icon: <SystemUpdateAltIcon />,
+        parent: 'settings',
+      },
+      {
         path: '/settings/models',
         text: t('menu.modelGroups'),
         translationKey: 'menu.modelGroups',
@@ -257,26 +265,28 @@ export const PAGE_CONFIGS = getPageConfigs()
 
 // 转换配置为菜单项的工具函数
 export const createMenuItems = () => {
-  return getPageConfigs().map(config => {
-    if ('children' in config) {
+  return getPageConfigs()
+    .map(config => {
+      if ('children' in config) {
+        return {
+          text: config.text,
+          icon: config.icon,
+          path: undefined,
+          key: config.key,
+          children: config.children.map(child => ({
+            text: child.text,
+            icon: child.icon,
+            path: child.path,
+          })),
+        }
+      }
       return {
         text: config.text,
         icon: config.icon,
-        path: undefined,
-        key: config.key,
-        children: config.children.map(child => ({
-          text: child.text,
-          icon: child.icon,
-          path: child.path,
-        })),
+        path: config.path,
       }
-    }
-    return {
-      text: config.text,
-      icon: config.icon,
-      path: config.path,
-    }
-  })
+    })
+    .filter(item => !item.children || item.children.length > 0)
 }
 
 // 获取当前页面信息的工具函数

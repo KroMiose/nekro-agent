@@ -24,6 +24,7 @@
     "commandCenter": "命令中心",
     "theme": "调色盘",
     "spaceCleanup": "空间回收",
+    "deployment": "部署更新",
     "commands": "命令管理",
     "commandSystem": "命令系统",
     "commandOutput": "命令执行",
