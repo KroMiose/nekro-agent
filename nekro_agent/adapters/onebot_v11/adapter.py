@@ -1,9 +1,11 @@
+import asyncio
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Type
 
 from fastapi import APIRouter
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
+from nonebot.adapters.onebot.v11.exception import NetworkError as OneBotNetworkError
 from pydantic import Field
 
 from nekro_agent.adapters.interface.schemas.platform import (
@@ -385,7 +387,7 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
                 logger.warning(f"Unsupported segment type in normal mode: {segment.type}")
 
         if message:
-            return await self._send_to_chat(request.chat_key, message)
+            return await self._send_to_chat_with_retry(request.chat_key, message)
         return None
 
     def _append_text_message_segment(self, message: Message, text: str) -> None:
@@ -464,6 +466,40 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
 
         logger.debug(f"发送消息成功: {ret}")
         return str(ret.get("message_id", "")) or ""
+
+    async def _send_to_chat_with_retry(self, chat_key: str, message: Message) -> str:
+        """带指数退避重试的发送包装器，用于应对 NapCat WebSocket 1006 异常关闭。
+
+        触发场景：NTQQ 进程掉线 / NapCat ↔ NTQQ 短暂断连 / 网络抖动
+        重试策略：3 / 6 / 12 秒，最多 3 次（总耗时 ≤ 21 秒）
+        异常吞咽：仅吞咽 OneBotNetworkError（WebSocket 关闭、连接超时等）
+        其余异常（ActionFailed / ValueError 等业务错误）立即抛出，避免掩盖真实问题。
+        """
+        _MAX_RETRIES = 3
+        _BASE_BACKOFF_SECONDS = 3
+
+        last_error: Optional[Exception] = None
+        for attempt in range(_MAX_RETRIES + 1):
+            try:
+                return await self._send_to_chat(chat_key, message)
+            except OneBotNetworkError as e:
+                last_error = e
+                if attempt >= _MAX_RETRIES:
+                    logger.error(
+                        f"[OneBot] 发送消息失败，已重试 {_MAX_RETRIES} 次仍失败: {e!s}"
+                    )
+                    raise
+                wait_seconds = _BASE_BACKOFF_SECONDS * (2 ** attempt)
+                logger.warning(
+                    f"[OneBot] 网络异常（attempt {attempt + 1}/{_MAX_RETRIES}），"
+                    f"等待 {wait_seconds}s 后重试: {e!s}"
+                )
+                await asyncio.sleep(wait_seconds)
+
+        # 理论上不会执行到这里（循环要么 return 要么 raise），加防御性兜底
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("_send_to_chat_with_retry: unexpected retry loop exit")
 
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""
