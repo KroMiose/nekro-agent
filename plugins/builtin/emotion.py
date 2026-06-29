@@ -249,6 +249,18 @@ async def init_vector_db():
         )
         logger.success(f"表情包向量数据库集合 {collection_name} 创建成功")
 
+    # 为 tags 字段创建 KEYWORD 载荷索引，以便支持按标签精确过滤
+    # （Qdrant 对数组字段使用 MatchValue 过滤前需要对应类型的索引）
+    try:
+        await client.create_payload_index(
+            collection_name=collection_name,
+            field_name="tags",
+            field_schema=qdrant_models.PayloadSchemaType.KEYWORD,
+        )
+    except Exception as e:
+        # 索引已存在时 Qdrant 也会抛错，视为幂等成功
+        logger.debug(f"创建 tags 载荷索引跳过（可能已存在）: {e}")
+
 
 # region: 表情包系统数据模型
 class EmotionMetadata(BaseModel):
@@ -427,6 +439,57 @@ async def migrate_emotion_paths():
             logger.info("没有需要迁移的表情包路径")
 
     return migrated_count
+
+
+def _build_emotion_embedding_text(description: str, tags: List[str]) -> str:
+    """构造用于嵌入的表情包文本。
+
+    使用 ``标签:`` 前缀将标签与描述在语义空间上做轻量分组，
+    让 embedding 模型在写入时把标签视为同类语义信息，
+    避免 ``"描述" + "tag1 tag2"`` 的简单空格拼接造成的语义稀释。
+    兼容 ``tags=None`` / ``tags=[]`` 与空描述。
+    """
+    safe_description = (description or "").strip()
+    normalized_tags = [t.strip() for t in (tags or []) if t and t.strip()]
+    if not normalized_tags:
+        return safe_description
+    return f"{safe_description} 标签: {' '.join(normalized_tags)}"
+
+
+def _normalize_tag(tag: str) -> str:
+    """规范化标签字符串用于精确匹配。"""
+    return tag.strip().lower()
+
+
+def _build_tags_filter(tags: Optional[List[str]]) -> Optional[qdrant_models.Filter]:
+    """根据标签列表构造 Qdrant ``Filter``（AND 语义：所有标签都必须命中）。
+
+    返回 ``None`` 时表示不附加过滤条件，由 Qdrant 退回到纯向量检索。
+    标签会做去重 + 大小写归一化，避免空字符串 / 重复值污染过滤器。
+    """
+    if not tags:
+        return None
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for tag in tags:
+        if not tag:
+            continue
+        norm = _normalize_tag(tag)
+        if not norm or norm in seen:
+            continue
+        seen.add(norm)
+        normalized.append(norm)
+    if not normalized:
+        return None
+    return qdrant_models.Filter(
+        must=[
+            qdrant_models.FieldCondition(
+                key="tags",
+                match=qdrant_models.MatchValue(value=tag),
+            )
+            for tag in normalized
+        ],
+    )
 
 
 async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
@@ -925,6 +988,16 @@ async def emo_reindex_cmd(
         )
         logger.info(f"已创建新集合: {collection_name}")
 
+        # 重建后立即补上 tags 载荷索引，保证搜索时仍可按标签精确过滤
+        try:
+            await client.create_payload_index(
+                collection_name=collection_name,
+                field_name="tags",
+                field_schema=qdrant_models.PayloadSchemaType.KEYWORD,
+            )
+        except Exception as e:
+            logger.warning(f"重建集合后创建 tags 载荷索引失败: {e}")
+
     except Exception as e:
         logger.error(f"重置向量集合失败: {e}")
         yield CmdCtl.failed(f"重置向量集合失败: {e!s}")
@@ -946,7 +1019,7 @@ async def emo_reindex_cmd(
                 missing_file_count += 1
                 continue
 
-            embedding_text = f"{metadata.description} {' '.join(metadata.tags)}"
+            embedding_text = _build_emotion_embedding_text(metadata.description, metadata.tags)
             embedding = await generate_embedding(embedding_text)
 
             current_batch.append(
@@ -1125,7 +1198,7 @@ async def collect_emotion(
             emotion_store.add_emotion(duplicate_id, metadata)
 
             # 生成嵌入向量
-            embedding = await generate_embedding(f"{description} {' '.join(tags)}")
+            embedding = await generate_embedding(_build_emotion_embedding_text(description, tags))
 
             # 获取Qdrant客户端
             client = await get_qdrant_client()
@@ -1181,7 +1254,7 @@ async def collect_emotion(
     # 添加到向量数据库
     try:
         # 生成嵌入向量
-        embedding = await generate_embedding(f"{description} {' '.join(tags)}")
+        embedding = await generate_embedding(_build_emotion_embedding_text(description, tags))
 
         # 获取Qdrant客户端
         client = await get_qdrant_client()
@@ -1267,7 +1340,7 @@ async def update_emotion(
 
     # 更新向量数据库
     # 生成嵌入向量
-    embedding_text = f"{description} {' '.join(tags)}"
+    embedding_text = _build_emotion_embedding_text(description, tags)
     embedding = await generate_embedding(embedding_text)
 
     # 获取Qdrant客户端
@@ -1450,6 +1523,7 @@ async def search_emotion(
     _ctx: schemas.AgentCtx,
     query: str,
     max_results: Optional[int] = None,
+    tags: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
     """Search Emotion
 
@@ -1458,14 +1532,20 @@ async def search_emotion(
     Args:
         query (str): The search query
         max_results (int, optional): Maximum number of results to observe (recommended: 3-5)
+        tags (List[str], optional): Restrict results to emotions that contain ALL of these tags
+            (case-insensitive AND match). Use this when the caller wants a hard tag constraint
+            on top of semantic similarity.
 
     Returns:
         Dict: OpenAI chat message format containing the search results
 
     Example:
         ```python
-        # Search for happy cat emotions
+        # Semantic-only search
         search_results = search_emotion("开心猫")
+
+        # Combined: semantic similarity restricted to specific tags
+        search_results = search_emotion("开心", tags=["猫", "动漫"])
         ```
     """
     if not query:
@@ -1479,17 +1559,23 @@ async def search_emotion(
     # 生成查询向量
     query_embedding = await generate_embedding(query)
 
+    # 构造可选的标签精确过滤条件
+    tags_filter = _build_tags_filter(tags)
+
     # 获取Qdrant客户端
     client = await get_qdrant_client()
 
-    # 进行向量搜索
+    # 进行向量搜索（可叠加标签过滤）
     try:
-        search_results = await client.search(
-            collection_name=plugin.get_vector_collection_name(),
-            query_vector=query_embedding,
-            limit=search_limit,
-            with_payload=True,  # 确保返回payload以获取原始emotion_id
-        )
+        search_kwargs: dict = {
+            "collection_name": plugin.get_vector_collection_name(),
+            "query_vector": query_embedding,
+            "limit": search_limit,
+            "with_payload": True,  # 确保返回payload以获取原始emotion_id
+        }
+        if tags_filter is not None:
+            search_kwargs["query_filter"] = tags_filter
+        search_results = await client.search(**search_kwargs)
     except Exception as e:
         logger.error(f"向量搜索失败: {e}")
         msg = OpenAIChatMessage.from_text(
