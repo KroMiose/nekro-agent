@@ -39,12 +39,13 @@ def _get_runtime_mail_settings() -> dict:
         (
             account
             for account in email_config.RECEIVE_ACCOUNTS
-            if account.USERNAME == email_config.STATUS_MAIL_SENDER_ACCOUNT and account.SEND_ENABLED
+            if getattr(account, "USERNAME", None) == email_config.STATUS_MAIL_SENDER_ACCOUNT
+            and getattr(account, "SEND_ENABLED", False)
         ),
         None,
     )
-    username = sender_account.USERNAME if sender_account else config.MAIL_USERNAME
-    password = sender_account.PASSWORD if sender_account else config.MAIL_PASSWORD
+    username = getattr(sender_account, "USERNAME", "") if sender_account else config.MAIL_USERNAME
+    password = getattr(sender_account, "PASSWORD", "") if sender_account else config.MAIL_PASSWORD
     targets = (
         [item.EMAIL for item in email_config.STATUS_MAIL_TARGETS if item.EMAIL.strip()]
         if email_config.STATUS_MAIL_TARGETS

@@ -395,7 +395,10 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         logger.info("邮箱适配器初始化...")
 
         # 检查是否有启用的邮箱账户
-        enabled_accounts = [acc for acc in self.config.RECEIVE_ACCOUNTS if acc.ENABLED and acc.RECEIVE_ENABLED]
+        enabled_accounts = [
+            acc for acc in self.config.RECEIVE_ACCOUNTS
+            if getattr(acc, "ENABLED", False) and getattr(acc, "RECEIVE_ENABLED", False)
+        ]
         if not enabled_accounts:
             logger.info("没有启用的邮箱账户，跳过邮箱适配器初始化")
             return
@@ -1303,14 +1306,14 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             # 查找启用发信的默认账户
             sender_account: Optional[EmailAccount] = None
             for account in self.config.RECEIVE_ACCOUNTS:
-                if account.SEND_ENABLED and account.IS_DEFAULT_SENDER:
+                if getattr(account, "SEND_ENABLED", False) and getattr(account, "IS_DEFAULT_SENDER", False):
                     sender_account = account
                     break
 
             # 如果没有默认发件人，则使用第一个启用发信的账户
             if not sender_account:
                 for account in self.config.RECEIVE_ACCOUNTS:
-                    if account.SEND_ENABLED:
+                    if getattr(account, "SEND_ENABLED", False):
                         sender_account = account
                         break
 
@@ -1351,7 +1354,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         # 邮箱适配器的自身信息就是默认发件人
         default_sender: Optional[EmailAccount] = None
         for account in self.config.RECEIVE_ACCOUNTS:
-            if account.IS_DEFAULT_SENDER:
+            if getattr(account, "IS_DEFAULT_SENDER", False):
                 default_sender = account
                 break
 
@@ -1370,8 +1373,8 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
         return PlatformUser(
             platform_name="email",
-            user_id=default_sender.USERNAME,
-            user_name=default_sender.USERNAME,
+            user_id=getattr(default_sender, "USERNAME", "email_bot"),
+            user_name=getattr(default_sender, "USERNAME", "Email Bot"),
             user_avatar="",
         )
 
