@@ -356,10 +356,11 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
             raise Exception("邮箱适配器未启用或未找到")
 
     def _build_display_label(account: EmailAccount) -> str:
-        display_name = account.DISPLAY_NAME.strip()
-        if display_name and account.USERNAME:
-            return f"{display_name} ({account.USERNAME})"
-        return display_name or account.USERNAME or account.EMAIL_ACCOUNT
+        display_name = getattr(account, "DISPLAY_NAME", "").strip()
+        username = getattr(account, "USERNAME", "")
+        if display_name and username:
+            return f"{display_name} ({username})"
+        return display_name or username or getattr(account, "EMAIL_ACCOUNT", "")
 
     try:
         # 获取邮箱适配器
@@ -375,15 +376,15 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
         # 返回账户信息
         accounts = []
         for account in config.RECEIVE_ACCOUNTS:
-            if account.ENABLED:
+            if getattr(account, "ENABLED", False):
                 accounts.append(
                     {
-                        "display_name": account.DISPLAY_NAME,
+                        "display_name": getattr(account, "DISPLAY_NAME", ""),
                         "display_label": _build_display_label(account),
-                        "email_address": account.USERNAME,
-                        "provider": account.EMAIL_ACCOUNT,
-                        "send_enabled": account.SEND_ENABLED,
-                        "is_default_sender": account.IS_DEFAULT_SENDER,
+                        "email_address": getattr(account, "USERNAME", ""),
+                        "provider": getattr(account, "EMAIL_ACCOUNT", ""),
+                        "send_enabled": getattr(account, "SEND_ENABLED", False),
+                        "is_default_sender": getattr(account, "IS_DEFAULT_SENDER", False),
                     },
                 )
 
@@ -448,19 +449,19 @@ async def send_email(
         sender_account: Optional[EmailAccount] = None
         if from_account:
             for account in email_config.RECEIVE_ACCOUNTS:
-                if from_account == account.USERNAME and account.SEND_ENABLED:
+                if from_account == getattr(account, "USERNAME", None) and getattr(account, "SEND_ENABLED", False):
                     sender_account = account
                     break
         else:
             # 查找默认发件人
             for account in email_config.RECEIVE_ACCOUNTS:
-                if account.SEND_ENABLED and account.IS_DEFAULT_SENDER:
+                if getattr(account, "SEND_ENABLED", False) and getattr(account, "IS_DEFAULT_SENDER", False):
                     sender_account = account
                     break
             # 如果没有默认发件人，则使用第一个启用发信的账户
             if not sender_account:
                 for account in email_config.RECEIVE_ACCOUNTS:
-                    if account.SEND_ENABLED:
+                    if getattr(account, "SEND_ENABLED", False):
                         sender_account = account
                         break
 
@@ -469,7 +470,7 @@ async def send_email(
 
         # 创建邮件
         msg = MIMEMultipart()
-        msg["From"] = sender_account.USERNAME
+        msg["From"] = getattr(sender_account, "USERNAME", "")
         msg["To"] = to_address
         msg["Subject"] = subject
         msg.attach(MIMEText(content, "plain", "utf-8"))
@@ -489,7 +490,7 @@ async def send_email(
         return {
             "success": True,
             "message": "邮件发送成功",
-            "from": sender_account.USERNAME,
+            "from": getattr(sender_account, "USERNAME", ""),
             "to": to_address,
             "subject": subject,
         }
@@ -559,7 +560,9 @@ async def summarize_recent_emails(
         # 筛选账户
         accounts_to_check = []
         for account in email_config.RECEIVE_ACCOUNTS:
-            if account.ENABLED and (account_filter is None or account_filter == account.USERNAME):
+            if getattr(account, "ENABLED", False) and (
+                account_filter is None or account_filter == getattr(account, "USERNAME", None)
+            ):
                 accounts_to_check.append(account)
 
         _raise_if_no_accounts(accounts_to_check)
@@ -600,7 +603,7 @@ async def summarize_recent_emails(
         # 缓存未命中时走原有 IMAP 逻辑
         if not cache_hit:
             for account in accounts_to_check:
-                account_username = account.USERNAME
+                account_username = getattr(account, "USERNAME", "")
                 if account_username in email_adapter.imap_connections:
                     # 获取该账户的锁，确保IMAP操作的线程安全
                     lock = email_adapter.imap_locks.get(account_username)
