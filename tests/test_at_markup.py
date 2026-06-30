@@ -307,6 +307,101 @@ def test_normalize_malformed_at_markup_keeps_other_cq_codes() -> None:
 @pytest.mark.parametrize(
     ("raw_text", "expected"),
     [
+        # 报告里的真实案例：嵌套 <At:...> + 昵称含全角括号
+        (
+            "<At:<At:[@id:255799348;nickname:KroMiose谬锶（摆烂中）@]>>",
+            "[@id:255799348;nickname:KroMiose谬锶（摆烂中）@]",
+        ),
+        # 嵌套但昵称不含特殊字符（原本能工作，回归基线）
+        (
+            "<At:<At:[@id:255799348@]>>",
+            "[@id:255799348@]",
+        ),
+        # 三层嵌套
+        (
+            "<At:<At:<At:[@id:12345;nickname:test@]>>>",
+            "[@id:12345;nickname:test@]",
+        ),
+        # 单层 At: 但昵称含全角括号
+        (
+            "<At:[@id:12345;nickname:test（摆烂中）@]>",
+            "[@id:12345;nickname:test（摆烂中）@]",
+        ),
+        # 单层 At: 但昵称含半角括号
+        (
+            "<At:[@id:12345;nickname:test(user)@]>",
+            "[@id:12345;nickname:test(user)@]",
+        ),
+        # 在自然语句中间
+        (
+            "prefix <At:<At:[@id:12345;nickname:KroMiose谬锶（摆烂中）@]>> suffix",
+            "prefix [@id:12345;nickname:KroMiose谬锶（摆烂中）@] suffix",
+        ),
+        # 嵌套 + 非方括号包裹（QQ 跨平台格式）
+        (
+            "[@id:12345;nickname:abc（def）ghi@]",
+            "[@id:12345;nickname:abc（def）ghi@]",
+        ),
+        # 回归样本（2026-07-04 上报）：嵌套 + 昵称无特殊字符
+        # 旧实现下即便昵称纯字母数字也能被剥离，但与三段式 At 标签相遇时
+        # 仍需确保两层 <At:> 完全收敛，不残留任何前缀。
+        (
+            "<At:<At:[@id:2648863351;nickname:xxx@]>>",
+            "[@id:2648863351;nickname:xxx@]",
+        ),
+        # 回归样本：嵌套形态出现在自然语句中间
+        (
+            "prefix <At:<At:[@id:2648863351;nickname:xxx@]>> suffix",
+            "prefix [@id:2648863351;nickname:xxx@] suffix",
+        ),
+        # 回归样本：三层嵌套
+        (
+            "<At:<At:<At:[@id:2648863351;nickname:xxx@]>>>",
+            "[@id:2648863351;nickname:xxx@]",
+        ),
+        # 回归样本：单层（确保 <At:...> 单独形态也正常收敛）
+        (
+            "<At:[@id:2648863351;nickname:xxx@]>",
+            "[@id:2648863351;nickname:xxx@]",
+        ),
+    ],
+)
+def test_normalize_malformed_at_markup_handles_nested_at_with_special_nickname(raw_text: str, expected: str) -> None:
+    """回归测试：嵌套 `<At:<At:[...]>>` 与含 `)` `）` 的昵称必须被规范化。
+
+    旧 `_NICKNAME_VALUE` 排除 `) > 】 ）` 导致含这些字符的昵称无法匹配任何 At 模式，
+    进而让外层 `<At:...>` 也无法被剥离，整段残留为 `<At:<At:[...]>>` 出现在聊天记录中。
+    """
+    assert normalize_malformed_at_markup(raw_text) == expected
+
+
+def test_normalize_malformed_at_markup_idempotent_after_nested_fix() -> None:
+    """修复后嵌套 At 应满足幂等性：再次 normalize 不应再产生变化。"""
+    uid = _next_user_id()
+    text = f"<At:<At:[@id:{uid};nickname:KroMiose谬锶（摆烂中）@]>>"
+    normalized = normalize_malformed_at_markup(text)
+    assert normalized == f"[@id:{uid};nickname:KroMiose谬锶（摆烂中）@]"
+    assert normalize_malformed_at_markup(normalized) == normalized
+
+
+def test_normalize_malformed_at_markup_handles_reported_2648863351_nested() -> None:
+    """回归样本（2026-07-04 上报）：`<At:<At:[@id:2648863351;nickname:xxx@]>>`。
+
+    昵称 `xxx` 不含特殊字符，理论上不会走旧 `_NICKNAME_VALUE` 排除集的失败路径；
+    这里专门锁定该样本的归一化结果，防止后续 at_markup 重构时回归。
+    """
+    raw = "<At:<At:[@id:2648863351;nickname:xxx@]>>"
+    expected = "[@id:2648863351;nickname:xxx@]"
+
+    normalized = normalize_malformed_at_markup(raw)
+    assert normalized == expected
+    # 幂等性：再次 normalize 不应再变化
+    assert normalize_malformed_at_markup(normalized) == normalized
+
+
+@pytest.mark.parametrize(
+    ("raw_text", "expected"),
+    [
         ("[@all@]", "@全体成员"),
         ("[@id:all@]", "@全体成员"),
         ("提醒 @id:all@] 不要刷屏", "提醒 @全体成员 不要刷屏"),
