@@ -2,7 +2,12 @@ import re
 from collections.abc import Iterable
 
 USER_ID_PATTERN = r"(?P<uid>all|[A-Za-z0-9][A-Za-z0-9_.#\-]{2,127})"
-_NICKNAME_VALUE = r"[^@\]\)>】）\n]+?"
+# 旧实现 `_NICKNAME_VALUE = r"[^@\]\)>】）\n]+?"` 排除了 `)` `）` `>` `】`，
+# 导致含中文/全角括号的昵称（例如 `KroMiose谬锶（摆烂中）`）无法匹配任何 At 模式，
+# 进而让 `<At:<At:[@id:xxx;nickname:KroMiose谬锶（摆烂中）@]>>` 这类嵌套形态整段残留。
+# 这里把排除集收紧到「真正会让后续 `_BRACKET_AT_CLOSE` / `;` 字段分隔符失配」的字符，
+# 与 `_CANONICAL_NICKNAME_VALUE` 保持一致；嵌套解析交给 normalize 的多轮 sub 收敛。
+_NICKNAME_VALUE = r"[^@\]\n;]+?"
 _CANONICAL_NICKNAME_VALUE = r"[^@\]\n]+?"
 _NICKNAME_GROUP = rf"(?P<nickname>{_NICKNAME_VALUE})"
 _CANONICAL_NICKNAME_GROUP = rf"(?P<nickname>{_CANONICAL_NICKNAME_VALUE})"
