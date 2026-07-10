@@ -1384,6 +1384,34 @@ class CoreConfig(ConfigBase):
         ).model_dump(),
         description="随机回复概率，任意消息触发 AI 回复的概率，0.0 表示不启用，1.0 表示必定触发",
     )
+    AI_CHAT_EVENT_TRIGGERED_REPLY_ENABLED: bool = Field(
+        default=False,
+        title="启用事件触发回复",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="启用事件触发回复",
+                en_US="Enable Event-triggered Reply",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="主开关：启用后，AI 会按配置的「随机回复概率」或「触发正则表达式」对群聊消息自动回复。关闭时，仅响应明确的 @ 提及、人设名称或 API 推送。需要群聊自动搭话/跟聊时请开启。",
+                en_US=(
+                    "Master switch: when enabled, AI will auto-reply to chat messages based on "
+                    "'Random Reply Probability' and 'Trigger Regex Patterns'. When disabled, "
+                    "AI only responds to explicit @mentions, persona name, or API pushes. "
+                    "Enable this when you want the bot to proactively join group conversations."
+                ),
+            ),
+        ).model_dump(),
+        description=(
+            "事件触发回复总开关：启用后将根据 AI_CHAT_RANDOM_REPLY_PROBABILITY 与 AI_CHAT_TRIGGER_REGEX 自动回复；"
+            "关闭则仅响应 @ 提及、人设名或 API 推送。默认关闭以避免误触发。"
+        ),
+    )
     AI_CHAT_TRIGGER_REGEX: List[str] = Field(
         default=[],
         title="触发正则表达式",

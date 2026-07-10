@@ -376,8 +376,14 @@ class MessageService:
             or preset.name in message.content_text
             or message.is_tome
         )
-        random_triggered = random_chat_check(config)
-        content_triggered = check_content_trigger(message.content_text, config)
+        # 事件触发总开关：关闭时随机与正则触发整体短路，仅响应显式触发
+        # 默认关闭，避免在未被 @ 时产生意料之外的自动回复
+        if not config.AI_CHAT_EVENT_TRIGGERED_REPLY_ENABLED:
+            random_triggered = False
+            content_triggered = False
+        else:
+            random_triggered = random_chat_check(config)
+            content_triggered = check_content_trigger(message.content_text, config)
         should_trigger = explicit_triggered or random_triggered or content_triggered
         should_notify_quota_exhausted = explicit_triggered or content_triggered
 
