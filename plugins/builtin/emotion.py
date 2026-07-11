@@ -201,6 +201,105 @@ class EmotionConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    EMBEDDING_PROVIDER: str = Field(
+        default="text",
+        title="嵌入服务提供方",
+        description=(
+            "表情包向量化所用的提供方：text = 复用现有 OpenAI 兼容文本嵌入模型组；"
+            "multimodal = 使用阿里云 DashScope 多模态嵌入（直接对图片生成向量，"
+            "不依赖文本描述）。切换为 multimodal 后，向量维度与现有集合不兼容，"
+            "请先执行 /emo_reindex 重建索引。"
+        ),
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="嵌入服务提供方",
+                en_US="Embedding Provider",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="表情包向量化所用的提供方：text=OpenAI 兼容文本嵌入；multimodal=阿里云 DashScope 多模态嵌入（图片直接向量化）。",
+                en_US=(
+                    "Embedding provider for emotions: "
+                    "text = OpenAI-compatible text embedding (current behavior); "
+                    "multimodal = Aliyun DashScope multimodal embedding (image-direct)."
+                ),
+            ),
+        ).model_dump(),
+    )
+    MULTIMODAL_API_KEY: str = Field(
+        default="",
+        title="多模态嵌入 API Key",
+        description="阿里云 DashScope（或其他多模态嵌入服务）的 API Key。建议通过环境变量注入。",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="多模态嵌入 API Key",
+                en_US="Multimodal Embedding API Key",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="阿里云 DashScope API Key，留空将使用对应环境变量。",
+                en_US="Aliyun DashScope API key. Falls back to env var when empty.",
+            ),
+        ).model_dump(),
+    )
+    MULTIMODAL_BASE_URL: str = Field(
+        default="https://dashscope.aliyuncs.com/api/v1/services/embeddings/multimodal-embedding/multimodal-embedding",
+        title="多模态嵌入 Endpoint",
+        description="多模态嵌入服务的完整 URL。默认值为阿里云 DashScope multimodal-embedding 端点。",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="多模态嵌入 Endpoint",
+                en_US="Multimodal Embedding Endpoint",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="多模态嵌入服务的完整 URL（默认阿里云 DashScope）。",
+                en_US="Full URL for the multimodal embedding service (default: Aliyun DashScope).",
+            ),
+        ).model_dump(),
+    )
+    MULTIMODAL_MODEL: str = Field(
+        default="multimodal-embedding-v1",
+        title="多模态嵌入模型名",
+        description="提交给多模态嵌入服务的模型标识（默认 multimodal-embedding-v1）。",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="多模态嵌入模型名",
+                en_US="Multimodal Embedding Model",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="提交给多模态嵌入服务的模型标识。",
+                en_US="Model identifier sent to the multimodal embedding service.",
+            ),
+        ).model_dump(),
+    )
+    MULTIMODAL_DIMENSION: int = Field(
+        default=1024,
+        title="多模态嵌入维度",
+        description="多模态嵌入返回的向量维度，需与 Qdrant 集合的 size 一致；切换 provider 后请 /emo_reindex 重建索引。",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="多模态嵌入维度",
+                en_US="Multimodal Embedding Dimension",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="多模态嵌入返回的向量维度。",
+                en_US="Vector dimension returned by the multimodal embedding service.",
+            ),
+        ).model_dump(),
+    )
+    MULTIMODAL_REQUEST_TIMEOUT: int = Field(
+        default=30,
+        title="多模态嵌入请求超时时间",
+        description="调用多模态嵌入服务时的 HTTP 请求超时时间（秒）。图片 base64 较大时建议适当调大。",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="多模态嵌入请求超时时间",
+                en_US="Multimodal Embedding Request Timeout",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="调用多模态嵌入服务时的 HTTP 请求超时时间（秒）。",
+                en_US="HTTP timeout in seconds for multimodal embedding requests.",
+            ),
+        ).model_dump(),
+    )
 
 
 # 获取配置和插件存储
@@ -429,7 +528,39 @@ async def migrate_emotion_paths():
     return migrated_count
 
 
-async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
+async def generate_embedding(
+    text: str,
+    image_path: Optional[Path] = None,
+    max_retries: int = 3,
+) -> List[float]:
+    """生成表情包向量（按配置自动选择 provider，带重试机制）
+
+    Args:
+        text: 文本（仅 text provider 实际使用；multimodal 视为降级 fallback 文本）
+        image_path: 表情包图片绝对路径（仅 multimodal provider 实际使用）
+        max_retries: 最大重试次数，默认3次
+
+    Returns:
+        List[float]: 嵌入向量
+
+    Raises:
+        ValueError: 向量维度不匹配或 provider 配置缺失
+        NotImplementedError: multimodal provider 当前为占位实现，API 形态需在 PR 后续确认
+        Exception: 重试次数耗尽后仍然失败
+    """
+    provider = (emotion_config.EMBEDDING_PROVIDER or "text").strip().lower()
+    if provider == "multimodal":
+        if image_path is None:
+            raise ValueError("multimodal provider 需要 image_path，不能为空")
+        return await _generate_multimodal_embedding(image_path, text, max_retries)
+    if provider != "text":
+        logger.warning(
+            f"未知的 EMBEDDING_PROVIDER={emotion_config.EMBEDDING_PROVIDER!r},回退到 text provider",
+        )
+    return await _generate_text_embedding(text, max_retries)
+
+
+async def _generate_text_embedding(text: str, max_retries: int = 3) -> List[float]:
     """生成文本嵌入向量（带重试机制）
 
     Args:
@@ -531,6 +662,78 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
     else:
         error_msg = f"生成嵌入向量失败，已重试 {max_retries} 次: {last_exception}"
     raise Exception(error_msg) from last_exception
+
+
+def _resolve_multimodal_api_key() -> str:
+    """解析多模态 API Key,优先读 config,再回退到环境变量。
+
+    环境变量命名约定:
+    - DASHSCOPE_API_KEY (Aliyun DashScope 默认)
+    - NEKRO_MULTIMODAL_API_KEY (项目级 override)
+    """
+    cfg_key = (emotion_config.MULTIMODAL_API_KEY or "").strip()
+    if cfg_key:
+        return cfg_key
+    import os
+
+    return os.environ.get("DASHSCOPE_API_KEY", "") or os.environ.get(
+        "NEKRO_MULTIMODAL_API_KEY",
+        "",
+    )
+
+
+async def _generate_multimodal_embedding(
+    image_path: Path,
+    fallback_text: str,
+    max_retries: int = 3,
+) -> List[float]:
+    """多模态嵌入占位实现
+
+    本函数是 ``EMBEDDING_PROVIDER=multimodal`` 时被 ``generate_embedding`` 调用的入口。
+    设计目标: 当主文本嵌入服务 401 时,允许降级到「直接对图片生成向量」的方案。
+
+    当前实现为**占位**: 在不掌握官方 API 完整请求/响应形态前,不臆造不可运行代码,
+    直接抛出 ``NotImplementedError``,并在日志中给出需要确认的官方参数清单。
+    维护者完成下列官方参数验证后,只需替换本函数体即可启用:
+
+    1. 官方 endpoint / path 是否为 ``/embeddings`` 还是自定义子路径
+       (默认 ``MULTIMODAL_BASE_URL`` 已假设为 DashScope multimodal-embedding 完整 URL)。
+    2. 鉴权 header 形态 (DashScope 常见为 ``Authorization: Bearer <key>``)。
+    3. 请求 payload 形态 (DashScope 通常为
+       ``{"model": "...", "input": {"contents": [{"image": "<data:image/...;base64,...>"}, {"text": "..."}]}}``)
+       或 OpenAI 兼容多模态 embeddings 风格。
+    4. 响应中向量字段路径 (常见为 ``output.embeddings[*].embedding`` 或
+       ``data[*].embedding``)。
+    5. 维度参数是否需要随请求一起传 (DashScope 默认按模型决定,需要在 prompt 注明)。
+
+    Args:
+        image_path: 表情包图片绝对路径
+        fallback_text: 文本描述 (供后续实现作为补充输入)
+        max_retries: 重试次数 (占位实现不消耗)
+
+    Raises:
+        NotImplementedError: 始终抛出,等待 PR 后续落实 API 形态
+    """
+    api_key = _resolve_multimodal_api_key()
+    if not api_key:
+        raise ValueError(
+            "EMBEDDING_PROVIDER=multimodal 需要配置 MULTIMODAL_API_KEY "
+            "或环境变量 DASHSCOPE_API_KEY / NEKRO_MULTIMODAL_API_KEY",
+        )
+
+    # 占位: 等待官方 API 形态确认后实现。当前显式 NotImplementedError,
+    # 便于在管理员选择 multimodal 但 provider 尚未落地的中间状态下立刻失败并暴露问题,
+    # 而不是悄悄回退到文本嵌入 (后者会让 401 报错看上去 "好了" 但实际语义错位)。
+    logger.error(
+        "EMBEDDING_PROVIDER=multimodal 当前为占位实现,API 形态待官方参数确认后实现。"
+        f"需要确认的参数: endpoint={emotion_config.MULTIMODAL_BASE_URL!r}, "
+        f"model={emotion_config.MULTIMODAL_MODEL!r}, "
+        f"dimension={emotion_config.MULTIMODAL_DIMENSION}, "
+        f"image={image_path!s}, fallback_text={fallback_text[:30]!r}",
+    )
+    raise NotImplementedError(
+        "multimodal embedding provider is a placeholder pending official API spec verification"
+    )
 
 
 async def download_image(url: str, save_path: Path) -> bool:
@@ -947,7 +1150,7 @@ async def emo_reindex_cmd(
                 continue
 
             embedding_text = f"{metadata.description} {' '.join(metadata.tags)}"
-            embedding = await generate_embedding(embedding_text)
+            embedding = await generate_embedding(embedding_text, image_path=file_path)
 
             current_batch.append(
                 qdrant_models.PointStruct(
@@ -1125,7 +1328,10 @@ async def collect_emotion(
             emotion_store.add_emotion(duplicate_id, metadata)
 
             # 生成嵌入向量
-            embedding = await generate_embedding(f"{description} {' '.join(tags)}")
+            embedding = await generate_embedding(
+                f"{description} {' '.join(tags)}",
+                image_path=absolute_file_path,
+            )
 
             # 获取Qdrant客户端
             client = await get_qdrant_client()
@@ -1181,7 +1387,10 @@ async def collect_emotion(
     # 添加到向量数据库
     try:
         # 生成嵌入向量
-        embedding = await generate_embedding(f"{description} {' '.join(tags)}")
+        embedding = await generate_embedding(
+            f"{description} {' '.join(tags)}",
+            image_path=absolute_file_path,
+        )
 
         # 获取Qdrant客户端
         client = await get_qdrant_client()
@@ -1268,7 +1477,8 @@ async def update_emotion(
     # 更新向量数据库
     # 生成嵌入向量
     embedding_text = f"{description} {' '.join(tags)}"
-    embedding = await generate_embedding(embedding_text)
+    update_file_path = resolve_emotion_file_path(metadata.file_path)
+    embedding = await generate_embedding(embedding_text, image_path=update_file_path)
 
     # 获取Qdrant客户端
     client = await get_qdrant_client()
