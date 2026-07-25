@@ -84,6 +84,22 @@ BUILTIN_REGISTRY: list[McpRegistryItem] = [
     ),
     # ── 空白传输类型模板（从零开始） ──
     McpRegistryItem(
+        id="youcom",
+        name="You.com",
+        description="You.com 官方托管 MCP 服务器，支持网页搜索、深度研究和内容提取",
+        icon="search",
+        type=McpServerType.sse,
+        url="https://api.you.com/mcp",
+        env_keys=[
+            McpEnvKeyDef(
+                key="YOUCOM_API_KEY",
+                description="You.com API 密钥（可选；无 key 时使用公开访问额度）",
+                required=False,
+            ),
+        ],
+        tags=["preset", "sse", "search", "research"],
+    ),
+    McpRegistryItem(
         id="blank-stdio",
         name="自定义 stdio 服务",
         description="基于命令行进程通信的 MCP 服务（最常见类型）",
