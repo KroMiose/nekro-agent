@@ -35,6 +35,18 @@ def _build_content_text_from_segments(content_data: list[ChatMessageSegment]) ->
     return "".join(seg.text for seg in content_data if seg.text).strip()
 
 
+def _merge_voice_content_text(content_text: str, content_data: list[ChatMessageSegment]) -> str:
+    voice_texts = [seg.text.strip() for seg in content_data if seg.text and seg.text.startswith("[语音")]
+    if not voice_texts:
+        return content_text
+
+    merged_parts: list[str] = [content_text.strip()] if content_text.strip() else []
+    for voice_text in voice_texts:
+        if voice_text not in merged_parts and voice_text not in content_text:
+            merged_parts.append(voice_text)
+    return "".join(merged_parts).strip()
+
+
 def register_matcher(adapter: BaseAdapter):
 
     @on_message(priority=99999, block=False).handle()
@@ -84,6 +96,8 @@ def register_matcher(adapter: BaseAdapter):
                 break
         if not content_text:
             content_text = _build_content_text_from_segments(content_data)
+        else:
+            content_text = _merge_voice_content_text(content_text, content_data)
 
         ignored_prefixes = (
             [config.AI_COMMAND_OUTPUT_PREFIX, *config.AI_IGNORED_PREFIXES]

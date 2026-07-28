@@ -2,8 +2,9 @@ import asyncio
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
+from pydantic import BaseModel, ValidationError
 
 from nonebot.adapters.onebot.v11 import (
 
@@ -37,7 +38,26 @@ from nekro_agent.schemas.chat_message import (
 logger = get_sub_logger("adapter.onebot_v11")
 JSON_CARD_FALLBACK_TEXT = "[JSON卡片]"  # i18n: JSON Card fallback placeholder
 FORWARD_FALLBACK_TEXT = "[合并转发消息]"  # i18n: Forward message fallback placeholder
+VOICE_FALLBACK_TEXT = "[语音]"  # i18n: Voice fallback placeholder
 MAX_FORWARD_DEPTH = 3  # 合并转发最大递归深度
+VOICE_SEGMENT_TYPES = {"record", "voice", "audio", "ptt"}
+_FETCH_PTT_TEXT_UNSUPPORTED = False
+
+
+class NapCatPttTextResult(BaseModel):
+    """NapCat 语音转文字结果"""
+
+    text: str = ""
+
+
+class NapCatPttTextResponse(BaseModel):
+    """NapCat fetch_ptt_text 响应"""
+
+    status: str
+    retcode: int
+    data: NapCatPttTextResult | None = None
+    message: str = ""
+    wording: str = ""
 
 
 def _is_http_url(url: str) -> bool:
@@ -72,6 +92,109 @@ def _extract_file_busid(*sources: object) -> Optional[Union[int, str]]:
             if busid not in (None, ""):
                 return busid
     return None
+
+
+def _coerce_api_result_to_dict(result: object) -> dict[str, Any]:
+    if isinstance(result, dict):
+        return result
+    if hasattr(result, "model_dump"):
+        dumped = result.model_dump()
+        if isinstance(dumped, dict):
+            return dumped
+    if hasattr(result, "dict"):
+        dumped = result.dict()
+        if isinstance(dumped, dict):
+            return dumped
+    return {}
+
+
+def _is_fetch_ptt_text_unsupported_error(error: Exception) -> bool:
+    error_text = str(error)
+    return "不支持的Api fetch_ptt_text" in error_text or "unsupported api fetch_ptt_text" in error_text.lower()
+
+
+def _extract_voice_transcript_from_result(result: object) -> str:
+    if isinstance(result, str):
+        return result.strip()
+
+    if not isinstance(result, dict):
+        return ""
+
+    text = result.get("text")
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+
+    data = result.get("data")
+    if isinstance(data, str) and data.strip():
+        return data.strip()
+    if isinstance(data, dict):
+        for key in ("text", "result", "content"):
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+
+    result_value = result.get("result")
+    if isinstance(result_value, str) and result_value.strip():
+        return result_value.strip()
+    if isinstance(result_value, dict):
+        nested_text = _extract_voice_transcript_from_result(result_value)
+        if nested_text:
+            return nested_text
+
+    return ""
+
+
+async def _fetch_voice_transcript(bot: Bot, message_id: str) -> str:
+    """调用 NapCat 语音转文字接口，失败时返回空字符串。"""
+    global _FETCH_PTT_TEXT_UNSUPPORTED
+
+    if not message_id:
+        return ""
+    if _FETCH_PTT_TEXT_UNSUPPORTED:
+        return ""
+
+    payload: object = int(message_id) if message_id.isdigit() else message_id
+
+    try:
+        result = await asyncio.wait_for(
+            bot.call_api("fetch_ptt_text", message_id=payload),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(f"调用 fetch_ptt_text 超时 (message_id={payload})")
+        return ""
+    except Exception as e:
+        if _is_fetch_ptt_text_unsupported_error(e):
+            _FETCH_PTT_TEXT_UNSUPPORTED = True
+            logger.warning(
+                "当前 NapCat 实例不支持 `fetch_ptt_text`，语音消息将回退为 `[语音]`。"
+                "如需语音转文字，请升级到支持该 API 的 NapCat 版本。",
+            )
+            return ""
+        logger.info(f"调用 fetch_ptt_text 失败 (message_id={payload}): {e}")
+        return ""
+
+    result_dict = _coerce_api_result_to_dict(result)
+    transcript_text = _extract_voice_transcript_from_result(result_dict or result)
+    if transcript_text:
+        return transcript_text
+
+    if not result_dict:
+        logger.info(f"fetch_ptt_text 返回了无法识别的响应格式 (message_id={payload})")
+        return ""
+
+    try:
+        response = NapCatPttTextResponse.model_validate(result_dict)
+    except ValidationError as e:
+        logger.info(f"fetch_ptt_text 响应解析失败 (message_id={payload}): {e}")
+        return ""
+
+    if response.status != "ok" or response.retcode != 0:
+        detail = response.wording or response.message or f"retcode={response.retcode}"
+        logger.info(f"fetch_ptt_text 未成功返回结果 (message_id={payload}): {detail}")
+        return ""
+
+    return ""
 
 
 async def _parse_forward_nodes(
@@ -743,6 +866,7 @@ async def convert_chat_message(
 
     ob_message: Message = ob_event.message
     message_id: str = str(ob_event.message_id)
+    voice_transcript_text: Optional[str] = None
 
     for seg in ob_message:
         if seg.type == "text":
@@ -850,6 +974,25 @@ async def convert_chat_message(
             else:
                 logger.warning(f"OneBot file message without url or file: {seg}")
                 continue
+
+        elif seg.type in VOICE_SEGMENT_TYPES:
+            if voice_transcript_text is None:
+                voice_transcript_text = await _fetch_voice_transcript(bot=bot, message_id=message_id)
+
+            if voice_transcript_text:
+                ret_list.append(
+                    ChatMessageSegment(
+                        type=ChatMessageSegmentType.TEXT,
+                        text=f"[语音转文字] {voice_transcript_text}",
+                    ),
+                )
+            else:
+                ret_list.append(
+                    ChatMessageSegment(
+                        type=ChatMessageSegmentType.TEXT,
+                        text=VOICE_FALLBACK_TEXT,
+                    ),
+                )
 
         elif seg.type == "forward":
             forward_id = seg.data.get("id", "")

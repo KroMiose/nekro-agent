@@ -32,6 +32,7 @@ from .commands import router as commands_router
 from .common import router as common_router
 from .config import router as config_router
 from .dashboard import router as dashboard_router
+from .deployment import router as deployment_router
 from .email import router as email_router
 from .events import router as events_router
 from .kb_library import router as kb_library_router
@@ -133,6 +134,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(plugin_editor_router)
     api.include_router(sandbox_router)
     api.include_router(dashboard_router)
+    api.include_router(deployment_router)
     api.include_router(chat_channel_router)
     api.include_router(webhook_router)
     api.include_router(presets_router)

@@ -1,0 +1,162 @@
+{
+  "common": {
+    "available": "Available",
+    "unavailable": "Unavailable",
+    "unknown": "Unknown",
+    "ready": "Ready"
+  },
+  "status": {
+    "title": "Deployment Status",
+    "subtitle": "Current instance, update capabilities, and runtime health",
+    "daemon": "NA-Tools daemon",
+    "provider": "Provider",
+    "platform": "Platform",
+    "protocol": "Protocol",
+    "channel": "Current Channel",
+    "image": "Service Image",
+    "container": "Container",
+    "health": "Application Health",
+    "docker": "Docker",
+    "compose": "Docker Compose",
+    "agentVersion": "Current Version",
+    "latestVersion": "Latest Version",
+    "alreadyLatest": "Up to date",
+    "updateAvailable": "Update to {{version}}",
+    "versionCheckFailed": "Check failed",
+    "unavailableHint": "Check the daemon configuration on the host or run na-tools status."
+  },
+  "operations": {
+    "title": "Update Operations",
+    "subtitle": "Every update restarts the main service. Keep this page open so the task can recover automatically."
+  },
+  "backup": {
+    "title": "Backup and Restore",
+    "subtitle": "Create a manual backup or restore this instance from a saved backup",
+    "nameLabel": "Backup name",
+    "namePlaceholder": "For example before-upgrade",
+    "empty": "No backups yet",
+    "loading": "Loading backups",
+    "unnamed": "Automatic",
+    "displayTitle": "{{name}} backup · {{time}}",
+    "meta": "Name: {{name}} · Time: {{time}} · Size: {{size}}"
+  },
+  "options": {
+    "backup": "Back up before updating",
+    "updateSandbox": "Update sandbox image",
+    "updateCcSandbox": "Update CC sandbox image"
+  },
+  "actions": {
+    "refresh": "Refresh",
+    "updateStable": "Update to Latest",
+    "switchPreview": "Switch to Preview",
+    "updatePreview": "Update Preview",
+    "rollbackStable": "Switch to Stable Only",
+    "rollbackAndRestore": "Switch to Stable and Restore",
+    "refreshBackups": "Refresh Backups",
+    "createBackup": "Create Backup",
+    "restoreBackup": "Restore",
+    "cancelJob": "Cancel Job",
+    "clearResult": "Clear Result",
+    "close": "Cancel",
+    "confirm": "Confirm"
+  },
+  "confirm": {
+    "restartWarning": "The service will restart and the WebUI may disconnect temporarily. This page will wait for the backend and resume tracking.",
+    "noBackupTitle": "Update without a backup?",
+    "noBackupMessage": "This Stable update will not create a backup, so it cannot rely on a new pre-update snapshot for recovery.",
+    "previewTitle": "Switch to Preview?",
+    "previewMessage": "The main service will switch to the Preview channel and the daemon will create a pre-preview backup when required.",
+    "updatePreviewTitle": "Update Preview?",
+    "updatePreviewMessage": "The current Preview channel will be updated and the daemon will create an update job.",
+    "rollbackTitle": "Switch to Stable only?",
+    "rollbackMessage": "The main service will switch to the Stable image without restoring the pre-preview data backup.",
+    "restoreTitle": "Switch to Stable and restore the backup?",
+    "restoreMessage": "The service will switch to Stable and restore the latest pre-preview backup. This overwrites the current data state.",
+    "manualBackupTitle": "Create a manual backup?",
+    "manualBackupMessage": "The service will stop briefly to create a consistent backup, then restart automatically.",
+    "manualRestoreTitle": "Restore this backup?",
+    "manualRestoreMessage": "This will restore {{filename}}, overwrite the current data, and start the service afterwards."
+  },
+  "connection": {
+    "idle": "Disconnected",
+    "connecting": "Connecting",
+    "live": "Live",
+    "waiting_for_backend": "Waiting for Service",
+    "polling": "Polling",
+    "job_missing": "Job Missing"
+  },
+  "job": {
+    "title": "Job Status",
+    "empty": "No job has been created",
+    "noActiveTask": "There is no active deployment job",
+    "progressPending": "Waiting for progress",
+    "succeededHint": "The update completed. Refresh deployment status to confirm the current channel and health.",
+    "status": {
+      "queued": "Queued",
+      "running": "Running",
+      "succeeded": "Succeeded",
+      "failed": "Failed",
+      "cancel_requested": "Cancelling",
+      "cancelled": "Cancelled"
+    },
+    "phase": {
+      "validate_instance": "Validate Instance",
+      "backup": "Back Up Data",
+      "switch_channel": "Switch Channel",
+      "pull_images": "Pull Images",
+      "restart_services": "Restart Services",
+      "pull_sandbox": "Update Sandbox",
+      "verify": "Health Check",
+      "finished": "Finished"
+    },
+    "phaseDescription": {
+      "validate_instance": "Checking the instance, Docker, and Compose",
+      "backup": "Creating the pre-update backup",
+      "switch_channel": "Switching the image channel",
+      "pull_images": "Pulling the latest images",
+      "restart_services": "Restarting services; the connection may be interrupted",
+      "pull_sandbox": "Updating sandbox images",
+      "verify": "Waiting for the application to become healthy",
+      "finished": "The update workflow has finished"
+    }
+  },
+  "recovery": {
+    "waiting": "The connection was interrupted. This does not mean the job failed. Waiting for Nekro Agent to recover.",
+    "jobMissing": "The job was not found after the backend recovered. Check daemon logs on the host or run na-tools status."
+  },
+  "logs": {
+    "title": "Live Logs",
+    "lineCount": "Showing the latest {{count}} lines, up to 750 lines",
+    "autoScroll": "Auto-scroll",
+    "pause": "Pause auto-scroll",
+    "resume": "Resume auto-scroll",
+    "copy": "Copy logs",
+    "empty": "Job logs will appear here"
+  },
+  "notifications": {
+    "jobCreated": "Deployment update job created",
+    "updateJobCreated": "Deployment update job created",
+    "backupJobCreated": "Backup job created",
+    "restoreJobCreated": "Restore job created",
+    "logsCopied": "Logs copied",
+    "cancelRequested": "Job cancellation requested"
+  },
+  "errors": {
+    "NetworkError": "The service is temporarily unreachable; waiting for recovery",
+    "UnknownError": "The request failed. Try again shortly.",
+    "unknown": "The request failed. Try again shortly.",
+    "copyFailed": "Could not copy the logs",
+    "daemon_disabled": "Online updates are not enabled",
+    "daemon_instance_missing": "Daemon instance binding is missing. Run na-tools bind again.",
+    "daemon_token_missing": "The daemon token is missing. Run na-tools bind again or check the daemon configuration.",
+    "daemon_unavailable": "The NA-Tools daemon is unreachable",
+    "stream_disconnected": "The live connection was interrupted; waiting for the service to recover",
+    "job_conflict": "Another update job is already running",
+    "job_not_found": "The deployment job was not found",
+    "backup_not_found": "No pre-preview backup was found",
+    "invalid_backup_name": "Backup names may only contain letters, numbers, dot, underscore, and dash",
+    "invalid_backup_id": "The selected backup is invalid",
+    "docker_unavailable": "Docker or Docker Compose is unavailable",
+    "unsupported_operation": "The current daemon does not support this operation"
+  }
+}

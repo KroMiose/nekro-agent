@@ -1,0 +1,162 @@
+{
+  "common": {
+    "available": "可用",
+    "unavailable": "不可用",
+    "unknown": "未知",
+    "ready": "正常"
+  },
+  "status": {
+    "title": "部署状态",
+    "subtitle": "当前实例、更新能力与运行环境",
+    "daemon": "NA-Tools daemon",
+    "provider": "Provider",
+    "platform": "平台",
+    "protocol": "协议版本",
+    "channel": "当前频道",
+    "image": "主服务镜像",
+    "container": "容器状态",
+    "health": "应用健康",
+    "docker": "Docker",
+    "compose": "Docker Compose",
+    "agentVersion": "当前版本",
+    "latestVersion": "最新版本",
+    "alreadyLatest": "已是最新",
+    "updateAvailable": "可更新至 {{version}}",
+    "versionCheckFailed": "检测失败",
+    "unavailableHint": "请在宿主机检查 daemon 配置，或运行 na-tools status。"
+  },
+  "operations": {
+    "title": "更新操作",
+    "subtitle": "每次更新都会重启主服务，请保留当前任务页面以便自动恢复。"
+  },
+  "backup": {
+    "title": "备份与还原",
+    "subtitle": "创建手动备份，或选择历史备份还原当前实例",
+    "nameLabel": "备份名称",
+    "namePlaceholder": "例如 before-upgrade",
+    "empty": "暂无历史备份",
+    "loading": "正在加载备份",
+    "unnamed": "自动备份",
+    "displayTitle": "{{name}} 备份 · {{time}}",
+    "meta": "名称: {{name}} · 时间: {{time}} · 大小: {{size}}"
+  },
+  "options": {
+    "backup": "更新前备份",
+    "updateSandbox": "同时更新沙盒镜像",
+    "updateCcSandbox": "同时更新 CC 沙盒镜像"
+  },
+  "actions": {
+    "refresh": "刷新",
+    "updateStable": "更新到最新版",
+    "switchPreview": "切换 Preview",
+    "updatePreview": "更新 Preview",
+    "rollbackStable": "仅切回 稳定版",
+    "rollbackAndRestore": "切回 稳定版 并恢复备份",
+    "refreshBackups": "刷新备份",
+    "createBackup": "创建备份",
+    "restoreBackup": "还原",
+    "cancelJob": "取消任务",
+    "clearResult": "清除结果",
+    "close": "取消",
+    "confirm": "确认执行"
+  },
+  "confirm": {
+    "restartWarning": "服务会重启，WebUI 可能暂时断开。页面会等待后端恢复并继续查询任务。",
+    "noBackupTitle": "不备份直接更新？",
+    "noBackupMessage": "本次 稳定版 更新不会创建备份，失败后无法依赖本次更新前快照恢复。",
+    "previewTitle": "切换到 Preview？",
+    "previewMessage": "将切换主服务到 Preview 频道，并按 daemon 规则创建 pre-preview 备份。",
+    "updatePreviewTitle": "更新 Preview？",
+    "updatePreviewMessage": "将更新当前 Preview 频道，并按 daemon 规则创建更新任务。",
+    "rollbackTitle": "仅切回 Stable？",
+    "rollbackMessage": "将主服务切回 稳定版 镜像，不恢复 pre-preview 数据备份。",
+    "restoreTitle": "切回 稳定版 并恢复备份？",
+    "restoreMessage": "将切回 Stable，并恢复最近的 pre-preview 备份。该操作会覆盖当前数据状态。",
+    "manualBackupTitle": "创建手动备份？",
+    "manualBackupMessage": "将短暂停止服务以创建一致性备份，完成后自动重启服务。",
+    "manualRestoreTitle": "还原这个备份？",
+    "manualRestoreMessage": "将使用 {{filename}} 覆盖当前数据，并在完成后启动服务。"
+  },
+  "connection": {
+    "idle": "未连接",
+    "connecting": "正在连接",
+    "live": "实时连接",
+    "waiting_for_backend": "等待服务恢复",
+    "polling": "轮询模式",
+    "job_missing": "任务不存在"
+  },
+  "job": {
+    "title": "任务状态",
+    "empty": "尚未创建任务",
+    "noActiveTask": "当前没有部署任务",
+    "progressPending": "等待进度",
+    "succeededHint": "更新已完成，可刷新部署状态确认当前频道和健康状态。",
+    "status": {
+      "queued": "排队中",
+      "running": "运行中",
+      "succeeded": "成功",
+      "failed": "失败",
+      "cancel_requested": "取消中",
+      "cancelled": "已取消"
+    },
+    "phase": {
+      "validate_instance": "校验实例",
+      "backup": "备份数据",
+      "switch_channel": "切换频道",
+      "pull_images": "拉取镜像",
+      "restart_services": "重启服务",
+      "pull_sandbox": "更新沙盒",
+      "verify": "健康检查",
+      "finished": "完成"
+    },
+    "phaseDescription": {
+      "validate_instance": "正在检查实例、Docker 与 Compose 状态",
+      "backup": "正在创建更新前备份",
+      "switch_channel": "正在切换镜像频道",
+      "pull_images": "正在拉取最新镜像",
+      "restart_services": "正在重启服务，连接可能暂时中断",
+      "pull_sandbox": "正在更新沙盒镜像",
+      "verify": "正在等待应用恢复健康",
+      "finished": "更新流程已完成"
+    }
+  },
+  "recovery": {
+    "waiting": "连接已中断，这不代表任务失败。正在等待 Nekro Agent 恢复。",
+    "jobMissing": "后端恢复后未找到该任务。请在宿主机查看 daemon 日志或运行 na-tools status。"
+  },
+  "logs": {
+    "title": "实时日志",
+    "lineCount": "显示最近 {{count}} 行，最多保留 750 行",
+    "autoScroll": "自动滚动",
+    "pause": "暂停自动滚动",
+    "resume": "恢复自动滚动",
+    "copy": "复制日志",
+    "empty": "任务日志将在这里显示"
+  },
+  "notifications": {
+    "jobCreated": "部署更新任务已创建",
+    "updateJobCreated": "部署更新任务已创建",
+    "backupJobCreated": "备份任务已创建",
+    "restoreJobCreated": "还原任务已创建",
+    "logsCopied": "日志已复制",
+    "cancelRequested": "已请求取消任务"
+  },
+  "errors": {
+    "NetworkError": "服务暂时不可达，正在等待恢复",
+    "UnknownError": "请求失败，请稍后重试",
+    "unknown": "请求失败，请稍后重试",
+    "copyFailed": "复制日志失败",
+    "daemon_disabled": "在线更新未启用",
+    "daemon_instance_missing": "未找到 daemon 实例绑定信息，请重新运行 na-tools bind",
+    "daemon_token_missing": "未找到 daemon token，请重新运行 na-tools bind 或检查 daemon 配置",
+    "daemon_unavailable": "NA-Tools daemon 当前不可达",
+    "stream_disconnected": "实时连接已中断，正在等待服务恢复",
+    "job_conflict": "已有更新任务正在运行",
+    "job_not_found": "部署任务不存在",
+    "backup_not_found": "未找到 pre-preview 备份",
+    "invalid_backup_name": "备份名称只能包含字母、数字、点、下划线和短横线",
+    "invalid_backup_id": "备份文件无效",
+    "docker_unavailable": "Docker 或 Docker Compose 当前不可用",
+    "unsupported_operation": "当前 daemon 不支持此操作"
+  }
+}

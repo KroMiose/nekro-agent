@@ -85,7 +85,20 @@ plugin = NekroPlugin(
         en_US="Provides basic chat messaging, image/file sending and other fundamental features",
     ),
     # 开放给各适配器使用（文本/文件发送可用，头像工具仅在 OneBot 下提供）
-    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu", "wxwork", "wxwork_corp_app", "wechat_openilink", "wechat_ilink_multi"],
+    support_adapter=[
+        "onebot_v11",
+        "minecraft",
+        "sse",
+        "discord",
+        "wechatpad",
+        "telegram",
+        "feishu",
+        "wxwork",
+        "wxwork_corp_app",
+        "wechat_openilink",
+        "wechat_ilink_multi",
+        "qqbot_openclaw",
+    ],
     allow_sleep=False,
     sleep_brief="提供发送文本、文件和基础互动能力，是多数对话都会依赖的基础插件。",
 )
@@ -217,7 +230,7 @@ async def basic_prompt_inject(_ctx: AgentCtx):
         "Reference_Message": False,
     }
     base_prompt = "Current Adapter Support Feature:\n"
-    if _ctx.adapter_key in ["onebot_v11"]:
+    if _ctx.adapter_key in ["onebot_v11", "qqbot_openclaw"]:
         features["Reference_Message"] = True
     tips: str = (
         "When you reference a message, user can click it to jump to the referenced message. "
@@ -546,7 +559,7 @@ async def collect_available_methods(_ctx: AgentCtx) -> List[Callable]:
         # 仅 OneBot 提供头像工具
         methods = [send_msg_text, send_msg_file, get_user_avatar]
     else:
-        # 其他（包含 telegram、discord、wechatpad 等）
+        # 其他（包含 telegram、discord、wechatpad、qqbot_openclaw 等）
         methods = [send_msg_text, send_msg_file]
 
     # 根据配置添加字符串内容查看工具

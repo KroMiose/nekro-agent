@@ -2,7 +2,12 @@ import axios, { AxiosError } from 'axios'
 import i18n from '../../config/i18n'
 import { useAuthStore } from '../../stores/auth'
 import { config } from '../../config/env'
-import type { ApiErrorResponse } from './types'
+import {
+  isApiErrorResponse,
+  isProtocolApiErrorResponse,
+  type ApiErrorResponse,
+  type ProtocolApiErrorResponse,
+} from './types'
 import { getCurrentAppPath, loginPath, sanitizeRedirectTarget } from '../../router/routes'
 
 /**
@@ -18,12 +23,7 @@ export class ApiError extends Error {
   /** 附加数据（可选） */
   public readonly data?: unknown
 
-  constructor(
-    type: string,
-    message: string,
-    detail?: string | null,
-    data?: unknown
-  ) {
+  constructor(type: string, message: string, detail?: string | null, data?: unknown) {
     super(message)
     this.name = 'ApiError'
     this.type = type
@@ -74,11 +74,14 @@ axiosInstance.interceptors.response.use(
   response => response,
 
   // 错误响应：统一处理
-  async (error: AxiosError<ApiErrorResponse>) => {
+  async (error: AxiosError<ApiErrorResponse | ProtocolApiErrorResponse>) => {
     // 网络错误
     if (!error.response) {
       if (error.message === 'Network Error') {
-        throw new ApiError('NetworkError', i18n.t('networkError', { ns: 'errors', defaultValue: '网络连接失败，请检查网络设置' }))
+        throw new ApiError(
+          'NetworkError',
+          i18n.t('networkError', { ns: 'errors', defaultValue: '网络连接失败，请检查网络设置' })
+        )
       }
       throw new ApiError('UnknownError', error.message)
     }
@@ -87,10 +90,12 @@ axiosInstance.interceptors.response.use(
 
     // 401 未授权
     if (status === 401) {
+      const authError = isApiErrorResponse(data) ? data : null
       // 非登录接口的 401，执行登出
       if (!error.config?.url?.includes('/user/login')) {
         const sessionMessage =
-          data?.message || i18n.t('sessionExpired', { ns: 'errors', defaultValue: '登录已过期，请重新登录' })
+          authError?.message ||
+          i18n.t('sessionExpired', { ns: 'errors', defaultValue: '登录已过期，请重新登录' })
         try {
           sessionStorage.setItem('auth_error', sessionMessage)
         } catch {
@@ -102,15 +107,19 @@ axiosInstance.interceptors.response.use(
       }
       // 使用后端返回的本地化消息，或使用前端翻译
       throw new ApiError(
-        data?.error || 'UnauthorizedError',
-        data?.message || i18n.t('unauthorized', { ns: 'errors', defaultValue: '未授权访问' }),
-        data?.detail
+        authError?.error || 'UnauthorizedError',
+        authError?.message || i18n.t('unauthorized', { ns: 'errors', defaultValue: '未授权访问' }),
+        authError?.detail
       )
     }
 
     // 后端返回了标准错误格式
-    if (data?.error && data?.message) {
+    if (isApiErrorResponse(data)) {
       throw new ApiError(data.error, data.message, data.detail, data.data)
+    }
+
+    if (isProtocolApiErrorResponse(data)) {
+      throw new ApiError(data.error.code, data.error.message, null, data.error.details)
     }
 
     // 兜底处理

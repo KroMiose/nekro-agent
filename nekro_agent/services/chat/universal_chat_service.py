@@ -134,13 +134,24 @@ class UniversalChatService:
         if record:
             from nekro_agent.services.message_service import message_service
 
-            await message_service.push_bot_message(
-                chat_key,
-                messages,
-                plt_response,
-                ref_msg_id=ref_msg_id,
-                normalize_at_markup=False,
-            )
+            try:
+                await message_service.push_bot_message(
+                    chat_key,
+                    messages,
+                    plt_response,
+                    ref_msg_id=ref_msg_id,
+                    normalize_at_markup=False,
+                )
+            except TypeError as exc:
+                if "normalize_at_markup" not in str(exc):
+                    raise
+                logger.warning("push_bot_message 运行时钩子不兼容 normalize_at_markup，已使用旧签名重试")
+                await message_service.push_bot_message(
+                    chat_key,
+                    messages,
+                    plt_response,
+                    ref_msg_id=ref_msg_id,
+                )
 
     async def _preprocess_messages(
         self,
