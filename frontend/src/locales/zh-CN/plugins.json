@@ -3,6 +3,7 @@
   "tabs": {
     "info": "基本信息",
     "config": "配置",
+    "webui": "页面",
     "methods": "方法",
     "webhook": "Webhook",
     "data": "数据管理"
@@ -73,6 +74,11 @@
     "copied": "已复制 Webhook 地址～",
     "description": "描述",
     "noEndpoints": "此插件没有定义 Webhook 接入点"
+  },
+  "webui": {
+    "title": "{{name}} 插件页面",
+    "loading": "插件页面加载中...",
+    "openInNewPage": "新页面打开"
   },
   "methodTypes": {
     "tool": "工具方法",

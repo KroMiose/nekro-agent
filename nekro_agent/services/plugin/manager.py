@@ -76,6 +76,8 @@ async def get_all_ext_meta_data() -> List[dict]:
             "author": plugin.author,
             "enabled": plugin.is_enabled,
             "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,  # noqa: SLF001
+            "webuiPath": plugin.get_webui_url_path(),
+            "webuiType": plugin.get_webui_type(),
             "url": plugin.url or "",
             "isBuiltin": plugin.is_builtin,
             "isPackage": plugin.is_package,
@@ -98,6 +100,8 @@ async def get_all_ext_meta_data() -> List[dict]:
                 "author": "N/A",
                 "enabled": False,
                 "hasConfig": False,
+                "webuiPath": None,
+                "webuiType": None,
                 "url": "N/A",
                 "isBuiltin": failed_plugin.is_builtin,
                 "isPackage": failed_plugin.is_package,
@@ -135,6 +139,8 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
                 "url": "N/A",
                 "enabled": False,
                 "hasConfig": False,
+                "webuiPath": None,
+                "webuiType": None,
                 "methods": [],
                 "webhooks": [],
                 "router": None,
@@ -192,6 +198,8 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         "url": plugin.url or "",
         "enabled": plugin.is_enabled,
         "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,  # noqa: SLF001
+        "webuiPath": plugin.get_webui_url_path(),
+        "webuiType": plugin.get_webui_type(),
         "methods": methods,
         "webhooks": webhooks,
         "router": router_info,  # 新增路由信息

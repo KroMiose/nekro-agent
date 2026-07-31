@@ -25,6 +25,8 @@ export interface Plugin {
   description: string
   author: string
   url: string
+  webuiPath?: string | null
+  webuiType?: 'route' | 'file' | null
   methods: Method[]
   webhooks: Webhook[]
   enabled: boolean
