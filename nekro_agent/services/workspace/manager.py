@@ -52,12 +52,10 @@ def _raw_to_disk_entry(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if (validation.get("status") if isinstance(validation, dict) else None) != "validated":
         return None
     # 跳过 NA 内部字段
-    skip = {"name", "auto_inject", "enabled", "validation"}
+    skip = {"id", "name", "auto_inject", "enabled", "validation"}
     entry: Dict[str, Any] = {}
-    if raw.get("type"):
-        entry["transport"] = raw["type"]
     for k, v in raw.items():
-        if k in skip or k == "type":
+        if k in skip:
             continue
         entry[k] = v
     return entry
@@ -925,6 +923,7 @@ CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开�
                 result.append(
                     McpServerConfig(
                         name=name,
+                        id=raw.get("id"),
                         type=server_type,
                         auto_inject=auto_inject,
                         enabled=is_enabled,

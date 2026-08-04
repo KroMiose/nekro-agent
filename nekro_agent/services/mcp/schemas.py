@@ -53,6 +53,7 @@ class McpServerConfig(BaseModel):
 
     model_config = ConfigDict(use_enum_values=False)
 
+    id: Optional[str] = None  # 内置模板 ID（可选，用户自定义项为空）
     name: str  # 服务器名称（全局库唯一）
     type: McpServerType  # 传输类型
     auto_inject: bool = False  # 全局：是否在新建工作区时自动启用
@@ -106,6 +107,7 @@ class McpRegistryItem(BaseModel):
     args: List[str] = []
     env_keys: List[McpEnvKeyDef] = []  # 需要用户填写的 env key 定义
     url: Optional[str] = None
+    headers: Dict[str, str] = {}
     tags: List[str] = []  # 标签分类
 
 

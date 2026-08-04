@@ -1,6 +1,12 @@
 """内置 MCP 服务注册表 — 提供推荐预置 + 空白模板"""
 
 from .schemas import McpEnvKeyDef, McpRegistryItem, McpServerType
+from .web_chat_auth import (
+    WEB_CHAT_MCP_SERVER_ID,
+    WEB_CHAT_MCP_SERVER_NAME,
+    WEB_CHAT_MCP_URL,
+    get_web_chat_mcp_auth_headers,
+)
 
 BUILTIN_REGISTRY: list[McpRegistryItem] = [
     # ── 推荐预置 MCP server ──
@@ -66,6 +72,17 @@ BUILTIN_REGISTRY: list[McpRegistryItem] = [
         tags=["preset", "stdio", "chat"],
     ),
     McpRegistryItem(
+        id=WEB_CHAT_MCP_SERVER_ID,
+        name=WEB_CHAT_MCP_SERVER_NAME,
+        description="通过 Nekro Agent Web Chat 创建测试会话、发送消息、等待回复并读取历史",
+        icon="chat",
+        type=McpServerType.http,
+        url=WEB_CHAT_MCP_URL,
+        headers={},
+        env_keys=[],
+        tags=["preset", "http", "chat", "test", "nekro"],
+    ),
+    McpRegistryItem(
         id="postgres",
         name="PostgreSQL",
         description="只读访问 PostgreSQL 数据库（schema 探查 + SQL 查询）",
@@ -119,4 +136,10 @@ BUILTIN_REGISTRY: list[McpRegistryItem] = [
 
 def get_registry() -> list[McpRegistryItem]:
     """返回内置 MCP 服务注册表"""
-    return BUILTIN_REGISTRY
+    registry: list[McpRegistryItem] = []
+    for item in BUILTIN_REGISTRY:
+        copied = item.model_copy(deep=True)
+        if copied.id == WEB_CHAT_MCP_SERVER_ID:
+            copied.headers = get_web_chat_mcp_auth_headers()
+        registry.append(copied)
+    return registry

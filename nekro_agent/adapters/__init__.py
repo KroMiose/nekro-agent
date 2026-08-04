@@ -62,6 +62,15 @@ ADAPTER_REGISTRY: Dict[str, AdapterSpec] = {
         description="SSE 协议适配器",
         tags=("sse", "http"),
     ),
+    "web": AdapterSpec(
+        key="web",
+        adapter_path="nekro_agent.adapters.web.adapter.WebAdapter",
+        config_path="nekro_agent.adapters.web.config.WebAdapterConfig",
+        name="Web Chat",
+        description="WebUI 内置网页聊天适配器",
+        default_enabled=True,
+        tags=("web", "webui", "chat", "test"),
+    ),
     "bilibili_live": AdapterSpec(
         key="bilibili_live",
         adapter_path="nekro_agent.adapters.bilibili_live.adapter.BilibiliLiveAdapter",

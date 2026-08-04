@@ -73,6 +73,7 @@ COPY run_bot.py ./
 # 复制应用代码
 COPY nekro_agent ./nekro_agent
 COPY plugins ./plugins
+COPY web_chat_mcp ./web_chat_mcp
 COPY migrations ./migrations
 COPY .env.prod ./
 

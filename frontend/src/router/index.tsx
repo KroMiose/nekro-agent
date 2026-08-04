@@ -58,6 +58,10 @@ const router = createHashRouter([
         element: lazyLoad(() => import('../pages/dashboard')),
       },
       {
+        path: 'web-chat',
+        element: lazyLoad(() => import('../pages/web-chat')),
+      },
+      {
         path: 'chat-channel',
         children: [
           {
