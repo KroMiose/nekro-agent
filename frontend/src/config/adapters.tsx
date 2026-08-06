@@ -18,6 +18,7 @@ import {
   Send as SendIcon,
   QrCode2 as QrCodeIcon,
   Email as EmailIcon,
+  VpnKey as VpnKeyIcon,
 } from '@mui/icons-material'
 import i18next from './i18n'
 import { ReactElement } from 'react'
@@ -34,6 +35,7 @@ import feishuIcon from '../assets/adapters/feishu.svg'
 import wechatIcon from '../assets/adapters/wechat.svg'
 import wecomIcon from '../assets/adapters/wecom.svg'
 import sseIcon from '../assets/adapters/sse.svg'
+import webIcon from '../assets/adapters/web.svg'
 
 import AdapterHomePage from '../pages/adapter/AdapterHomePage'
 import AdapterConfigPage from '../pages/adapter/AdapterConfigPage'
@@ -45,6 +47,7 @@ import WechatOpenILinkLoginPage from '../pages/adapter/wechat_openilink/login'
 import EmailsPage from '../pages/adapter/email/emails'
 import EmailAccountsPage from '../pages/adapter/email/accounts'
 import QQBotOpenClawOnboardingPage from '../pages/adapter/qqbot_openclaw/onboarding'
+import WebMcpAuthPage from '../pages/adapter/web/McpAuthPage'
 
 export interface AdapterTabConfig {
   label: string
@@ -92,6 +95,7 @@ const ADAPTER_ICON_ASSETS: Partial<Record<string, string>> = {
   feishu: feishuIcon,
   wxwork: wecomIcon,
   wxwork_corp_app: wecomIcon,
+  web: webIcon,
 }
 // 适配器配置映射
 export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
@@ -666,6 +670,54 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
+  web: {
+    key: 'web',
+    visual: {
+      displayName: 'names.web',
+      iconText: 'Web',
+      navIcon: <ChatIcon />,
+      description: 'WebUI 内置网页聊天适配器，支持浏览器会话与 MCP 测试能力',
+      tags: ['Web', 'MCP', '测试'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.mcpAuth',
+        value: 'mcp-auth',
+        icon: <VpnKeyIcon fontSize="small" />,
+        path: 'mcp-auth',
+        component: <WebMcpAuthPage />,
       },
       {
         label: 'tabs.overrides',

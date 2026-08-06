@@ -43,7 +43,8 @@ import { webChatApi, getWebSessionDisplayName, type WebSession } from '../../ser
 import { CARD_VARIANTS } from '../../theme/variants'
 
 const SELECTED_SESSION_STORAGE_KEY = 'webChat.selectedChatKey'
-const MESSAGE_MAX_LENGTH = 8000
+const DEFAULT_MESSAGE_MAX_LENGTH = 8000
+const DEFAULT_FILE_UPLOAD_MAX_SIZE_MB = 100
 
 function statusColor(status: WebSession['status']): 'success' | 'warning' | 'default' {
   if (status === 'active') return 'success'
@@ -104,6 +105,9 @@ export default function WebChatPage() {
   })
 
   const allSessions = useMemo(() => allSessionsQuery.data?.items ?? [], [allSessionsQuery.data?.items])
+  const webChatLimits = allSessionsQuery.data?.limits ?? filteredSessionsQuery.data?.limits
+  const messageMaxLength = webChatLimits?.message_max_length ?? DEFAULT_MESSAGE_MAX_LENGTH
+  const fileUploadMaxSizeMb = webChatLimits?.file_upload_max_size_mb ?? DEFAULT_FILE_UPLOAD_MAX_SIZE_MB
   const sessionsQuery = deferredSearch ? filteredSessionsQuery : allSessionsQuery
   const sessions = useMemo(
     () => (deferredSearch ? filteredSessionsQuery.data?.items ?? [] : allSessions),
@@ -220,8 +224,12 @@ export default function WebChatPage() {
   const handleSend = () => {
     const content = inputValue.trim()
     if (!selectedSession || composerDisabled || (!content && !selectedFile) || sendMessageMutation.isPending) return
-    if (content.length > MESSAGE_MAX_LENGTH) {
-      notification.warning(t('notifications.messageTooLong', { count: MESSAGE_MAX_LENGTH }))
+    if (content.length > messageMaxLength) {
+      notification.warning(t('notifications.messageTooLong', { count: messageMaxLength }))
+      return
+    }
+    if (selectedFile && selectedFile.size > fileUploadMaxSizeMb * 1024 * 1024) {
+      notification.warning(t('notifications.fileTooLarge', { count: fileUploadMaxSizeMb }))
       return
     }
     sendMessageMutation.mutate({ chatKey: selectedSession.chat_key, content, file: selectedFile })
@@ -229,6 +237,14 @@ export default function WebChatPage() {
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
+    if (file && file.size > fileUploadMaxSizeMb * 1024 * 1024) {
+      notification.warning(t('notifications.fileTooLarge', { count: fileUploadMaxSizeMb }))
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+      setSelectedFile(null)
+      return
+    }
     setSelectedFile(file)
   }
 
@@ -608,7 +624,7 @@ export default function WebChatPage() {
                     onCompositionStart={() => setIsComposing(true)}
                     onCompositionEnd={() => setIsComposing(false)}
                     disabled={composerDisabled || sendMessageMutation.isPending}
-                    inputProps={{ maxLength: MESSAGE_MAX_LENGTH }}
+                    inputProps={{ maxLength: messageMaxLength }}
                   />
                   <Tooltip title={t('actions.send')}>
                     <span>

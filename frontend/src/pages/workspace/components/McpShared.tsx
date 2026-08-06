@@ -433,7 +433,7 @@ export function McpServerManager({
     for (const s of servers) {
       const include = isGlobal ? !!s.auto_inject : !!s.enabled
       if (!include) continue
-      const entry: Record<string, unknown> = { transport: s.type }
+      const entry: Record<string, unknown> = { type: s.type }
       if (s.type === 'stdio') {
         if (s.command) entry.command = s.command
         if (s.args && s.args.length > 0) entry.args = s.args

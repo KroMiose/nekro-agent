@@ -53,6 +53,7 @@
     "logs": "容器日志",
     "napcat": "NapCat",
     "onboarding": "接入维护",
+    "mcpAuth": "MCP 密钥",
     "accounts": "账户",
     "emails": "邮件列表"
   },
@@ -67,6 +68,7 @@
     "wechatpad": "WeChatPad",
     "wechat_openilink": "WeChat OpenILink",
     "telegram": "Telegram",
+    "web": "网页聊天",
     "email": "Email",
     "feishu": "飞书",
     "wxwork": "企业微信 AI Bot",
@@ -160,6 +162,39 @@
       "error": "登录过程中发生异常。",
       "stopped": "适配器已停止，请启用适配器并重启服务。",
       "unavailable": "当前适配器实例不可用。"
+    }
+  },
+  "webMcpAuth": {
+    "title": "MCP 密钥",
+    "externalToken": "用户外接固定密钥",
+    "mcpUrl": "MCP URL",
+    "enabled": "已启用",
+    "disabled": "已关闭",
+    "configured": "已设置",
+    "notConfigured": "未设置",
+    "tokenPreview": "密钥预览",
+    "updatedAt": "更新时间",
+    "neverUpdated": "未更新",
+    "manualToken": "手动固定密钥",
+    "manualTokenPlaceholder": "留空则只保存启用状态",
+    "save": "保存",
+    "generate": "自动生成",
+    "clear": "关闭并清除",
+    "copy": "复制",
+    "cancel": "取消",
+    "generatedTitle": "新密钥",
+    "generatedHint": "该明文只显示一次。",
+    "clearDialogTitle": "清除外接密钥",
+    "clearDialogContent": "清除后外部 MCP 客户端将无法再使用当前密钥访问 Web Chat MCP。",
+    "notifications": {
+      "saveSuccess": "外接密钥配置已保存",
+      "saveFailed": "保存外接密钥失败",
+      "generateSuccess": "外接密钥已生成",
+      "generateFailed": "生成外接密钥失败",
+      "clearSuccess": "外接密钥已清除",
+      "clearFailed": "清除外接密钥失败",
+      "copySuccess": "已复制到剪贴板",
+      "copyFailed": "复制失败，请手动复制"
     }
   },
   "logs": {

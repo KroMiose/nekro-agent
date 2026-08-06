@@ -96,8 +96,40 @@ async def test_authenticated_mcp_app_accepts_generated_mcp_token(
     tmp_path: Path,
 ) -> None:
     called = False
-    monkeypatch.setattr(web_chat_auth, "_TOKEN_PATH", tmp_path / "web-chat-mcp-token.json")
-    token = web_chat_auth.get_web_chat_mcp_token()
+    monkeypatch.setattr(web_chat_auth, "_EXTERNAL_TOKEN_PATH", tmp_path / "web-chat-mcp-external-token.json")
+    token = web_chat_auth.get_internal_web_chat_mcp_token()
+
+    class FakeUser:
+        is_active = True
+        perm_level = Role.Admin
+
+    async def fake_get_or_none(**_kwargs: Any) -> FakeUser:
+        return FakeUser()
+
+    async def inner_app(_scope: dict[str, Any], _receive: Any, send: Any) -> None:
+        nonlocal called
+        called = True
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    monkeypatch.setattr("web_chat_mcp.na_app.DBUser.get_or_none", fake_get_or_none)
+    transport = httpx.ASGITransport(app=AuthenticatedMcpApp(inner_app))
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/mcp", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 204
+    assert called is True
+
+
+@pytest.mark.asyncio
+async def test_authenticated_mcp_app_accepts_external_mcp_token(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    called = False
+    monkeypatch.setattr(web_chat_auth, "_EXTERNAL_TOKEN_PATH", tmp_path / "web-chat-mcp-external-token.json")
+    token = "manual-external-token-123456"
+    web_chat_auth.save_external_web_chat_mcp_token(enabled=True, token=token)
 
     class FakeUser:
         is_active = True
@@ -164,15 +196,13 @@ def test_web_chat_mcp_allows_docker_gateway_host_header() -> None:
     assert "host.docker.internal:*" in security.allowed_hosts
 
 
-def test_registry_injects_generated_web_chat_token(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(web_chat_auth, "_TOKEN_PATH", tmp_path / "web-chat-mcp-token.json")
-
+def test_registry_injects_internal_web_chat_token() -> None:
     item = next(entry for entry in get_registry() if entry.id == web_chat_auth.WEB_CHAT_MCP_SERVER_ID)
     authorization = item.headers["Authorization"]
 
     assert authorization.startswith("Bearer ")
     assert "<NA_ACCESS_TOKEN>" not in authorization
-    assert authorization == f"Bearer {web_chat_auth.get_web_chat_mcp_token()}"
+    assert authorization == f"Bearer {web_chat_auth.get_internal_web_chat_mcp_token()}"
 
 
 def test_auto_inject_library_contains_configured_web_chat_mcp(
@@ -180,7 +210,6 @@ def test_auto_inject_library_contains_configured_web_chat_mcp(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(auto_inject_mcp, "_AUTO_INJECT_PATH", tmp_path / "auto-inject-mcp.json")
-    monkeypatch.setattr(web_chat_auth, "_TOKEN_PATH", tmp_path / "web-chat-mcp-token.json")
 
     servers = auto_inject_mcp.get_auto_inject_mcp_servers()
     web_chat = next(server for server in servers if server["name"] == web_chat_auth.WEB_CHAT_MCP_SERVER_NAME)
@@ -188,7 +217,7 @@ def test_auto_inject_library_contains_configured_web_chat_mcp(
     assert web_chat["type"] == "http"
     assert web_chat["id"] == web_chat_auth.WEB_CHAT_MCP_SERVER_ID
     assert web_chat["url"] == web_chat_auth.WEB_CHAT_MCP_URL
-    assert web_chat["headers"]["Authorization"] == f"Bearer {web_chat_auth.get_web_chat_mcp_token()}"
+    assert web_chat["headers"]["Authorization"] == f"Bearer {web_chat_auth.get_internal_web_chat_mcp_token()}"
     assert web_chat["validation"]["status"] == "validated"
 
 
@@ -214,12 +243,162 @@ def test_disk_mcp_config_uses_claude_code_schema_for_http() -> None:
     assert web_chat["headers"]["Authorization"] == "Bearer test"
 
 
+def test_disk_mcp_config_keeps_web_chat_mcp_when_library_entry_is_renamed() -> None:
+    renamed_name = "Local_Web_Chat_MCP"
+    metadata = {"mcp_servers_enabled": [web_chat_auth.WEB_CHAT_MCP_SERVER_NAME]}
+    library = {
+        renamed_name: {
+            "id": web_chat_auth.WEB_CHAT_MCP_SERVER_ID,
+            "name": renamed_name,
+            "type": "http",
+            "url": web_chat_auth.WEB_CHAT_MCP_URL,
+            "headers": {"Authorization": "Bearer refreshed"},
+            "validation": {"status": "validated"},
+        },
+    }
+
+    disk_config = _build_disk_mcp_config(metadata, library=library)
+    web_chat = disk_config["mcpServers"][web_chat_auth.WEB_CHAT_MCP_SERVER_NAME]
+
+    assert web_chat["type"] == "http"
+    assert web_chat["url"] == web_chat_auth.WEB_CHAT_MCP_URL
+    assert web_chat["headers"]["Authorization"] == "Bearer refreshed"
+
+
+def test_internal_web_chat_token_rotates(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(web_chat_auth, "_EXTERNAL_TOKEN_PATH", tmp_path / "web-chat-mcp-external-token.json")
+    old_token = web_chat_auth.get_internal_web_chat_mcp_token()
+
+    assert web_chat_auth.is_valid_web_chat_mcp_token(old_token) is True
+
+    new_token = web_chat_auth.rotate_internal_web_chat_mcp_token()
+
+    assert new_token != old_token
+    assert web_chat_auth.is_valid_web_chat_mcp_token(new_token) is True
+    assert web_chat_auth.is_valid_web_chat_mcp_token(old_token) is False
+
+
+def test_external_web_chat_token_default_disabled_and_lifecycle(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    token_path = tmp_path / "web-chat-mcp-external-token.json"
+    token = "manual-external-token-123456"
+    monkeypatch.setattr(web_chat_auth, "_EXTERNAL_TOKEN_PATH", token_path)
+
+    assert web_chat_auth.is_valid_external_web_chat_mcp_token(token) is False
+
+    status = web_chat_auth.save_external_web_chat_mcp_token(enabled=True, token=token)
+
+    assert status["enabled"] is True
+    assert status["configured"] is True
+    assert status["token_preview"] == "manual...123456"
+    assert web_chat_auth.is_valid_external_web_chat_mcp_token(token) is True
+    assert token not in token_path.read_text(encoding="utf-8")
+
+    status = web_chat_auth.save_external_web_chat_mcp_token(enabled=False)
+
+    assert status["enabled"] is False
+    assert status["configured"] is True
+    assert web_chat_auth.is_valid_external_web_chat_mcp_token(token) is False
+
+    status = web_chat_auth.clear_external_web_chat_mcp_token()
+
+    assert status["enabled"] is False
+    assert status["configured"] is False
+    assert web_chat_auth.is_valid_external_web_chat_mcp_token(token) is False
+
+
+def test_generate_external_web_chat_token_returns_plaintext_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    token_path = tmp_path / "web-chat-mcp-external-token.json"
+    monkeypatch.setattr(web_chat_auth, "_EXTERNAL_TOKEN_PATH", token_path)
+
+    token, status = web_chat_auth.generate_external_web_chat_mcp_token()
+
+    assert status["enabled"] is True
+    assert status["configured"] is True
+    assert web_chat_auth.is_valid_external_web_chat_mcp_token(token) is True
+    assert token not in token_path.read_text(encoding="utf-8")
+
+
+def test_refresh_runtime_auth_rewrites_saved_web_chat_header(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(auto_inject_mcp, "_AUTO_INJECT_PATH", tmp_path / "auto-inject-mcp.json")
+    auto_inject_mcp.set_auto_inject_mcp_servers(
+        [
+            {
+                "id": web_chat_auth.WEB_CHAT_MCP_SERVER_ID,
+                "name": web_chat_auth.WEB_CHAT_MCP_SERVER_NAME,
+                "type": "http",
+                "auto_inject": True,
+                "url": web_chat_auth.WEB_CHAT_MCP_URL,
+                "headers": {"Authorization": "Bearer stale"},
+                "validation": {"status": "validated", "server_name": "nekro-web-chat"},
+            },
+        ],
+    )
+
+    current_token = web_chat_auth.rotate_internal_web_chat_mcp_token()
+    referenced_names = web_chat_auth.refresh_web_chat_mcp_runtime_auth()
+
+    servers = auto_inject_mcp.get_auto_inject_mcp_servers()
+
+    assert referenced_names == [web_chat_auth.WEB_CHAT_MCP_SERVER_NAME]
+    assert servers[0]["headers"]["Authorization"] == f"Bearer {current_token}"
+
+
+@pytest.mark.asyncio
+async def test_init_runtime_auth_refreshes_renamed_web_chat_workspace_reference(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    renamed_name = "Local Web Chat MCP"
+    refreshed_names: list[str] = []
+    monkeypatch.setattr(auto_inject_mcp, "_AUTO_INJECT_PATH", tmp_path / "auto-inject-mcp.json")
+    auto_inject_mcp.set_auto_inject_mcp_servers(
+        [
+            {
+                "id": web_chat_auth.WEB_CHAT_MCP_SERVER_ID,
+                "name": renamed_name,
+                "type": "http",
+                "auto_inject": True,
+                "url": web_chat_auth.WEB_CHAT_MCP_URL,
+                "headers": {"Authorization": "Bearer stale"},
+                "validation": {"status": "validated", "server_name": "nekro-web-chat"},
+            },
+        ],
+    )
+
+    async def fake_refresh_global_mcp_server_references(server_name: str) -> None:
+        refreshed_names.append(server_name)
+
+    monkeypatch.setattr(
+        "nekro_agent.services.workspace.manager.WorkspaceService.refresh_global_mcp_server_references",
+        fake_refresh_global_mcp_server_references,
+    )
+
+    await web_chat_auth.init_web_chat_mcp_runtime_auth()
+
+    servers = auto_inject_mcp.get_auto_inject_mcp_servers()
+
+    assert refreshed_names == [web_chat_auth.WEB_CHAT_MCP_SERVER_NAME, renamed_name]
+    assert servers[0]["name"] == renamed_name
+    assert servers[0]["headers"]["Authorization"] == f"Bearer {web_chat_auth.get_internal_web_chat_mcp_token()}"
+
+
 def test_auto_inject_library_keeps_web_chat_mcp_deleted(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(auto_inject_mcp, "_AUTO_INJECT_PATH", tmp_path / "auto-inject-mcp.json")
-    monkeypatch.setattr(web_chat_auth, "_TOKEN_PATH", tmp_path / "web-chat-mcp-token.json")
 
     auto_inject_mcp.set_auto_inject_mcp_servers([])
 
@@ -231,7 +410,6 @@ def test_auto_inject_library_deduplicates_web_chat_mcp_variants(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(auto_inject_mcp, "_AUTO_INJECT_PATH", tmp_path / "auto-inject-mcp.json")
-    monkeypatch.setattr(web_chat_auth, "_TOKEN_PATH", tmp_path / "web-chat-mcp-token.json")
 
     auto_inject_mcp.set_auto_inject_mcp_servers(
         [
@@ -262,7 +440,7 @@ def test_auto_inject_library_deduplicates_web_chat_mcp_variants(
 
     assert [server["name"] for server in servers] == [web_chat_auth.WEB_CHAT_MCP_SERVER_NAME]
     assert servers[0]["auto_inject"] is True
-    assert servers[0]["headers"]["Authorization"] == f"Bearer {web_chat_auth.get_web_chat_mcp_token()}"
+    assert servers[0]["headers"]["Authorization"] == f"Bearer {web_chat_auth.get_internal_web_chat_mcp_token()}"
 
 
 def test_auto_inject_library_preserves_edited_web_chat_mcp_name_and_url(
@@ -270,7 +448,6 @@ def test_auto_inject_library_preserves_edited_web_chat_mcp_name_and_url(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(auto_inject_mcp, "_AUTO_INJECT_PATH", tmp_path / "auto-inject-mcp.json")
-    monkeypatch.setattr(web_chat_auth, "_TOKEN_PATH", tmp_path / "web-chat-mcp-token.json")
     custom_url = "http://127.0.0.1:8021/api/mcp/web-chat/mcp"
 
     auto_inject_mcp.set_auto_inject_mcp_servers(
@@ -291,7 +468,7 @@ def test_auto_inject_library_preserves_edited_web_chat_mcp_name_and_url(
     assert servers[0]["id"] == web_chat_auth.WEB_CHAT_MCP_SERVER_ID
     assert servers[0]["name"] == "Local Web Chat MCP"
     assert servers[0]["url"] == custom_url
-    assert servers[0]["headers"]["Authorization"] == f"Bearer {web_chat_auth.get_web_chat_mcp_token()}"
+    assert servers[0]["headers"]["Authorization"] == f"Bearer {web_chat_auth.get_internal_web_chat_mcp_token()}"
 
 
 @pytest.mark.asyncio

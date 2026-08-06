@@ -26,6 +26,13 @@ from nekro_agent.schemas.chat_message import (
     ChatType,
 )
 from nekro_agent.schemas.errors import NotFoundError, ValidationError
+from nekro_agent.services.mcp.web_chat_auth import (
+    WEB_CHAT_MCP_URL,
+    clear_external_web_chat_mcp_token,
+    generate_external_web_chat_mcp_token,
+    get_external_web_chat_mcp_status,
+    save_external_web_chat_mcp_token,
+)
 from nekro_agent.services.channel_broadcaster import channel_broadcaster
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
@@ -63,9 +70,15 @@ class WebSessionItem(BaseModel):
     update_time: str
 
 
+class WebSessionLimits(BaseModel):
+    message_max_length: int
+    file_upload_max_size_mb: int
+
+
 class WebSessionListResponse(BaseModel):
     total: int
     items: List[WebSessionItem]
+    limits: WebSessionLimits
 
 
 class WebSessionCreateRequest(BaseModel):
@@ -97,6 +110,28 @@ class WebActionResponse(BaseModel):
     ok: bool = True
 
 
+class WebMcpExternalAuthStatus(BaseModel):
+    enabled: bool
+    configured: bool
+    token_preview: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class WebMcpAuthStatusResponse(BaseModel):
+    ok: bool = True
+    mcp_url: str
+    external: WebMcpExternalAuthStatus
+
+
+class WebMcpExternalAuthUpdateRequest(BaseModel):
+    enabled: bool
+    token: Optional[str] = Field(default=None, max_length=512)
+
+
+class WebMcpExternalAuthGenerateResponse(WebMcpAuthStatusResponse):
+    token: str
+
+
 async def _get_session_sort_time(channel: DBChatChannel) -> tuple[int, float]:
     last_message = await DBChatMessage.filter(chat_key=channel.chat_key).order_by("-create_time").first()
     last_time = last_message.create_time if last_message else channel.update_time
@@ -115,6 +150,20 @@ async def _to_session_item(channel: DBChatChannel) -> WebSessionItem:
         status=channel.channel_status.value,
         message_count=message_count,
         update_time=display_time.strftime("%Y-%m-%d %H:%M:%S"),
+    )
+
+
+def _get_session_limits(adapter: "WebAdapter") -> WebSessionLimits:
+    return WebSessionLimits(
+        message_max_length=adapter.config.MESSAGE_MAX_LENGTH,
+        file_upload_max_size_mb=adapter.config.FILE_UPLOAD_MAX_SIZE_MB,
+    )
+
+
+def _build_mcp_auth_status() -> WebMcpAuthStatusResponse:
+    return WebMcpAuthStatusResponse(
+        mcp_url=WEB_CHAT_MCP_URL,
+        external=WebMcpExternalAuthStatus(**get_external_web_chat_mcp_status()),
     )
 
 
@@ -248,6 +297,53 @@ async def _collect_web_message(
     return WebMessageCreateResponse(ok=True, chat_key=channel.chat_key, message_id=message_id)
 
 
+@router.get("/mcp-auth", response_model=WebMcpAuthStatusResponse, summary="获取 Web Chat MCP 外接密钥状态")
+@require_role(Role.Admin)
+async def get_web_mcp_auth_status(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> WebMcpAuthStatusResponse:
+    return _build_mcp_auth_status()
+
+
+@router.put("/mcp-auth/external", response_model=WebMcpAuthStatusResponse, summary="保存 Web Chat MCP 外接密钥")
+@require_role(Role.Admin)
+async def update_web_mcp_external_auth(
+    body: WebMcpExternalAuthUpdateRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> WebMcpAuthStatusResponse:
+    try:
+        save_external_web_chat_mcp_token(enabled=body.enabled, token=body.token)
+    except ValueError as exc:
+        raise ValidationError(reason=str(exc)) from exc
+    return _build_mcp_auth_status()
+
+
+@router.post(
+    "/mcp-auth/external/generate",
+    response_model=WebMcpExternalAuthGenerateResponse,
+    summary="生成 Web Chat MCP 外接固定密钥",
+)
+@require_role(Role.Admin)
+async def generate_web_mcp_external_auth(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> WebMcpExternalAuthGenerateResponse:
+    token, status = generate_external_web_chat_mcp_token()
+    return WebMcpExternalAuthGenerateResponse(
+        mcp_url=WEB_CHAT_MCP_URL,
+        external=WebMcpExternalAuthStatus(**status),
+        token=token,
+    )
+
+
+@router.delete("/mcp-auth/external", response_model=WebMcpAuthStatusResponse, summary="清除 Web Chat MCP 外接密钥")
+@require_role(Role.Admin)
+async def delete_web_mcp_external_auth(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> WebMcpAuthStatusResponse:
+    clear_external_web_chat_mcp_token()
+    return _build_mcp_auth_status()
+
+
 @router.get("/sessions", response_model=WebSessionListResponse, summary="获取网页聊天会话列表")
 @require_role(Role.Admin)
 async def list_web_sessions(
@@ -257,6 +353,7 @@ async def list_web_sessions(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> WebSessionListResponse:
     """获取 Web Adapter 创建的网页聊天会话。"""
+    adapter = _get_adapter()
     query = DBChatChannel.filter(adapter_key=WEB_ADAPTER_KEY)
     search_text = search.strip()
     if search_text:
@@ -273,7 +370,11 @@ async def list_web_sessions(
 
     start_index = (page - 1) * page_size
     paged_channels = [channel for channel, _sort_key in channel_sort_pairs[start_index : start_index + page_size]]
-    return WebSessionListResponse(total=len(channels), items=[await _to_session_item(channel) for channel in paged_channels])
+    return WebSessionListResponse(
+        total=len(channels),
+        items=[await _to_session_item(channel) for channel in paged_channels],
+        limits=_get_session_limits(adapter),
+    )
 
 
 @router.post("/sessions", response_model=WebSessionResponse, status_code=201, summary="创建网页聊天会话")

@@ -61,6 +61,18 @@ def _raw_to_disk_entry(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return entry
 
 
+def _resolve_library_entry(name: str, library: Dict[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    raw = library.get(name)
+    if raw is not None:
+        return raw
+
+    from nekro_agent.services.mcp.web_chat_auth import is_web_chat_mcp_entry
+
+    if not is_web_chat_mcp_entry({"name": name}):
+        return None
+    return next((entry for entry in library.values() if is_web_chat_mcp_entry(entry)), None)
+
+
 def _build_disk_mcp_config(
     workspace_metadata: Dict[str, Any],
     library: Optional[Dict[str, Dict[str, Any]]] = None,
@@ -81,7 +93,7 @@ def _build_disk_mcp_config(
 
     dst_servers: Dict[str, Any] = {}
     for name in enabled_names:
-        raw = library.get(name)
+        raw = _resolve_library_entry(name, library)
         if raw is None:
             continue
         entry = _raw_to_disk_entry(raw)
@@ -1078,6 +1090,11 @@ CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开�
         from nekro_agent.core.auto_inject_mcp import update_auto_inject_validation
 
         update_auto_inject_validation(server_name, validation_state)
+        await WorkspaceService.refresh_global_mcp_server_references(server_name)
+
+    @staticmethod
+    async def refresh_global_mcp_server_references(server_name: str) -> None:
+        """刷新所有引用指定全局 MCP server 的工作区 .mcp.json。"""
         affected = await DBWorkspace.filter(metadata__contains={"mcp_servers_enabled": [server_name]}).all()
         for ws in affected:
             try:

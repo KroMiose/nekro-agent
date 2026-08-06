@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="web-chat-gradient" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#38BDF8" />
+      <stop offset="1" stop-color="#22C55E" />
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="52" height="52" rx="18" fill="url(#web-chat-gradient)" />
+  <rect x="14" y="17" width="36" height="27" rx="7" fill="#F8FAFC" />
+  <path d="M14 25H50" stroke="#0EA5E9" stroke-width="3" stroke-linecap="round" />
+  <circle cx="20" cy="21" r="1.8" fill="#22C55E" />
+  <circle cx="26" cy="21" r="1.8" fill="#38BDF8" />
+  <path
+    d="M23 32H35M23 37H31"
+    stroke="#0F172A"
+    stroke-width="3"
+    stroke-linecap="round"
+  />
+  <path
+    d="M38 32C43 32 47 35.1 47 39C47 42.9 43 46 38 46H36.5L31 50V45.2C28.1 44 26 41.7 26 39C26 35.1 30 32 35 32H38Z"
+    fill="#FFFFFF"
+    stroke="#16A34A"
+    stroke-width="3"
+    stroke-linejoin="round"
+  />
+  <path d="M34.5 39H41.5" stroke="#16A34A" stroke-width="2.5" stroke-linecap="round" />
+</svg>

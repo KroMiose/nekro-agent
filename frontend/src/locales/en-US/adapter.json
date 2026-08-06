@@ -53,6 +53,7 @@
     "logs": "Container Logs",
     "napcat": "NapCat",
     "onboarding": "Onboarding",
+    "mcpAuth": "MCP Keys",
     "accounts": "Accounts",
     "emails": "Emails"
   },
@@ -67,6 +68,7 @@
     "wechatpad": "WeChatPad",
     "wechat_openilink": "WeChat OpenILink",
     "telegram": "Telegram",
+    "web": "Web Chat",
     "email": "Email",
     "feishu": "Feishu",
     "wxwork": "WeCom AI Bot",
@@ -160,6 +162,39 @@
       "error": "An error occurred during login.",
       "stopped": "The adapter is stopped. Enable it and restart the service.",
       "unavailable": "The adapter instance is currently unavailable."
+    }
+  },
+  "webMcpAuth": {
+    "title": "MCP Keys",
+    "externalToken": "External fixed token",
+    "mcpUrl": "MCP URL",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "configured": "Configured",
+    "notConfigured": "Not Configured",
+    "tokenPreview": "Token Preview",
+    "updatedAt": "Updated At",
+    "neverUpdated": "Never Updated",
+    "manualToken": "Manual Fixed Token",
+    "manualTokenPlaceholder": "Leave blank to save enablement only",
+    "save": "Save",
+    "generate": "Generate",
+    "clear": "Disable and Clear",
+    "copy": "Copy",
+    "cancel": "Cancel",
+    "generatedTitle": "New Token",
+    "generatedHint": "This plaintext token is shown only once.",
+    "clearDialogTitle": "Clear External Token",
+    "clearDialogContent": "External MCP clients will no longer be able to access Web Chat MCP with the current token.",
+    "notifications": {
+      "saveSuccess": "External token settings saved",
+      "saveFailed": "Failed to save external token",
+      "generateSuccess": "External token generated",
+      "generateFailed": "Failed to generate external token",
+      "clearSuccess": "External token cleared",
+      "clearFailed": "Failed to clear external token",
+      "copySuccess": "Copied to clipboard",
+      "copyFailed": "Copy failed, please copy manually"
     }
   },
   "logs": {

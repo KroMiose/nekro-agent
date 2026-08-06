@@ -52,6 +52,7 @@
     "sessionDeleted": "会话已删除",
     "sessionDeleteFailed": "删除会话失败",
     "sendFailed": "发送失败",
-    "messageTooLong": "消息长度不能超过 {{count}} 个字符"
+    "messageTooLong": "消息长度不能超过 {{count}} 个字符",
+    "fileTooLarge": "文件大小不能超过 {{count}}MB"
   }
 }

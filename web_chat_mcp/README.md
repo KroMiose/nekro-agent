@@ -10,7 +10,7 @@ Web Chat MCP 内置在 Nekro Agent 进程里，用于让 MCP Client 操控 Nekro
 http://<nekro-agent-host>:8021/api/mcp/web-chat/mcp
 ```
 
-接口由 Nekro Agent 统一鉴权。通常不需要手动配置 token：NA 会为内置的 Web Chat MCP 生成专用随机 token，并在全局 MCP 库条目中自动注入 Header。
+接口由 Nekro Agent 统一鉴权。内置沙盒不需要手动配置 token：NA 每次启动都会生成运行期内置 token，并在全局 MCP 库条目与已启用该 MCP 的 workspace `.mcp.json` 中自动注入 Header。
 
 ```json
 {
@@ -19,14 +19,16 @@ http://<nekro-agent-host>:8021/api/mcp/web-chat/mcp
       "type": "http",
       "url": "http://host.docker.internal:8021/api/mcp/web-chat/mcp",
       "headers": {
-        "Authorization": "Bearer <NA 自动生成的 Web Chat MCP 专用 Token>"
+        "Authorization": "Bearer <NA 自动生成的 Web Chat MCP 内置沙盒 Token>"
       }
     }
   }
 }
 ```
 
-该 token 只被 Web Chat MCP 入口接受，不能用于调用其它 NA API。也可以使用 Nekro Agent 既有的管理员 JWT 或 `?token=` 查询参数鉴权，但推荐让 NA 自动注入专用 Header。
+该内置 token 只被 Web Chat MCP 入口接受，不能用于调用其它 NA API，且会在 NA 重启后失效并自动刷新沙盒配置。
+
+用户外部 MCP 客户端需要固定密钥时，请在 Web Chat Adapter 的「MCP 密钥」标签页开启外接密钥，并通过 `Authorization: Bearer <token>` 访问同一个 URL。外接密钥默认关闭，保存时只持久化 hash；自动生成的明文只在生成响应中返回一次。`?token=` 查询参数仍保留兼容解析，但不推荐用于新配置。
 
 ## 环境变量
 
@@ -60,7 +62,8 @@ http://<nekro-agent-host>:8021/api/mcp/web-chat/mcp
 
 - MCP 与 NA 同进程启动，不暴露独立 stdio/HTTP 进程。
 - MCP HTTP 入口先通过 Nekro Agent 的 `Authorization: Bearer ...` 鉴权，再进入工具调用。
-- NA 自动生成的专用 token 只对 Web Chat MCP 生效，不是通用管理员 API token。
+- 内置沙盒 token 只对 Web Chat MCP 生效，不是通用管理员 API token，并会随 NA 进程重启轮换。
+- 外接固定 token 默认关闭；开启后具备同等 Web Chat MCP 管理能力，应按管理员凭据保管。
 - 仅管理员可以使用该 MCP 入口。
 - 文件上传默认禁用本地任意路径读取，必须配置 allowlist 后才可使用。
 - 删除会话会清理历史、插件数据、定时任务、上传目录和沙盒目录，因此默认需要显式确认。

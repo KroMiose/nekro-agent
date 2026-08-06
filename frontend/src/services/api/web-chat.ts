@@ -13,6 +13,10 @@ export interface WebSession {
 export interface WebSessionListResponse {
   total: number
   items: WebSession[]
+  limits: {
+    message_max_length: number
+    file_upload_max_size_mb: number
+  }
 }
 
 export interface WebSessionResponse {

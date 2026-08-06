@@ -52,6 +52,7 @@
     "sessionDeleted": "Session deleted",
     "sessionDeleteFailed": "Failed to delete session",
     "sendFailed": "Failed to send",
-    "messageTooLong": "Message cannot exceed {{count}} characters"
+    "messageTooLong": "Message cannot exceed {{count}} characters",
+    "fileTooLarge": "File cannot exceed {{count}}MB"
   }
 }
