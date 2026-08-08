@@ -12,8 +12,8 @@ from nekro_agent.services.mcp import web_chat_auth
 from nekro_agent.services.mcp.registry import get_registry
 from nekro_agent.services.user.role import Role
 from nekro_agent.services.workspace.manager import _build_disk_mcp_config
-from web_chat_mcp.na_app import AuthenticatedMcpApp
-from web_chat_mcp.service import ChatMessageItem, WebChatMcpService
+from nekro_agent.services.mcp.web_chat_mcp.na_app import AuthenticatedMcpApp
+from nekro_agent.services.mcp.web_chat_mcp.service import ChatMessageItem, WebChatMcpService
 
 
 @pytest.mark.asyncio
@@ -176,7 +176,7 @@ async def test_authenticated_mcp_app_rejects_non_admin(monkeypatch: pytest.Monke
 
 @pytest.mark.asyncio
 async def test_registered_tools_include_send_and_wait() -> None:
-    from web_chat_mcp.server import mcp
+    from nekro_agent.services.mcp.web_chat_mcp.server import mcp
 
     tools = await mcp.list_tools()
     tool_names = {tool.name for tool in tools}
@@ -186,7 +186,7 @@ async def test_registered_tools_include_send_and_wait() -> None:
 
 
 def test_web_chat_mcp_allows_docker_gateway_host_header() -> None:
-    from web_chat_mcp.server import mcp
+    from nekro_agent.services.mcp.web_chat_mcp.server import mcp
 
     security = mcp.settings.transport_security
 
