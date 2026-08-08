@@ -215,7 +215,7 @@ def mount_api_routes(app: FastAPI):
             return JSONResponse(openapi_schema, headers=headers)
 
     app.include_router(api)
-    from web_chat_mcp.na_app import create_web_chat_mcp_app
+    from nekro_agent.services.mcp.web_chat_mcp.na_app import create_web_chat_mcp_app
 
     app.mount("/api/mcp/web-chat", create_web_chat_mcp_app(), name="web-chat-mcp")
 
