@@ -7,6 +7,8 @@ from nekro_agent.services.command.base import BaseCommand, CommandMetadata, Comm
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 
+from ._scope import resolve_channel_target
+
 
 class NaOnCommand(BaseCommand):
     """开启聊天功能"""
@@ -19,7 +21,7 @@ class NaOnCommand(BaseCommand):
             description="开启指定聊天的聊天功能",
             i18n_description=i18n_text(zh_CN="开启指定聊天的聊天功能", en_US="Enable chat function for specified channel"),
             usage="na_on [chat_key|*|private_*|group_*]",
-            permission=CommandPermission.SUPER_USER,
+            permission=CommandPermission.ADVANCED,
             category="开关",
             i18n_category=i18n_text(zh_CN="开关", en_US="Switch"),
             params_schema=self._auto_params_schema(),
@@ -33,9 +35,10 @@ class NaOnCommand(BaseCommand):
         from nekro_agent.models.db_chat_channel import ChannelStatus, DBChatChannel
         from nekro_agent.schemas.chat_message import ChatType
 
-        target_chat_key = target or context.chat_key
-        if not target_chat_key:
-            return CmdCtl.failed(t(zh_CN="请指定要操作的聊天", en_US="Please specify the target chat"))
+        target_chat_key, error_response = resolve_channel_target(context, target)
+        if error_response:
+            return error_response
+        assert target_chat_key is not None
 
         if target_chat_key == "*":
             for channel in await DBChatChannel.all():
@@ -78,7 +81,7 @@ class NaOffCommand(BaseCommand):
             description="关闭指定聊天的聊天功能",
             i18n_description=i18n_text(zh_CN="关闭指定聊天的聊天功能", en_US="Disable chat function for specified channel"),
             usage="na_off [chat_key|*|private_*|group_*]",
-            permission=CommandPermission.SUPER_USER,
+            permission=CommandPermission.ADVANCED,
             category="开关",
             i18n_category=i18n_text(zh_CN="开关", en_US="Switch"),
             params_schema=self._auto_params_schema(),
@@ -92,9 +95,10 @@ class NaOffCommand(BaseCommand):
         from nekro_agent.models.db_chat_channel import ChannelStatus, DBChatChannel
         from nekro_agent.schemas.chat_message import ChatType
 
-        target_chat_key = target or context.chat_key
-        if not target_chat_key:
-            return CmdCtl.failed(t(zh_CN="请指定要操作的聊天", en_US="Please specify the target chat"))
+        target_chat_key, error_response = resolve_channel_target(context, target)
+        if error_response:
+            return error_response
+        assert target_chat_key is not None
 
         if target_chat_key == "*":
             for channel in await DBChatChannel.all():
@@ -140,7 +144,7 @@ class NaObserveCommand(BaseCommand):
                 en_US="Set specified channel to observe mode (record messages only, no replies)",
             ),
             usage="na_observe [chat_key|*|private_*|group_*]",
-            permission=CommandPermission.SUPER_USER,
+            permission=CommandPermission.ADVANCED,
             category="开关",
             i18n_category=i18n_text(zh_CN="开关", en_US="Switch"),
             params_schema=self._auto_params_schema(),
@@ -154,9 +158,10 @@ class NaObserveCommand(BaseCommand):
         from nekro_agent.models.db_chat_channel import ChannelStatus, DBChatChannel
         from nekro_agent.schemas.chat_message import ChatType
 
-        target_chat_key = target or context.chat_key
-        if not target_chat_key:
-            return CmdCtl.failed(t(zh_CN="请指定要操作的聊天", en_US="Please specify the target chat"))
+        target_chat_key, error_response = resolve_channel_target(context, target)
+        if error_response:
+            return error_response
+        assert target_chat_key is not None
 
         if target_chat_key == "*":
             for channel in await DBChatChannel.all():

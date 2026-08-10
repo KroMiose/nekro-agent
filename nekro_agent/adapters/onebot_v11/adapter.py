@@ -8,6 +8,7 @@ from pydantic import Field
 
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformChannel,
+    PlatformMessage,
     PlatformSendRequest,
     PlatformSendResponse,
     PlatformSendSegmentType,
@@ -21,6 +22,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.schemas.i18n import i18n_text
+from nekro_agent.services.command.base import CommandPermission
 from nekro_agent.services.command.schemas import CommandResponse
 
 from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
@@ -164,6 +166,79 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
             "群聊: `onebot_v11-group_123456` (123456为群号)",
             "私聊: `onebot_v11-private_123456` (123456为用户QQ号)",
         ]
+
+    async def get_user_command_permission(
+        self,
+        platform_user: PlatformUser,
+        platform_channel: PlatformChannel,
+        platform_message: PlatformMessage,
+    ) -> CommandPermission:
+        del platform_message
+
+        from nekro_agent.services.command.manager import (
+            USER_PERMISSION_SOURCE_PLATFORM,
+            command_manager,
+        )
+
+        permission_record = command_manager.get_user_permission_record(self.key, platform_user.user_id)
+        if permission_record.permission == CommandPermission.SUPER_USER:
+            return CommandPermission.SUPER_USER
+        if (
+            permission_record.permission != CommandPermission.USER
+            and permission_record.source != USER_PERMISSION_SOURCE_PLATFORM
+        ):
+            return permission_record.permission
+
+        if platform_channel.channel_type is not ChatType.GROUP:
+            logger.debug(
+                f"OneBot V11 命令权限检查跳过群角色查询，非群聊: "
+                f"channel_id={platform_channel.channel_id}, user_id={platform_user.user_id}",
+            )
+            return CommandPermission.USER
+
+        try:
+            group_id = int(platform_channel.channel_id.replace("group_", "", 1))
+            user_id = int(platform_user.user_id)
+        except ValueError:
+            logger.debug(
+                f"OneBot V11 群管理员权限检查跳过，频道或用户 ID 无效: "
+                f"channel_id={platform_channel.channel_id}, user_id={platform_user.user_id}"
+            )
+            return CommandPermission.USER
+
+        try:
+            member_info = await get_bot().get_group_member_info(
+                group_id=group_id,
+                user_id=user_id,
+                no_cache=False,
+            )
+        except Exception as e:
+            logger.debug(f"OneBot V11 查询群成员角色失败，回退普通权限: {e}")
+            return CommandPermission.USER
+
+        role = str(member_info.get("role", "member"))
+        logger.debug(
+            f"OneBot V11 群成员命令权限检测: group_id={group_id}, "
+            f"user_id={user_id}, role={role}",
+        )
+        if role in {"admin", "owner"}:
+            logger.info(
+                f"OneBot V11 自动识别群管理高级权限: group_id={group_id}, "
+                f"user_id={user_id}, role={role}",
+            )
+            return CommandPermission.ADVANCED
+        if permission_record.source == USER_PERMISSION_SOURCE_PLATFORM:
+            await command_manager.reset_user_permission(
+                self.key,
+                platform_user.user_id,
+                source=USER_PERMISSION_SOURCE_PLATFORM,
+                channel_id=platform_channel.channel_id,
+            )
+            logger.info(
+                f"OneBot V11 平台来源高级权限已失效并清理: "
+                f"group_id={group_id}, user_id={user_id}, role={role}",
+            )
+        return CommandPermission.USER
 
     def get_adapter_router(self) -> APIRouter:
         """获取适配器路由"""

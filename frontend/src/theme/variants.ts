@@ -823,6 +823,25 @@ export const CHIP_VARIANTS = {
     }
   },
 
+  // 命令权限Chip样式
+  getCommandPermissionChip: (permission: string, isSmall: boolean = false): SxProps<Theme> => {
+    const permissionColors = {
+      public: '#607d8b',
+      user: '#1976d2',
+      advanced: '#9c27b0',
+      super_user: '#f44336',
+    }
+
+    const color = permissionColors[permission as keyof typeof permissionColors] || '#9e9e9e'
+
+    return {
+      ...CHIP_VARIANTS.base(isSmall),
+      backgroundColor: alpha(color, 0.12),
+      color: color,
+      borderColor: alpha(color, 0.2),
+    }
+  },
+
   // 用户状态Chip样式
   getUserStatusChip: (status: string, isSmall: boolean = false): SxProps<Theme> => {
     // 状态颜色映射

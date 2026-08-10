@@ -410,7 +410,7 @@
     "permissions": {
       "public": "公开",
       "user": "用户",
-      "advanced": "高级",
+      "advanced": "频道管理员",
       "super_user": "超级管理员"
     },
     "messages": {

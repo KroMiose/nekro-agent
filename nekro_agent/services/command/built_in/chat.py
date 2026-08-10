@@ -7,6 +7,8 @@ from nekro_agent.services.command.base import BaseCommand, CommandMetadata, Comm
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 
+from ._scope import resolve_channel_target
+
 
 class ResetCommand(BaseCommand):
     """重置对话上下文"""
@@ -18,7 +20,7 @@ class ResetCommand(BaseCommand):
             description="重置对话上下文",
             i18n_description=i18n_text(zh_CN="重置对话上下文", en_US="Reset conversation context"),
             usage="reset [chat_key]",
-            permission=CommandPermission.SUPER_USER,
+            permission=CommandPermission.ADVANCED,
             category="会话",
             i18n_category=i18n_text(zh_CN="会话", en_US="Session"),
             params_schema=self._auto_params_schema(),
@@ -32,11 +34,14 @@ class ResetCommand(BaseCommand):
         from nekro_agent.models.db_chat_channel import DBChatChannel
         from nekro_agent.models.db_chat_message import DBChatMessage
 
-        # 非超级用户只能操作当前频道
-        target_chat_key = target if target and context.is_super_user else context.chat_key
-
-        if not target_chat_key:
-            return CmdCtl.failed(t(zh_CN="聊天标识获取失败", en_US="Failed to get chat identifier"))
+        target_chat_key, error_response = resolve_channel_target(
+            context,
+            target,
+            missing_message=CmdCtl.failed(t(zh_CN="聊天标识获取失败", en_US="Failed to get chat identifier")),
+        )
+        if error_response:
+            return error_response
+        assert target_chat_key is not None
 
         db_chat_channel = await DBChatChannel.get_channel(chat_key=target_chat_key)
 
@@ -68,7 +73,7 @@ class StopCommand(BaseCommand):
             description="停止当前回复流程",
             i18n_description=i18n_text(zh_CN="停止当前回复流程", en_US="Stop current reply process"),
             usage="stop [chat_key]",
-            permission=CommandPermission.SUPER_USER,
+            permission=CommandPermission.ADVANCED,
             category="会话",
             i18n_category=i18n_text(zh_CN="会话", en_US="Session"),
             params_schema=self._auto_params_schema(),
@@ -81,7 +86,10 @@ class StopCommand(BaseCommand):
     ) -> CommandResponse:
         from nekro_agent.services.message_service import message_service
 
-        target_chat_key = target if target and context.is_super_user else context.chat_key
+        target_chat_key, error_response = resolve_channel_target(context, target)
+        if error_response:
+            return error_response
+        assert target_chat_key is not None
 
         cancelled = await message_service.cancel_agent_task(target_chat_key)
         if cancelled:

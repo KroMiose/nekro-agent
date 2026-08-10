@@ -410,7 +410,7 @@
     "permissions": {
       "public": "Public",
       "user": "User",
-      "advanced": "Advanced",
+      "advanced": "Channel admin",
       "super_user": "Super User"
     },
     "messages": {

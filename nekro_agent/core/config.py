@@ -2170,7 +2170,7 @@ class CoreConfig(ConfigBase):
         ).model_dump(),
     )
     ENABLE_ADVANCED_COMMAND: bool = Field(
-        default=False,
+        default=True,
         title="启用高级管理命令",
         description="启用后可以执行包含危险操作的管理员高级命令，请谨慎使用",
         json_schema_extra=ExtraField(

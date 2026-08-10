@@ -239,20 +239,8 @@ const UserTable: React.FC<UserTableProps> = ({
     }
   }
 
-  const getRoleLabel = (permLevel: number) => {
-    switch (permLevel) {
-      case 0:
-        return t('roles.guest', { ns: 'common' })
-      case 1:
-        return t('roles.user', { ns: 'common' })
-      case 2:
-        return t('roles.admin', { ns: 'common' })
-      case 3:
-        return t('roles.superAdmin', { ns: 'common' })
-      default:
-        return `${t('roles.unknown', { ns: 'common' })}(${permLevel})`
-    }
-  }
+  const getCommandPermissionLabel = (permission: string) =>
+    t(`commandPermissions.${permission}`, permission)
 
   const DurationSelector = ({
     duration,
@@ -683,9 +671,9 @@ const UserTable: React.FC<UserTableProps> = ({
                   </TableCell>
                   <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                     <Chip
-                      label={getRoleLabel(user.perm_level)}
+                      label={getCommandPermissionLabel(user.command_permission)}
                       size="small"
-                      sx={CHIP_VARIANTS.getRoleChip(user.perm_level, isSmall)}
+                      sx={CHIP_VARIANTS.getCommandPermissionChip(user.command_permission, isSmall)}
                     />
                   </TableCell>
                   <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>

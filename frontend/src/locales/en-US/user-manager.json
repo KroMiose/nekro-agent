@@ -31,8 +31,14 @@
     "createdAt": "Created At",
     "adapterPlatform": "Platform",
     "platformUserId": "Platform User ID",
-    "permission": "Permission",
+    "permission": "Command Permission",
     "actions": "Actions"
+  },
+  "commandPermissions": {
+    "public": "Public",
+    "user": "User",
+    "advanced": "Channel admin",
+    "super_user": "Super User"
   },
   "status": {
     "active": "Active",

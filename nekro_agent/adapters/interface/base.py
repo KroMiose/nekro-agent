@@ -11,15 +11,18 @@ from nekro_agent.core.core_utils import ConfigBase, ExtraField
 
 if TYPE_CHECKING:
     from nekro_agent.schemas.agent_message import AgentMessageSegment
+    from nekro_agent.services.command.manager import UserPermissionSource
     from nekro_agent.services.command.schemas import CommandResponse
 from nekro_agent.core import config
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.schemas.i18n import i18n_text
 from nekro_agent.services.agent.templates.base import PromptTemplate, register_template
+from nekro_agent.services.command.base import CommandPermission
 
 from .schemas.platform import (
     PlatformChannel,
+    PlatformMessage,
     PlatformSendRequest,
     PlatformSendResponse,
     PlatformUser,
@@ -285,6 +288,51 @@ class BaseAdapter(ABC, Generic[TConfig]):
     def supports_webui_send(self) -> bool:
         """是否支持从 WebUI 发送消息（默认不支持，适配器可按需覆盖）"""
         return False
+
+    async def get_user_command_permission(
+        self,
+        platform_user: PlatformUser,
+        platform_channel: PlatformChannel,
+        platform_message: PlatformMessage,
+    ) -> CommandPermission:
+        """获取平台用户在命令系统中的权限等级。
+
+        默认使用命令管理器中的持久化授权；适配器可覆盖此方法接入平台侧管理员、群主等权限。
+        """
+        del platform_channel, platform_message
+
+        from nekro_agent.services.command.manager import command_manager
+
+        return command_manager.get_user_permission(self.key, platform_user.user_id)
+
+    async def set_user_command_permission(
+        self,
+        platform_userid: str,
+        permission: CommandPermission | str,
+        *,
+        source: "UserPermissionSource" = "manual",
+        channel_id: str | None = None,
+    ) -> CommandPermission:
+        """设置平台用户在命令系统中的权限等级。"""
+        from nekro_agent.services.command.manager import command_manager
+
+        normalized_permission = (
+            permission if isinstance(permission, CommandPermission) else CommandPermission(permission)
+        )
+        await command_manager.set_user_permission(
+            self.key,
+            platform_userid,
+            normalized_permission,
+            source=source,
+            channel_id=channel_id,
+        )
+        return normalized_permission
+
+    async def reset_user_command_permission(self, platform_userid: str) -> None:
+        """重置平台用户命令权限，回退为普通用户。"""
+        from nekro_agent.services.command.manager import command_manager
+
+        await command_manager.reset_user_permission(self.key, platform_userid)
 
     async def set_message_reaction(self, message_id: str, status: bool = True) -> bool:  # noqa: ARG002
         """设置消息反应（可选实现）

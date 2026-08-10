@@ -14,6 +14,7 @@ export interface User {
   unique_id: string
   perm_level: number
   perm_role: string
+  command_permission: string
   login_time: string
   ban_until: string | null
   prevent_trigger_until: string | null
