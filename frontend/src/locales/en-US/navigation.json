@@ -8,6 +8,7 @@
     "dashboard": "Dashboard",
     "chatManagement": "Chat Management",
     "channelManagement": "Channel Management",
+    "webChat": "Web Chat",
     "botAnnouncement": "Bot Announcement",
     "userManager": "User Management",
     "presets": "Preset Management",

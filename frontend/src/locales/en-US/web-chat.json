@@ -1,0 +1,58 @@
+{
+  "title": "Web Chat",
+  "subtitle": "Create local test sessions in WebUI and send real inbound messages into the Agent pipeline",
+  "actions": {
+    "adapterSettings": "Adapter Settings",
+    "attachFile": "Attach File",
+    "cancel": "Cancel",
+    "createSession": "Create Session",
+    "deleteSession": "Delete Session",
+    "editSession": "Edit Session Name",
+    "openChannelDetail": "Channel Detail",
+    "refresh": "Refresh",
+    "save": "Save",
+    "send": "Send",
+    "sessions": "Sessions"
+  },
+  "adapterStatus": {
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "failed": "Failed"
+  },
+  "adapterUnavailable": {
+    "title": "Web Adapter Unavailable",
+    "description": "Enable the Web Adapter to create web chat sessions."
+  },
+  "sessions": {
+    "searchPlaceholder": "Search session name or chat_key",
+    "clearSearch": "Clear search",
+    "empty": "No web chat sessions",
+    "messageCount": "{{count}} messages"
+  },
+  "status": {
+    "active": "Active",
+    "observe": "Observe",
+    "disabled": "Disabled"
+  },
+  "composer": {
+    "placeholder": "Type a web user message...",
+    "disabledHint": "This channel is disabled. Web chat messages cannot be sent."
+  },
+  "dialogs": {
+    "editTitle": "Edit Session Name",
+    "sessionName": "Session Name",
+    "deleteTitle": "Delete Session",
+    "deleteContent": "Permanently delete \"{{name}}\"? This will delete its messages, plugin data, timer jobs, and uploaded files. This action cannot be undone."
+  },
+  "notifications": {
+    "sessionCreated": "Session created",
+    "sessionCreateFailed": "Failed to create session",
+    "sessionUpdated": "Session name updated",
+    "sessionUpdateFailed": "Failed to update session name",
+    "sessionDeleted": "Session deleted",
+    "sessionDeleteFailed": "Failed to delete session",
+    "sendFailed": "Failed to send",
+    "messageTooLong": "Message cannot exceed {{count}} characters",
+    "fileTooLarge": "File cannot exceed {{count}}MB"
+  }
+}

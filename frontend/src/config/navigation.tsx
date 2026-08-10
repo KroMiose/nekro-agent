@@ -92,6 +92,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'chatManagement',
       },
       {
+        path: '/web-chat',
+        text: t('menu.webChat'),
+        translationKey: 'menu.webChat',
+        icon: <CodeIcon />,
+        parent: 'chatManagement',
+      },
+      {
         path: '/chat-channel/announcement',
         text: t('menu.botAnnouncement'),
         translationKey: 'menu.botAnnouncement',

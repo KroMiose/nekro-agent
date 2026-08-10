@@ -55,6 +55,8 @@ services:
       - nekro_qdrant
     ports:
       - "${NEKRO_EXPOSE_PORT:-8021}:8021"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - nekro_network
     restart: unless-stopped

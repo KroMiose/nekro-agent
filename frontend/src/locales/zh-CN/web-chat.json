@@ -1,0 +1,58 @@
+{
+  "title": "网页聊天",
+  "subtitle": "在 WebUI 内创建本地测试会话，按真实平台入站消息进入 Agent 管线",
+  "actions": {
+    "adapterSettings": "适配器设置",
+    "attachFile": "附加文件",
+    "cancel": "取消",
+    "createSession": "创建会话",
+    "deleteSession": "删除会话",
+    "editSession": "编辑会话名称",
+    "openChannelDetail": "频道详情",
+    "refresh": "刷新",
+    "save": "保存",
+    "send": "发送",
+    "sessions": "会话"
+  },
+  "adapterStatus": {
+    "enabled": "已启用",
+    "disabled": "未启用",
+    "failed": "加载失败"
+  },
+  "adapterUnavailable": {
+    "title": "Web Adapter 不可用",
+    "description": "启用 Web Adapter 后即可创建网页聊天会话。"
+  },
+  "sessions": {
+    "searchPlaceholder": "搜索会话名称或 chat_key",
+    "clearSearch": "清空搜索",
+    "empty": "暂无网页聊天会话",
+    "messageCount": "{{count}} 条消息"
+  },
+  "status": {
+    "active": "活跃",
+    "observe": "旁观",
+    "disabled": "停用"
+  },
+  "composer": {
+    "placeholder": "输入网页用户消息...",
+    "disabledHint": "当前频道已停用，无法发送网页聊天消息。"
+  },
+  "dialogs": {
+    "editTitle": "编辑会话名称",
+    "sessionName": "会话名称",
+    "deleteTitle": "删除会话",
+    "deleteContent": "确定要永久删除“{{name}}”吗？此操作会删除该会话的消息、插件数据、定时任务和上传文件，无法撤销。"
+  },
+  "notifications": {
+    "sessionCreated": "会话已创建",
+    "sessionCreateFailed": "创建会话失败",
+    "sessionUpdated": "会话名称已更新",
+    "sessionUpdateFailed": "更新会话名称失败",
+    "sessionDeleted": "会话已删除",
+    "sessionDeleteFailed": "删除会话失败",
+    "sendFailed": "发送失败",
+    "messageTooLong": "消息长度不能超过 {{count}} 个字符",
+    "fileTooLarge": "文件大小不能超过 {{count}}MB"
+  }
+}

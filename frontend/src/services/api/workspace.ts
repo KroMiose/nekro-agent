@@ -381,6 +381,7 @@ export interface KBAssetBindingsResponse {
 export type McpServerType = 'stdio' | 'sse' | 'http'
 
 export interface McpServerConfig {
+  id?: string
   name: string
   type: McpServerType
   /** 全局库视图：是否在新建工作区时自动启用 */
@@ -422,6 +423,7 @@ export interface McpRegistryItem {
   args?: string[]
   env_keys?: McpEnvKeyDef[]
   url?: string
+  headers?: Record<string, string>
   tags?: string[]
 }
 

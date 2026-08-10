@@ -98,6 +98,7 @@ plugin = NekroPlugin(
         "wechat_openilink",
         "wechat_ilink_multi",
         "qqbot_openclaw",
+        "web",
     ],
     allow_sleep=False,
     sleep_brief="提供发送文本、文件和基础互动能力，是多数对话都会依赖的基础插件。",
@@ -549,6 +550,8 @@ async def collect_available_methods(_ctx: AgentCtx) -> List[Callable]:
     # 基础能力：大多数适配器支持文本与文件发送
     if _ctx.adapter_key == "minecraft":
         methods = [send_msg_text]
+    elif _ctx.adapter_key == "web":
+        methods = [send_msg_text, send_msg_file]
     elif _ctx.adapter_key == "sse":
         methods = [send_msg_text, send_msg_file]
     elif _ctx.adapter_key == "wxwork":

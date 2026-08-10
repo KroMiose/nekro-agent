@@ -14,6 +14,7 @@ from nekro_agent.core.db_migration import run_db_migrations
 from nekro_agent.core.logger import logger
 from nekro_agent.routers import mount_api_routes, mount_middlewares
 from nekro_agent.services.mail.mail_service import send_bot_status_email
+from nekro_agent.services.mcp.web_chat_auth import init_web_chat_mcp_runtime_auth
 from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
 from nekro_agent.services.memory.scheduler import memory_scheduler
 from nekro_agent.services.plugin.collector import init_plugins
@@ -133,6 +134,7 @@ if _driver is not None:
         await init_db()
         await run_db_migrations()
         await init_adapters(app)
+        await init_web_chat_mcp_runtime_auth()
 
         # 注册内置命令
         from nekro_agent.services.command.built_in import register_built_in_commands
