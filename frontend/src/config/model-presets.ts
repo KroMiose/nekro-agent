@@ -43,6 +43,11 @@ export const OPENAI_COMPAT_PROVIDERS: OpenAICompatProvider[] = [
     label: { 'zh-CN': 'NekroAI中转', 'en-US': 'NekroAI Relay' },
   },
   {
+    id: 'atlasCloud',
+    url: 'https://api.atlascloud.ai/v1',
+    label: { 'zh-CN': 'Atlas Cloud', 'en-US': 'Atlas Cloud' },
+  },
+  {
     id: 'googleGemini',
     url: 'https://generativelanguage.googleapis.com/v1beta/openai',
     label: { 'zh-CN': '谷歌Gemini', 'en-US': 'Google Gemini' },
