@@ -256,7 +256,9 @@ class BotManager:
     ) -> None:
         previous_session = await DBAdapterInstanceSession.get_or_none(instance_id=instance.id)
         previous_state = previous_session.session_state if previous_session is not None else ""
-        await adapter_instance_service.set_session_state(instance, bind_status, payload=payload)
+        # payload 只进审计事件（下方 record_event），不再传给 set_session_state：
+        # 它会覆盖 sync_state_json，而那个字段是 SyncState 的载体
+        await adapter_instance_service.set_session_state(instance, bind_status)
         if previous_state == bind_status:
             return
         await adapter_instance_service.record_event(

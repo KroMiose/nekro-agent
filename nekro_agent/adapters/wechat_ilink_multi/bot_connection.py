@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import aiofiles
+from pydantic import ValidationError
 
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.core.logger import get_sub_logger
@@ -374,7 +375,24 @@ class BotConnection:
     def _load_sync_state(self) -> SyncState:
         if not self.session.sync_state_json:
             return SyncState()
-        return SyncState.model_validate_json(self.session.sync_state_json)
+        try:
+            return SyncState.model_validate_json(self.session.sync_state_json)
+        except ValidationError as e:
+            # 兼容存量脏数据：修复前 set_session_state(payload=...) 会把绑定态
+            # （bind_session_id / qr_url）写进该字段，而 SyncState 是 extra="forbid"。
+            # 同步游标只是增量拉取的优化，读不出来退回空值即可，不应让监控起不来。
+            #
+            # 只记录字段名与错误类型，不打印原始内容：脏数据里可能带 qr_url、
+            # bind_session_id 等扫码绑定凭据，落进日志就是泄露。同理不能直接
+            # 打印 ValidationError 本身 —— 它的消息会回显 input_value。
+            problems = ", ".join(
+                f"{'.'.join(str(item) for item in err['loc']) or '<root>'}:{err['type']}" for err in e.errors()
+            )
+            logger.warning(
+                f"同步状态解析失败，按空游标继续: instance={self.instance_key}, "
+                f"length={len(self.session.sync_state_json)}, problems=[{problems}]",
+            )
+            return SyncState()
 
     def _seconds_until_next_renew(self) -> float:
         renew_at = self.instance.next_renew_at
