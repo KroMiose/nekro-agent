@@ -315,7 +315,15 @@ class BotConnection:
         await self._persist_message_cursor(message)
 
     async def _instance_still_active(self) -> bool:
-        """实例当前是否仍应接收消息（未被软删除且处于启用状态）。"""
+        """实例当前是否仍应接收消息。
+
+        先看 _stopped 再查库：删除与普通停止都经由 BotConnection.stop()，
+        而它做的第一件事就是 set 这个事件；数据库状态却要等停止流程走完才落盘
+        （普通停止写 offline、删除写 deleted）。只凭库里的状态判断，会在
+        "已开始停止但尚未写库"的窗口里把在途消息误判为可接收。
+        """
+        if self._stopped.is_set():
+            return False
         instance = await adapter_instance_service.get_instance(self.adapter.key, self.instance_key)
         if instance is None or instance.status == "deleted" or not instance.enabled:
             # 顺手让残留连接自行退出，避免删除后长轮询一直空转

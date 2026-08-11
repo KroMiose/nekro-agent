@@ -73,6 +73,33 @@ async def test_inbound_message_kept_when_instance_active(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_inbound_message_dropped_while_stopping_before_db_written(monkeypatch) -> None:
+    """停止已开始但状态尚未落库时，在途消息也必须被拦下。
+
+    BotConnection.stop() 先 set _stopped，之后才由调用方写 offline/deleted；
+    这段窗口里数据库仍是 online，只查库会把在途消息误判为可接收。
+    """
+    queried = []
+
+    conn = object.__new__(BotConnection)
+    conn.adapter = SimpleNamespace(key="wechat_ilink_multi")
+    conn.instance = SimpleNamespace(instance_key="wx-01")
+    conn._stopped = asyncio.Event()
+
+    async def fake_get_instance(adapter_key: str, instance_key: str):
+        queried.append(instance_key)
+        return SimpleNamespace(status="online", enabled=True)
+
+    monkeypatch.setattr(bc_module.adapter_instance_service, "get_instance", fake_get_instance)
+
+    conn._stopped.set()  # 模拟 stop() 已执行、状态尚未写库
+
+    assert await conn._instance_still_active() is False
+    # 已知要停止时不必再查库
+    assert queried == []
+
+
+@pytest.mark.asyncio
 async def test_ensure_session_row_tolerates_concurrent_insert(monkeypatch) -> None:
     """并发创建时，落败方应回落为读取既有行，而不是抛错或插出第二条。"""
     from tortoise.exceptions import IntegrityError

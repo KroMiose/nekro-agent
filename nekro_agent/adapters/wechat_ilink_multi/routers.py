@@ -132,8 +132,13 @@ def create_router() -> APIRouter:
     ) -> None:
         """软删除实例
 
-        必须先停掉运行中的连接再落软删标记：BotConnection 持有独立的长轮询任务，
-        只改数据库状态不会让它退出，实例会在"已删除"状态下继续收消息并触发 Agent。
+        BotConnection 持有独立的长轮询任务，只改数据库状态不会让它退出，
+        实例会在"已删除"状态下继续收消息并触发 Agent，因此必须显式停止连接。
+
+        顺序是先落软删标记、再停连接：这样"不可接收"在数据库侧先一步生效，
+        停止过程中取回的在途消息也能被入站侧的状态复核挡住。反过来先停连接，
+        则在停止完成到写库之间存在一个仍被判定为 active 的窗口。
+        BotManager.stop_instance 对 deleted 状态不会再覆写 offline，顺序安全。
         """
         instance = await adapter_instance_service.get_instance(
             adapter_key=ADAPTER_KEY,
@@ -142,17 +147,15 @@ def create_router() -> APIRouter:
         if instance is None:
             raise NotFoundError(resource=f"实例 {instance_key}")
 
+        await adapter_instance_service.soft_delete_instance(instance)
+
         # 适配器可能未加载（如配置关闭），此时没有可停的连接，不应阻塞删除
         try:
             bot_manager = _get_bot_manager()
         except ValidationError:
             bot_manager = None
         if bot_manager is not None:
-            # update_status=False：状态由紧随其后的 soft_delete_instance 落定，
-            # 避免先写 offline 再写 deleted 产生无意义的中间态事件
             await bot_manager.stop_instance(instance_key, update_status=False)
-
-        await adapter_instance_service.soft_delete_instance(instance)
 
     @router.post("/{instance_key}/bind/start", response_model=BindStartResponse)
     @require_role(Role.Admin)
