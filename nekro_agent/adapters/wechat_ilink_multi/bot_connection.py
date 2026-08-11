@@ -287,6 +287,15 @@ class BotConnection:
             logger.debug(f"重复 OpenILink 消息已过滤: instance={self.instance_key}, message_id={message.message_id}")
             return
 
+        # 复核实例状态：停止/删除与长轮询之间存在时间窗，期间到达的在途消息不应再触发 Agent。
+        # 这里读库而非用 self.instance 缓存，因为删除动作发生在别的请求上下文里。
+        if not await self._instance_still_active():
+            logger.info(
+                f"实例已停用，丢弃入站 OpenILink 消息: instance={self.instance_key}, "
+                f"message_id={message.message_id}",
+            )
+            return
+
         try:
             parsed = await self.processor.parse(await self._message_to_processor_payload(message))
         except Exception as e:
@@ -304,6 +313,15 @@ class BotConnection:
             platform_message=parsed.message,
         )
         await self._persist_message_cursor(message)
+
+    async def _instance_still_active(self) -> bool:
+        """实例当前是否仍应接收消息（未被软删除且处于启用状态）。"""
+        instance = await adapter_instance_service.get_instance(self.adapter.key, self.instance_key)
+        if instance is None or instance.status == "deleted" or not instance.enabled:
+            # 顺手让残留连接自行退出，避免删除后长轮询一直空转
+            self._stopped.set()
+            return False
+        return True
 
     async def _handle_sync_state(self, sync_state: SyncState) -> None:
         self.session.sync_state_json = sync_state.model_dump_json()

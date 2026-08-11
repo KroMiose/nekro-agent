@@ -130,13 +130,28 @@ def create_router() -> APIRouter:
         instance_key: str,
         _current_user: DBUser = Depends(get_current_active_user),
     ) -> None:
-        """软删除实例"""
+        """软删除实例
+
+        必须先停掉运行中的连接再落软删标记：BotConnection 持有独立的长轮询任务，
+        只改数据库状态不会让它退出，实例会在"已删除"状态下继续收消息并触发 Agent。
+        """
         instance = await adapter_instance_service.get_instance(
             adapter_key=ADAPTER_KEY,
             instance_key=instance_key,
         )
         if instance is None:
             raise NotFoundError(resource=f"实例 {instance_key}")
+
+        # 适配器可能未加载（如配置关闭），此时没有可停的连接，不应阻塞删除
+        try:
+            bot_manager = _get_bot_manager()
+        except ValidationError:
+            bot_manager = None
+        if bot_manager is not None:
+            # update_status=False：状态由紧随其后的 soft_delete_instance 落定，
+            # 避免先写 offline 再写 deleted 产生无意义的中间态事件
+            await bot_manager.stop_instance(instance_key, update_status=False)
+
         await adapter_instance_service.soft_delete_instance(instance)
 
     @router.post("/{instance_key}/bind/start", response_model=BindStartResponse)
