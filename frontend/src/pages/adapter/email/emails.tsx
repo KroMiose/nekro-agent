@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import {
   Accordion,
   AccordionDetails,
@@ -19,6 +19,7 @@ import {
   Skeleton,
   Stack,
   Typography,
+  useTheme,
 } from '@mui/material'
 import {
   AttachFile as AttachFileIcon,
@@ -27,6 +28,7 @@ import {
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import DOMPurify, { type Config as DOMPurifyConfig } from 'dompurify'
 import MarkdownRenderer from '../../../components/common/MarkdownRenderer'
 import ActionButton from '../../../components/common/ActionButton'
 import NekroDialog from '../../../components/common/NekroDialog'
@@ -71,6 +73,72 @@ function DetailSkeleton() {
       <Skeleton variant="rounded" height={220} />
       <Skeleton variant="rounded" height={220} />
     </Stack>
+  )
+}
+
+/**
+ * 邮件正文 HTML 完全由发件人控制，必须视为不可信输入。
+ * 第一层：DOMPurify 白名单净化，剥离 script/style/form 等危险标签与事件属性。
+ * 第二层：渲染进 sandbox="" 的 iframe，浏览器层面禁止脚本执行与同源访问。
+ */
+const EMAIL_HTML_SANITIZE_CONFIG: DOMPurifyConfig = {
+  FORBID_TAGS: ['style', 'script', 'iframe', 'form', 'object', 'embed', 'base', 'link', 'meta'],
+  FORBID_ATTR: ['srcset', 'ping', 'formaction'],
+}
+
+const EMAIL_HTML_FRAME_HEIGHT = 480
+
+function buildEmailSrcDoc(safeHtml: string, textColor: string, backgroundColor: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
+<style>
+  html, body { margin: 0; padding: 12px; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+      "PingFang SC", "Microsoft YaHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.75;
+    color: ${textColor};
+    background: ${backgroundColor};
+    word-break: break-word;
+  }
+  img { max-width: 100%; height: auto; }
+  table { max-width: 100%; }
+</style>
+</head>
+<body>${safeHtml}</body>
+</html>`
+}
+
+function EmailHtmlBody({ html, title }: { html: string; title: string }) {
+  const theme = useTheme()
+  const textColor = theme.palette.text.primary
+  const backgroundColor = theme.palette.background.paper
+
+  const srcDoc = useMemo(
+    () => buildEmailSrcDoc(DOMPurify.sanitize(html, EMAIL_HTML_SANITIZE_CONFIG), textColor, backgroundColor),
+    [html, textColor, backgroundColor]
+  )
+
+  return (
+    <Box
+      component="iframe"
+      title={title}
+      sandbox=""
+      referrerPolicy="no-referrer"
+      srcDoc={srcDoc}
+      sx={{
+        display: 'block',
+        width: '100%',
+        height: EMAIL_HTML_FRAME_HEIGHT,
+        borderRadius: 2,
+        border: theme => `1px solid ${theme.palette.divider}`,
+        backgroundColor: 'background.paper',
+      }}
+    />
   )
 }
 
@@ -220,19 +288,7 @@ function DetailContent({
           {rawLoading ? (
             <Skeleton variant="rounded" height={220} />
           ) : bodyView === 'html' && hasHtmlBody ? (
-            <Box
-              sx={{
-                p: 1.5,
-                borderRadius: 2,
-                border: theme => `1px solid ${theme.palette.divider}`,
-                backgroundColor: 'background.paper',
-                '& img': {
-                  maxWidth: '100%',
-                  height: 'auto',
-                },
-              }}
-              dangerouslySetInnerHTML={{ __html: rawContent?.html_content || '' }}
-            />
+            <EmailHtmlBody html={rawContent?.html_content || ''} title={t('emails.bodyHtmlFrameTitle')} />
           ) : (
             <Typography
               variant="body2"

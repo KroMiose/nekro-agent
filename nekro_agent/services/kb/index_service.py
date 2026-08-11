@@ -3,15 +3,18 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import time
+from contextlib import suppress
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from tortoise.backends.base.client import BaseDBAsyncClient
+from tortoise.transactions import in_transaction
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_chunk import DBKBChunk
 from nekro_agent.models.db_kb_document import DBKBDocument
-from nekro_agent.services.kb.chunker import split_text_into_chunks
+from nekro_agent.services.kb.chunker import ChunkDraft, split_text_into_chunks
 from nekro_agent.services.kb.extractors import extract_source_file
 from nekro_agent.services.kb.qdrant_manager import kb_qdrant_manager
 from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
@@ -42,6 +45,23 @@ def _preview_text(text: str, max_chars: int = PREVIEW_MAX_CHARS) -> str:
     if len(normalized) <= max_chars:
         return normalized
     return f"{normalized[: max_chars - 1]}…"
+
+
+def _write_staged_normalized_text(target: Path, text: str) -> Path:
+    """规范化文本先落到同目录临时文件。
+
+    检索按 char_start/char_end 从规范化文本取原文，提前覆盖会让仍在服务的旧 chunk 错位，
+    因此索引成功前不能动线上文件。
+    """
+    target.parent.mkdir(parents=True, exist_ok=True)
+    staged = target.with_name(f"{target.name}.staging")
+    staged.write_text(text, "utf-8")
+    return staged
+
+
+def _discard_staged_normalized_text(staged: Path) -> None:
+    with suppress(OSError):
+        staged.unlink()
 
 
 async def _publish_index_progress(
@@ -79,6 +99,109 @@ async def ensure_kb_collection() -> bool:
     return await kb_qdrant_manager.ensure_collection(get_kb_embedding_dimension())
 
 
+async def _embed_chunk_drafts(
+    document: DBKBDocument,
+    drafts: list[ChunkDraft],
+    *,
+    started_at: int,
+) -> list[list[float]]:
+    """在不触碰现有索引的前提下完成全部向量化，任一 chunk 失败即抛出。"""
+    await _publish_index_progress(
+        document,
+        phase="embedding",
+        started_at=started_at,
+        progress_percent=35,
+        total_chunks=len(drafts),
+        processed_chunks=0,
+    )
+
+    vectors: list[list[float] | None] = []
+    for batch_start in range(0, len(drafts), _INDEX_BATCH_SIZE):
+        draft_batch = drafts[batch_start : batch_start + _INDEX_BATCH_SIZE]
+        embeddings = await embed_kb_batch([draft.content for draft in draft_batch])
+        vectors.extend(embeddings[: len(draft_batch)])
+        vectors.extend([None] * max(0, len(draft_batch) - len(embeddings)))
+        await _publish_index_progress(
+            document,
+            phase="embedding",
+            started_at=started_at,
+            progress_percent=35 + int((len(vectors) / max(1, len(drafts))) * 50),
+            total_chunks=len(drafts),
+            processed_chunks=len(vectors),
+        )
+
+    failed_embeddings = sum(1 for vector in vectors if vector is None)
+    if failed_embeddings:
+        raise RuntimeError(f"知识库向量化失败：共 {failed_embeddings}/{len(drafts)} 个 chunk 未能生成 embedding")
+    return [vector for vector in vectors if vector is not None]
+
+
+async def _swap_document_index(
+    document: DBKBDocument,
+    drafts: list[ChunkDraft],
+    vectors: list[list[float]],
+) -> int:
+    """原子切换文档索引：新数据全部就绪后才替换旧的 chunk 行与向量点。
+
+    DB 事务包住「删旧行 + 建新行 + 写入 Qdrant」，Qdrant 写入失败会连同 DB 一起回滚，
+    旧索引保持原样可检索；只有事务提交成功后才清理旧向量点。
+    """
+    stale_chunk_ids = await list_document_chunk_ids(document.id)
+    created_count = 0
+
+    async with in_transaction() as conn:
+        await DBKBChunk.filter(document_id=document.id).using_db(conn).delete()
+        if drafts:
+            await DBKBChunk.bulk_create(
+                [
+                    DBKBChunk(
+                        workspace_id=document.workspace_id,
+                        document_id=document.id,
+                        chunk_index=index,
+                        heading_path=draft.heading_path,
+                        char_start=draft.char_start,
+                        char_end=draft.char_end,
+                        token_count=_estimate_tokens(draft.content),
+                    )
+                    for index, draft in enumerate(drafts)
+                ],
+                batch_size=_INDEX_BATCH_SIZE,
+                using_db=conn,
+            )
+            created_chunks = (
+                await DBKBChunk.filter(document_id=document.id, workspace_id=document.workspace_id)
+                .using_db(conn)
+                .order_by("chunk_index")
+                .all()
+            )
+            for chunk in created_chunks:
+                chunk.embedding_ref = str(chunk.id)
+            await DBKBChunk.bulk_update(
+                created_chunks,
+                fields=["embedding_ref", "update_time"],
+                batch_size=_INDEX_BATCH_SIZE,
+                using_db=conn,
+            )
+            await kb_qdrant_manager.batch_upsert(
+                [
+                    (
+                        chunk.id,
+                        vector,
+                        chunk.to_qdrant_payload(document=document, content_preview=_preview_text(draft.content)),
+                    )
+                    for chunk, draft, vector in zip(created_chunks, drafts, vectors, strict=True)
+                ]
+            )
+            created_count = len(created_chunks)
+
+    try:
+        await delete_document_vector_points(stale_chunk_ids)
+    except Exception as e:
+        logger.warning(f"清理知识库旧向量点失败（不影响新索引可用性）: document_id={document.id}, error={e}")
+
+    return created_count
+
+
 async def index_document(document: DBKBDocument) -> int:
     started_at = int(time.time() * 1000)
     WorkspaceService.ensure_kb_dirs(document.workspace_id)
@@ -93,130 +216,63 @@ async def index_document(document: DBKBDocument) -> int:
     normalized_text = extracted.text.strip()
     normalized_rel_path = document.normalized_text_path or f"{document.id}.md"
     normalized_file = WorkspaceService.resolve_kb_normalized_path(document.workspace_id, normalized_rel_path)
-    normalized_file.parent.mkdir(parents=True, exist_ok=True)
-    await asyncio.to_thread(normalized_file.write_text, normalized_text, "utf-8")
+    staged_file = await asyncio.to_thread(_write_staged_normalized_text, normalized_file, normalized_text)
+
+    document.extract_status = "ready"
+    document.sync_status = "indexing"
+    await document.save(update_fields=["extract_status", "sync_status", "update_time"])
+    await _publish_index_progress(document, phase="chunking", started_at=started_at, progress_percent=20)
+
+    committed = False
+    try:
+        drafts = split_text_into_chunks(normalized_text)
+        # staging 阶段：向量全部就绪前不删除任何既有 chunk / 向量点，也不覆盖线上规范化文本
+        vectors = await _embed_chunk_drafts(document, drafts, started_at=started_at) if drafts else []
+
+        if drafts:
+            await _publish_index_progress(
+                document,
+                phase="upserting",
+                started_at=started_at,
+                progress_percent=90,
+                total_chunks=len(drafts),
+                processed_chunks=len(drafts),
+            )
+        chunk_count = await _swap_document_index(document, drafts, vectors)
+        staged_file.replace(normalized_file)
+        committed = True
+    finally:
+        if not committed:
+            _discard_staged_normalized_text(staged_file)
 
     document.normalized_text_path = normalized_rel_path
     document.normalized_text_hash = _hash_text(normalized_text)
-    document.extract_status = "ready"
-    document.sync_status = "indexing"
+    document.chunk_count = chunk_count
+    document.sync_status = "ready"
+    document.last_indexed_at = datetime.now(timezone.utc)
+    document.last_error = None
     await document.save(
         update_fields=[
             "normalized_text_path",
             "normalized_text_hash",
-            "extract_status",
+            "chunk_count",
             "sync_status",
+            "last_indexed_at",
+            "last_error",
             "update_time",
         ]
     )
-    await _publish_index_progress(document, phase="chunking", started_at=started_at, progress_percent=20)
-
-    existing_chunks = await DBKBChunk.filter(document_id=document.id).all()
-    if existing_chunks:
-        await kb_qdrant_manager.delete_chunk_points([chunk.id for chunk in existing_chunks])
-        await DBKBChunk.filter(document_id=document.id).delete()
-
-    drafts = split_text_into_chunks(normalized_text)
-    if not drafts:
-        document.chunk_count = 0
-        document.sync_status = "ready"
-        document.last_indexed_at = datetime.now(timezone.utc)
-        await document.save(update_fields=["chunk_count", "sync_status", "last_indexed_at", "update_time"])
-        await _publish_index_progress(
-            document, phase="ready", started_at=started_at, progress_percent=100, expires_in_ms=4000
-        )
-        await detect_and_sync_document_references(document.workspace_id, document.id)
-        return 0
-
-    await DBKBChunk.bulk_create(
-        [
-            DBKBChunk(
-                workspace_id=document.workspace_id,
-                document_id=document.id,
-                chunk_index=index,
-                heading_path=draft.heading_path,
-                char_start=draft.char_start,
-                char_end=draft.char_end,
-                token_count=_estimate_tokens(draft.content),
-            )
-            for index, draft in enumerate(drafts)
-        ],
-        batch_size=_INDEX_BATCH_SIZE,
-    )
-    created_chunks = await DBKBChunk.filter(document_id=document.id, workspace_id=document.workspace_id).order_by(
-        "chunk_index"
-    ).all()
-    await _publish_index_progress(
-        document,
-        phase="embedding",
-        started_at=started_at,
-        progress_percent=35,
-        total_chunks=len(created_chunks),
-        processed_chunks=0,
-    )
-
-    points: list[tuple[int, list[float], dict[str, object]]] = []
-    processed_chunks = 0
-    failed_embeddings = 0
-    for batch_start in range(0, len(created_chunks), _INDEX_BATCH_SIZE):
-        db_batch = created_chunks[batch_start : batch_start + _INDEX_BATCH_SIZE]
-        draft_batch = drafts[batch_start : batch_start + _INDEX_BATCH_SIZE]
-        embeddings = await embed_kb_batch([draft.content for draft in draft_batch])
-        for db_chunk, draft, embedding in zip(db_batch, draft_batch, embeddings, strict=False):
-            if embedding is None:
-                failed_embeddings += 1
-                processed_chunks += 1
-                continue
-            db_chunk.embedding_ref = str(db_chunk.id)
-            await db_chunk.save(update_fields=["embedding_ref", "update_time"])
-            points.append(
-                (
-                    db_chunk.id,
-                    embedding,
-                    db_chunk.to_qdrant_payload(
-                        document=document,
-                        content_preview=_preview_text(draft.content),
-                    ),
-                )
-            )
-            processed_chunks += 1
-        await _publish_index_progress(
-            document,
-            phase="embedding",
-            started_at=started_at,
-            progress_percent=35 + int((processed_chunks / max(1, len(created_chunks))) * 50),
-            total_chunks=len(created_chunks),
-            processed_chunks=processed_chunks,
-        )
-
-    if failed_embeddings:
-        raise RuntimeError(f"知识库向量化失败：共 {failed_embeddings}/{len(created_chunks)} 个 chunk 未能生成 embedding")
-
-    await _publish_index_progress(
-        document,
-        phase="upserting",
-        started_at=started_at,
-        progress_percent=90,
-        total_chunks=len(created_chunks),
-        processed_chunks=processed_chunks,
-    )
-    await kb_qdrant_manager.batch_upsert(points)
-    document.chunk_count = len(created_chunks)
-    document.sync_status = "ready"
-    document.last_indexed_at = datetime.now(timezone.utc)
-    document.last_error = None
-    await document.save(update_fields=["chunk_count", "sync_status", "last_indexed_at", "last_error", "update_time"])
     await _publish_index_progress(
         document,
         phase="ready",
         started_at=started_at,
         progress_percent=100,
-        total_chunks=len(created_chunks),
-        processed_chunks=processed_chunks,
+        total_chunks=chunk_count,
+        processed_chunks=chunk_count,
         expires_in_ms=4000,
     )
     await detect_and_sync_document_references(document.workspace_id, document.id)
-    return len(created_chunks)
+    return chunk_count
 
 
 async def rebuild_document(document: DBKBDocument) -> int:
