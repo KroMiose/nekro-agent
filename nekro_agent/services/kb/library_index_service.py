@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -50,21 +51,76 @@ def _preview_text(text: str, max_chars: int = PREVIEW_MAX_CHARS) -> str:
     return f"{normalized[: max_chars - 1]}…"
 
 
-def _write_staged_normalized_text(target: Path, text: str) -> Path:
-    """规范化文本先落到同目录临时文件。
+def _normalized_rel_path_for(asset_id: int, text_hash: str) -> str:
+    """规范化文本按内容寻址命名，让新旧两版可以并存到切换完成为止。"""
+    return f"{asset_id}-{text_hash[:32]}.md"
 
-    检索按 char_start/char_end 从规范化文本取原文，提前覆盖会让仍在服务的旧 chunk 错位，
-    因此索引成功前不能动线上文件。
-    """
+
+def _write_normalized_text(target: Path, text: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    staged = target.with_name(f"{target.name}.staging")
-    staged.write_text(text, "utf-8")
-    return staged
+    target.write_text(text, "utf-8")
 
 
-def _discard_staged_normalized_text(staged: Path) -> None:
+def _discard_normalized_text(target: Path) -> None:
     with suppress(OSError):
-        staged.unlink()
+        target.unlink()
+
+
+@dataclass(frozen=True)
+class _IndexStateSnapshot:
+    """重建开始前的索引状态，用于失败时把仍然完好的旧索引恢复成可检索。"""
+
+    extract_status: str
+    sync_status: str
+    chunk_count: int
+    last_indexed_at: datetime | None
+    normalized_text_path: str
+    normalized_text_hash: str
+
+    @property
+    def searchable(self) -> bool:
+        """与 search_service._source_is_search_ready 的状态条件保持一致。"""
+        return self.extract_status == "ready" and self.sync_status == "ready"
+
+
+_RESTORE_UPDATE_FIELDS = [
+    "extract_status",
+    "sync_status",
+    "chunk_count",
+    "last_indexed_at",
+    "normalized_text_path",
+    "normalized_text_hash",
+    "last_error",
+    "update_time",
+]
+
+
+def _snapshot_asset_state(asset: DBKBAsset) -> _IndexStateSnapshot:
+    return _IndexStateSnapshot(
+        extract_status=asset.extract_status,
+        sync_status=asset.sync_status,
+        chunk_count=asset.chunk_count,
+        last_indexed_at=asset.last_indexed_at,
+        normalized_text_path=asset.normalized_text_path or "",
+        normalized_text_hash=asset.normalized_text_hash,
+    )
+
+
+async def _restore_asset_state(
+    asset: DBKBAsset,
+    snapshot: _IndexStateSnapshot,
+    *,
+    last_error: str,
+) -> None:
+    """回退到重建前状态：旧 chunk / 向量点 / 规范化文本都还在，索引必须保持可检索。"""
+    asset.extract_status = snapshot.extract_status
+    asset.sync_status = snapshot.sync_status
+    asset.chunk_count = snapshot.chunk_count
+    asset.last_indexed_at = snapshot.last_indexed_at
+    asset.normalized_text_path = snapshot.normalized_text_path
+    asset.normalized_text_hash = snapshot.normalized_text_hash
+    asset.last_error = last_error
+    await asset.save(update_fields=_RESTORE_UPDATE_FIELDS)
 
 
 async def _publish_index_progress(
@@ -142,11 +198,16 @@ async def _swap_asset_index(
     asset: DBKBAsset,
     drafts: list[ChunkDraft],
     vectors: list[list[float]],
+    *,
+    snapshot: _IndexStateSnapshot,
+    normalized_rel_path: str,
+    normalized_text_hash: str,
 ) -> int:
-    """原子切换资产索引：新数据全部就绪后才替换旧的 chunk 行与向量点。
+    """原子切换资产索引：新数据全部就绪后才替换旧的 chunk 行、向量点与规范化文本指针。
 
-    DB 事务包住「删旧行 + 建新行 + 写入 Qdrant」，Qdrant 写入失败会连同 DB 一起回滚，
-    旧索引保持原样可检索；只有事务提交成功后才清理旧向量点。
+    单个 DB 事务包住「删旧行 + 建新行 + 写 Qdrant + flip 资产元数据」，任一步失败整体回滚，
+    资产仍指向旧 chunk 与旧规范化文本，保持原样可检索。
+    只有事务提交成功后才清理旧向量点与旧文本文件——它们都是提交后的纯清理动作，失败仅留残留。
     """
     stale_chunk_ids = await list_asset_chunk_ids(asset.id)
     created_count = 0
@@ -192,10 +253,35 @@ async def _swap_asset_index(
             )
             created_count = len(created_chunks)
 
+        # 元数据与 chunk 行在同一事务内 flip，避免出现「新 chunk + 旧文本指针」的中间态
+        asset.normalized_text_path = normalized_rel_path
+        asset.normalized_text_hash = normalized_text_hash
+        asset.chunk_count = created_count
+        asset.extract_status = "ready"
+        asset.sync_status = "ready"
+        asset.last_indexed_at = datetime.now(timezone.utc)
+        asset.last_error = None
+        await asset.save(
+            update_fields=[
+                "normalized_text_path",
+                "normalized_text_hash",
+                "chunk_count",
+                "extract_status",
+                "sync_status",
+                "last_indexed_at",
+                "last_error",
+                "update_time",
+            ],
+            using_db=conn,
+        )
+
     try:
         await delete_asset_vector_points(stale_chunk_ids)
     except Exception as e:
         logger.warning(f"清理全局知识库旧向量点失败（不影响新索引可用性）: asset_id={asset.id}, error={e}")
+    if snapshot.normalized_text_path and snapshot.normalized_text_path != normalized_rel_path:
+        with suppress(ValueError):
+            _discard_normalized_text(resolve_kb_library_normalized_path(snapshot.normalized_text_path))
 
     return created_count
 
@@ -203,28 +289,39 @@ async def _swap_asset_index(
 async def index_asset(asset: DBKBAsset) -> int:
     started_at = int(datetime.now(timezone.utc).timestamp() * 1000)
     ensure_kb_library_dirs()
-    asset.extract_status = "extracting"
-    asset.sync_status = "pending"
+    snapshot = _snapshot_asset_state(asset)
+
+    # 已有可检索索引时不下调状态：重建期间旧索引对搜索保持可见，进度另经 SSE 推送
     asset.last_error = None
-    await asset.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
+    if snapshot.searchable:
+        await asset.save(update_fields=["last_error", "update_time"])
+    else:
+        asset.extract_status = "extracting"
+        asset.sync_status = "pending"
+        await asset.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
     await _publish_index_progress(asset, phase="extracting", started_at=started_at, progress_percent=5)
 
     source_file = resolve_kb_library_source_path(asset.source_path)
     extracted = await asyncio.to_thread(extract_source_file, source_file, asset.file_name)
     normalized_text = extracted.text.strip()
-    normalized_rel_path = asset.normalized_text_path or f"{asset.id}.md"
-    normalized_file = resolve_kb_library_normalized_path(normalized_rel_path)
-    staged_file = await asyncio.to_thread(_write_staged_normalized_text, normalized_file, normalized_text)
+    normalized_text_hash = _hash_text(normalized_text)
+    staged_rel_path = _normalized_rel_path_for(asset.id, normalized_text_hash)
+    staged_file = resolve_kb_library_normalized_path(staged_rel_path)
+    reuses_live_text = staged_rel_path == snapshot.normalized_text_path
 
-    asset.extract_status = "ready"
-    asset.sync_status = "indexing"
-    await asset.save(update_fields=["extract_status", "sync_status", "update_time"])
+    if not snapshot.searchable:
+        asset.extract_status = "ready"
+        asset.sync_status = "indexing"
+        await asset.save(update_fields=["extract_status", "sync_status", "update_time"])
     await _publish_index_progress(asset, phase="chunking", started_at=started_at, progress_percent=20)
 
     committed = False
     try:
+        # staging 阶段：新文本写到独立路径，旧 chunk / 向量点 / 旧文本一律不动
+        if not reuses_live_text or not staged_file.exists():
+            await asyncio.to_thread(_write_normalized_text, staged_file, normalized_text)
+
         drafts = split_text_into_chunks(normalized_text)
-        # staging 阶段：向量全部就绪前不删除任何既有 chunk / 向量点，也不覆盖线上规范化文本
         vectors = await _embed_chunk_drafts(asset, drafts, started_at=started_at) if drafts else []
 
         if drafts:
@@ -236,58 +333,46 @@ async def index_asset(asset: DBKBAsset) -> int:
                 total_chunks=len(drafts),
                 processed_chunks=len(drafts),
             )
-        chunk_count = await _swap_asset_index(asset, drafts, vectors)
-        staged_file.replace(normalized_file)
+        chunk_count = await _swap_asset_index(
+            asset,
+            drafts,
+            vectors,
+            snapshot=snapshot,
+            normalized_rel_path=staged_rel_path,
+            normalized_text_hash=normalized_text_hash,
+        )
         committed = True
     finally:
-        if not committed:
-            _discard_staged_normalized_text(staged_file)
+        if not committed and not reuses_live_text:
+            _discard_normalized_text(staged_file)
 
-    asset.normalized_text_path = normalized_rel_path
-    asset.normalized_text_hash = _hash_text(normalized_text)
-    asset.chunk_count = chunk_count
-    asset.sync_status = "ready"
-    asset.last_indexed_at = datetime.now(timezone.utc)
-    asset.last_error = None
-    await asset.save(
-        update_fields=[
-            "normalized_text_path",
-            "normalized_text_hash",
-            "chunk_count",
-            "sync_status",
-            "last_indexed_at",
-            "last_error",
-            "update_time",
-        ]
-    )
-    await _publish_index_progress(
-        asset,
-        phase="ready",
-        started_at=started_at,
-        progress_percent=100,
-        total_chunks=chunk_count,
-        processed_chunks=chunk_count,
-        expires_in_ms=4000,
-    )
-    await detect_and_sync_asset_references(asset.id)
+    # 切换已提交：此后不得再有可失败步骤，否则 rebuild_asset 会误把元数据回滚到已删除的旧文本
     return chunk_count
 
 
 async def rebuild_asset(asset: DBKBAsset) -> int:
+    snapshot = _snapshot_asset_state(asset)
     try:
-        return await index_asset(asset)
+        chunk_count = await index_asset(asset)
     except asyncio.CancelledError:
-        asset.extract_status = "pending"
-        asset.sync_status = "pending"
-        asset.last_error = "任务被取消"
-        await asset.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
+        if snapshot.searchable:
+            await _restore_asset_state(asset, snapshot, last_error="任务被取消")
+        else:
+            asset.extract_status = "pending"
+            asset.sync_status = "pending"
+            asset.last_error = "任务被取消"
+            await asset.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
         raise
     except Exception as e:
         logger.warning(f"全局知识库资产索引失败: asset_id={asset.id}, error={e}")
-        asset.extract_status = "failed"
-        asset.sync_status = "failed"
-        asset.last_error = str(e)
-        await asset.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
+        if snapshot.searchable:
+            logger.info(f"全局知识库资产重建失败，回退到上一次成功的索引并保持可检索: asset_id={asset.id}")
+            await _restore_asset_state(asset, snapshot, last_error=str(e))
+        else:
+            asset.extract_status = "failed"
+            asset.sync_status = "failed"
+            asset.last_error = str(e)
+            await asset.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
         await _publish_index_progress(
             asset,
             phase="failed",
@@ -297,6 +382,22 @@ async def rebuild_asset(asset: DBKBAsset) -> int:
             expires_in_ms=8000,
         )
         raise
+
+    # 索引已生效，以下均为尽力而为的收尾，失败不得回滚状态
+    try:
+        await _publish_index_progress(
+            asset,
+            phase="ready",
+            started_at=int(datetime.now(timezone.utc).timestamp() * 1000),
+            progress_percent=100,
+            total_chunks=chunk_count,
+            processed_chunks=chunk_count,
+            expires_in_ms=4000,
+        )
+        await detect_and_sync_asset_references(asset.id)
+    except Exception as e:
+        logger.warning(f"全局知识库索引收尾处理失败（索引已生效）: asset_id={asset.id}, error={e}")
+    return chunk_count
 
 
 async def _run_rebuild_asset_task(asset_id: int) -> None:

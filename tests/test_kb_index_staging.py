@@ -1,9 +1,12 @@
-"""知识库索引 staging 语义测试。
+"""知识库索引 staging 与原子切换语义测试。
 
-核心不变量：全部 chunk 的 embedding 成功之前，绝不触碰既有的 chunk 行 / 向量点 / 规范化文本，
-从而保证 embedding 临时失败不会摧毁原本 ready 的可检索索引。
+两条核心不变量：
+1. 全部 chunk 的 embedding 成功之前，绝不触碰既有的 chunk 行 / 向量点 / 规范化文本；
+2. 重建失败时，原本 ready 的索引必须继续被 search_service 选中，而不是变成 failed 后从搜索里消失。
 """
 
+import asyncio
+import hashlib
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,16 +16,25 @@ import pytest
 
 from nekro_agent.services.kb import index_service, library_index_service
 from nekro_agent.services.kb.chunker import ChunkDraft
+from nekro_agent.services.kb.search_service import _source_is_search_ready
+
+_NEW_TEXT = "新的规范化文本"
+_OLD_TEXT = "旧的规范化文本"
 
 
 def _draft(content: str) -> ChunkDraft:
     return ChunkDraft(heading_path="", content=content, char_start=0, char_end=len(content))
 
 
+def _expected_rel_path(document_id: int, text: str) -> str:
+    return f"{document_id}-{hashlib.sha256(text.encode('utf-8')).hexdigest()[:32]}.md"
+
+
 @dataclass
 class _FakeDocument:
     id: int = 1
     workspace_id: int = 1
+    is_enabled: bool = True
     source_path: str = "source.md"
     file_name: str = "source.md"
     title: str = "doc"
@@ -32,63 +44,83 @@ class _FakeDocument:
     sync_status: str = "ready"
     last_error: str | None = None
     chunk_count: int = 3
-    last_indexed_at: object = None
+    last_indexed_at: object = "old-timestamp"
     saved_fields: list[list[str]] = field(default_factory=list)
 
-    async def save(self, update_fields: list[str] | None = None) -> None:
+    async def save(self, update_fields: list[str] | None = None, using_db: object = None) -> None:
         self.saved_fields.append(list(update_fields or []))
 
 
 @dataclass
 class _IndexHarness:
     document: _FakeDocument
-    normalized_file: Path
-    staged_file: Path
-    swap_calls: list[tuple[object, ...]]
+    normalized_dir: Path
+    live_file: Path
+    swap_kwargs: list[dict[str, object]]
+
+    @property
+    def new_file(self) -> Path:
+        return self.normalized_dir / _expected_rel_path(self.document.id, _NEW_TEXT)
 
 
-def _install_index_document_harness(monkeypatch: pytest.MonkeyPatch, *, embedding_ok: bool) -> _IndexHarness:
-    """把 index_document 的外部依赖（DB/文件/向量库）替换成可观测的假实现。"""
-    temp_dir = Path(tempfile.mkdtemp(prefix="nekro-kb-index-"))
-    normalized_file = temp_dir / "1.md"
-    normalized_file.write_text("旧的规范化文本", "utf-8")
-    document = _FakeDocument()
-    swap_calls: list[tuple[object, ...]] = []
+def _install_harness(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    embedding_ok: bool,
+    document: _FakeDocument | None = None,
+) -> _IndexHarness:
+    """把 index_document 的外部依赖（DB / 文件 / 向量库）替换成可观测的假实现。"""
+    normalized_dir = Path(tempfile.mkdtemp(prefix="nekro-kb-index-"))
+    document = document or _FakeDocument()
+    live_file = normalized_dir / document.normalized_text_path
+    live_file.write_text(_OLD_TEXT, "utf-8")
+    swap_kwargs: list[dict[str, object]] = []
 
-    async def _noop_progress(*_args: object, **_kwargs: object) -> None:
-        return None
-
-    async def _noop_references(*_args: object, **_kwargs: object) -> None:
+    async def _noop(*_args: object, **_kwargs: object) -> None:
         return None
 
     async def _fake_embed(texts: list[str]) -> list[list[float] | None]:
         return [[1.0] if embedding_ok else None for _ in texts]
 
-    async def _recording_swap(*args: object) -> int:
-        swap_calls.append(args)
+    async def _recording_swap(*_args: object, **kwargs: object) -> int:
+        # 忠实模拟真实 _swap_document_index：元数据在同一事务内一并 flip
+        swap_kwargs.append(kwargs)
+        assert document is not None
+        document.normalized_text_path = str(kwargs["normalized_rel_path"])
+        document.normalized_text_hash = str(kwargs["normalized_text_hash"])
+        document.chunk_count = 7
+        document.extract_status = "ready"
+        document.sync_status = "ready"
+        document.last_indexed_at = "new-timestamp"
+        document.last_error = None
         return 7
 
-    monkeypatch.setattr(index_service, "_publish_index_progress", _noop_progress)
-    monkeypatch.setattr(index_service, "detect_and_sync_document_references", _noop_references)
+    monkeypatch.setattr(index_service, "_publish_index_progress", _noop)
+    monkeypatch.setattr(index_service, "detect_and_sync_document_references", _noop)
     monkeypatch.setattr(index_service, "embed_kb_batch", _fake_embed)
     monkeypatch.setattr(index_service, "_swap_document_index", _recording_swap)
-    monkeypatch.setattr(index_service, "extract_source_file", lambda *_args: SimpleNamespace(text="新的规范化文本"))
+    monkeypatch.setattr(index_service, "extract_source_file", lambda *_args: SimpleNamespace(text=_NEW_TEXT))
     monkeypatch.setattr(
         index_service,
         "WorkspaceService",
         SimpleNamespace(
             ensure_kb_dirs=lambda _workspace_id: None,
-            resolve_kb_source_path=lambda _workspace_id, _path: temp_dir / "source.md",
-            resolve_kb_normalized_path=lambda _workspace_id, _path: normalized_file,
+            resolve_kb_source_path=lambda _workspace_id, _path: normalized_dir / "source.md",
+            resolve_kb_normalized_path=lambda _workspace_id, rel_path: normalized_dir / rel_path,
         ),
     )
 
     return _IndexHarness(
         document=document,
-        normalized_file=normalized_file,
-        staged_file=normalized_file.with_name(f"{normalized_file.name}.staging"),
-        swap_calls=swap_calls,
+        normalized_dir=normalized_dir,
+        live_file=live_file,
+        swap_kwargs=swap_kwargs,
     )
+
+
+# --------------------------------------------------------------------------------------
+# staging：embedding 全部成功前不触碰任何既有索引数据
+# --------------------------------------------------------------------------------------
 
 
 @pytest.fixture
@@ -108,11 +140,10 @@ async def test_embed_chunk_drafts_returns_vectors_aligned_with_drafts(
         return [[float(len(text))] for text in texts]
 
     monkeypatch.setattr(index_service, "embed_kb_batch", fake_embed_kb_batch)
-    drafts = [_draft("a"), _draft("bb"), _draft("ccc")]
 
     vectors = await index_service._embed_chunk_drafts(
         SimpleNamespace(id=1, workspace_id=1),  # type: ignore[arg-type]
-        drafts,
+        [_draft("a"), _draft("bb"), _draft("ccc")],
         started_at=0,
     )
 
@@ -172,28 +203,114 @@ async def test_library_embed_chunk_drafts_raises_when_any_embedding_missing(
         )
 
 
-async def test_embedding_failure_never_reaches_index_swap(monkeypatch: pytest.MonkeyPatch) -> None:
-    """embedding 失败时，切换阶段完全不被调用，线上规范化文本也保持旧内容。"""
-    harness = _install_index_document_harness(monkeypatch, embedding_ok=False)
+# --------------------------------------------------------------------------------------
+# 失败路径：旧索引必须保持对 search_service 可见
+# --------------------------------------------------------------------------------------
+
+
+async def test_failed_rebuild_keeps_existing_index_searchable(monkeypatch: pytest.MonkeyPatch) -> None:
+    harness = _install_harness(monkeypatch, embedding_ok=False)
 
     with pytest.raises(RuntimeError, match="知识库向量化失败"):
-        await index_service.index_document(harness.document)  # type: ignore[arg-type]
+        await index_service.rebuild_document(harness.document)  # type: ignore[arg-type]
 
-    assert harness.swap_calls == []
-    assert harness.normalized_file.read_text("utf-8") == "旧的规范化文本"
-    assert not harness.staged_file.exists()
-    assert harness.document.normalized_text_hash == "old-hash"
+    document = harness.document
+    # 关键断言：失败后仍然满足 search_workspace_kb 的入选条件
+    assert _source_is_search_ready(document) is True  # type: ignore[arg-type]
+    assert (document.extract_status, document.sync_status) == ("ready", "ready")
+    # 旧索引的统计与文本指针原样保留
+    assert document.chunk_count == 3
+    assert document.normalized_text_path == "1.md"
+    assert document.normalized_text_hash == "old-hash"
+    assert document.last_indexed_at == "old-timestamp"
+    assert document.last_error is not None
+    # 切换阶段完全没被调用，线上规范化文本没被动过，staging 文件已清理
+    assert harness.swap_kwargs == []
+    assert harness.live_file.read_text("utf-8") == _OLD_TEXT
+    assert not harness.new_file.exists()
 
 
-async def test_successful_index_commits_staged_normalized_text(monkeypatch: pytest.MonkeyPatch) -> None:
-    """索引成功后才把规范化文本切到线上，并落库新的 hash。"""
-    harness = _install_index_document_harness(monkeypatch, embedding_ok=True)
+async def test_failed_first_index_is_marked_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """没有可用旧索引时不做保护性回退，仍如实标记 failed。"""
+    fresh = _FakeDocument(extract_status="pending", sync_status="pending", chunk_count=0)
+    harness = _install_harness(monkeypatch, embedding_ok=False, document=fresh)
+
+    with pytest.raises(RuntimeError, match="知识库向量化失败"):
+        await index_service.rebuild_document(harness.document)  # type: ignore[arg-type]
+
+    assert (fresh.extract_status, fresh.sync_status) == ("failed", "failed")
+    assert _source_is_search_ready(fresh) is False  # type: ignore[arg-type]
+    assert not harness.new_file.exists()
+
+
+async def test_cancelled_rebuild_keeps_existing_index_searchable(monkeypatch: pytest.MonkeyPatch) -> None:
+    harness = _install_harness(monkeypatch, embedding_ok=True)
+
+    async def _cancel(*_args: object, **_kwargs: object) -> int:
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(index_service, "_swap_document_index", _cancel)
+
+    with pytest.raises(asyncio.CancelledError):
+        await index_service.rebuild_document(harness.document)  # type: ignore[arg-type]
+
+    assert _source_is_search_ready(harness.document) is True  # type: ignore[arg-type]
+    assert harness.live_file.read_text("utf-8") == _OLD_TEXT
+
+
+# --------------------------------------------------------------------------------------
+# 成功路径：新文本写到独立路径，切换交给单事务完成
+# --------------------------------------------------------------------------------------
+
+
+async def test_successful_index_writes_new_text_to_separate_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    harness = _install_harness(monkeypatch, embedding_ok=True)
 
     chunk_count = await index_service.index_document(harness.document)  # type: ignore[arg-type]
 
     assert chunk_count == 7
-    assert len(harness.swap_calls) == 1
-    assert harness.normalized_file.read_text("utf-8") == "新的规范化文本"
-    assert not harness.staged_file.exists()
-    assert harness.document.sync_status == "ready"
-    assert harness.document.normalized_text_hash != "old-hash"
+    # 新文本落在内容寻址的新路径上，旧文本在切换前保持不变
+    assert harness.new_file.read_text("utf-8") == _NEW_TEXT
+    assert harness.live_file.read_text("utf-8") == _OLD_TEXT
+    # 新路径与新 hash 交给 _swap_document_index 在单个事务内 flip
+    assert len(harness.swap_kwargs) == 1
+    assert harness.swap_kwargs[0]["normalized_rel_path"] == _expected_rel_path(1, _NEW_TEXT)
+    assert harness.swap_kwargs[0]["normalized_text_hash"] == hashlib.sha256(_NEW_TEXT.encode("utf-8")).hexdigest()
+
+
+async def test_ready_document_status_not_downgraded_during_rebuild(monkeypatch: pytest.MonkeyPatch) -> None:
+    """重建期间不得把 ready 索引改成 indexing/pending，否则搜索端会直接过滤掉。"""
+    harness = _install_harness(monkeypatch, embedding_ok=True)
+    observed: list[tuple[str, str]] = []
+
+    async def _observing_swap(*_args: object, **kwargs: object) -> int:
+        observed.append((harness.document.extract_status, harness.document.sync_status))
+        harness.swap_kwargs.append(kwargs)
+        return 7
+
+    monkeypatch.setattr(index_service, "_swap_document_index", _observing_swap)
+
+    await index_service.index_document(harness.document)  # type: ignore[arg-type]
+
+    assert observed == [("ready", "ready")]
+    assert all("sync_status" not in fields for fields in harness.document.saved_fields)
+
+
+async def test_post_commit_failure_does_not_roll_back_committed_index(monkeypatch: pytest.MonkeyPatch) -> None:
+    """切换提交后收尾步骤失败，不得把元数据回滚到已被删除的旧规范化文本。"""
+    harness = _install_harness(monkeypatch, embedding_ok=True)
+
+    async def _boom(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("reference sync down")
+
+    monkeypatch.setattr(index_service, "detect_and_sync_document_references", _boom)
+
+    chunk_count = await index_service.rebuild_document(harness.document)  # type: ignore[arg-type]
+
+    document = harness.document
+    assert chunk_count == 7
+    # 新索引已生效：路径/统计/状态都必须停留在切换后的值
+    assert document.normalized_text_path == _expected_rel_path(1, _NEW_TEXT)
+    assert document.chunk_count == 7
+    assert document.last_indexed_at == "new-timestamp"
+    assert _source_is_search_ready(document) is True  # type: ignore[arg-type]

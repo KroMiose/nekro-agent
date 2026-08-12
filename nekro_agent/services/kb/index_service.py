@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import time
 from contextlib import suppress
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -47,21 +48,76 @@ def _preview_text(text: str, max_chars: int = PREVIEW_MAX_CHARS) -> str:
     return f"{normalized[: max_chars - 1]}…"
 
 
-def _write_staged_normalized_text(target: Path, text: str) -> Path:
-    """规范化文本先落到同目录临时文件。
+def _normalized_rel_path_for(document_id: int, text_hash: str) -> str:
+    """规范化文本按内容寻址命名，让新旧两版可以并存到切换完成为止。"""
+    return f"{document_id}-{text_hash[:32]}.md"
 
-    检索按 char_start/char_end 从规范化文本取原文，提前覆盖会让仍在服务的旧 chunk 错位，
-    因此索引成功前不能动线上文件。
-    """
+
+def _write_normalized_text(target: Path, text: str) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
-    staged = target.with_name(f"{target.name}.staging")
-    staged.write_text(text, "utf-8")
-    return staged
+    target.write_text(text, "utf-8")
 
 
-def _discard_staged_normalized_text(staged: Path) -> None:
+def _discard_normalized_text(target: Path) -> None:
     with suppress(OSError):
-        staged.unlink()
+        target.unlink()
+
+
+@dataclass(frozen=True)
+class _IndexStateSnapshot:
+    """重建开始前的索引状态，用于失败时把仍然完好的旧索引恢复成可检索。"""
+
+    extract_status: str
+    sync_status: str
+    chunk_count: int
+    last_indexed_at: datetime | None
+    normalized_text_path: str
+    normalized_text_hash: str
+
+    @property
+    def searchable(self) -> bool:
+        """与 search_service._source_is_search_ready 的状态条件保持一致。"""
+        return self.extract_status == "ready" and self.sync_status == "ready"
+
+
+_RESTORE_UPDATE_FIELDS = [
+    "extract_status",
+    "sync_status",
+    "chunk_count",
+    "last_indexed_at",
+    "normalized_text_path",
+    "normalized_text_hash",
+    "last_error",
+    "update_time",
+]
+
+
+def _snapshot_document_state(document: DBKBDocument) -> _IndexStateSnapshot:
+    return _IndexStateSnapshot(
+        extract_status=document.extract_status,
+        sync_status=document.sync_status,
+        chunk_count=document.chunk_count,
+        last_indexed_at=document.last_indexed_at,
+        normalized_text_path=document.normalized_text_path or "",
+        normalized_text_hash=document.normalized_text_hash,
+    )
+
+
+async def _restore_document_state(
+    document: DBKBDocument,
+    snapshot: _IndexStateSnapshot,
+    *,
+    last_error: str,
+) -> None:
+    """回退到重建前状态：旧 chunk / 向量点 / 规范化文本都还在，索引必须保持可检索。"""
+    document.extract_status = snapshot.extract_status
+    document.sync_status = snapshot.sync_status
+    document.chunk_count = snapshot.chunk_count
+    document.last_indexed_at = snapshot.last_indexed_at
+    document.normalized_text_path = snapshot.normalized_text_path
+    document.normalized_text_hash = snapshot.normalized_text_hash
+    document.last_error = last_error
+    await document.save(update_fields=_RESTORE_UPDATE_FIELDS)
 
 
 async def _publish_index_progress(
@@ -140,11 +196,16 @@ async def _swap_document_index(
     document: DBKBDocument,
     drafts: list[ChunkDraft],
     vectors: list[list[float]],
+    *,
+    snapshot: _IndexStateSnapshot,
+    normalized_rel_path: str,
+    normalized_text_hash: str,
 ) -> int:
-    """原子切换文档索引：新数据全部就绪后才替换旧的 chunk 行与向量点。
+    """原子切换文档索引：新数据全部就绪后才替换旧的 chunk 行、向量点与规范化文本指针。
 
-    DB 事务包住「删旧行 + 建新行 + 写入 Qdrant」，Qdrant 写入失败会连同 DB 一起回滚，
-    旧索引保持原样可检索；只有事务提交成功后才清理旧向量点。
+    单个 DB 事务包住「删旧行 + 建新行 + 写 Qdrant + flip 文档元数据」，任一步失败整体回滚，
+    文档仍指向旧 chunk 与旧规范化文本，保持原样可检索。
+    只有事务提交成功后才清理旧向量点与旧文本文件——它们都是提交后的纯清理动作，失败仅留残留。
     """
     stale_chunk_ids = await list_document_chunk_ids(document.id)
     created_count = 0
@@ -194,10 +255,37 @@ async def _swap_document_index(
             )
             created_count = len(created_chunks)
 
+        # 元数据与 chunk 行在同一事务内 flip，避免出现「新 chunk + 旧文本指针」的中间态
+        document.normalized_text_path = normalized_rel_path
+        document.normalized_text_hash = normalized_text_hash
+        document.chunk_count = created_count
+        document.extract_status = "ready"
+        document.sync_status = "ready"
+        document.last_indexed_at = datetime.now(timezone.utc)
+        document.last_error = None
+        await document.save(
+            update_fields=[
+                "normalized_text_path",
+                "normalized_text_hash",
+                "chunk_count",
+                "extract_status",
+                "sync_status",
+                "last_indexed_at",
+                "last_error",
+                "update_time",
+            ],
+            using_db=conn,
+        )
+
     try:
         await delete_document_vector_points(stale_chunk_ids)
     except Exception as e:
         logger.warning(f"清理知识库旧向量点失败（不影响新索引可用性）: document_id={document.id}, error={e}")
+    if snapshot.normalized_text_path and snapshot.normalized_text_path != normalized_rel_path:
+        with suppress(ValueError):
+            _discard_normalized_text(
+                WorkspaceService.resolve_kb_normalized_path(document.workspace_id, snapshot.normalized_text_path)
+            )
 
     return created_count
 
@@ -205,28 +293,39 @@ async def _swap_document_index(
 async def index_document(document: DBKBDocument) -> int:
     started_at = int(time.time() * 1000)
     WorkspaceService.ensure_kb_dirs(document.workspace_id)
-    document.extract_status = "extracting"
-    document.sync_status = "pending"
+    snapshot = _snapshot_document_state(document)
+
+    # 已有可检索索引时不下调状态：重建期间旧索引对搜索保持可见，进度另经 SSE 推送
     document.last_error = None
-    await document.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
+    if snapshot.searchable:
+        await document.save(update_fields=["last_error", "update_time"])
+    else:
+        document.extract_status = "extracting"
+        document.sync_status = "pending"
+        await document.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
     await _publish_index_progress(document, phase="extracting", started_at=started_at, progress_percent=5)
 
     source_file = WorkspaceService.resolve_kb_source_path(document.workspace_id, document.source_path)
     extracted = await asyncio.to_thread(extract_source_file, source_file, document.file_name)
     normalized_text = extracted.text.strip()
-    normalized_rel_path = document.normalized_text_path or f"{document.id}.md"
-    normalized_file = WorkspaceService.resolve_kb_normalized_path(document.workspace_id, normalized_rel_path)
-    staged_file = await asyncio.to_thread(_write_staged_normalized_text, normalized_file, normalized_text)
+    normalized_text_hash = _hash_text(normalized_text)
+    staged_rel_path = _normalized_rel_path_for(document.id, normalized_text_hash)
+    staged_file = WorkspaceService.resolve_kb_normalized_path(document.workspace_id, staged_rel_path)
+    reuses_live_text = staged_rel_path == snapshot.normalized_text_path
 
-    document.extract_status = "ready"
-    document.sync_status = "indexing"
-    await document.save(update_fields=["extract_status", "sync_status", "update_time"])
+    if not snapshot.searchable:
+        document.extract_status = "ready"
+        document.sync_status = "indexing"
+        await document.save(update_fields=["extract_status", "sync_status", "update_time"])
     await _publish_index_progress(document, phase="chunking", started_at=started_at, progress_percent=20)
 
     committed = False
     try:
+        # staging 阶段：新文本写到独立路径，旧 chunk / 向量点 / 旧文本一律不动
+        if not reuses_live_text or not staged_file.exists():
+            await asyncio.to_thread(_write_normalized_text, staged_file, normalized_text)
+
         drafts = split_text_into_chunks(normalized_text)
-        # staging 阶段：向量全部就绪前不删除任何既有 chunk / 向量点，也不覆盖线上规范化文本
         vectors = await _embed_chunk_drafts(document, drafts, started_at=started_at) if drafts else []
 
         if drafts:
@@ -238,58 +337,46 @@ async def index_document(document: DBKBDocument) -> int:
                 total_chunks=len(drafts),
                 processed_chunks=len(drafts),
             )
-        chunk_count = await _swap_document_index(document, drafts, vectors)
-        staged_file.replace(normalized_file)
+        chunk_count = await _swap_document_index(
+            document,
+            drafts,
+            vectors,
+            snapshot=snapshot,
+            normalized_rel_path=staged_rel_path,
+            normalized_text_hash=normalized_text_hash,
+        )
         committed = True
     finally:
-        if not committed:
-            _discard_staged_normalized_text(staged_file)
+        if not committed and not reuses_live_text:
+            _discard_normalized_text(staged_file)
 
-    document.normalized_text_path = normalized_rel_path
-    document.normalized_text_hash = _hash_text(normalized_text)
-    document.chunk_count = chunk_count
-    document.sync_status = "ready"
-    document.last_indexed_at = datetime.now(timezone.utc)
-    document.last_error = None
-    await document.save(
-        update_fields=[
-            "normalized_text_path",
-            "normalized_text_hash",
-            "chunk_count",
-            "sync_status",
-            "last_indexed_at",
-            "last_error",
-            "update_time",
-        ]
-    )
-    await _publish_index_progress(
-        document,
-        phase="ready",
-        started_at=started_at,
-        progress_percent=100,
-        total_chunks=chunk_count,
-        processed_chunks=chunk_count,
-        expires_in_ms=4000,
-    )
-    await detect_and_sync_document_references(document.workspace_id, document.id)
+    # 切换已提交：此后不得再有可失败步骤，否则 rebuild_document 会误把元数据回滚到已删除的旧文本
     return chunk_count
 
 
 async def rebuild_document(document: DBKBDocument) -> int:
+    snapshot = _snapshot_document_state(document)
     try:
-        return await index_document(document)
+        chunk_count = await index_document(document)
     except asyncio.CancelledError:
-        document.extract_status = "pending"
-        document.sync_status = "pending"
-        document.last_error = "任务被取消"
-        await document.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
+        if snapshot.searchable:
+            await _restore_document_state(document, snapshot, last_error="任务被取消")
+        else:
+            document.extract_status = "pending"
+            document.sync_status = "pending"
+            document.last_error = "任务被取消"
+            await document.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
         raise
     except Exception as e:
         logger.warning(f"知识库文档索引失败: workspace={document.workspace_id}, document_id={document.id}, error={e}")
-        document.extract_status = "failed"
-        document.sync_status = "failed"
-        document.last_error = str(e)
-        await document.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
+        if snapshot.searchable:
+            logger.info(f"知识库文档重建失败，回退到上一次成功的索引并保持可检索: document_id={document.id}")
+            await _restore_document_state(document, snapshot, last_error=str(e))
+        else:
+            document.extract_status = "failed"
+            document.sync_status = "failed"
+            document.last_error = str(e)
+            await document.save(update_fields=["extract_status", "sync_status", "last_error", "update_time"])
         await _publish_index_progress(
             document,
             phase="failed",
@@ -299,6 +386,22 @@ async def rebuild_document(document: DBKBDocument) -> int:
             expires_in_ms=8000,
         )
         raise
+
+    # 索引已生效，以下均为尽力而为的收尾，失败不得回滚状态
+    try:
+        await _publish_index_progress(
+            document,
+            phase="ready",
+            started_at=int(time.time() * 1000),
+            progress_percent=100,
+            total_chunks=chunk_count,
+            processed_chunks=chunk_count,
+            expires_in_ms=4000,
+        )
+        await detect_and_sync_document_references(document.workspace_id, document.id)
+    except Exception as e:
+        logger.warning(f"知识库索引收尾处理失败（索引已生效）: document_id={document.id}, error={e}")
+    return chunk_count
 
 
 async def _run_rebuild_document_task(document_id: int) -> None:
