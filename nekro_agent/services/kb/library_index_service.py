@@ -194,6 +194,13 @@ async def _embed_chunk_drafts(
     return [vector for vector in vectors if vector is not None]
 
 
+def _staged_qdrant_payload(chunk: DBKBAssetChunk, *, asset: DBKBAsset, content_preview: str) -> dict[str, object]:
+    """staging 点先写成不可检索：is_enabled=False 不满足检索过滤条件，DB 提交后再激活。"""
+    payload = chunk.to_qdrant_payload(asset=asset, content_preview=content_preview)
+    payload["is_enabled"] = False
+    return payload
+
+
 async def _swap_asset_index(
     asset: DBKBAsset,
     drafts: list[ChunkDraft],
@@ -203,78 +210,105 @@ async def _swap_asset_index(
     normalized_rel_path: str,
     normalized_text_hash: str,
 ) -> int:
-    """原子切换资产索引：新数据全部就绪后才替换旧的 chunk 行、向量点与规范化文本指针。
+    """两阶段切换资产索引。
 
-    单个 DB 事务包住「删旧行 + 建新行 + 写 Qdrant + flip 资产元数据」，任一步失败整体回滚，
-    资产仍指向旧 chunk 与旧规范化文本，保持原样可检索。
-    只有事务提交成功后才清理旧向量点与旧文本文件——它们都是提交后的纯清理动作，失败仅留残留。
+    Qdrant 写入不受 Postgres 事务保护，所以新向量点先以 is_enabled=False 写入：它们不满足
+    检索过滤条件，旧点仍是唯一可检索的一份。若 DB 事务在 upsert 之后回滚（save/commit/取消），
+    这些点只是惰性残留，不会挤占 grouped search 名额，并会被尽力清除。
+    事务提交成功后才激活新点、清理旧点与旧文本文件——这些都是提交后的纯清理动作。
     """
     stale_chunk_ids = await list_asset_chunk_ids(asset.id)
+    staged_point_ids: list[int] = []
     created_count = 0
+    switched = False
 
-    async with in_transaction() as conn:
-        await DBKBAssetChunk.filter(asset_id=asset.id).using_db(conn).delete()
-        if drafts:
-            await DBKBAssetChunk.bulk_create(
-                [
-                    DBKBAssetChunk(
-                        asset_id=asset.id,
-                        chunk_index=index,
-                        heading_path=draft.heading_path,
-                        char_start=draft.char_start,
-                        char_end=draft.char_end,
-                        token_count=_estimate_tokens(draft.content),
-                    )
-                    for index, draft in enumerate(drafts)
+    try:
+        async with in_transaction() as conn:
+            await DBKBAssetChunk.filter(asset_id=asset.id).using_db(conn).delete()
+            if drafts:
+                await DBKBAssetChunk.bulk_create(
+                    [
+                        DBKBAssetChunk(
+                            asset_id=asset.id,
+                            chunk_index=index,
+                            heading_path=draft.heading_path,
+                            char_start=draft.char_start,
+                            char_end=draft.char_end,
+                            token_count=_estimate_tokens(draft.content),
+                        )
+                        for index, draft in enumerate(drafts)
+                    ],
+                    batch_size=INDEX_BATCH_SIZE,
+                    using_db=conn,
+                )
+                created_chunks = (
+                    await DBKBAssetChunk.filter(asset_id=asset.id).using_db(conn).order_by("chunk_index").all()
+                )
+                for chunk in created_chunks:
+                    chunk.embedding_ref = str(chunk.id)
+                await DBKBAssetChunk.bulk_update(
+                    created_chunks,
+                    fields=["embedding_ref", "update_time"],
+                    batch_size=INDEX_BATCH_SIZE,
+                    using_db=conn,
+                )
+                await kb_library_qdrant_manager.batch_upsert(
+                    [
+                        (
+                            chunk.id,
+                            vector,
+                            _staged_qdrant_payload(
+                                chunk,
+                                asset=asset,
+                                content_preview=_preview_text(draft.content),
+                            ),
+                        )
+                        for chunk, draft, vector in zip(created_chunks, drafts, vectors, strict=True)
+                    ]
+                )
+                staged_point_ids = [chunk.id for chunk in created_chunks]
+                created_count = len(created_chunks)
+
+            # 元数据与 chunk 行在同一事务内 flip，避免出现「新 chunk + 旧文本指针」的中间态
+            asset.normalized_text_path = normalized_rel_path
+            asset.normalized_text_hash = normalized_text_hash
+            asset.chunk_count = created_count
+            asset.extract_status = "ready"
+            asset.sync_status = "ready"
+            asset.last_indexed_at = datetime.now(timezone.utc)
+            asset.last_error = None
+            await asset.save(
+                update_fields=[
+                    "normalized_text_path",
+                    "normalized_text_hash",
+                    "chunk_count",
+                    "extract_status",
+                    "sync_status",
+                    "last_indexed_at",
+                    "last_error",
+                    "update_time",
                 ],
-                batch_size=INDEX_BATCH_SIZE,
                 using_db=conn,
             )
-            created_chunks = (
-                await DBKBAssetChunk.filter(asset_id=asset.id).using_db(conn).order_by("chunk_index").all()
-            )
-            for chunk in created_chunks:
-                chunk.embedding_ref = str(chunk.id)
-            await DBKBAssetChunk.bulk_update(
-                created_chunks,
-                fields=["embedding_ref", "update_time"],
-                batch_size=INDEX_BATCH_SIZE,
-                using_db=conn,
-            )
-            await kb_library_qdrant_manager.batch_upsert(
-                [
-                    (
-                        chunk.id,
-                        vector,
-                        chunk.to_qdrant_payload(asset=asset, content_preview=_preview_text(draft.content)),
-                    )
-                    for chunk, draft, vector in zip(created_chunks, drafts, vectors, strict=True)
-                ]
-            )
-            created_count = len(created_chunks)
+        switched = True
+    finally:
+        if not switched and staged_point_ids:
+            try:
+                await delete_asset_vector_points(staged_point_ids)
+            except Exception as e:
+                logger.warning(
+                    f"清理全局知识库 staging 向量点失败（这些点不可检索，不影响搜索结果）: "
+                    f"asset_id={asset.id}, error={e}",
+                )
 
-        # 元数据与 chunk 行在同一事务内 flip，避免出现「新 chunk + 旧文本指针」的中间态
-        asset.normalized_text_path = normalized_rel_path
-        asset.normalized_text_hash = normalized_text_hash
-        asset.chunk_count = created_count
-        asset.extract_status = "ready"
-        asset.sync_status = "ready"
-        asset.last_indexed_at = datetime.now(timezone.utc)
-        asset.last_error = None
-        await asset.save(
-            update_fields=[
-                "normalized_text_path",
-                "normalized_text_hash",
-                "chunk_count",
-                "extract_status",
-                "sync_status",
-                "last_indexed_at",
-                "last_error",
-                "update_time",
-            ],
-            using_db=conn,
+    # 先激活新点再删旧点，保证任何时刻至少有一份点可检索；失败可由元数据同步或重建修复
+    try:
+        await kb_library_qdrant_manager.set_payload(
+            chunk_ids=staged_point_ids,
+            payload={"is_enabled": asset.is_enabled},
         )
-
+    except Exception as e:
+        logger.warning(f"激活全局知识库新向量点失败，该资产检索暂不可用: asset_id={asset.id}, error={e}")
     try:
         await delete_asset_vector_points(stale_chunk_ids)
     except Exception as e:

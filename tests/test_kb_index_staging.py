@@ -314,3 +314,186 @@ async def test_post_commit_failure_does_not_roll_back_committed_index(monkeypatc
     assert document.chunk_count == 7
     assert document.last_indexed_at == "new-timestamp"
     assert _source_is_search_ready(document) is True  # type: ignore[arg-type]
+
+
+# --------------------------------------------------------------------------------------
+# 两阶段切换：Qdrant 写入不受 DB 事务保护，新点必须先不可检索
+# --------------------------------------------------------------------------------------
+
+
+class _FakeQdrant:
+    """记录 Qdrant 侧调用，用于断言 staging 点的可见性与清理。"""
+
+    def __init__(self) -> None:
+        self.upserted: list[tuple[int, list[float], dict[str, object]]] = []
+        self.activated: list[tuple[list[int], dict[str, object]]] = []
+        self.deleted: list[list[int]] = []
+
+    async def batch_upsert(self, points: list[tuple[int, list[float], dict[str, object]]]) -> int:
+        self.upserted.extend(points)
+        return len(points)
+
+    async def set_payload(self, *, chunk_ids: list[int], payload: dict[str, object]) -> None:
+        if not chunk_ids:
+            return
+        self.activated.append((list(chunk_ids), dict(payload)))
+
+    async def delete_chunk_points(self, chunk_ids: list[int]) -> None:
+        self.deleted.append(list(chunk_ids))
+
+
+class _FakeChunk:
+    def __init__(self, chunk_id: int, chunk_index: int) -> None:
+        self.id = chunk_id
+        self.chunk_index = chunk_index
+        self.embedding_ref: str | None = None
+
+    def to_qdrant_payload(self, *, document: object, content_preview: str) -> dict[str, object]:
+        return {
+            "document_id": getattr(document, "id", 0),
+            "chunk_index": self.chunk_index,
+            "content_preview": content_preview,
+            "is_enabled": getattr(document, "is_enabled", True),
+        }
+
+
+class _FakeChunkQuerySet:
+    def __init__(self, model: "_FakeChunkModel") -> None:
+        self._model = model
+
+    def using_db(self, _conn: object) -> "_FakeChunkQuerySet":
+        return self
+
+    def order_by(self, _field: str) -> "_FakeChunkQuerySet":
+        return self
+
+    async def all(self) -> list[_FakeChunk]:
+        return list(self._model.rows)
+
+    async def delete(self) -> int:
+        removed = len(self._model.rows)
+        self._model.rows = []
+        return removed
+
+    async def values_list(self, _field: str, flat: bool = True) -> list[int]:
+        return [row.id for row in self._model.rows]
+
+
+class _FakeChunkModel:
+    """够用的 DBKBChunk 替身：只覆盖 _swap_document_index 用到的接口。"""
+
+    def __init__(self, existing_ids: list[int]) -> None:
+        self.rows: list[_FakeChunk] = [_FakeChunk(chunk_id, index) for index, chunk_id in enumerate(existing_ids)]
+        self._next_id = 100  # 新建行的 id 与旧行不重叠，模拟自增主键不会复用
+
+    def __call__(self, **kwargs: object) -> _FakeChunk:
+        return _FakeChunk(0, int(kwargs.get("chunk_index", 0)))
+
+    def filter(self, **_kwargs: object) -> _FakeChunkQuerySet:
+        return _FakeChunkQuerySet(self)
+
+    async def bulk_create(self, objects: list[_FakeChunk], **_kwargs: object) -> None:
+        for obj in objects:
+            obj.id = self._next_id
+            self._next_id += 1
+            self.rows.append(obj)
+
+    async def bulk_update(self, _objects: list[_FakeChunk], **_kwargs: object) -> None:
+        return None
+
+
+class _RollingBackTransaction:
+    """模拟 upsert 之后、commit 之前失败：DB 侧回滚到旧 chunk。"""
+
+    def __init__(self, model: _FakeChunkModel, snapshot_rows: list[_FakeChunk]) -> None:
+        self._model = model
+        self._snapshot_rows = snapshot_rows
+
+    async def __aenter__(self) -> object:
+        return object()
+
+    async def __aexit__(self, *_exc: object) -> bool:
+        self._model.rows = list(self._snapshot_rows)
+        raise RuntimeError("commit failed")
+
+
+def _install_swap_harness(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    rolling_back: bool,
+) -> tuple[_FakeQdrant, _FakeChunkModel, _FakeDocument]:
+    qdrant = _FakeQdrant()
+    model = _FakeChunkModel(existing_ids=[11, 12])
+    snapshot_rows = list(model.rows)
+    document = _FakeDocument()
+
+    monkeypatch.setattr(index_service, "kb_qdrant_manager", qdrant)
+    monkeypatch.setattr(index_service, "DBKBChunk", model)
+    monkeypatch.setattr(
+        index_service,
+        "WorkspaceService",
+        SimpleNamespace(resolve_kb_normalized_path=lambda _workspace_id, rel_path: Path(tempfile.gettempdir()) / rel_path),
+    )
+    if rolling_back:
+        monkeypatch.setattr(index_service, "in_transaction", lambda: _RollingBackTransaction(model, snapshot_rows))
+    else:
+
+        class _OkTransaction:
+            async def __aenter__(self) -> object:
+                return object()
+
+            async def __aexit__(self, *_exc: object) -> bool:
+                return False
+
+        monkeypatch.setattr(index_service, "in_transaction", lambda: _OkTransaction())
+
+    return qdrant, model, document
+
+
+def _swap_kwargs(document: _FakeDocument) -> dict[str, object]:
+    return {
+        "snapshot": index_service._snapshot_document_state(document),  # type: ignore[arg-type]
+        "normalized_rel_path": _expected_rel_path(document.id, _NEW_TEXT),
+        "normalized_text_hash": "new-hash",
+    }
+
+
+async def test_staged_points_are_written_unsearchable_before_commit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """upsert 时新点必须 is_enabled=False，提交后才被激活成文档自身的可见性。"""
+    qdrant, _model, document = _install_swap_harness(monkeypatch, rolling_back=False)
+
+    created = await index_service._swap_document_index(
+        document,  # type: ignore[arg-type]
+        [_draft("a"), _draft("bb")],
+        [[1.0], [2.0]],
+        **_swap_kwargs(document),  # type: ignore[arg-type]
+    )
+
+    assert created == 2
+    # 阶段一：写入的点一律不可检索
+    assert [payload["is_enabled"] for _id, _vec, payload in qdrant.upserted] == [False, False]
+    # 阶段二：提交后才激活，且旧点在激活之后才被删除
+    assert qdrant.activated == [([100, 101], {"is_enabled": True})]
+    assert qdrant.deleted == [[11, 12]]
+
+
+async def test_rollback_after_upsert_leaves_no_searchable_orphan_points(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Qdrant upsert 成功后 DB flip 失败：新点既不能可检索，也不能残留。"""
+    qdrant, model, document = _install_swap_harness(monkeypatch, rolling_back=True)
+
+    with pytest.raises(RuntimeError, match="commit failed"):
+        await index_service._swap_document_index(
+            document,  # type: ignore[arg-type]
+            [_draft("a"), _draft("bb")],
+            [[1.0], [2.0]],
+            **_swap_kwargs(document),  # type: ignore[arg-type]
+        )
+
+    # 写进去的点全部 is_enabled=False，不会挤占 grouped search 名额
+    assert all(payload["is_enabled"] is False for _id, _vec, payload in qdrant.upserted)
+    # 从未被激活，且已被清理
+    assert qdrant.activated == []
+    assert qdrant.deleted == [[100, 101]]
+    # 旧点没有被删除，旧 chunk 行随事务回滚
+    assert [11, 12] not in qdrant.deleted
+    assert [row.id for row in model.rows] == [11, 12]
