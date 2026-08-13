@@ -41,9 +41,12 @@ import ActionButton from '../../components/common/ActionButton'
 import IconActionButton from '../../components/common/IconActionButton'
 
 const MAX_REALTIME_LOGS = 1000
+const MOBILE_MAX_REALTIME_LOGS = 400
 const INITIAL_LOGS_COUNT = 500
+const MOBILE_INITIAL_LOGS_COUNT = 250
 const ROW_HEIGHT = 36 // 固定行高
 const LOG_UPDATE_INTERVAL = 250 // 实时日志更新间隔 (ms)
+const MOBILE_LOG_UPDATE_INTERVAL = 500
 
 // 拆分并优化的 TableHeader 组件
 const TableHeader = memo(
@@ -254,6 +257,9 @@ export default function LogsPage() {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('logs')
   const notification = useNotification()
+  const realtimeLogLimit = isMobile ? MOBILE_MAX_REALTIME_LOGS : MAX_REALTIME_LOGS
+  const initialLogsCount = isMobile ? MOBILE_INITIAL_LOGS_COUNT : INITIAL_LOGS_COUNT
+  const logUpdateInterval = isMobile ? MOBILE_LOG_UPDATE_INTERVAL : LOG_UPDATE_INTERVAL
 
   const { data: sources = [] } = useQuery({
     queryKey: ['log-sources'],
@@ -262,11 +268,11 @@ export default function LogsPage() {
   })
 
   const { data: initialLogs = [] } = useQuery({
-    queryKey: ['initial-logs', filters.source],
+    queryKey: ['initial-logs', filters.source, initialLogsCount],
     queryFn: async () => {
       const response = await logsApi.getLogs({
         page: 1,
-        pageSize: INITIAL_LOGS_COUNT,
+        pageSize: initialLogsCount,
         source: filters.source || undefined,
       })
       return response.logs
@@ -290,21 +296,22 @@ export default function LogsPage() {
 
   useEffect(() => {
     if (autoScroll && listRef.current && filteredLogs.length > 0) {
-      setTimeout(() => {
+      const frameId = window.requestAnimationFrame(() => {
         listRef.current?.scrollToItem(filteredLogs.length - 1, 'end')
-      }, 50)
+      })
+      return () => window.cancelAnimationFrame(frameId)
     }
   }, [filteredLogs, autoScroll])
 
   useEffect(() => {
     let cleanup: (() => void) | undefined
     const intervalId = setInterval(() => {
-      if (logQueue.current.length > 0) {
+      if (!document.hidden && logQueue.current.length > 0) {
         const newLogs = [...logQueue.current]
         logQueue.current = []
-        setRealtimeLogs(prev => [...prev, ...newLogs].slice(-MAX_REALTIME_LOGS))
+        setRealtimeLogs(prev => [...prev, ...newLogs].slice(-realtimeLogLimit))
       }
-    }, LOG_UPDATE_INTERVAL)
+    }, logUpdateInterval)
 
     const connect = () => {
       try {
@@ -327,6 +334,9 @@ export default function LogsPage() {
               const sourceMatch = !filters.source || log.source === filters.source
               if (sourceMatch) {
                 logQueue.current.push(log)
+                if (logQueue.current.length > realtimeLogLimit) {
+                  logQueue.current = logQueue.current.slice(-realtimeLogLimit)
+                }
               }
             } catch (_error) {
               const now = Date.now()
@@ -355,7 +365,7 @@ export default function LogsPage() {
       clearInterval(intervalId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.source])
+  }, [filters.source, logUpdateInterval, realtimeLogLimit])
 
   const handleDownloadLogs = () => {
     setDownloadConfirmOpen(true)
@@ -540,8 +550,9 @@ export default function LogsPage() {
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 64px)',
-        p: 2,
+        height: '100%',
+        minHeight: 0,
+        p: { xs: 1, sm: 2 },
       }}
     >
       {isDisconnected && (
@@ -652,17 +663,27 @@ export default function LogsPage() {
         elevation={3}
         sx={{
           flexGrow: 1,
+          minHeight: 0,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           ...UNIFIED_TABLE_STYLES.paper,
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100%',
+            minHeight: 0,
+            width: '100%',
+          }}
+        >
           <TableHeader isMobile={isMobile} isSmall={isSmall} isAdvanced={isAdvanced} t={t} />
           <Box
             sx={{
               flexGrow: 1,
+              minHeight: 0,
               overflow: 'hidden',
               ...UNIFIED_TABLE_STYLES.tableViewport,
             }}
@@ -672,10 +693,10 @@ export default function LogsPage() {
                 <List
                   ref={listRef}
                   height={height}
-                  width={width + 20}
+                  width={width}
                   itemCount={filteredLogs.length}
                   itemSize={ROW_HEIGHT}
-                  overscanCount={20}
+                  overscanCount={isMobile ? 8 : 20}
                   style={{
                     overflowX: 'hidden',
                   }}

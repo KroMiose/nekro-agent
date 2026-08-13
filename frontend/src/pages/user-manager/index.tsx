@@ -85,7 +85,8 @@ const UserManagerPage: React.FC = () => {
       sx={{
         ...UNIFIED_TABLE_STYLES.tableLayoutContainer,
         p: 2,
-        height: 'calc(100vh - 64px)',
+        height: '100%',
+        minHeight: 0,
       }}
     >
       {/* 搜索栏 */}

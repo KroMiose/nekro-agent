@@ -503,7 +503,8 @@ export default function WorkspaceTimersPage() {
       sx={{
         ...UNIFIED_TABLE_STYLES.tableLayoutContainer,
         p: { xs: 1.5, sm: 2, md: 3 },
-        height: 'calc(100vh - 64px)',
+        height: '100%',
+        minHeight: 0,
       }}
     >
       <Box
