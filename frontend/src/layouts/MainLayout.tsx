@@ -577,7 +577,13 @@ function MainLayoutContent() {
         position: 'relative',
         background: UI_STYLES.BACKGROUND.PRIMARY,
         backgroundColor: theme.palette.mode === 'dark' ? '#181818' : '#f8f8f8',
-        minHeight: '100vh',
+        width: '100%',
+        height: '100vh',
+        minHeight: '100svh',
+        overflow: 'hidden',
+        '@supports (height: 100dvh)': {
+          height: '100dvh',
+        },
         transition: 'background 0.5s ease',
         padding: 0,
       }}
@@ -784,10 +790,13 @@ function MainLayoutContent() {
       </Box>
       <Box
         component="main"
-        className="flex-grow h-screen overflow-hidden flex flex-col"
+        className="flex-grow overflow-hidden flex flex-col"
         sx={{
           position: 'relative',
           flexGrow: 1,
+          height: '100%',
+          minHeight: 0,
+          minWidth: 0,
           width: {
             xs: '100%',
             md: drawerOpen ? `calc(100% - ${drawerWidth}px)` : '100%',
@@ -809,10 +818,15 @@ function MainLayoutContent() {
             duration: getAnimationDuration(0.36),
             ease: [0.4, 0, 0.2, 1],
           }}
-          className="h-full flex-grow overflow-auto rounded-xl performance-adaptive motion-div"
+          className="flex-grow overflow-auto rounded-xl performance-adaptive motion-div"
           style={{
             position: 'relative',
-            overflow: 'hidden',
+            flex: '1 1 auto',
+            minHeight: 0,
+            overflowX: 'hidden',
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
           }}
         >
           <div

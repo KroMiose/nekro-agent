@@ -541,7 +541,13 @@ export default function SandboxPage() {
   ]
 
   return (
-    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 3 }}>
+    <Box
+      sx={{
+        ...UNIFIED_TABLE_STYLES.tableLayoutContainer,
+        p: { xs: 1, sm: 2, md: 3 },
+        pb: { xs: 'calc(16px + env(safe-area-inset-bottom))', sm: 2, md: 3 },
+      }}
+    >
       {/* 统计卡片 */}
       <Box
         sx={{

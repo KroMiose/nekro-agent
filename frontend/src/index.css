@@ -15,10 +15,18 @@
   --nekro-gradient-opacity: 1;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100svh;
+  overflow-x: hidden;
 }
 
 /* 渐变动画关键帧定义 */

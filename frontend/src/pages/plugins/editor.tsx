@@ -860,7 +860,8 @@ export default function PluginsEditorPage() {
   return (
     <Box
       sx={{
-        height: 'calc(100vh - 64px)',
+        height: '100%',
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         p: 2,

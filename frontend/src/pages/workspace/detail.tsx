@@ -206,7 +206,8 @@ export default function WorkspaceDetailPage() {
   return (
     <Box
       sx={{
-        height: 'calc(100vh - 64px)',
+        height: '100%',
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',

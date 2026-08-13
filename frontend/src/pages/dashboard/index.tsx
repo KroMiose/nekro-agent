@@ -189,7 +189,7 @@ const DashboardContent: React.FC = () => {
   }
 
   return (
-    <Box className="h-[calc(100vh-64px)] flex flex-col gap-3 overflow-auto p-4">
+    <Box className="h-full min-h-0 flex flex-col gap-3 overflow-auto p-4">
       {/* 时间范围选择器 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
         <Box
