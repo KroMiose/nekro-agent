@@ -3,6 +3,7 @@
   "tabs": {
     "info": "Info",
     "config": "Config",
+    "webui": "Page",
     "methods": "Methods",
     "webhook": "Webhook",
     "data": "Data Management"
@@ -85,6 +86,11 @@
     "copied": "Webhook URL copied!",
     "description": "Description",
     "noEndpoints": "No webhook endpoints defined for this plugin"
+  },
+  "webui": {
+    "title": "{{name}} Plugin Page",
+    "loading": "Loading plugin page...",
+    "openInNewPage": "Open in New Page"
   },
   "data": {
     "title": "Plugin Data",

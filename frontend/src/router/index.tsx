@@ -58,6 +58,10 @@ const router = createHashRouter([
         element: lazyLoad(() => import('../pages/dashboard')),
       },
       {
+        path: 'web-chat',
+        element: lazyLoad(() => import('../pages/web-chat')),
+      },
+      {
         path: 'chat-channel',
         children: [
           {
@@ -173,6 +177,10 @@ const router = createHashRouter([
           {
             path: 'space-cleanup',
             element: lazyLoad(() => import('../pages/settings/space-cleanup')),
+          },
+          {
+            path: 'deployment',
+            element: lazyLoad(() => import('../pages/settings/deployment')),
           },
           {
             path: 'commands',

@@ -52,15 +52,25 @@ def _raw_to_disk_entry(raw: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if (validation.get("status") if isinstance(validation, dict) else None) != "validated":
         return None
     # 跳过 NA 内部字段
-    skip = {"name", "auto_inject", "enabled", "validation"}
+    skip = {"id", "name", "auto_inject", "enabled", "validation"}
     entry: Dict[str, Any] = {}
-    if raw.get("type"):
-        entry["transport"] = raw["type"]
     for k, v in raw.items():
-        if k in skip or k == "type":
+        if k in skip:
             continue
         entry[k] = v
     return entry
+
+
+def _resolve_library_entry(name: str, library: Dict[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    raw = library.get(name)
+    if raw is not None:
+        return raw
+
+    from nekro_agent.services.mcp.web_chat_auth import is_web_chat_mcp_entry
+
+    if not is_web_chat_mcp_entry({"name": name}):
+        return None
+    return next((entry for entry in library.values() if is_web_chat_mcp_entry(entry)), None)
 
 
 def _build_disk_mcp_config(
@@ -83,7 +93,7 @@ def _build_disk_mcp_config(
 
     dst_servers: Dict[str, Any] = {}
     for name in enabled_names:
-        raw = library.get(name)
+        raw = _resolve_library_entry(name, library)
         if raw is None:
             continue
         entry = _raw_to_disk_entry(raw)
@@ -925,6 +935,7 @@ CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开�
                 result.append(
                     McpServerConfig(
                         name=name,
+                        id=raw.get("id"),
                         type=server_type,
                         auto_inject=auto_inject,
                         enabled=is_enabled,
@@ -1079,6 +1090,11 @@ CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开�
         from nekro_agent.core.auto_inject_mcp import update_auto_inject_validation
 
         update_auto_inject_validation(server_name, validation_state)
+        await WorkspaceService.refresh_global_mcp_server_references(server_name)
+
+    @staticmethod
+    async def refresh_global_mcp_server_references(server_name: str) -> None:
+        """刷新所有引用指定全局 MCP server 的工作区 .mcp.json。"""
         affected = await DBWorkspace.filter(metadata__contains={"mcp_servers_enabled": [server_name]}).all()
         for ws in affected:
             try:

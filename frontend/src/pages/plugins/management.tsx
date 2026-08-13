@@ -61,6 +61,8 @@ import {
   Bookmark as BookmarkIcon,
   MoreVert as MoreVertIcon,
   Close as CloseIcon,
+  WebAsset as WebAssetIcon,
+  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Method, Plugin, pluginsApi } from '../../services/api/plugins'
@@ -95,6 +97,8 @@ const getPluginDescription = (plugin: Plugin, language: string) => {
   return getLocalizedText(plugin.i18n_description, plugin.description, language)
 }
 
+type PluginTabKey = 'info' | 'config' | 'webui' | 'methods' | 'webhook' | 'data'
+
 interface PluginDetailProps {
   plugin: Plugin
   activationStrategyLoading: boolean
@@ -111,7 +115,8 @@ function PluginDetails({
   onToggleEnabled,
   onOpenPlugin,
 }: PluginDetailProps) {
-  const [activeTab, setActiveTab] = useState(0)
+  const [activeTab, setActiveTab] = useState<PluginTabKey>('info')
+  const [webuiLoaded, setWebuiLoaded] = useState(false)
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
   const [resetDataConfirmOpen, setResetDataConfirmOpen] = useState(false)
   const [errorDetailOpen, setErrorDetailOpen] = useState(false)
@@ -130,12 +135,34 @@ function PluginDetails({
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
   const { t, i18n } = useTranslation('plugins')
+  const pluginTabs = useMemo(
+    () =>
+      [
+        { key: 'info' as const, label: t('tabs.info'), icon: <InfoIcon />, isVisible: true },
+        {
+          key: 'config' as const,
+          label: t('tabs.config'),
+          icon: <SettingsIcon />,
+          isVisible: plugin.hasConfig,
+        },
+        {
+          key: 'webui' as const,
+          label: t('tabs.webui'),
+          icon: <WebAssetIcon />,
+          isVisible: Boolean(plugin.webuiPath && !plugin.loadFailed),
+        },
+        { key: 'methods' as const, label: t('tabs.methods'), icon: <CodeIcon />, isVisible: true },
+        { key: 'webhook' as const, label: t('tabs.webhook'), icon: <WebhookIcon />, isVisible: true },
+        { key: 'data' as const, label: t('tabs.data'), icon: <StorageIcon />, isVisible: true },
+      ].filter(tab => tab.isVisible),
+    [plugin.hasConfig, plugin.loadFailed, plugin.webuiPath, t]
+  )
 
   // 获取插件配置
   const { data: pluginConfig, isLoading: configLoading } = useQuery({
     queryKey: ['plugin-config', plugin?.id],
     queryFn: () => unifiedConfigApi.getPluginConfig(plugin?.id),
-    enabled: !!plugin && activeTab === 1 && plugin.hasConfig,
+    enabled: !!plugin && activeTab === 'config' && plugin.hasConfig,
   })
 
   // 获取插件文档
@@ -146,14 +173,14 @@ function PluginDetails({
   } = useQuery({
     queryKey: ['plugin-docs', plugin?.id],
     queryFn: () => pluginsApi.getPluginDocs(plugin.id),
-    enabled: !!plugin && activeTab === 0,
+    enabled: !!plugin && activeTab === 'info',
   })
 
   // 获取插件数据
   const { data: pluginData = [], isLoading: isDataLoading } = useQuery({
     queryKey: ['plugin-data', plugin?.id],
     queryFn: () => pluginsApi.getPluginData(plugin.id),
-    enabled: !!plugin && activeTab === 4,
+    enabled: !!plugin && activeTab === 'data',
   })
 
   // 重载插件
@@ -277,23 +304,23 @@ function PluginDetails({
     navigate('/plugins/editor')
   }
 
-  useEffect(() => {
-    // 如果当前tab不存在（例如从有配置的插件切换到没配置的），则重置
-    const tabCount = 1 + (plugin.hasConfig ? 1 : 0) + 1 + 1 + 1 // info + config? + methods + webhook + data
-    if (activeTab >= tabCount) {
-      setActiveTab(0)
+  const handleOpenWebuiInNewPage = () => {
+    if (!plugin.webuiPath) return
+    const openedWindow = window.open(plugin.webuiPath, '_blank', 'noopener,noreferrer')
+    if (openedWindow) {
+      openedWindow.opener = null
     }
-  }, [plugin, activeTab])
+  }
 
-  if (!plugin) return null
+  useEffect(() => {
+    if (!pluginTabs.some(tab => tab.key === activeTab)) {
+      setActiveTab('info')
+    }
+  }, [activeTab, pluginTabs])
 
-  const pluginTabs = [
-    { label: t('tabs.info'), icon: <InfoIcon />, isVisible: true },
-    { label: t('tabs.config'), icon: <SettingsIcon />, isVisible: plugin.hasConfig },
-    { label: t('tabs.methods'), icon: <CodeIcon />, isVisible: true },
-    { label: t('tabs.webhook'), icon: <WebhookIcon />, isVisible: true },
-    { label: t('tabs.data'), icon: <StorageIcon />, isVisible: true },
-  ].filter(tab => tab.isVisible)
+  useEffect(() => {
+    setWebuiLoaded(false)
+  }, [plugin.id, plugin.webuiPath])
 
   return (
     <Box
@@ -379,7 +406,7 @@ function PluginDetails({
         <Box sx={{ display: 'flex', alignItems: 'center', px: { xs: 1, sm: 1.5 } }}>
           <PageTabs
             value={activeTab}
-            onChange={(_, newValue) => setActiveTab(newValue)}
+            onChange={(_, newValue: PluginTabKey) => setActiveTab(newValue)}
             variant="scrollable"
             scrollButtons="auto"
             allowScrollButtonsMobile
@@ -399,7 +426,7 @@ function PluginDetails({
             }}
           >
             {pluginTabs.map(tab => (
-              <Tab key={tab.label} label={tab.label} icon={tab.icon} />
+              <Tab key={tab.key} value={tab.key} label={tab.label} icon={tab.icon} />
             ))}
           </PageTabs>
 
@@ -545,7 +572,7 @@ function PluginDetails({
 
       {/* 选项卡内容 */}
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {activeTab === 0 && (
+        {activeTab === 'info' && (
           <Stack spacing={2}>
             {/* 插件信息 */}
             <Card sx={CARD_VARIANTS.default.styles}>
@@ -792,7 +819,7 @@ function PluginDetails({
         )}
 
         {/* 配置项 */}
-        {plugin.hasConfig && activeTab === 1 && (
+        {plugin.hasConfig && activeTab === 'config' && (
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             {pluginConfig && pluginConfig.length > 0 ? (
               <ConfigTable
@@ -815,8 +842,86 @@ function PluginDetails({
           </Box>
         )}
 
+        {/* 插件页面 */}
+        {activeTab === 'webui' && plugin.webuiPath && (
+          <Card
+            sx={{
+              ...CARD_VARIANTS.default.styles,
+              height: '100%',
+              minHeight: { xs: 520, md: 640 },
+              overflow: 'hidden',
+            }}
+          >
+            <Box
+              sx={{
+                position: 'relative',
+                height: '100%',
+                minHeight: { xs: 520, md: 640 },
+                '& iframe': {
+                  width: '100%',
+                  height: '100%',
+                  border: 'none',
+                  opacity: webuiLoaded ? 1 : 0,
+                  transition: 'opacity 0.3s ease',
+                },
+              }}
+            >
+              {plugin.webuiType === 'route' && (
+                <ActionButton
+                  size="small"
+                  startIcon={<OpenInNewIcon fontSize="small" />}
+                  onClick={handleOpenWebuiInNewPage}
+                  sx={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    zIndex: 2,
+                    bgcolor: 'background.paper',
+                    boxShadow: 1,
+                    opacity: 0.55,
+                    transition: 'opacity 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease',
+                    '&:hover': {
+                      opacity: 1,
+                      bgcolor: 'background.paper',
+                      boxShadow: 2,
+                    },
+                  }}
+                >
+                  {t('webui.openInNewPage')}
+                </ActionButton>
+              )}
+              <Box
+                component="iframe"
+                title={t('webui.title', { name: getPluginName(plugin, i18n.language) })}
+                src={plugin.webuiPath}
+                onLoad={() => setWebuiLoaded(true)}
+              />
+              <Box
+                sx={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 2,
+                  bgcolor: 'background.paper',
+                  opacity: webuiLoaded ? 0 : 1,
+                  pointerEvents: webuiLoaded ? 'none' : 'auto',
+                  transition: 'opacity 0.3s ease',
+                }}
+              >
+                <CircularProgress size={32} />
+                <Typography variant="body2" color="text.secondary">
+                  {t('webui.loading')}
+                </Typography>
+              </Box>
+            </Box>
+          </Card>
+        )}
+
         {/* 方法列表 */}
-        {activeTab === (plugin.hasConfig ? 2 : 1) && (
+        {activeTab === 'methods' && (
           <Card sx={CARD_VARIANTS.default.styles}>
             <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
               {plugin.methods && plugin.methods.length > 0 ? (
@@ -905,7 +1010,7 @@ function PluginDetails({
         )}
 
         {/* Webhook 列表 */}
-        {activeTab === (plugin.hasConfig ? 3 : 2) && (
+        {activeTab === 'webhook' && (
           <Card sx={CARD_VARIANTS.default.styles}>
             <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
               {plugin.webhooks && plugin.webhooks.length > 0 ? (
@@ -1056,7 +1161,7 @@ function PluginDetails({
         )}
 
         {/* 数据管理 */}
-        {activeTab === 4 && (
+        {activeTab === 'data' && (
           <Card sx={CARD_VARIANTS.default.styles}>
             <CardContent>
               {isDataLoading ? (

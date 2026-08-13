@@ -3,7 +3,8 @@ import { useAuthStore } from '../../../stores/auth'
 import { config } from '../../../config/env'
 
 export interface StreamOptions {
-  onMessage: (data: string) => void
+  onMessage?: (data: string) => void
+  onEvent?: (eventName: string, data: string) => void
   onError?: (error: Error) => void
   /** SSE 连接断开后自动重连成功时触发（首次连接不触发） */
   onReconnect?: () => void
@@ -12,6 +13,7 @@ export interface StreamOptions {
   method?: 'GET' | 'POST'
   body?: Record<string, unknown>
   signal?: AbortSignal
+  autoReconnect?: boolean
 }
 
 export interface SharedStreamSubscriber {
@@ -27,6 +29,7 @@ export interface SharedStreamSubscriber {
 export const createEventStream = (options: StreamOptions) => {
   const {
     onMessage,
+    onEvent,
     onError,
     onReconnect,
     endpoint,
@@ -34,6 +37,7 @@ export const createEventStream = (options: StreamOptions) => {
     method = 'GET',
     body,
     signal,
+    autoReconnect = true,
   } = options
 
   if (!baseUrl) throw new Error('API 基础 URL 未配置')
@@ -46,6 +50,7 @@ export const createEventStream = (options: StreamOptions) => {
 
   let isFirstOpen = true
   let retryDelayMs = 1000
+  let errorReported = false
 
   try {
     // 创建 EventSource 连接
@@ -69,17 +74,25 @@ export const createEventStream = (options: StreamOptions) => {
         }
       },
       onmessage(ev: EventSourceMessage) {
-        onMessage(ev.data)
+        onEvent?.(ev.event || 'message', ev.data)
+        onMessage?.(ev.data)
       },
       onerror(err: Error) {
         if (signal?.aborted || controller.signal.aborted) return
+        errorReported = true
         if (onError) onError(err)
+        if (!autoReconnect) throw err
         const currentDelay = retryDelayMs
         retryDelayMs = Math.min(retryDelayMs * 2, 5000)
         return currentDelay
       },
+      onclose() {
+        if (signal?.aborted || controller.signal.aborted || autoReconnect) return
+        throw new Error('SSE connection closed')
+      },
     }).catch(err => {
-      if (onError && err instanceof Error) {
+      if (signal?.aborted || controller.signal.aborted) return
+      if (!errorReported && onError && err instanceof Error) {
         onError(err)
       }
     })

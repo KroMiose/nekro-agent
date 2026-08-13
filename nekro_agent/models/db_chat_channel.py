@@ -45,11 +45,11 @@ class DBChatChannel(Model):
     data = fields.TextField(description="频道数据")
 
     adapter_key = fields.CharField(max_length=64, index=True, description="适配器标识")
-    channel_id = fields.CharField(max_length=64, index=True, description="频道 ID")
+    channel_id = fields.CharField(max_length=256, index=True, description="频道 ID")
     channel_name = fields.CharField(max_length=64, null=True, description="频道名称")
     channel_type = fields.CharField(max_length=32, null=True, description="频道类型")
 
-    chat_key = fields.CharField(max_length=64, index=True, description="全局聊天频道唯一标识")
+    chat_key = fields.CharField(max_length=256, index=True, description="全局聊天频道唯一标识")
     conversation_start_time = fields.DatetimeField(auto_now_add=True, description="对话起始时间")
     workspace_id = fields.IntField(null=True, description="关联工作区 ID")
 

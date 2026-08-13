@@ -26,6 +26,14 @@ export interface ApiErrorResponse {
   data?: unknown
 }
 
+export interface ProtocolApiErrorResponse {
+  error: {
+    code: string
+    message: string
+    details?: unknown
+  }
+}
+
 /**
  * 获取本地化文本
  *
@@ -64,3 +72,18 @@ export function isApiErrorResponse(data: unknown): data is ApiErrorResponse {
   )
 }
 
+export function isProtocolApiErrorResponse(data: unknown): data is ProtocolApiErrorResponse {
+  if (typeof data !== 'object' || data === null || !('error' in data)) {
+    return false
+  }
+
+  const error = (data as { error?: unknown }).error
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    'message' in error &&
+    typeof (error as { code?: unknown }).code === 'string' &&
+    typeof (error as { message?: unknown }).message === 'string'
+  )
+}

@@ -6,6 +6,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.schemas.user import UserCreate
+from nekro_agent.services.command.base import CommandPermission
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.user.util import user_register
 
@@ -51,7 +52,7 @@ async def collect_message(
     chat_key = db_chat_channel.chat_key
     content_text = platform_message.content_text.strip()
     if content_text and await _try_handle_command(
-        adapter, chat_key, platform_user, platform_message, content_text,
+        adapter, chat_key, platform_channel, platform_user, platform_message, content_text,
     ):
         return
 
@@ -77,6 +78,12 @@ async def collect_message(
 
         user = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
         assert user
+        await _persist_registered_user_command_permission(
+            adapter,
+            platform_channel,
+            platform_user,
+            platform_message,
+        )
 
     if not user.is_active:
         logger.info(f"用户 {platform_user.user_id} 被封禁，封禁结束时间: {user.ban_until}")
@@ -117,9 +124,62 @@ async def collect_message(
     await message_service.push_human_message(message=chat_message, user=user, db_chat_channel=db_chat_channel)
 
 
+async def _persist_registered_user_command_permission(
+    adapter: "BaseAdapter",
+    platform_channel: "PlatformChannel",
+    platform_user: "PlatformUser",
+    platform_message: "PlatformMessage",
+) -> None:
+    """注册新用户后检测并登记适配器授予的平台权限。"""
+    from nekro_agent.core.config import config
+    from nekro_agent.services.command.manager import USER_PERMISSION_SOURCE_PLATFORM
+
+    if platform_user.user_id in {str(user_id) for user_id in config.SUPER_USERS}:
+        logger.info(
+            f"注册用户命令权限检测跳过持久化: adapter={adapter.key}, "
+            f"user_id={platform_user.user_id}, permission={CommandPermission.SUPER_USER.value}, source=SUPER_USERS",
+        )
+        return
+
+    try:
+        user_permission = await adapter.get_user_command_permission(
+            platform_user,
+            platform_channel,
+            platform_message,
+        )
+    except Exception:
+        logger.warning(
+            f"注册用户后检测命令权限失败，保持普通权限: adapter={adapter.key}, user_id={platform_user.user_id}",
+            exc_info=True,
+        )
+        return
+
+    if user_permission in {CommandPermission.ADVANCED, CommandPermission.SUPER_USER}:
+        persisted_permission = CommandPermission.ADVANCED
+        await adapter.set_user_command_permission(
+            platform_user.user_id,
+            persisted_permission,
+            source=USER_PERMISSION_SOURCE_PLATFORM,
+            channel_id=platform_channel.channel_id,
+        )
+        logger.info(
+            f"注册用户时自动登记命令权限: adapter={adapter.key}, "
+            f"channel_id={platform_channel.channel_id}, user_id={platform_user.user_id}, "
+            f"permission={persisted_permission.value}, detected_permission={user_permission.value}, "
+            f"source={USER_PERMISSION_SOURCE_PLATFORM}",
+        )
+        return
+
+    logger.debug(
+        f"注册用户命令权限检测完成，保持普通权限: adapter={adapter.key}, "
+        f"user_id={platform_user.user_id}, permission={user_permission.value}",
+    )
+
+
 async def _try_handle_command(
     adapter: "BaseAdapter",
     chat_key: str,
+    platform_channel: "PlatformChannel",
     platform_user: "PlatformUser",
     platform_message: "PlatformMessage",
     content_text: str,
@@ -130,14 +190,15 @@ async def _try_handle_command(
     1. 检测命令前缀 → 执行命令
     2. 检测挂起的 wait 交互 → 路由到回调命令
     """
-    from nekro_agent.core.config import config
-
-    is_super = platform_user.user_id in config.SUPER_USERS
-    is_advanced = is_super and config.ENABLE_ADVANCED_COMMAND
-
     # 1. 命令前缀检测
     cmd_result = adapter.detect_command(content_text)
     if cmd_result:
+        is_super, is_advanced = await _resolve_user_command_flags(
+            adapter,
+            platform_channel,
+            platform_user,
+            platform_message,
+        )
         command_name, raw_args = cmd_result
         logger.info(f"Command Detect: [{chat_key}] {platform_user.user_name}: /{command_name} {raw_args}")
 
@@ -154,6 +215,17 @@ async def _try_handle_command(
         return True
 
     # 2. 挂起的 wait 交互检测
+    from nekro_agent.services.command.wait_manager import wait_manager
+
+    if not wait_manager.has_pending(chat_key, platform_user.user_id):
+        return False
+
+    is_super, is_advanced = await _resolve_user_command_flags(
+        adapter,
+        platform_channel,
+        platform_user,
+        platform_message,
+    )
     consumed = await adapter.try_handle_wait_input(
         chat_key=chat_key,
         user_id=platform_user.user_id,
@@ -167,3 +239,33 @@ async def _try_handle_command(
         return True
 
     return False
+
+
+async def _resolve_user_command_flags(
+    adapter: "BaseAdapter",
+    platform_channel: "PlatformChannel",
+    platform_user: "PlatformUser",
+    platform_message: "PlatformMessage",
+) -> tuple[bool, bool]:
+    """解析命令执行上下文中的 SUPER_USER / ADVANCED 标志。"""
+    from nekro_agent.core.config import config
+
+    if platform_user.user_id in {str(user_id) for user_id in config.SUPER_USERS}:
+        return True, True
+
+    try:
+        user_permission = await adapter.get_user_command_permission(
+            platform_user,
+            platform_channel,
+            platform_message,
+        )
+    except Exception:
+        logger.warning(
+            f"获取用户命令权限失败，回退普通权限: adapter={adapter.key}, user_id={platform_user.user_id}",
+            exc_info=True,
+        )
+        user_permission = CommandPermission.USER
+
+    is_super = user_permission == CommandPermission.SUPER_USER
+    is_advanced = is_super or user_permission == CommandPermission.ADVANCED
+    return is_super, is_advanced

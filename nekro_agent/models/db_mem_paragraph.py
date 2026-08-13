@@ -134,24 +134,24 @@ class DBMemParagraph(Model):
 
     # === 原始数据锚定（供追溯与插件扩展）===
     origin_chat_key = fields.CharField(
-        max_length=128,
+        max_length=256,
         null=True,
         index=True,
         description="记忆产生的聊天频道标识",
     )
     anchor_msg_id = fields.CharField(
-        max_length=64,
+        max_length=512,
         null=True,
         index=True,
         description="锚定的单条原始消息 ID",
     )
     anchor_msg_id_start = fields.CharField(
-        max_length=64,
+        max_length=512,
         null=True,
         description="对话片段起始消息 ID",
     )
     anchor_msg_id_end = fields.CharField(
-        max_length=64,
+        max_length=512,
         null=True,
         description="对话片段结束消息 ID",
     )

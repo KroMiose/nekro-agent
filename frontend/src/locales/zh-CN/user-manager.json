@@ -31,8 +31,14 @@
     "createdAt": "创建时间",
     "adapterPlatform": "适配平台",
     "platformUserId": "平台用户ID",
-    "permission": "权限",
+    "permission": "命令权限",
     "actions": "操作"
+  },
+  "commandPermissions": {
+    "public": "公开",
+    "user": "用户",
+    "advanced": "频道管理员",
+    "super_user": "超级用户"
   },
   "status": {
     "active": "活跃",

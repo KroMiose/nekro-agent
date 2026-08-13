@@ -3,6 +3,9 @@ import time
 from datetime import datetime, timedelta
 from typing import Any
 
+from tortoise.exceptions import IntegrityError
+from tortoise.transactions import in_transaction
+
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_adapter_instance import DBAdapterInstance
 from nekro_agent.models.db_adapter_instance_event import DBAdapterInstanceEvent
@@ -193,28 +196,19 @@ class AdapterInstanceService:
         Returns:
             DBAdapterInstanceSession: 更新后的会话对象
         """
-        session: DBAdapterInstanceSession | None = await DBAdapterInstanceSession.get_or_none(
-            instance_id=instance.id,
-        )
-
         sync_state_json: str = json.dumps(payload, ensure_ascii=False) if payload else ""
 
-        if session is None:
-            created = await DBAdapterInstanceSession.create(
-                instance_id=instance.id,
-                session_state=session_state,
-                sync_state_json=sync_state_json,
+        await self._ensure_session_row(instance.id)
+        async with in_transaction() as conn:
+            session = (
+                await DBAdapterInstanceSession.select_for_update()
+                .using_db(conn)
+                .get(instance_id=instance.id)
             )
-            logger.info(
-                f"[AdapterInstanceService] 会话状态创建: instance_id={instance.id}, "
-                f"state={session_state}",
-            )
-            return created
-
-        session.session_state = session_state
-        if payload is not None:
-            session.sync_state_json = sync_state_json
-        await session.save()
+            session.session_state = session_state
+            if payload is not None:
+                session.sync_state_json = sync_state_json
+            await session.save(using_db=conn)
 
         # 不在此处广播 SSE：会话子状态(bind_status)是绑定内部细节，且其 status==previous_status
         # 会产生 from==to 的无意义“状态转换”事件。主生命周期状态变更已由 set_status 正确广播；
@@ -229,6 +223,24 @@ class AdapterInstanceService:
     # ------------------------------------------------------------------
     # Session Management
     # ------------------------------------------------------------------
+
+    @staticmethod
+    async def _ensure_session_row(instance_id: int) -> None:
+        """确保该实例的会话行存在，供后续加锁更新。
+
+        故意放在事务之外：并发插入时落败的一方会拿到 IntegrityError，
+        而在 PostgreSQL 里事务内出现该错误会让整个事务进入 aborted 状态，
+        后续语句全部失败。这里靠 instance_id 的唯一约束兜底 —— 无论多少并发，
+        最终只会存在一行，落败方重新读取即可。
+        """
+        if await DBAdapterInstanceSession.exists(instance_id=instance_id):
+            return
+        try:
+            await DBAdapterInstanceSession.create(instance_id=instance_id)
+            logger.info(f"[AdapterInstanceService] 会话创建: instance_id={instance_id}")
+        except IntegrityError:
+            # 并发下已由其他协程插入，属正常竞争结果
+            logger.debug(f"[AdapterInstanceService] 会话已由并发请求创建: instance_id={instance_id}")
 
     async def upsert_session(
         self,
@@ -250,29 +262,18 @@ class AdapterInstanceService:
         Returns:
             DBAdapterInstanceSession: 创建或更新后的会话对象
         """
-        session: DBAdapterInstanceSession | None = await DBAdapterInstanceSession.get_or_none(
-            instance_id=instance.id,
-        )
-
-        if session is None:
-            created = await DBAdapterInstanceSession.create(
-                instance_id=instance.id,
-                credentials_json=credentials_json,
-                sync_state_json=sync_state_json,
-                expires_at=expires_at,
-                last_cursor=last_cursor,
+        await self._ensure_session_row(instance.id)
+        async with in_transaction() as conn:
+            session = (
+                await DBAdapterInstanceSession.select_for_update()
+                .using_db(conn)
+                .get(instance_id=instance.id)
             )
-            logger.info(
-                f"[AdapterInstanceService] 会话创建: instance_id={instance.id}, "
-                f"session_id={created.id}",
-            )
-            return created
-
-        session.credentials_json = credentials_json
-        session.sync_state_json = sync_state_json
-        session.expires_at = expires_at
-        session.last_cursor = last_cursor
-        await session.save()
+            session.credentials_json = credentials_json
+            session.sync_state_json = sync_state_json
+            session.expires_at = expires_at
+            session.last_cursor = last_cursor
+            await session.save(using_db=conn)
 
         logger.info(
             f"[AdapterInstanceService] 会话更新: instance_id={instance.id}, "

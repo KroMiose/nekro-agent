@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react'
 import {
   Box,
   Typography,
@@ -7,8 +7,6 @@ import {
   useTheme,
   Dialog,
   TextField,
-  Snackbar,
-  Alert,
   Tooltip,
   Chip,
   Card,
@@ -38,6 +36,7 @@ import MarkdownRenderer from '../../../../components/common/MarkdownRenderer'
 import SegmentedControl from '../../../../components/common/SegmentedControl'
 import ActionButton from '../../../../components/common/ActionButton'
 import IconActionButton from '../../../../components/common/IconActionButton'
+import { useNotification } from '../../../../hooks/useNotification'
 
 // 防抖函数
 function debounce<T extends (...args: unknown[]) => unknown>(
@@ -55,6 +54,7 @@ interface MessageHistoryProps {
   chatKey: string
   canSend?: boolean
   aiAlwaysIncludeMsgId?: boolean
+  webUserRight?: boolean
 }
 
 interface MessageResponse {
@@ -94,7 +94,7 @@ function nameToColor(name: string): string {
 
 /** 聊天气泡内 Markdown 紧凑样式 */
 const chatMarkdownSx = {
-  '& p': { m: 0, lineHeight: 1.6, color: 'text.primary' },
+  '& p': { m: 0, lineHeight: 1.6, color: 'text.primary', whiteSpace: 'pre-wrap' },
   '& p + p': { mt: 0.5 },
   '& h1, & h2, & h3, & h4, & h5, & h6': {
     mt: 1, mb: 0.5, fontSize: '14px', fontWeight: 600, borderBottom: 'none', pb: 0,
@@ -798,7 +798,7 @@ function MessageContent({
   )
 }
 
-export default function MessageHistory({ chatKey, canSend = false, aiAlwaysIncludeMsgId = false }: MessageHistoryProps) {
+export default function MessageHistory({ chatKey, canSend = false, aiAlwaysIncludeMsgId = false, webUserRight = false }: MessageHistoryProps) {
   const { t } = useTranslation('chat-channel')
   const theme = useTheme()
   const queryClient = useQueryClient()
@@ -817,11 +817,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
-    open: false,
-    message: '',
-    severity: 'success',
-  })
+  const notification = useNotification()
 
   // @ 用户选择
   const [atAnchorEl, setAtAnchorEl] = useState<HTMLElement | null>(null)
@@ -841,6 +837,28 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   }, [])
 
   const isDark = theme.palette.mode === 'dark'
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' })
+      })
+    })
+  }, [])
+
+  const scrollToBottomImmediately = useCallback(() => {
+    const container = containerRef.current
+    if (container) {
+      container.scrollTop = container.scrollHeight
+      return
+    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' })
+  }, [])
+
+  useLayoutEffect(() => {
+    setInitialLoad(true)
+    setAutoScroll(true)
+  }, [chatKey])
 
   // 管理附件预览 Blob URL 生命周期
   useEffect(() => {
@@ -889,7 +907,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
 
       // 如果用户在底部，自动滚动到最新消息
       if (autoScroll) {
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+        setTimeout(() => scrollToBottom('smooth'), 100)
       }
     }
 
@@ -901,15 +919,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     }
 
     return () => cleanup?.()
-  }, [chatKey, aiAlwaysIncludeMsgId, queryClient, autoScroll])
-
-  // 自动滚动到底部（仅初始加载时）
-  useEffect(() => {
-    if (!isLoading && initialLoad && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView()
-      setInitialLoad(false)
-    }
-  }, [isLoading, initialLoad])
+  }, [chatKey, aiAlwaysIncludeMsgId, queryClient, autoScroll, scrollToBottom])
 
   // 处理加载更多
   const handleLoadMore = useCallback(() => {
@@ -964,9 +974,9 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
 
   // 处理回到底部
   const handleScrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    scrollToBottom('smooth')
     setAutoScroll(true)
-  }, [])
+  }, [scrollToBottom])
 
   // 发送消息
   const handleSend = useCallback(async () => {
@@ -979,35 +989,35 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
       if (res.ok) {
         setInputValue('')
         setAttachedFile(null)
-        setSnack({ open: true, message: t('messageHistory.sendSuccess'), severity: 'success' })
+        notification.success(t('messageHistory.sendSuccess'))
         // 刷新消息列表
         await queryClient.invalidateQueries({ queryKey: ['chat-messages', chatKey] })
         // 滚动到底部
-        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 300)
+        setTimeout(() => scrollToBottom('smooth'), 300)
       } else {
-        setSnack({ open: true, message: `${t('messageHistory.sendFailed')}: ${res.error || ''}`, severity: 'error' })
+        notification.error(`${t('messageHistory.sendFailed')}: ${res.error || ''}`)
       }
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : String(e)
-      setSnack({ open: true, message: `${t('messageHistory.sendFailed')}: ${errMsg}`, severity: 'error' })
+      notification.error(`${t('messageHistory.sendFailed')}: ${errMsg}`)
     } finally {
       setSending(false)
     }
-  }, [inputValue, attachedFile, sending, chatKey, senderType, queryClient, t])
+  }, [inputValue, attachedFile, sending, chatKey, senderType, queryClient, scrollToBottom, t, notification])
 
   // 戳一戳
   const handlePoke = useCallback(async (targetUserId: string) => {
     try {
       const res = await chatChannelApi.sendPoke(chatKey, targetUserId)
       if (res.ok) {
-        setSnack({ open: true, message: t('messageHistory.pokeSent'), severity: 'success' })
+        notification.success(t('messageHistory.pokeSent'))
       } else {
-        setSnack({ open: true, message: t('messageHistory.pokeFailed'), severity: 'error' })
+        notification.error(t('messageHistory.pokeFailed'))
       }
     } catch {
-      setSnack({ open: true, message: t('messageHistory.pokeFailed'), severity: 'error' })
+      notification.error(t('messageHistory.pokeFailed'))
     }
-  }, [chatKey, t])
+  }, [chatKey, t, notification])
 
   // 回车发送（IME 输入法确认时不触发）
   const handleKeyDown = useCallback(
@@ -1087,6 +1097,15 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     [data?.pages]
   )
 
+  // 首次打开或切换会话时，在浏览器绘制前定位到最新消息，避免先显示顶部再跳到底部。
+  useLayoutEffect(() => {
+    if (isLoading || !initialLoad || allMessages.length === 0) return
+    scrollToBottomImmediately()
+    setInitialLoad(false)
+  }, [isLoading, initialLoad, allMessages.length, scrollToBottomImmediately])
+
+  const isInitialPositioning = initialLoad && allMessages.length > 0
+
   // 构建 message_id -> ChatMessage 的映射，用于引用消息查找
   const messageByMsgId = useMemo(() => {
     const map = new Map<string, ChatMessage>()
@@ -1134,6 +1153,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
           background: isDark
             ? 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 100%)'
             : 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, transparent 100%)',
+          visibility: isInitialPositioning ? 'hidden' : 'visible',
         }}
       >
         {/* 加载更多提示 */}
@@ -1152,6 +1172,9 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {allMessages.map((message, index) => {
               const isBot = message.sender_id === BOT_SENDER_ID && message.sender_name !== 'SYSTEM'
+              // Web Chat 的显示名可配置，用户归属只能依赖稳定的 admin_{id} sender_id。
+              const isWebUser = message.sender_id.startsWith('admin_')
+              const isOutgoing = webUserRight ? isWebUser : isBot
               const isSystem = message.sender_name === 'SYSTEM'
               const imageOnly = isImageOnlyMessage(message)
               const prevMsg = index > 0 ? allMessages[index - 1] : null
@@ -1302,7 +1325,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                   <Box
                       sx={{
                         display: 'flex',
-                        flexDirection: isBot ? 'row-reverse' : 'row',
+                        flexDirection: isOutgoing ? 'row-reverse' : 'row',
                         alignItems: 'flex-start',
                         gap: 1,
                         px: 1,
@@ -1316,20 +1339,20 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                       ) : (
                         <Avatar
                           src={getAvatarUrl(message.platform_userid)}
-                          onDoubleClick={!isBot && message.platform_userid ? () => handlePoke(message.platform_userid) : undefined}
+                          onDoubleClick={!isOutgoing && message.platform_userid ? () => handlePoke(message.platform_userid) : undefined}
                           sx={{
                             width: 36,
                             height: 36,
                             flexShrink: 0,
                             fontSize: '14px',
                             fontWeight: 600,
-                            bgcolor: isBot
+                            bgcolor: isOutgoing
                               ? theme.palette.primary.main
                               : nameToColor(message.sender_name),
                             mt: 0.3,
-                            cursor: !isBot && message.platform_userid ? 'pointer' : 'default',
+                            cursor: !isOutgoing && message.platform_userid ? 'pointer' : 'default',
                             transition: 'transform 0.15s',
-                            '&:active': !isBot && message.platform_userid ? {
+                            '&:active': !isOutgoing && message.platform_userid ? {
                               transform: 'scale(0.9)',
                             } : {},
                           }}
@@ -1343,7 +1366,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                         sx={{
                           display: 'flex',
                           flexDirection: 'column',
-                          alignItems: isBot ? 'flex-end' : 'flex-start',
+                          alignItems: isOutgoing ? 'flex-end' : 'flex-start',
                           maxWidth: '75%',
                           minWidth: 0,
                         }}
@@ -1356,7 +1379,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                               alignItems: 'center',
                               gap: 0.8,
                               mb: 0.3,
-                              flexDirection: isBot ? 'row-reverse' : 'row',
+                              flexDirection: isOutgoing ? 'row-reverse' : 'row',
                             }}
                           >
                             <Typography
@@ -1364,7 +1387,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                               sx={{
                                 fontWeight: 600,
                                 fontSize: '12px',
-                                color: isBot
+                                color: isOutgoing
                                   ? theme.palette.primary.main
                                   : theme.palette.text.secondary,
                               }}
@@ -1389,7 +1412,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                             position: 'relative',
                             background: imageOnly
                               ? 'transparent'
-                              : isBot
+                              : isOutgoing
                                 ? isDark
                                   ? 'rgba(56, 139, 253, 0.18)'
                                   : 'rgba(56, 139, 253, 0.08)'
@@ -1398,7 +1421,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                                   : 'rgba(0, 0, 0, 0.04)',
                             borderRadius: imageOnly
                               ? 0
-                              : isBot
+                              : isOutgoing
                                 ? isContinuation
                                   ? '12px'
                                   : '12px 2px 12px 12px'
@@ -1412,7 +1435,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                             '&:hover': {
                               background: imageOnly
                                 ? 'transparent'
-                                : isBot
+                                : isOutgoing
                                   ? isDark
                                     ? 'rgba(56, 139, 253, 0.25)'
                                     : 'rgba(56, 139, 253, 0.13)'
@@ -1834,22 +1857,6 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
         </List>
       </Popover>
 
-      {/* 提示 */}
-      <Snackbar
-        open={snack.open}
-        autoHideDuration={3000}
-        onClose={() => setSnack(s => ({ ...s, open: false }))}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
-          severity={snack.severity}
-          onClose={() => setSnack(s => ({ ...s, open: false }))}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {snack.message}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

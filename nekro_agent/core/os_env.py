@@ -104,6 +104,7 @@ COMMAND_SYSTEM_STATE_FILE: str = COMMAND_STATE_DIR + "/system.json"
 COMMAND_CHANNEL_STATE_DIR: str = COMMAND_STATE_DIR + "/channels"
 COMMAND_SYSTEM_PERMISSION_FILE: str = COMMAND_STATE_DIR + "/system_permissions.json"
 COMMAND_CHANNEL_PERMISSION_DIR: str = COMMAND_STATE_DIR + "/channel_permissions"
+COMMAND_USER_PERMISSION_FILE: str = COMMAND_STATE_DIR + "/user_permissions.json"
 
 
 # 设置上传目录及其子目录权限

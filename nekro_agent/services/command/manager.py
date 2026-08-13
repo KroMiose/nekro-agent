@@ -1,8 +1,9 @@
 """命令状态管理 - 基于 JSON 文件存储"""
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from nonebot import logger
 
@@ -12,9 +13,21 @@ from nekro_agent.core.os_env import (
     COMMAND_STATE_DIR,
     COMMAND_SYSTEM_PERMISSION_FILE,
     COMMAND_SYSTEM_STATE_FILE,
+    COMMAND_USER_PERMISSION_FILE,
 )
 from nekro_agent.schemas.errors import ValidationError
 from nekro_agent.services.command.base import BUILT_IN_SOURCE, CommandMetadata, CommandPermission
+
+UserPermissionSource = Literal["manual", "platform"]
+USER_PERMISSION_SOURCE_MANUAL: UserPermissionSource = "manual"
+USER_PERMISSION_SOURCE_PLATFORM: UserPermissionSource = "platform"
+
+
+@dataclass(frozen=True)
+class UserPermissionRecord:
+    permission: CommandPermission
+    source: UserPermissionSource = USER_PERMISSION_SOURCE_MANUAL
+    channel_id: Optional[str] = None
 
 
 class CommandManager:
@@ -31,6 +44,7 @@ class CommandManager:
         self._channel_cache: dict[str, dict[str, bool]] = {}
         self._system_permission_cache: Optional[dict[str, CommandPermission]] = None
         self._channel_permission_cache: dict[str, dict[str, CommandPermission]] = {}
+        self._user_permission_cache: Optional[dict[str, UserPermissionRecord]] = None
 
     def _load_system_state(self) -> dict[str, bool]:
         """加载系统级状态（带缓存）"""
@@ -113,6 +127,61 @@ class CommandManager:
                 self._channel_permission_cache[chat_key] = {}
         return self._channel_permission_cache[chat_key]
 
+    def _load_user_permission_state(self) -> dict[str, UserPermissionRecord]:
+        """加载平台用户命令权限覆盖（带缓存）。"""
+        if self._user_permission_cache is None:
+            user_permission_file = Path(COMMAND_USER_PERMISSION_FILE)
+            if user_permission_file.exists():
+                try:
+                    raw_state = json.loads(user_permission_file.read_text(encoding="utf-8"))
+                    self._user_permission_cache = self._normalize_user_permission_state(raw_state)
+                except (json.JSONDecodeError, OSError) as e:
+                    logger.warning(f"加载用户命令权限失败: {e}")
+                    self._user_permission_cache = {}
+            else:
+                self._user_permission_cache = {}
+        assert self._user_permission_cache is not None
+        return self._user_permission_cache
+
+    @staticmethod
+    def _normalize_user_permission_state(raw_state: object) -> dict[str, UserPermissionRecord]:
+        if not isinstance(raw_state, dict):
+            return {}
+
+        normalized: dict[str, UserPermissionRecord] = {}
+        for key, raw_record in raw_state.items():
+            if not isinstance(key, str):
+                continue
+
+            raw_permission: object
+            source: UserPermissionSource = USER_PERMISSION_SOURCE_MANUAL
+            channel_id: Optional[str] = None
+
+            if isinstance(raw_record, str):
+                raw_permission = raw_record
+            elif isinstance(raw_record, dict):
+                raw_permission = raw_record.get("permission")
+                raw_source = raw_record.get("source")
+                if raw_source == USER_PERMISSION_SOURCE_PLATFORM:
+                    source = USER_PERMISSION_SOURCE_PLATFORM
+                raw_channel_id = raw_record.get("channel_id")
+                if isinstance(raw_channel_id, str) and raw_channel_id:
+                    channel_id = raw_channel_id
+            else:
+                continue
+
+            if not isinstance(raw_permission, str):
+                continue
+            try:
+                normalized[key] = UserPermissionRecord(
+                    permission=CommandPermission(raw_permission),
+                    source=source,
+                    channel_id=channel_id,
+                )
+            except ValueError:
+                logger.warning(f"检测到无效用户命令权限配置，已忽略: {key}={raw_permission}")
+        return normalized
+
     def _save_system_state(self, state: dict[str, bool]) -> None:
         Path(COMMAND_SYSTEM_STATE_FILE).write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         self._system_cache = state
@@ -142,6 +211,32 @@ class CommandManager:
         else:
             path.unlink(missing_ok=True)
         self._channel_permission_cache[chat_key] = state
+
+    def _save_user_permission_state(self, state: dict[str, UserPermissionRecord]) -> None:
+        path = Path(COMMAND_USER_PERMISSION_FILE)
+        if state:
+            path.write_text(
+                json.dumps(
+                    {
+                        key: {
+                            "permission": record.permission.value,
+                            "source": record.source,
+                            "channel_id": record.channel_id,
+                        }
+                        for key, record in state.items()
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+        else:
+            path.unlink(missing_ok=True)
+        self._user_permission_cache = state
+
+    @staticmethod
+    def _user_permission_key(adapter_key: str, platform_userid: str) -> str:
+        return f"{adapter_key}:{platform_userid}"
 
     @staticmethod
     def _is_plugin_command_source_enabled(
@@ -245,6 +340,15 @@ class CommandManager:
             return command_name in self._load_channel_permission_state(chat_key)
         return command_name in self._load_system_permission_state()
 
+    def get_user_permission(self, adapter_key: str, platform_userid: str) -> CommandPermission:
+        """查询平台用户的命令权限等级，默认普通用户。"""
+        return self.get_user_permission_record(adapter_key, platform_userid).permission
+
+    def get_user_permission_record(self, adapter_key: str, platform_userid: str) -> UserPermissionRecord:
+        """查询平台用户命令权限记录，包含授权来源。"""
+        state = self._load_user_permission_state()
+        return state.get(self._user_permission_key(adapter_key, platform_userid), UserPermissionRecord(CommandPermission.USER))
+
     @staticmethod
     def _resolve_command(command_name: str) -> tuple[str, CommandPermission]:
         """解析命令名（含别名）到规范名和默认权限，命令不存在则抛出 ValidationError。"""
@@ -346,6 +450,52 @@ class CommandManager:
             self._save_system_permission_state(state)
         await self.notify_commands_changed(chat_key)
 
+    async def set_user_permission(
+        self,
+        adapter_key: str,
+        platform_userid: str,
+        permission: CommandPermission | str,
+        *,
+        source: UserPermissionSource = USER_PERMISSION_SOURCE_MANUAL,
+        channel_id: Optional[str] = None,
+    ) -> None:
+        """设置平台用户的命令权限等级。"""
+        normalized_permission = (
+            permission if isinstance(permission, CommandPermission) else CommandPermission(permission)
+        )
+        state = self._load_user_permission_state()
+        key = self._user_permission_key(adapter_key, platform_userid)
+        if normalized_permission == CommandPermission.USER:
+            state.pop(key, None)
+        else:
+            state[key] = UserPermissionRecord(
+                permission=normalized_permission,
+                source=source,
+                channel_id=channel_id,
+            )
+        self._save_user_permission_state(state)
+
+    async def reset_user_permission(
+        self,
+        adapter_key: str,
+        platform_userid: str,
+        *,
+        source: Optional[UserPermissionSource] = None,
+        channel_id: Optional[str] = None,
+    ) -> None:
+        """重置平台用户命令权限，回退到普通用户。"""
+        state = self._load_user_permission_state()
+        key = self._user_permission_key(adapter_key, platform_userid)
+        record = state.get(key)
+        if record is None:
+            return
+        if source is not None and record.source != source:
+            return
+        if channel_id is not None and record.channel_id != channel_id:
+            return
+        state.pop(key, None)
+        self._save_user_permission_state(state)
+
     async def get_all_command_states(
         self,
         chat_key: Optional[str] = None,
@@ -407,6 +557,7 @@ class CommandManager:
         self._channel_cache.clear()
         self._system_permission_cache = None
         self._channel_permission_cache.clear()
+        self._user_permission_cache = None
 
 
 command_manager = CommandManager()

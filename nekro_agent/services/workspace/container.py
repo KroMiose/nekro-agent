@@ -207,6 +207,7 @@ class SandboxContainerManager:
                             {"HostIp": "127.0.0.1", "HostPort": str(host_port)}
                         ]
                     },
+                    "ExtraHosts": ["host.docker.internal:host-gateway"],
                     "RestartPolicy": {"Name": "no"},
                 },
                 "Env": [

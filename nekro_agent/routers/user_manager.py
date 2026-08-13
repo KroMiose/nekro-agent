@@ -5,10 +5,13 @@ from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel
 from tortoise.expressions import Q
 
+from nekro_agent.core.config import config
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.errors import NotFoundError, PermissionDeniedError, UnauthorizedError
 from nekro_agent.schemas.user import UserCreate, UserUpdate
+from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.command.manager import command_manager
 from nekro_agent.services.user.auth import get_hashed_password
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.role import Role, get_perm_role
@@ -29,6 +32,7 @@ class UserInfo(BaseModel):
     unique_id: str
     perm_level: int
     perm_role: str
+    command_permission: str
     login_time: Optional[datetime]
     ban_until: Optional[datetime]
     prevent_trigger_until: Optional[datetime]
@@ -44,6 +48,12 @@ class UserListResponse(BaseModel):
     items: List[UserInfo]
     page: int
     page_size: int
+
+
+def _resolve_effective_command_permission(adapter_key: str, platform_userid: str) -> CommandPermission:
+    if platform_userid in {str(user_id) for user_id in config.SUPER_USERS}:
+        return CommandPermission.SUPER_USER
+    return command_manager.get_user_permission(adapter_key=adapter_key, platform_userid=platform_userid)
 
 
 @router.get("/list", summary="获取用户列表", response_model=UserListResponse)
@@ -92,6 +102,10 @@ async def list_users(
                 unique_id=user.unique_id,
                 perm_level=user.perm_level,
                 perm_role=get_perm_role(user.perm_level),
+                command_permission=_resolve_effective_command_permission(
+                    user.adapter_key,
+                    user.platform_userid,
+                ).value,
                 login_time=user.login_time,
                 ban_until=user.ban_until,
                 prevent_trigger_until=user.prevent_trigger_until,
@@ -131,6 +145,10 @@ async def get_user(
         unique_id=user.unique_id,
         perm_level=user.perm_level,
         perm_role=get_perm_role(user.perm_level),
+        command_permission=_resolve_effective_command_permission(
+            user.adapter_key,
+            user.platform_userid,
+        ).value,
         login_time=user.login_time,
         ban_until=user.ban_until,
         prevent_trigger_until=user.prevent_trigger_until,
