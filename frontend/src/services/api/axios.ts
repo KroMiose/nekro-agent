@@ -48,6 +48,7 @@ const axiosInstance = axios.create({
     Accept: 'application/json',
   },
 })
+let isRedirectingToLogin = false
 
 // 请求拦截器
 axiosInstance.interceptors.request.use(
@@ -93,17 +94,21 @@ axiosInstance.interceptors.response.use(
       const authError = isApiErrorResponse(data) ? data : null
       // 非登录接口的 401，执行登出
       if (!error.config?.url?.includes('/user/login')) {
-        const sessionMessage =
-          authError?.message ||
-          i18n.t('sessionExpired', { ns: 'errors', defaultValue: '登录已过期，请重新登录' })
-        try {
-          sessionStorage.setItem('auth_error', sessionMessage)
-        } catch {
-          // ignore storage errors
+        const authState = useAuthStore.getState()
+        if (authState.token && !isRedirectingToLogin) {
+          isRedirectingToLogin = true
+          const sessionMessage =
+            authError?.message ||
+            i18n.t('sessionExpired', { ns: 'errors', defaultValue: '登录已过期，请重新登录' })
+          try {
+            sessionStorage.setItem('auth_error', sessionMessage)
+          } catch {
+            // ignore storage errors
+          }
+          authState.logout()
+          const redirectTarget = sanitizeRedirectTarget(getCurrentAppPath())
+          window.location.replace(`/#${loginPath(redirectTarget)}`)
         }
-        useAuthStore.getState().logout()
-        const redirectTarget = sanitizeRedirectTarget(getCurrentAppPath())
-        window.location.replace(`/#${loginPath(redirectTarget)}`)
       }
       // 使用后端返回的本地化消息，或使用前端翻译
       throw new ApiError(
