@@ -46,7 +46,11 @@ const router = createHashRouter([
   },
   {
     path: '/',
-    element: <MainLayout />,
+    element: (
+      <RequireAuth>
+        <MainLayout />
+      </RequireAuth>
+    ),
     errorElement: <Navigate to="/login" />,
     children: [
       {
