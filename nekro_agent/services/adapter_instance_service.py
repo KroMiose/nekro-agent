@@ -182,22 +182,23 @@ class AdapterInstanceService:
         self,
         instance: DBAdapterInstance,
         session_state: str,
-        payload: dict[str, Any] | None = None,
     ) -> DBAdapterInstanceSession:
         """设置实例会话子状态（如 bind_status）。
 
         若实例尚无关联会话，则自动创建一条空会话记录。
 
+        注意：本方法只负责 session_state，不再接受会覆盖 sync_state_json 的
+        payload —— sync_state_json 是 SyncState 的序列化载体，写入其它形状的
+        数据会让读取方解析失败。绑定过程的附加信息由 record_event 的
+        payload_json 记录，那里本就是为审计准备的自由字段。
+
         Args:
             instance: 目标实例对象
             session_state: 会话子状态值
-            payload: 附加同步状态字典，覆盖 sync_state_json
 
         Returns:
             DBAdapterInstanceSession: 更新后的会话对象
         """
-        sync_state_json: str = json.dumps(payload, ensure_ascii=False) if payload else ""
-
         await self._ensure_session_row(instance.id)
         async with in_transaction() as conn:
             session = (
@@ -206,8 +207,6 @@ class AdapterInstanceService:
                 .get(instance_id=instance.id)
             )
             session.session_state = session_state
-            if payload is not None:
-                session.sync_state_json = sync_state_json
             await session.save(using_db=conn)
 
         # 不在此处广播 SSE：会话子状态(bind_status)是绑定内部细节，且其 status==previous_status
