@@ -46,7 +46,7 @@ async def test_authenticated_mcp_app_accepts_admin(monkeypatch: pytest.MonkeyPat
         await send({"type": "http.response.start", "status": 204, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
-    monkeypatch.setattr("web_chat_mcp.na_app.get_current_user", fake_get_current_user)
+    monkeypatch.setattr("nekro_agent.services.mcp.web_chat_mcp.na_app.get_current_user", fake_get_current_user)
     transport = httpx.ASGITransport(app=AuthenticatedMcpApp(inner_app))
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.get("/mcp")
@@ -81,7 +81,7 @@ async def test_authenticated_mcp_app_starts_session_manager_before_inner_app(
         await send({"type": "http.response.start", "status": 204, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
-    monkeypatch.setattr("web_chat_mcp.na_app.get_current_user", fake_get_current_user)
+    monkeypatch.setattr("nekro_agent.services.mcp.web_chat_mcp.na_app.get_current_user", fake_get_current_user)
     transport = httpx.ASGITransport(app=AuthenticatedMcpApp(inner_app, session_manager))
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.get("/mcp")
@@ -112,7 +112,7 @@ async def test_authenticated_mcp_app_accepts_generated_mcp_token(
         await send({"type": "http.response.start", "status": 204, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
-    monkeypatch.setattr("web_chat_mcp.na_app.DBUser.get_or_none", fake_get_or_none)
+    monkeypatch.setattr("nekro_agent.services.mcp.web_chat_mcp.na_app.DBUser.get_or_none", fake_get_or_none)
     transport = httpx.ASGITransport(app=AuthenticatedMcpApp(inner_app))
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.get("/mcp", headers={"Authorization": f"Bearer {token}"})
@@ -144,7 +144,7 @@ async def test_authenticated_mcp_app_accepts_external_mcp_token(
         await send({"type": "http.response.start", "status": 204, "headers": []})
         await send({"type": "http.response.body", "body": b""})
 
-    monkeypatch.setattr("web_chat_mcp.na_app.DBUser.get_or_none", fake_get_or_none)
+    monkeypatch.setattr("nekro_agent.services.mcp.web_chat_mcp.na_app.DBUser.get_or_none", fake_get_or_none)
     transport = httpx.ASGITransport(app=AuthenticatedMcpApp(inner_app))
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.get("/mcp", headers={"Authorization": f"Bearer {token}"})
@@ -165,7 +165,7 @@ async def test_authenticated_mcp_app_rejects_non_admin(monkeypatch: pytest.Monke
     async def inner_app(_scope: dict[str, Any], _receive: Any, _send: Any) -> None:
         raise AssertionError("non-admin request should not reach MCP app")
 
-    monkeypatch.setattr("web_chat_mcp.na_app.get_current_user", fake_get_current_user)
+    monkeypatch.setattr("nekro_agent.services.mcp.web_chat_mcp.na_app.get_current_user", fake_get_current_user)
     transport = httpx.ASGITransport(app=AuthenticatedMcpApp(inner_app))
     async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
         response = await client.get("/mcp")

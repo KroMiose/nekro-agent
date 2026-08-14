@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, Type
+from typing import Literal, Optional, Type
 
 from fastapi import APIRouter
 
@@ -41,6 +41,7 @@ class WeChatOpenILinkAdapter(BaseAdapter[WeChatOpenILinkConfig]):
         self.message_processor = OpenILinkMessageProcessor(
             config=self.config,
             adapter_key=self.key,
+            build_chat_key=self.build_chat_key,
         )
         self._recent_inbound_messages: dict[tuple[str, str], StoredInboundMessage] = {}
 
@@ -92,7 +93,7 @@ class WeChatOpenILinkAdapter(BaseAdapter[WeChatOpenILinkConfig]):
         logger.info("WeChat OpenILink 适配器已关闭")
 
     async def _handle_inbound_message(self, raw_message: object) -> None:
-        parsed = self.message_processor.parse(raw_message)
+        parsed = await self.message_processor.parse(raw_message)
         if parsed is None:
             return
 

@@ -47,6 +47,7 @@ logger = get_sub_logger("adapter.web.router")
 
 WEB_ADAPTER_KEY = "web"
 DEFAULT_SESSION_NAME = "网页测试会话"
+DELETE_SESSION_CONFIRM_MESSAGE = "删除网页聊天会话会清理历史、插件数据、定时任务和上传目录；请显式传入 confirm=true"
 
 
 def set_adapter(adapter: "WebAdapter") -> None:
@@ -58,6 +59,11 @@ def _get_adapter() -> "WebAdapter":
     if _adapter is None:
         raise ValidationError(reason="Web Adapter 未加载")
     return _adapter
+
+
+def _ensure_delete_session_confirmed(confirm: bool) -> None:
+    if not confirm:
+        raise ValidationError(reason=DELETE_SESSION_CONFIRM_MESSAGE)
 
 
 class WebSessionItem(BaseModel):
@@ -448,9 +454,11 @@ async def update_web_session(
 @require_role(Role.Admin)
 async def delete_web_session(
     chat_key: str,
+    confirm: bool = Query(default=False, description="必须显式传入 true 才会永久删除会话及关联数据"),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> WebActionResponse:
     """永久删除网页聊天会话及其关联数据。"""
+    _ensure_delete_session_confirmed(confirm)
     channel = await _get_web_channel(chat_key)
 
     await DBRecurringTimerJob.filter(chat_key=chat_key).delete()

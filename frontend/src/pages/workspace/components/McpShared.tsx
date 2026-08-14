@@ -105,11 +105,12 @@ export function KeyValueEditor({
 // ── ServerFormDialog ──
 
 export function ServerFormDialog({
-  open, onClose, onSubmit, onValidate, initial, title, submitLabel, t,
+  open, onClose, onSubmit, onValidate, initial, title, submitLabel, t, lockName = false,
 }: {
   open: boolean; onClose: () => void; onSubmit: (server: McpServerConfig) => void
   onValidate?: (server: McpServerConfig) => Promise<McpValidationResult>
   initial: McpServerConfig; title: string; submitLabel: string; t: (key: string) => string
+  lockName?: boolean
 }) {
   const [form, setForm] = useState<McpServerConfig>(initial)
   const [validating, setValidating] = useState(false)
@@ -216,7 +217,7 @@ export function ServerFormDialog({
       <DialogTitle>{title}</DialogTitle>
       <DialogContent sx={{ pt: '12px !important' }}>
         <Stack spacing={2}>
-          <TextField label={t('detail.mcp.form.name')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} size="small" fullWidth required />
+          <TextField label={t('detail.mcp.form.name')} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} size="small" fullWidth required disabled={lockName} />
           <Box sx={{ display: 'flex', gap: 1 }}>
             {(['stdio', 'sse', 'http'] as McpServerType[]).map(tp => (
               <Chip key={tp} label={tp.toUpperCase()} color={form.type === tp ? typeColor(tp) as 'info' | 'warning' | 'success' : 'default'} variant={form.type === tp ? 'filled' : 'outlined'} onClick={() => setForm(f => ({ ...f, type: tp }))} icon={typeIcon(tp)} size="small" />
@@ -845,7 +846,7 @@ export function McpServerManager({
       <ServerFormDialog open={addOpen} onClose={() => setAddOpen(false)} onSubmit={handleAdd} onValidate={onValidate} initial={addInitial} title={t('detail.mcp.addTitle')} submitLabel={mutating ? t('detail.mcp.adding') : t('detail.mcp.add')} t={t} />
 
       {/* Edit dialog */}
-      <ServerFormDialog open={!!editTarget} onClose={() => setEditTarget(null)} onSubmit={handleEdit} onValidate={onValidate} initial={editTarget ?? emptyServer()} title={t('detail.mcp.editTitle')} submitLabel={mutating ? t('detail.mcp.saving') : t('detail.mcp.save')} t={t} />
+      <ServerFormDialog open={!!editTarget} onClose={() => setEditTarget(null)} onSubmit={handleEdit} onValidate={onValidate} initial={editTarget ?? emptyServer()} title={t('detail.mcp.editTitle')} submitLabel={mutating ? t('detail.mcp.saving') : t('detail.mcp.save')} t={t} lockName={isGlobal} />
 
       {/* Delete dialog */}
       <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)} maxWidth="xs">

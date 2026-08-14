@@ -19,6 +19,8 @@ from nekro_agent.services.user.perm import Role, require_role
 
 router = APIRouter(prefix="/mcp", tags=["MCP"])
 
+_MCP_VALIDATION_CONFIG_KEYS = ("type", "command", "args", "env", "url", "headers")
+
 
 class _ActionOk(BaseModel):
     ok: bool = True
@@ -40,6 +42,23 @@ class _McpValidationResponse(BaseModel):
     latency_ms: float
     error: Optional[str] = None
     error_kind: Optional[str] = None
+
+
+def _validation_config_fingerprint(raw: Dict[str, Any]) -> Dict[str, Any]:
+    return {key: raw.get(key) for key in _MCP_VALIDATION_CONFIG_KEYS}
+
+
+def _apply_server_owned_validation(entry: Dict[str, Any], prev: Dict[str, Any]) -> None:
+    """保留或重置后端验证状态，避免客户端提交 stale validation。"""
+    entry.pop("validation", None)
+    prev_validation = prev.get("validation")
+    if not isinstance(prev_validation, dict):
+        return
+
+    if _validation_config_fingerprint(entry) == _validation_config_fingerprint(prev):
+        entry["validation"] = prev_validation
+    else:
+        entry["validation"] = {"status": "unvalidated"}
 
 
 @router.get("/registry", summary="获取内置 MCP 服务注册表", response_model=List[McpRegistryItem])
@@ -117,12 +136,9 @@ async def update_auto_inject_mcp(
             entry["auto_inject"] = bool(entry.pop("enabled", False))
         else:
             entry.pop("enabled", None)
-        # 服务端保留 validation 不让客户端串改
+        # 服务端保留/重置 validation，不让客户端串改或复用旧验证状态
         prev = existing_by_name.get(entry.get("name", ""), {})
-        if "validation" in prev:
-            entry["validation"] = prev["validation"]
-        else:
-            entry.pop("validation", None)
+        _apply_server_owned_validation(entry, prev)
         sanitized.append(entry)
     set_auto_inject_mcp_servers(sanitized)
     return _ActionOk()

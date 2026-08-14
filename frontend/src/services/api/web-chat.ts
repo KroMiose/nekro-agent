@@ -61,7 +61,9 @@ export const webChatApi = {
   },
 
   deleteSession: async (chatKey: string): Promise<WebActionResponse> => {
-    const response = await axios.delete<WebActionResponse>(`/adapters/web/sessions/${encodeURIComponent(chatKey)}`)
+    const response = await axios.delete<WebActionResponse>(`/adapters/web/sessions/${encodeURIComponent(chatKey)}`, {
+      params: { confirm: true },
+    })
     return response.data
   },
 
