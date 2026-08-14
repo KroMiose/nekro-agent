@@ -224,6 +224,11 @@ class BaseAdapter(ABC, Generic[TConfig]):
             "Private chat: `platform-private_123456` (where 123456 is the user's QQ number)",
         ]
 
+    @property
+    def record_command_input(self) -> bool:
+        """是否在命令消息被命令系统消费前，将用户输入原文写入聊天历史。"""
+        return False
+
     def get_docs_path(self) -> Path:
         """获取适配器文档路径"""
         return Path(__file__).parent.parent / self.key / "README.md"

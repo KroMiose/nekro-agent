@@ -32,7 +32,7 @@ Web Adapter 默认启用。可在适配器配置中关闭 `ENABLED`，关闭后�
 - 上传文件会保存到当前频道的 uploads 目录，并以现有 `file` / `image` 消息段进入消息管线；沙盒中可通过 `./uploads/<filename>` 只读访问。
 - 单文件大小限制由 `FILE_UPLOAD_MAX_SIZE_MB` 配置控制，默认 100MB。
 - 网页用户的普通消息默认视为私聊中对 Agent 的直接消息。
-- Agent 回复通过 `WebAdapter.forward_message()` 返回发送结果，再由现有消息服务写入历史并通过实时流展示。
+- Web Adapter 的 `forward_message()` 会把文本、图片和文件写入当前网页会话历史；图片/文件先保存到 uploads，数据库仅记录 `file_name` / `local_path`，再通过实时流展示。
 - Agent 可通过基础插件的 `send_msg_text()` / `send_msg_file()` 向网页会话回复文本或文件。
 - 不使用 `/chat-channel/{chat_key}/send` 伪装用户入站消息；该接口仍保留机器人、SYSTEM 或命令输出发送语义。
 

@@ -110,3 +110,4 @@ class PlatformSendResponse(BaseModel):
     success: bool = Field(..., description="是否发送成功")
     error_message: Optional[str] = Field(default=None, description="错误信息")
     message_id: Optional[str] = Field(default=None, description="消息ID")
+    recorded: bool = Field(default=False, description="适配器是否已经自行写入聊天历史")

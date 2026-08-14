@@ -292,7 +292,7 @@ class WebChatMcpService:
 
         with safe_path.open("rb") as file_obj:
             upload = UploadFile(file=file_obj, filename=safe_path.name)
-            _saved_path, file_name = await _save_upload_file(channel.chat_key, upload, max_size_mb)
+            saved_path, file_name = await _save_upload_file(channel.chat_key, upload, max_size_mb)
 
         is_image = safe_path.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
         segment_cls = ChatMessageSegmentImage if is_image else ChatMessageSegmentFile
@@ -301,6 +301,7 @@ class WebChatMcpService:
             type=ChatMessageSegmentType.IMAGE if is_image else ChatMessageSegmentType.FILE,
             text=f"[{file_label}: {file_name}]",
             file_name=file_name,
+            local_path=saved_path,
         )
         segments: list[ChatMessageSegment] = []
         if text:

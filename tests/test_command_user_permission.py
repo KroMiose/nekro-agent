@@ -36,6 +36,7 @@ class _PermissionCommand(BaseCommand):
 
 class _FakeAdapter:
     key = "fake"
+    record_command_input = False
 
     def __init__(
         self,
@@ -259,6 +260,56 @@ async def test_collector_reuses_adapter_permission_for_wait_input() -> None:
     assert adapter.wait_kwargs is not None
     assert adapter.wait_kwargs["is_super_user"] is False
     assert adapter.wait_kwargs["is_advanced_user"] is True
+
+
+@pytest.mark.asyncio
+async def test_collect_message_records_command_input_without_agent_trigger(monkeypatch: pytest.MonkeyPatch) -> None:
+    from nekro_agent.adapters.interface import collector as collector_mod
+
+    class _FakeDbChatChannel:
+        chat_key = "fake-channel"
+        is_active = True
+        channel_name = "Channel"
+        channel_status = "active"
+        workspace_id = "workspace"
+
+    async def fake_get_or_create(**kwargs: Any) -> _FakeDbChatChannel:
+        del kwargs
+        return _FakeDbChatChannel()
+
+    recorded_messages: list[dict[str, Any]] = []
+
+    async def fake_record_human_message(*args: Any, **kwargs: Any) -> None:
+        recorded_messages.append({"args": args, "kwargs": kwargs})
+
+    async def fake_push_human_message(**kwargs: Any) -> None:
+        raise AssertionError("command input must not enter normal human-message trigger flow")
+
+    monkeypatch.setattr(collector_mod.DBChatChannel, "get_or_create", fake_get_or_create)
+    monkeypatch.setattr(collector_mod.message_service, "record_human_message", fake_record_human_message)
+    monkeypatch.setattr(collector_mod.message_service, "push_human_message", fake_push_human_message)
+
+    adapter = _FakeAdapter(CommandPermission.ADVANCED, command_detected=True)
+    adapter.record_command_input = True
+    channel = PlatformChannel(channel_id="channel", channel_name="Channel", channel_type=ChatType.PRIVATE)
+    user = PlatformUser(platform_name="fake", user_id="advanced-user", user_name="Advanced User")
+    message = PlatformMessage(
+        message_id="msg-command",
+        sender_id="advanced-user",
+        sender_name="Advanced User",
+        content_text="/test raw",
+        is_tome=True,
+    )
+
+    await collect_message(adapter, channel, user, message)
+
+    assert len(recorded_messages) == 1
+    recorded_message = recorded_messages[0]["args"][0]
+    assert recorded_message.message_id == "msg-command"
+    assert recorded_message.content_text == "/test raw"
+    assert recorded_message.chat_key == "fake-channel"
+    assert recorded_messages[0]["kwargs"]["db_chat_channel"].chat_key == "fake-channel"
+    assert adapter.executed_kwargs is not None
 
 
 @pytest.mark.asyncio

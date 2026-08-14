@@ -131,7 +131,7 @@ class UniversalChatService:
             raise ValueError(f"适配器发送消息失败，错误: {plt_response.error_message}")
 
         # 记录聊天记录
-        if record:
+        if record and not plt_response.recorded:
             from nekro_agent.services.message_service import message_service
 
             try:

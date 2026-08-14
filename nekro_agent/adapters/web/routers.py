@@ -535,7 +535,7 @@ async def create_web_upload_message(
     if len(text) > adapter.config.MESSAGE_MAX_LENGTH:
         raise ValidationError(reason=f"消息长度不能超过 {adapter.config.MESSAGE_MAX_LENGTH} 个字符")
 
-    _saved_path, file_name = await _save_upload_file(
+    saved_path, file_name = await _save_upload_file(
         chat_key=channel.chat_key,
         file=file,
         max_size_mb=adapter.config.FILE_UPLOAD_MAX_SIZE_MB,
@@ -547,6 +547,7 @@ async def create_web_upload_message(
         type=ChatMessageSegmentType.IMAGE if is_image else ChatMessageSegmentType.FILE,
         text=f"[{file_label}: {file_name}]",
         file_name=file_name,
+        local_path=saved_path,
     )
 
     content_data: List[ChatMessageSegment] = []

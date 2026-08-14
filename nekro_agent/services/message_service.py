@@ -313,8 +313,6 @@ class MessageService:
             logger.warning("消息校验失败，跳过本次处理...")
             return
 
-        content_data = [o.model_dump() for o in message.content_data]
-
         if check_forbidden_message(message.content_text, config):
             logger.info(f"消息 {message.content_text} 被禁止，跳过本次处理...")
             return
@@ -327,45 +325,7 @@ class MessageService:
             logger.info(f"用户消息 {message.content_text} 被插件阻止响应，跳过本次处理...")
             return
 
-        # 添加聊天记录
-        await DBChatMessage.create(
-            message_id=message.message_id,
-            sender_id=message.sender_id,
-            sender_name=message.sender_name,
-            sender_nickname=message.sender_nickname,
-            adapter_key=message.adapter_key,
-            platform_userid=message.platform_userid,
-            is_tome=message.is_tome,
-            is_recalled=message.is_recalled,
-            chat_key=message.chat_key,
-            chat_type=message.chat_type,
-            content_text=message.content_text,
-            content_data=json.dumps(content_data, ensure_ascii=False),
-            raw_cq_code=message.raw_cq_code,
-            ext_data=json.dumps(message.ext_data, ensure_ascii=False),
-            send_timestamp=int(time.time()),  # 使用处理后的时间戳
-        )
-
-        # 通知记忆调度器（非阻塞）
-        asyncio.create_task(
-            _notify_memory_scheduler(
-                chat_key=message.chat_key,
-                workspace_id=db_chat_channel.workspace_id,
-                content_length=len(message.content_text),
-            ),
-        )
-
-        # 广播消息到所有订阅者
-        await message_broadcaster.publish(message.chat_key, message)
-
-        # 同时广播频道更新事件，使频道列表实时更新（新消息会将频道移到最上面）
-        await channel_broadcaster.publish_update(
-            event_type="updated",
-            chat_key=message.chat_key,
-            channel_name=db_chat_channel.channel_name,
-            is_active=db_chat_channel.is_active,
-            status=db_chat_channel.channel_status,
-        )
+        await self._persist_human_message(message, db_chat_channel)
 
         should_ignore = (user and user.is_prevent_trigger) or (user and not user.is_active)
 
@@ -434,22 +394,25 @@ class MessageService:
                             return
                         # 通过适配器发送可见通知
                         quota_msg = f"今日回复配额已用完 ({daily_count}/{effective_limit})，请明天再试或联系管理员使用 /quota_boost 临时提升配额"
+                        quota_recorded = False
                         try:
                             adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
                         except AdapterUnavailableError as e:
                             logger.warning(f"[message_service] 配额通知发送失败，适配器不可用: {e}")
                         else:
-                            await adapter.forward_message(
+                            plt_response = await adapter.forward_message(
                                 PlatformSendRequest(
                                     chat_key=message.chat_key,
                                     segments=[PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=quota_msg)],
                                 )
                             )
-                        await self.push_system_message(
-                            chat_key=message.chat_key,
-                            agent_messages=quota_msg,
-                            db_chat_channel=db_chat_channel,
-                        )
+                            quota_recorded = plt_response.recorded
+                        if not quota_recorded:
+                            await self.push_system_message(
+                                chat_key=message.chat_key,
+                                agent_messages=quota_msg,
+                                db_chat_channel=db_chat_channel,
+                            )
                         return
 
                     # 每小时限额检查
@@ -471,25 +434,93 @@ class MessageService:
                             if not should_notify_quota_exhausted:
                                 return
                             hourly_msg = f"本小时回复配额已用完 ({hourly_count}/{hourly_limit})，请稍后再试"
+                            hourly_recorded = False
                             try:
                                 adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
                             except AdapterUnavailableError as e:
                                 logger.warning(f"[message_service] 小时配额通知发送失败，适配器不可用: {e}")
                             else:
-                                await adapter.forward_message(
+                                plt_response = await adapter.forward_message(
                                     PlatformSendRequest(
                                         chat_key=message.chat_key,
                                         segments=[PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=hourly_msg)],
                                     )
                                 )
-                            await self.push_system_message(
-                                chat_key=message.chat_key,
-                                agent_messages=hourly_msg,
-                                db_chat_channel=db_chat_channel,
-                            )
+                                hourly_recorded = plt_response.recorded
+                            if not hourly_recorded:
+                                await self.push_system_message(
+                                    chat_key=message.chat_key,
+                                    agent_messages=hourly_msg,
+                                    db_chat_channel=db_chat_channel,
+                                )
                             return
 
             await self.schedule_agent_task(message=message, ctx=ctx)
+
+    async def record_human_message(
+        self,
+        message: ChatMessage,
+        db_chat_channel: Optional[DBChatChannel] = None,
+    ) -> None:
+        """只记录并广播人类用户消息，不触发插件和 Agent。
+
+        命令消息会在适配器收集阶段被命令系统消费，不能复用
+        push_human_message() 的完整流程，否则 Web 私聊命令会因为
+        is_tome=True 被再次调度给 Agent。
+        """
+        db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=message.chat_key)
+        if not await self._message_validation_check(message):
+            logger.warning("消息校验失败，跳过本次处理...")
+            return
+
+        await self._persist_human_message(message, db_chat_channel)
+
+    async def _persist_human_message(
+        self,
+        message: ChatMessage,
+        db_chat_channel: DBChatChannel,
+    ) -> None:
+        """持久化并广播人类用户消息。"""
+        content_data = [o.model_dump() for o in message.content_data]
+
+        await DBChatMessage.create(
+            message_id=message.message_id,
+            sender_id=message.sender_id,
+            sender_name=message.sender_name,
+            sender_nickname=message.sender_nickname,
+            adapter_key=message.adapter_key,
+            platform_userid=message.platform_userid,
+            is_tome=message.is_tome,
+            is_recalled=message.is_recalled,
+            chat_key=message.chat_key,
+            chat_type=message.chat_type,
+            content_text=message.content_text,
+            content_data=json.dumps(content_data, ensure_ascii=False),
+            raw_cq_code=message.raw_cq_code,
+            ext_data=json.dumps(message.ext_data, ensure_ascii=False),
+            send_timestamp=int(time.time()),
+        )
+
+        # 通知记忆调度器（非阻塞）
+        asyncio.create_task(
+            _notify_memory_scheduler(
+                chat_key=message.chat_key,
+                workspace_id=db_chat_channel.workspace_id,
+                content_length=len(message.content_text),
+            ),
+        )
+
+        # 广播消息到所有订阅者
+        await message_broadcaster.publish(message.chat_key, message)
+
+        # 同时广播频道更新事件，使频道列表实时更新（新消息会将频道移到最上面）
+        await channel_broadcaster.publish_update(
+            event_type="updated",
+            chat_key=message.chat_key,
+            channel_name=db_chat_channel.channel_name,
+            is_active=db_chat_channel.is_active,
+            status=db_chat_channel.channel_status,
+        )
 
     async def push_bot_message(
         self,

@@ -51,6 +51,10 @@ async def collect_message(
     # 命令检测与执行（在 is_active 检查之前，确保 na_on 等命令在频道关闭时仍可用）
     chat_key = db_chat_channel.chat_key
     content_text = platform_message.content_text.strip()
+    if content_text and adapter.record_command_input and adapter.detect_command(content_text):
+        command_message = _build_chat_message(adapter, chat_key, platform_channel, platform_user, platform_message)
+        await message_service.record_human_message(command_message, db_chat_channel=db_chat_channel)
+
     if content_text and await _try_handle_command(
         adapter, chat_key, platform_channel, platform_user, platform_message, content_text,
     ):
@@ -93,7 +97,29 @@ async def collect_message(
         logger.info(f'接收自身消息 "{platform_message.content_text}"，跳过...')
         return
 
-    chat_message: ChatMessage = ChatMessage(
+    chat_message: ChatMessage = _build_chat_message(adapter, chat_key, platform_channel, platform_user, platform_message)
+
+    ref_str: str = (
+        f" (ref: {platform_message.ext_data.ref_msg_id})"
+        if platform_message.ext_data and platform_message.ext_data.ref_msg_id
+        else ""
+    )
+
+    logger.info(
+        f"Message Collect: [{chat_message.chat_key}] {platform_user.platform_name} {chat_message.sender_nickname}: {chat_message.content_text}{ref_str}",
+    )
+
+    await message_service.push_human_message(message=chat_message, user=user, db_chat_channel=db_chat_channel)
+
+
+def _build_chat_message(
+    adapter: "BaseAdapter",
+    chat_key: str,
+    platform_channel: "PlatformChannel",
+    platform_user: "PlatformUser",
+    platform_message: "PlatformMessage",
+) -> ChatMessage:
+    return ChatMessage(
         message_id=platform_message.message_id,
         sender_id=platform_user.user_id,
         sender_name=platform_user.user_name,
@@ -110,18 +136,6 @@ async def collect_message(
         ext_data=platform_message.ext_data.model_dump() if platform_message.ext_data else {},
         send_timestamp=int(time.time()),
     )
-
-    ref_str: str = (
-        f" (ref: {platform_message.ext_data.ref_msg_id})"
-        if platform_message.ext_data and platform_message.ext_data.ref_msg_id
-        else ""
-    )
-
-    logger.info(
-        f"Message Collect: [{chat_message.chat_key}] {platform_user.platform_name} {chat_message.sender_nickname}: {chat_message.content_text}{ref_str}",
-    )
-
-    await message_service.push_human_message(message=chat_message, user=user, db_chat_channel=db_chat_channel)
 
 
 async def _persist_registered_user_command_permission(

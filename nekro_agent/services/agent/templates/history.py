@@ -2,6 +2,7 @@ import datetime
 import json
 import re
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from lunar_python import Lunar
@@ -463,6 +464,25 @@ class HistoryPrompt(PromptTemplate):
     lunar_time: str
 
 
+def _resolve_image_access_path(seg: ChatMessageSegmentImage, chat_key: str) -> Optional[Path]:
+    """解析历史图片在宿主机上的可读路径。
+
+    早期 Web Chat 入站图片只写入 file_name，没有写 local_path；
+    新记录会写入保存后的 local_path。这里同时兼容两种记录，避免
+    图片已显示在 WebUI 历史里、却被视觉上下文跳过。
+    """
+    candidates: list[Path] = []
+    if seg.local_path:
+        candidates.append(Path(seg.local_path))
+    if seg.file_name:
+        candidates.append(convert_filename_to_access_path(seg.file_name, chat_key))
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
 async def render_history_data(
     chat_key: str,
     db_chat_channel: DBChatChannel,
@@ -528,14 +548,16 @@ async def render_history_data(
         for seg in image_segments[::-1]:
             if len(img_seg_set) >= config.AI_VISION_IMAGE_LIMIT:
                 break
-            if seg.local_path:
-                if seg.file_name in img_seg_set:
+            if seg.local_path or seg.file_name:
+                image_key = seg.file_name or seg.local_path or ""
+                if image_key in img_seg_set:
                     continue
-                access_path = convert_filename_to_access_path(seg.file_name, chat_key)
-                if not access_path.exists():
-                    logger.warning(f"图片不存在: {access_path}")
+                access_path = _resolve_image_access_path(seg, chat_key)
+                if access_path is None:
+                    logger.warning(f"图片不存在: local_path={seg.local_path}, file_name={seg.file_name}")
                     continue
-                img_seg_set.add(seg.file_name)
+                img_seg_set.add(image_key)
+                sandbox_path = convert_filename_to_sandbox_upload_path(seg.file_name or access_path.name)
                 # 检查图片大小
                 if access_path.stat().st_size > config.AI_VISION_IMAGE_SIZE_LIMIT_KB * 1024:
                     # 压缩图片
@@ -546,7 +568,7 @@ async def render_history_data(
                         continue
                     img_seg_pairs.append(
                         (
-                            f"<{one_time_code} | Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}>",
+                            f"<{one_time_code} | Image:{sandbox_path}>",
                             ContentSegment.image_content_from_path(str(compressed_path)),
                         ),
                     )
@@ -554,7 +576,7 @@ async def render_history_data(
                 else:
                     img_seg_pairs.append(
                         (
-                            f"<{one_time_code} | Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}>",
+                            f"<{one_time_code} | Image:{sandbox_path}>",
                             ContentSegment.image_content_from_path(str(access_path)),
                         ),
                     )

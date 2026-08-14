@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import TYPE_CHECKING, List, Type
 from uuid import uuid4
 
@@ -12,7 +13,10 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformUser,
 )
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.tools.common_util import download_file
+from nekro_agent.tools.path_convertor import is_url_path
 
 from .config import WebAdapterConfig
 
@@ -49,6 +53,10 @@ class WebAdapter(BaseAdapter[WebAdapterConfig]):
             "网页会话: `web-session_<uuid>`",
         ]
 
+    @property
+    def record_command_input(self) -> bool:
+        return True
+
     def get_adapter_router(self) -> APIRouter:
         from .routers import router, set_adapter
 
@@ -66,21 +74,64 @@ class WebAdapter(BaseAdapter[WebAdapterConfig]):
             return PlatformSendResponse(success=False, error_message="消息内容为空")
 
         message_id = f"webout_{uuid4().hex}"
-        unsupported_segments = [
-            segment.type
-            for segment in request.segments
-            if segment.type
-            not in {
-                PlatformSendSegmentType.TEXT,
-                PlatformSendSegmentType.AT,
-                PlatformSendSegmentType.IMAGE,
-                PlatformSendSegmentType.FILE,
-            }
-        ]
-        if unsupported_segments:
-            logger.info(f"Web Adapter 收到非文本发送片段，将由历史渲染兜底展示: {unsupported_segments}")
+        agent_messages = await self._build_agent_messages_from_platform_segments(request)
+        if not agent_messages:
+            return PlatformSendResponse(success=False, error_message="消息内容为空")
 
-        return PlatformSendResponse(success=True, message_id=message_id)
+        response = PlatformSendResponse(success=True, message_id=message_id, recorded=True)
+        from nekro_agent.services.message_service import message_service
+
+        await message_service.push_bot_message(
+            request.chat_key,
+            agent_messages,
+            response,
+            ref_msg_id=request.ref_msg_id,
+            normalize_at_markup=False,
+        )
+
+        return response
+
+    async def _build_agent_messages_from_platform_segments(
+        self,
+        request: PlatformSendRequest,
+    ) -> List[AgentMessageSegment]:
+        agent_messages: List[AgentMessageSegment] = []
+        for segment in request.segments:
+            if segment.type == PlatformSendSegmentType.TEXT:
+                if segment.content.strip():
+                    agent_messages.append(AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=segment.content))
+            elif segment.type == PlatformSendSegmentType.AT:
+                text = self._format_at_segment(segment.content, segment.at_info.nickname if segment.at_info else None)
+                if text:
+                    agent_messages.append(AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=text))
+            elif segment.type in {PlatformSendSegmentType.IMAGE, PlatformSendSegmentType.FILE}:
+                file_path = await self._resolve_send_file_path(request.chat_key, segment.file_path or segment.content)
+                if not file_path:
+                    logger.warning(f"Web Adapter 收到无效媒体片段，已跳过: type={segment.type}, file_path={segment.file_path}")
+                    continue
+                message_type = (
+                    AgentMessageSegmentType.IMAGE
+                    if segment.type == PlatformSendSegmentType.IMAGE
+                    else AgentMessageSegmentType.FILE
+                )
+                agent_messages.append(AgentMessageSegment(type=message_type, content=file_path))
+            else:
+                logger.info(f"Web Adapter 收到暂不支持的发送片段，已跳过: {segment.type}")
+        return agent_messages
+
+    @staticmethod
+    def _format_at_segment(content: str, nickname: str | None) -> str:
+        target = (nickname or content).strip()
+        return f"@{target}" if target else ""
+
+    @staticmethod
+    async def _resolve_send_file_path(chat_key: str, file_path: str) -> str:
+        if not file_path:
+            return ""
+        if is_url_path(file_path):
+            local_path, _file_name = await download_file(file_path, from_chat_key=chat_key)
+            return local_path
+        return file_path if Path(file_path).exists() else ""
 
     async def execute_command(
         self,
