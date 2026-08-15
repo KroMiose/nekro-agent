@@ -8,6 +8,7 @@ from typing import Any
 
 from tortoise.backends.base.client import BaseDBAsyncClient
 
+from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_chunk import DBKBChunk
 from nekro_agent.models.db_kb_document import DBKBDocument
@@ -23,10 +24,16 @@ logger = get_sub_logger("kb.index")
 
 PREVIEW_MAX_CHARS = 360
 _INDEX_BATCH_SIZE = 10
-_INDEX_CONCURRENCY = 3
-_index_semaphore = asyncio.Semaphore(_INDEX_CONCURRENCY)
+_INDEX_CONCURRENCY_DEFAULT = 3
 _index_tasks: dict[int, Any] = {}
 _pending_rebuilds: set[int] = set()
+
+try:
+    _INDEX_CONCURRENCY = max(1, int(config.KB_INDEX_CONCURRENCY))
+except (TypeError, ValueError):
+    # 配置值非法时回退默认并发，避免索引任务因错误配置而崩溃
+    _INDEX_CONCURRENCY = _INDEX_CONCURRENCY_DEFAULT
+_index_semaphore = asyncio.Semaphore(_INDEX_CONCURRENCY)
 
 
 def _hash_text(text: str) -> str:

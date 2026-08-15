@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 
 from fastapi import UploadFile
+from tortoise.exceptions import IntegrityError
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
@@ -238,6 +239,13 @@ async def create_asset_from_upload(
             file_size=len(content),
         )
         return asset, False
+    except IntegrityError:
+        # 并发上传同内容文件时，多个请求可能同时查不到已有记录；
+        # 唯一约束冲突后回退复用已存在的资产，避免被误判为上传失败
+        existing = await DBKBAsset.get_or_none(content_hash=content_hash)
+        if existing is not None:
+            return existing, True
+        raise
     except Exception:
         if target.exists():
             target.unlink()
