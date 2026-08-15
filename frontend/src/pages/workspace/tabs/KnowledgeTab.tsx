@@ -77,6 +77,7 @@ import ReferenceGraph from '../components/ReferenceGraph'
 import KBGraphDialog from '../components/KBGraphDialog'
 import KBBatchActionsButton from '../components/KBBatchActionsButton'
 import {
+  BATCH_UPLOAD_CONCURRENCY,
   findCategoryLengthOverflow,
   getFolderImportMetadata,
   KB_CATEGORY_MAX_LENGTH,
@@ -98,9 +99,6 @@ const EMPTY_DOCUMENTS: KBDocumentDetailResponse['document'][] = []
 const EMPTY_GLOBAL_ASSETS: KBAssetListItem[] = []
 const EMPTY_SEARCH_DOCUMENTS: KBSearchResponse['documents'] = []
 const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.xlsx', '.pdf', '.docx']
-
-/** 批量上传并发数（建议 3~10），受网络带宽与后端内存限制 */
-const BATCH_UPLOAD_CONCURRENCY = 5
 
 
 function getFileExtension(fileName: string): string {
@@ -1058,7 +1056,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               },
               pct => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, uploadProgress: pct } : i)),
             )
-            if (batchRunVersionRef.current !== runVersion) return
+            if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) return
             uploadedAny = true
             // 上传成功即视为该文件处理完成，索引由后端后台任务异步执行，无需在此等待
             setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'done', documentId: data.document.id } : i))
@@ -1083,7 +1081,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         setBatchCancelRequested(false)
         if (cancelRequested) {
           setExpandedBatchItemId(null)
-          setBatchQueue(prev => prev.filter(item => item.status !== 'waiting'))
+          setBatchQueue(prev => prev.filter(item => item.status !== 'waiting' && item.status !== 'uploading'))
         }
         if (uploadedAny) {
           setListView('grouped')

@@ -1,5 +1,8 @@
 export const KB_CATEGORY_MAX_LENGTH = 64
 
+/** 批量上传并发数（建议 3~10），受网络带宽与后端内存限制 */
+export const BATCH_UPLOAD_CONCURRENCY = 5
+
 export interface FolderImportMetadata {
   category: string
   sourcePath: string
