@@ -136,7 +136,11 @@ async def process_zip_upload(
         except (zipfile.BadZipFile, ValueError) as e:
             raise ValidationError(reason=str(e)) from e
 
-        filtered = [entry for entry in entries if Path(entry.source_path).suffix.lower() in allowed_exts]
+        filtered = [
+            entry
+            for entry in entries
+            if Path(entry.source_path).suffix.lower() in {ext.lower() for ext in allowed_exts}
+        ]
         result.skipped = len(entries) - len(filtered)
         for entry in filtered:
             success, reused_existing, error = await handle_entry(entry)
