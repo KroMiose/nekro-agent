@@ -11,6 +11,7 @@ from nekro_agent.adapters.email.config import EmailAccount
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
+from nekro_agent.services.user.deps import get_current_active_user
 
 logger = get_sub_logger("adapter.email.router")
 
@@ -36,7 +37,8 @@ def get_email_adapter():
 
 
 # 注意：这里不应该设置prefix，因为在外层已经设置了
-router = APIRouter(tags=["Adapter:email"])
+# 账户管理接口会读写邮箱凭据、OAuth token 并触发收信，必须整体要求登录态
+router = APIRouter(tags=["Adapter:email"], dependencies=[Depends(get_current_active_user)])
 
 
 def _get_accounts(adapter) -> List[EmailAccount]:
