@@ -37,7 +37,12 @@ export function createSingleFileImportHandler<Result>(config: FileImportConfig<R
 
     try {
       const result = await config.upload(file)
-      config.onSuccess(result)
+      try {
+        config.onSuccess(result)
+      } catch (err) {
+        // onSuccess 内部异常统一交给 onError 暴露，且不阻断后续刷新
+        config.onError?.(err)
+      }
       await config.refresh?.()
     } catch (err) {
       config.onError?.(err)

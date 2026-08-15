@@ -731,24 +731,27 @@ export default function KbLibraryPage() {
   const handleZipFileChange = createSingleFileImportHandler<KBZipImportResponse>({
     upload: kbLibraryApi.uploadZip,
     onSuccess: result => {
+      const errorMessages = formatZipImportErrors(result.errors, count =>
+        t('kbLibrary.notifications.zipImportMoreErrors', { count })
+      )
+      const stats = {
+        imported: result.imported,
+        reused: result.reused,
+        skipped: result.skipped,
+        failed: result.failed,
+      }
       if (!result.ok) {
-        const errorMessages = formatZipImportErrors(result.errors, count =>
-          t('kbLibrary.notifications.zipImportMoreErrors', { count })
-        )
         notification.error(
           t('kbLibrary.notifications.zipImportFailed', {
             message: errorMessages || t('kbLibrary.notifications.zipImportFailedGeneric'),
           })
         )
-      } else {
-        notification.success(
-          t('kbLibrary.notifications.zipImportSuccess', {
-            imported: result.imported,
-            reused: result.reused,
-            skipped: result.skipped,
-            failed: result.failed,
-          })
+      } else if (result.failed > 0) {
+        notification.warning(
+          `${t('kbLibrary.notifications.zipImportPartial', { ...stats })}${errorMessages ? `\n${errorMessages}` : ''}`
         )
+      } else {
+        notification.success(t('kbLibrary.notifications.zipImportSuccess', { ...stats }))
       }
     },
     onError: error => {

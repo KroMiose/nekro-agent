@@ -1289,6 +1289,7 @@
       "dirImportNoSupported": "所选文件夹中没有受支持的文件，仅支持：{{formats}}",
       "dirImportCategoryTooLong": "目录分组“{{category}}”长度为 {{length}}，超过上限 {{max}}。请缩短目录名称后再上传。",
       "zipImportSuccess": "Zip 导入完成：成功 {{imported}} 个，复用 {{reused}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
+      "zipImportPartial": "Zip 导入部分成功：成功 {{imported}} 个，复用 {{reused}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
       "zipImportFailed": "Zip 导入失败：{{message}}",
       "zipImportFailedGeneric": "Zip 导入失败，请检查压缩包内容后重试",
       "zipImportMoreErrors": "…等 {{count}} 条未显示"
@@ -1493,6 +1494,7 @@
       "downloadFailed": "下载失败：{{message}}",
       "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}",
       "zipImportSuccess": "Zip 导入完成：成功 {{imported}} 个，复用 {{reused}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
+      "zipImportPartial": "Zip 导入部分成功：成功 {{imported}} 个，复用 {{reused}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
       "zipImportFailed": "Zip 导入失败：{{message}}",
       "zipImportFailedGeneric": "Zip 导入失败，请检查压缩包内容后重试",
       "zipImportMoreErrors": "…等 {{count}} 条未显示"

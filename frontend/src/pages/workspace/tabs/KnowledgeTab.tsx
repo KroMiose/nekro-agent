@@ -1004,24 +1004,27 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const handleZipFileChange = createSingleFileImportHandler<KBZipImportResponse>({
     upload: file => knowledgeBaseApi.uploadZip(workspace.id, file),
     onSuccess: result => {
+      const errorMessages = formatZipImportErrors(result.errors, count =>
+        t('knowledge.notifications.zipImportMoreErrors', { count })
+      )
+      const stats = {
+        imported: result.imported,
+        reused: result.reused,
+        skipped: result.skipped,
+        failed: result.failed,
+      }
       if (!result.ok) {
-        const errorMessages = formatZipImportErrors(result.errors, count =>
-          t('knowledge.notifications.zipImportMoreErrors', { count })
-        )
         notification.error(
           t('knowledge.notifications.zipImportFailed', {
             message: errorMessages || t('knowledge.notifications.zipImportFailedGeneric'),
           })
         )
-      } else {
-        notification.success(
-          t('knowledge.notifications.zipImportSuccess', {
-            imported: result.imported,
-            reused: result.reused,
-            skipped: result.skipped,
-            failed: result.failed,
-          })
+      } else if (result.failed > 0) {
+        notification.warning(
+          `${t('knowledge.notifications.zipImportPartial', { ...stats })}${errorMessages ? `\n${errorMessages}` : ''}`
         )
+      } else {
+        notification.success(t('knowledge.notifications.zipImportSuccess', { ...stats }))
       }
     },
     onError: error => {
