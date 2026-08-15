@@ -242,9 +242,8 @@ async def import_kb_library_zip(
     result = await process_zip_upload(
         file=file, allowed_exts=ALLOWED_KB_LIBRARY_EXTENSIONS, handle_entry=handle_entry
     )
-    ok = not (result.imported + result.reused == 0 and result.failed > 0)
     return KBZipImportResponse(
-        ok=ok,
+        ok=result.ok,
         imported=result.imported,
         reused=result.reused,
         skipped=result.skipped,

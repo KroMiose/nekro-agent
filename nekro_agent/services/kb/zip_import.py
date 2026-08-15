@@ -1,4 +1,9 @@
-"""知识库 Zip 批量导入：安全解压 + 按目录结构映射导入元数据 + 导入编排。"""
+"""知识库 Zip 批量导入：安全解压 + 按目录结构映射导入元数据 + 导入编排。
+
+内存行为说明: 上传的 zip 会一次性读入内存（受 KB_ZIP_MAX_UPLOAD_SIZE 约束），
+解压落盘后逐文件经 Path.read_bytes() 读入内存导入（解压总量受 KB_ZIP_MAX_EXTRACT_SIZE 约束）。
+若未来放宽大小上限，需同步评估内存峰值或改为流式处理。
+"""
 
 import io
 import shutil
@@ -41,6 +46,11 @@ class ZipImportResult:
     skipped: int = 0
     failed: int = 0
     errors: list[str] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        """整体是否成功：至少有一个条目导入/复用成功，或没有任何失败。"""
+        return not (self.imported + self.reused == 0 and self.failed > 0)
 
 
 def _derive_entry(rel_path: str, abs_path: Path) -> ZipImportEntry:

@@ -316,9 +316,8 @@ async def import_workspace_kb_zip(
             return False, False, str(e)
 
     result = await process_zip_upload(file=file, allowed_exts=ALLOWED_KB_EXTENSIONS, handle_entry=handle_entry)
-    ok = not (result.imported == 0 and result.failed > 0)
     return KBZipImportResponse(
-        ok=ok,
+        ok=result.ok,
         imported=result.imported,
         reused=result.reused,
         skipped=result.skipped,
