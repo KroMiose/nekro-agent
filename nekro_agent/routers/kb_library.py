@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import io
+import shutil
+import tempfile
+import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -25,6 +29,7 @@ from nekro_agent.schemas.kb import (
     KBFullTextResponse,
     KBUpdateAssetBody,
     KBUpdateReferenceBody,
+    KBZipImportResponse,
 )
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.library_index_service import (
@@ -58,6 +63,7 @@ from nekro_agent.services.kb.library_service import (
     update_asset_metadata,
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
+from nekro_agent.services.kb.zip_import import KB_ZIP_MAX_UPLOAD_SIZE, extract_zip_safe
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -203,6 +209,66 @@ async def upload_kb_library_asset(
     if not reused_existing:
         await schedule_rebuild_asset(refreshed)
     return KBAssetUploadResponse(asset=await asset_to_list_item(refreshed), reused_existing=reused_existing)
+
+
+@router.post("/assets/zip", summary="上传 zip 批量导入全局知识库文件", response_model=KBZipImportResponse)
+@require_role(Role.Admin)
+async def import_kb_library_zip(
+    file: UploadFile = File(...),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBZipImportResponse:
+    """上传 zip 压缩包，解压后按包内目录结构批量导入全局知识库文件（分类=相对目录，路径=相对完整路径），同内容自动去重复用。"""
+    ensure_kb_embedding_configured()
+    file_name = file.filename or ""
+    if not file_name.lower().endswith(".zip"):
+        raise ValidationError(reason="仅支持上传 zip 压缩包")
+    if file.size is not None and file.size > KB_ZIP_MAX_UPLOAD_SIZE:
+        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_ZIP_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+    content = await file.read()
+    if file.size is None and len(content) > KB_ZIP_MAX_UPLOAD_SIZE:
+        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_ZIP_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+    await ensure_kb_library_collection()
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="kb-lib-zip-"))
+    try:
+        try:
+            entries = extract_zip_safe(content, tmp_dir)
+        except (zipfile.BadZipFile, ValueError) as e:
+            raise ValidationError(reason=str(e)) from e
+        filtered = [entry for entry in entries if Path(entry.source_path).suffix.lower() in ALLOWED_KB_LIBRARY_EXTENSIONS]
+        skipped = len(entries) - len(filtered)
+        imported = 0
+        reused = 0
+        failed = 0
+        errors: list[str] = []
+        for entry in filtered:
+            try:
+                upload_file = UploadFile(
+                    filename=Path(entry.source_path).name,
+                    file=io.BytesIO(entry.path.read_bytes()),
+                )
+                asset, reused_existing = await create_asset_from_upload(
+                    upload_file=upload_file,
+                    source_path=entry.source_path,
+                    title="",
+                    category=entry.category,
+                    tags=[],
+                    summary="",
+                    is_enabled=True,
+                )
+                if reused_existing:
+                    reused += 1
+                else:
+                    await schedule_rebuild_asset(asset)
+                    imported += 1
+            except Exception as e:
+                failed += 1
+                errors.append(f"{entry.source_path}: {e}")
+        if imported == 0 and reused == 0 and failed > 0:
+            return KBZipImportResponse(ok=False, imported=0, skipped=skipped, failed=failed, errors=errors)
+        return KBZipImportResponse(imported=imported, reused=reused, skipped=skipped, failed=failed, errors=errors)
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 @router.put("/assets/{asset_id}", summary="更新全局知识库文件", response_model=KBAssetDetailResponse)

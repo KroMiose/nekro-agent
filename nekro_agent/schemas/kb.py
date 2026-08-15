@@ -12,6 +12,17 @@ class KBActionResponse(BaseModel):
     message: Optional[str] = None
 
 
+class KBZipImportResponse(BaseModel):
+    """zip 批量导入结果统计"""
+
+    ok: bool = True
+    imported: int = 0
+    reused: int = 0
+    skipped: int = 0
+    failed: int = 0
+    errors: list[str] = Field(default_factory=list)
+
+
 class KBTagUpdate(BaseModel):
     tags: list[str] = Field(default_factory=list)
 

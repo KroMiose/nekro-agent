@@ -1111,6 +1111,7 @@
       "chooseFiles": "Choose Files (multi-select)",
       "reChooseFiles": "Re-select Files",
       "importFolder": "Import Folder",
+      "importZip": "Import Zip Archive",
       "reChooseFolder": "Re-select Folder",
       "or": "or",
       "startUpload": "Start Upload ({{count}} files)",
@@ -1225,6 +1226,7 @@
       "sourcePathPlaceholder": "e.g. faq/getting-started.md",
       "supportedFormats": "Supported upload formats: {{formats}}",
       "dirImportHint": "Select a local folder — files are categorized by subfolder name and paths are fully preserved",
+      "zipImportHint": "Upload a zip archive; it will be extracted and imported following its directory structure",
       "dirImportModeHint": "Folder import mode: categories have been inferred from the directory structure. Expand any file to adjust.",
       "reuseSearch": "Search global knowledge by title, path, category, or tags",
       "fileName": "File Name",
@@ -1285,7 +1287,9 @@
       "unsupportedFormat": "File {{name}} is not supported. Supported formats: {{formats}}",
       "dirImportSkipped": "Skipped {{count}} file(s) with unsupported formats",
       "dirImportNoSupported": "No supported files found in the selected folder. Supported formats: {{formats}}",
-      "dirImportCategoryTooLong": "The directory group \"{{category}}\" is {{length}} characters long, exceeding the limit of {{max}}. Shorten the folder name before uploading."
+      "dirImportCategoryTooLong": "The directory group \"{{category}}\" is {{length}} characters long, exceeding the limit of {{max}}. Shorten the folder name before uploading.",
+      "zipImportSuccess": "Zip import done: {{imported}} imported, {{reused}} reused, {{skipped}} skipped, {{failed}} failed",
+      "zipImportFailed": "Zip import failed: {{message}}"
     },
     "references": {
       "title": "References",
@@ -1485,7 +1489,9 @@
       "bindSuccess": "Workspace bindings updated",
       "bindFailed": "Binding failed: {{message}}",
       "downloadFailed": "Download failed: {{message}}",
-      "unsupportedFormat": "File {{name}} is not supported. Supported: {{formats}}"
+      "unsupportedFormat": "File {{name}} is not supported. Supported: {{formats}}",
+      "zipImportSuccess": "Zip import done: {{imported}} imported, {{reused}} reused, {{skipped}} skipped, {{failed}} failed",
+      "zipImportFailed": "Zip import failed: {{message}}"
     },
     "batchPanel": {
       "inProgress": "Uploading {{done}}/{{total}}",

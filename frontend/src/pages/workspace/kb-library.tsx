@@ -45,6 +45,7 @@ import {
   FileUpload as FileUploadIcon,
   FolderOpen as FolderOpenIcon,
   DriveFileMove as ImportFolderIcon,
+  Archive as ArchiveIcon,
   Hub as GraphViewIcon,
   InsertLink as RefLinkIcon,
   Link as BindIcon,
@@ -180,6 +181,7 @@ export default function KbLibraryPage() {
   const lastProgressTerminalRef = useRef('')
   const batchInputRef = useRef<HTMLInputElement | null>(null)
   const dirInputRef = useRef<HTMLInputElement | null>(null)
+  const zipInputRef = useRef<HTMLInputElement | null>(null)
   const batchProcessingRef = useRef(false)
   const batchQueueRef = useRef<BatchQueueItem[]>([])
   const batchCancelRequestedRef = useRef(false)
@@ -722,6 +724,30 @@ export default function KbLibraryPage() {
       return
     }
     setBatchQueue(nextQueue)
+  }
+
+  const handleZipFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    try {
+      const result = await kbLibraryApi.uploadZip(file)
+      if (!result.ok) {
+        notification.error(t('kbLibrary.notifications.zipImportFailed', { message: result.errors[0] ?? '' }))
+      } else {
+        notification.success(
+          t('kbLibrary.notifications.zipImportSuccess', {
+            imported: result.imported,
+            reused: result.reused,
+            skipped: result.skipped,
+            failed: result.failed,
+          })
+        )
+      }
+      await refreshAll()
+    } catch (err) {
+      notification.error(t('kbLibrary.notifications.zipImportFailed', { message: err instanceof Error ? err.message : String(err) }))
+    }
   }
 
   const removeBatchQueueItem = useCallback((id: string) => {
@@ -1724,8 +1750,14 @@ export default function KbLibraryPage() {
                 <ActionButton tone="secondary" startIcon={<ImportFolderIcon />} onClick={() => dirInputRef.current?.click()} disabled={withEmbeddingGuard()}>
                   {t('knowledge.actions.importFolder')}
                 </ActionButton>
+                <ActionButton tone="secondary" startIcon={<ArchiveIcon />} onClick={() => zipInputRef.current?.click()} disabled={withEmbeddingGuard()}>
+                  {t('knowledge.actions.importZip')}
+                </ActionButton>
                 <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
                   {t('knowledge.form.dirImportHint')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+                  {t('knowledge.form.zipImportHint')}
                 </Typography>
               </Stack>
             ) : (
@@ -1858,6 +1890,13 @@ export default function KbLibraryPage() {
               // @ts-expect-error webkitdirectory is non-standard but widely supported
               webkitdirectory=""
               onChange={handleDirFileChange}
+            />
+            <input
+              ref={zipInputRef}
+              type="file"
+              hidden
+              accept=".zip"
+              onChange={handleZipFileChange}
             />
           </Stack>
         </DialogContent>

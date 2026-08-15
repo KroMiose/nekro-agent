@@ -312,6 +312,15 @@ export interface KBReindexResponse {
   failed: number
 }
 
+export interface KBZipImportResponse {
+  ok: boolean
+  imported: number
+  reused: number
+  skipped: number
+  failed: number
+  errors: string[]
+}
+
 export interface KBUploadFilePayload {
   file: File
   title?: string
@@ -881,6 +890,15 @@ export const knowledgeBaseApi = {
     return response.data
   },
 
+  uploadZip: async (workspaceId: number, file: File): Promise<KBZipImportResponse> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await axios.post<KBZipImportResponse>(`/workspaces/${workspaceId}/kb/zip`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
   updateDocument: async (
     workspaceId: number,
     documentId: number,
@@ -1017,6 +1035,15 @@ export const kbLibraryApi = {
         if (!onProgress || !event.total) return
         onProgress(Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100))))
       },
+    })
+    return response.data
+  },
+
+  uploadZip: async (file: File): Promise<KBZipImportResponse> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await axios.post<KBZipImportResponse>('/kb-library/assets/zip', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     })
     return response.data
   },
