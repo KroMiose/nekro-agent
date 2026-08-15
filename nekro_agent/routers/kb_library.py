@@ -59,7 +59,7 @@ from nekro_agent.services.kb.library_service import (
     update_asset_metadata,
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
-from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload
+from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload, to_zip_import_response
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -235,14 +235,7 @@ async def import_kb_library_zip(
         create_from_upload=create_from_upload,
         schedule_rebuild=schedule_rebuild_asset,
     )
-    return KBZipImportResponse(
-        ok=result.ok,
-        imported=result.imported,
-        reused=result.reused,
-        skipped=result.skipped,
-        failed=result.failed,
-        errors=result.errors,
-    )
+    return to_zip_import_response(result)
 
 
 @router.put("/assets/{asset_id}", summary="更新全局知识库文件", response_model=KBAssetDetailResponse)

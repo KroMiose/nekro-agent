@@ -58,7 +58,7 @@ from nekro_agent.services.kb.index_service import (
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
 from nekro_agent.services.kb.search_service import search_workspace_kb
-from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload
+from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload, to_zip_import_response
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -312,14 +312,7 @@ async def import_workspace_kb_zip(
         create_from_upload=create_from_upload,
         schedule_rebuild=schedule_rebuild_document,
     )
-    return KBZipImportResponse(
-        ok=result.ok,
-        imported=result.imported,
-        reused=result.reused,
-        skipped=result.skipped,
-        failed=result.failed,
-        errors=result.errors,
-    )
+    return to_zip_import_response(result)
 
 
 @router.put(

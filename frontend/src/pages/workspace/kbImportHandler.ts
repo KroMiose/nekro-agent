@@ -3,6 +3,20 @@ import type { ChangeEvent } from 'react'
 /** 失败通知中最多展示的错误条数，超出部分以摘要形式提示 */
 export const MAX_ZIP_ERRORS_SHOWN = 10
 
+/**
+ * 格式化 zip 导入错误列表：最多展示前 MAX_ZIP_ERRORS_SHOWN 条，
+ * 超出部分以 moreLabel 生成的摘要提示（如"…等 N 条未显示"）。
+ */
+export function formatZipImportErrors(errors: string[], moreLabel: (count: number) => string): string {
+  const shown = errors.slice(0, MAX_ZIP_ERRORS_SHOWN)
+  const more = errors.length - shown.length
+  let message = shown.join('\n')
+  if (more > 0) {
+    message += `\n${moreLabel(more)}`
+  }
+  return message
+}
+
 type FileImportConfig<Result> = {
   upload: (file: File) => Promise<Result>
   onSuccess: (result: Result) => void
