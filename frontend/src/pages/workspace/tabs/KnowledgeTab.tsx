@@ -1024,8 +1024,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         )
       }
     },
-    onError: message => {
-      notification.error(t('knowledge.notifications.zipImportFailed', { message }))
+    onError: error => {
+      notification.error(
+        t('knowledge.notifications.zipImportFailed', {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      )
     },
     refresh: refreshAll,
   })

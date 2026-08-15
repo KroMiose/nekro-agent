@@ -23,7 +23,7 @@ from tortoise.exceptions import IntegrityError
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.errors import ValidationError
-from nekro_agent.schemas.kb import KBZipImportResponse
+from nekro_agent.schemas.kb import KBZipImportError, KBZipImportResponse
 
 logger = get_sub_logger("kb.zip_import")
 
@@ -123,9 +123,6 @@ async def _read_and_validate_zip_upload(file: UploadFile) -> bytes:
     file_name = file.filename or ""
     if not file_name.lower().endswith(".zip"):
         raise ValidationError(reason="仅支持上传 zip 压缩包")
-    upload_size = getattr(file, "size", None)
-    if upload_size is not None and upload_size > _MAX_UPLOAD_SIZE:
-        raise ValidationError(reason=f"文件大小超出限制（最大 {_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
     content = await file.read()
     if len(content) > _MAX_UPLOAD_SIZE:
         raise ValidationError(reason=f"文件大小超出限制（最大 {_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
@@ -156,7 +153,9 @@ async def _import_entries(
         except Exception as e:
             logger.warning(f"zip 导入条目失败: {entry.source_path}, error: {e}", exc_info=True)
             result.failed += 1
-            result.errors.append(f"{entry.source_path}: {_friendly_entry_error(e)}")
+            result.errors.append(
+                KBZipImportError(source_path=entry.source_path, reason=_friendly_entry_error(e))
+            )
 
 
 async def import_zip_with_upload(

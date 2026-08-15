@@ -312,13 +312,18 @@ export interface KBReindexResponse {
   failed: number
 }
 
+export interface KBZipImportError {
+  source_path: string
+  reason: string
+}
+
 export interface KBZipImportResponse {
   ok: boolean
   imported: number
   reused: number
   skipped: number
   failed: number
-  errors: string[]
+  errors: KBZipImportError[]
 }
 
 export interface KBUploadFilePayload {

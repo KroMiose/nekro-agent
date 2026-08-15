@@ -12,6 +12,13 @@ class KBActionResponse(BaseModel):
     message: Optional[str] = None
 
 
+class KBZipImportError(BaseModel):
+    """zip 导入单条目失败信息"""
+
+    source_path: str = Field(default="", description="失败条目在压缩包内的相对路径")
+    reason: str = Field(default="", description="失败原因（已清洗的用户可读消息）")
+
+
 class KBZipImportResponse(BaseModel):
     """zip 批量导入结果统计"""
 
@@ -20,7 +27,7 @@ class KBZipImportResponse(BaseModel):
     reused: int = 0
     skipped: int = 0
     failed: int = 0
-    errors: list[str] = Field(default_factory=list)
+    errors: list[KBZipImportError] = Field(default_factory=list)
 
 
 class KBTagUpdate(BaseModel):

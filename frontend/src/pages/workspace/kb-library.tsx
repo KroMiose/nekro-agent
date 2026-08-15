@@ -751,8 +751,12 @@ export default function KbLibraryPage() {
         )
       }
     },
-    onError: message => {
-      notification.error(t('kbLibrary.notifications.zipImportFailed', { message }))
+    onError: error => {
+      notification.error(
+        t('kbLibrary.notifications.zipImportFailed', {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      )
     },
     refresh: refreshAll,
   })
