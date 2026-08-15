@@ -99,6 +99,9 @@ const EMPTY_GLOBAL_ASSETS: KBAssetListItem[] = []
 const EMPTY_SEARCH_DOCUMENTS: KBSearchResponse['documents'] = []
 const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.xlsx', '.pdf', '.docx']
 
+/** 批量上传并发数（建议 3~10），受网络带宽与后端内存限制 */
+const BATCH_UPLOAD_CONCURRENCY = 5
+
 
 function getFileExtension(fileName: string): string {
   const match = fileName.toLowerCase().match(/(\.[^.]+)$/)
@@ -110,7 +113,7 @@ function isSupportedUploadFile(file: File): boolean {
   return SUPPORTED_UPLOAD_EXTENSIONS.includes(getFileExtension(file.name))
 }
 
-type BatchItemStatus = 'waiting' | 'uploading' | 'indexing' | 'done' | 'error'
+type BatchItemStatus = 'waiting' | 'uploading' | 'done' | 'error'
 
 interface BatchQueueItem {
   id: string
@@ -1029,46 +1032,47 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     setBatchPanelVisible(true)
     let uploadedAny = false
     try {
-      for (const item of items) {
-        if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
-        if (!batchQueueRef.current.some(queueItem => queueItem.id === item.id && queueItem.status === 'waiting')) continue
-        setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', uploadProgress: 0 } : i))
-        try {
-          const data = await knowledgeBaseApi.uploadFile(
-            workspace.id,
-            {
-              file: item.file,
-              title: item.title || item.file.name.replace(/\.[^.]+$/, ''),
-              source_path: item.source_path || '',
-              category: item.category,
-              tags: normalizeTagsInput(item.tags),
-              summary: item.summary,
-              is_enabled: true,
-            },
-            pct => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, uploadProgress: pct } : i)),
-          )
-          if (batchRunVersionRef.current !== runVersion) break
-          uploadedAny = true
-          setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'indexing', documentId: data.document.id } : i))
-          const deadline = Date.now() + 300_000
-          while (Date.now() < deadline) {
-            if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
-            await new Promise(r => setTimeout(r, 1500))
-            if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
-            const detail = await knowledgeBaseApi.getDocument(workspace.id, data.document.id)
-            if (detail.document.sync_status === 'ready' || detail.document.sync_status === 'failed') break
+      // 有限并发工作池：共享游标逐文件分配任务，最多 BATCH_UPLOAD_CONCURRENCY 个文件同时上传
+      let nextIndex = 0
+      const workerCount = Math.min(BATCH_UPLOAD_CONCURRENCY, items.length)
+      const workers = Array.from({ length: workerCount }, async () => {
+        while (true) {
+          if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) return
+          const index = nextIndex
+          nextIndex += 1
+          if (index >= items.length) return
+          const item = items[index]
+          if (!batchQueueRef.current.some(queueItem => queueItem.id === item.id && queueItem.status === 'waiting')) continue
+          setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'uploading', uploadProgress: 0 } : i))
+          try {
+            const data = await knowledgeBaseApi.uploadFile(
+              workspace.id,
+              {
+                file: item.file,
+                title: item.title || item.file.name.replace(/\.[^.]+$/, ''),
+                source_path: item.source_path || '',
+                category: item.category,
+                tags: normalizeTagsInput(item.tags),
+                summary: item.summary,
+                is_enabled: true,
+              },
+              pct => setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, uploadProgress: pct } : i)),
+            )
+            if (batchRunVersionRef.current !== runVersion) return
+            uploadedAny = true
+            // 上传成功即视为该文件处理完成，索引由后端后台任务异步执行，无需在此等待
+            setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'done', documentId: data.document.id } : i))
+          } catch (err) {
+            if (batchRunVersionRef.current !== runVersion) return
+            setBatchQueue(prev => prev.map(i => i.id === item.id ? {
+              ...i,
+              status: 'error',
+              errorMessage: err instanceof Error ? err.message : String(err),
+            } : i))
           }
-          if (batchRunVersionRef.current !== runVersion || batchCancelRequestedRef.current) break
-          setBatchQueue(prev => prev.map(i => i.id === item.id ? { ...i, status: 'done' } : i))
-        } catch (err) {
-          if (batchRunVersionRef.current !== runVersion) break
-          setBatchQueue(prev => prev.map(i => i.id === item.id ? {
-            ...i,
-            status: 'error',
-            errorMessage: err instanceof Error ? err.message : String(err),
-          } : i))
         }
-      }
+      })
+      await Promise.all(workers)
     } finally {
       const isCurrentRun = batchRunVersionRef.current === runVersion
       const cancelRequested = batchCancelRequestedRef.current
@@ -2487,7 +2491,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                           </>
                         )}
                         {item.status === 'uploading' && <CircularProgress size={14} />}
-                        {item.status === 'indexing' && <CircularProgress size={14} color="warning" />}
                         {item.status === 'done' && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
                         {item.status === 'error' && <ErrorOutlineIcon sx={{ fontSize: 16, color: 'error.main' }} />}
                       </Stack>
@@ -2668,15 +2671,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                     </>
                   )}
                   {item.status === 'uploading' && <CircularProgress size={14} />}
-                  {item.status === 'indexing' && <CircularProgress size={14} color="warning" />}
                   {item.status === 'done' && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
                   {item.status === 'error' && <ErrorOutlineIcon sx={{ fontSize: 16, color: 'error.main' }} />}
                 </Stack>
                 {item.status === 'uploading' && (
                   <LinearProgress variant="determinate" value={item.uploadProgress} sx={{ height: 3, borderRadius: 999 }} />
-                )}
-                {item.status === 'indexing' && (
-                  <LinearProgress color="warning" sx={{ height: 3, borderRadius: 999 }} />
                 )}
                 {item.status === 'error' && item.errorMessage && (
                   <Typography variant="caption" color="error" noWrap title={item.errorMessage}>{item.errorMessage}</Typography>

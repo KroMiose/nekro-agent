@@ -1138,7 +1138,6 @@
     "batchStatus": {
       "waiting": "等待中",
       "uploading": "上传中",
-      "indexing": "索引中",
       "done": "完成",
       "error": "失败",
       "edit": "编辑元数据"
@@ -1370,7 +1369,6 @@
     "batchStatus": {
       "waiting": "等待中",
       "uploading": "上传中",
-      "indexing": "索引中",
       "done": "完成",
       "error": "失败",
       "edit": "编辑元数据"
