@@ -1,8 +1,10 @@
 """知识库 Zip 批量导入：安全解压 + 按目录结构映射导入元数据 + 导入编排。
 
-内存行为说明: 上传的 zip 会一次性读入内存（受 KB_ZIP_MAX_UPLOAD_SIZE 约束），
-解压落盘后逐文件经 Path.read_bytes() 读入内存导入（解压总量受 KB_ZIP_MAX_EXTRACT_SIZE 约束）。
-若未来放宽大小上限，需同步评估内存峰值或改为流式处理。
+限制（上传大小 / 解压总大小 / 文件数）由集中配置 KB_ZIP_* 控制，可在不改代码的情况下调节。
+
+内存行为说明: 上传的 zip 会一次性读入内存（受 KB_ZIP_MAX_UPLOAD_SIZE_MB 约束），
+解压落盘后逐文件经 Path.read_bytes() 读入内存导入（解压总量受 KB_ZIP_MAX_EXTRACT_SIZE_MB 约束）。
+若未来放宽大小上限，需同步评估内存峰值或改为流式/分块读取。
 """
 
 import io
@@ -15,17 +17,23 @@ from tempfile import TemporaryDirectory
 
 from fastapi import UploadFile
 
+from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.errors import ValidationError
 
 logger = get_sub_logger("kb.zip_import")
 
-# 上传 zip 单包大小上限
-KB_ZIP_MAX_UPLOAD_SIZE = 100 * 1024 * 1024  # 100 MB
-# 解压后文件总大小上限（防 zip 炸弹）
-KB_ZIP_MAX_EXTRACT_SIZE = 500 * 1024 * 1024  # 500 MB
-# 单个 zip 允许的最大文件条目数
-KB_ZIP_MAX_FILES = 500
+
+def _max_upload_size() -> int:
+    return max(1, int(config.KB_ZIP_MAX_UPLOAD_SIZE_MB)) * 1024 * 1024
+
+
+def _max_extract_size() -> int:
+    return max(1, int(config.KB_ZIP_MAX_EXTRACT_SIZE_MB)) * 1024 * 1024
+
+
+def _max_files() -> int:
+    return max(1, int(config.KB_ZIP_MAX_FILES))
 
 
 @dataclass
@@ -50,7 +58,7 @@ class ZipImportResult:
     @property
     def ok(self) -> bool:
         """整体是否成功：至少有一个条目导入/复用成功，或没有任何失败。"""
-        return not (self.imported + self.reused == 0 and self.failed > 0)
+        return self.imported + self.reused > 0 or self.failed == 0
 
 
 def _derive_entry(rel_path: str, abs_path: Path) -> ZipImportEntry:
@@ -76,13 +84,13 @@ def extract_zip_safe(content: bytes, target_dir: Path) -> list[ZipImportEntry]:
     total_size = 0
     with zipfile.ZipFile(io.BytesIO(content)) as zf:
         members = [member for member in zf.infolist() if not member.is_dir()]
-        if len(members) > KB_ZIP_MAX_FILES:
-            raise ValueError(f"zip 包文件数超出上限（最大 {KB_ZIP_MAX_FILES} 个）")
+        if len(members) > _max_files():
+            raise ValueError(f"zip 包文件数超出上限（最大 {_max_files()} 个）")
         for member in members:
             total_size += member.file_size
-            if total_size > KB_ZIP_MAX_EXTRACT_SIZE:
+            if total_size > _max_extract_size():
                 raise ValueError(
-                    f"zip 包解压后总大小超出上限（最大 {KB_ZIP_MAX_EXTRACT_SIZE // 1024 // 1024} MB）"
+                    f"zip 包解压后总大小超出上限（最大 {_max_extract_size() // 1024 // 1024} MB）"
                 )
         # 按条目名去重（后出现的覆盖先出现的，与解压落盘行为一致）
         entries_by_path: dict[str, ZipImportEntry] = {}
@@ -110,11 +118,11 @@ async def process_zip_upload(
     file_name = file.filename or ""
     if not file_name.lower().endswith(".zip"):
         raise ValidationError(reason="仅支持上传 zip 压缩包")
-    if file.size is not None and file.size > KB_ZIP_MAX_UPLOAD_SIZE:
-        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_ZIP_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+    if file.size is not None and file.size > _max_upload_size():
+        raise ValidationError(reason=f"文件大小超出限制（最大 {_max_upload_size() // 1024 // 1024} MB）")
     content = await file.read()
-    if file.size is None and len(content) > KB_ZIP_MAX_UPLOAD_SIZE:
-        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_ZIP_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
+    if file.size is None and len(content) > _max_upload_size():
+        raise ValidationError(reason=f"文件大小超出限制（最大 {_max_upload_size() // 1024 // 1024} MB）")
 
     result = ZipImportResult()
     with TemporaryDirectory(prefix="kb-zip-") as tmp_dir_str:

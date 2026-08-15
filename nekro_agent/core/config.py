@@ -493,6 +493,48 @@ class CoreConfig(ConfigBase):
             placeholder="建议 1~8",
         ).model_dump(),
     )
+    KB_ZIP_MAX_UPLOAD_SIZE_MB: int = Field(
+        default=100,
+        title="知识库 Zip 单包大小上限 (MB)",
+        description="知识库 zip 批量导入时单个压缩包的大小上限（MB），超限拒绝上传。修改后需重启服务生效",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            i18n_title=i18n_text(zh_CN="知识库 Zip 单包大小上限 (MB)", en_US="Knowledge Base Zip Upload Size Limit (MB)"),
+            i18n_description=i18n_text(
+                zh_CN="知识库 zip 批量导入时单个压缩包的大小上限（MB），超限拒绝上传。修改后需重启服务生效",
+                en_US="Size limit (MB) for a single zip archive when batch-importing into the knowledge base; uploads exceeding it are rejected. Restart required after changing",
+            ),
+            placeholder="建议 50~500",
+        ).model_dump(),
+    )
+    KB_ZIP_MAX_EXTRACT_SIZE_MB: int = Field(
+        default=500,
+        title="知识库 Zip 解压总大小上限 (MB)",
+        description="知识库 zip 批量导入时解压后文件总大小上限（MB），用于防止 zip 炸弹。修改后需重启服务生效",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            i18n_title=i18n_text(zh_CN="知识库 Zip 解压总大小上限 (MB)", en_US="Knowledge Base Zip Extract Size Limit (MB)"),
+            i18n_description=i18n_text(
+                zh_CN="知识库 zip 批量导入时解压后文件总大小上限（MB），用于防止 zip 炸弹。修改后需重启服务生效",
+                en_US="Total extracted size limit (MB) for knowledge base zip import, used to guard against zip bombs. Restart required after changing",
+            ),
+            placeholder="建议 100~2000",
+        ).model_dump(),
+    )
+    KB_ZIP_MAX_FILES: int = Field(
+        default=500,
+        title="知识库 Zip 文件数上限",
+        description="知识库 zip 批量导入时单个压缩包允许的最大文件条目数。修改后需重启服务生效",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            i18n_title=i18n_text(zh_CN="知识库 Zip 文件数上限", en_US="Knowledge Base Zip File Count Limit"),
+            i18n_description=i18n_text(
+                zh_CN="知识库 zip 批量导入时单个压缩包允许的最大文件条目数。修改后需重启服务生效",
+                en_US="Maximum number of file entries allowed in a single zip archive for knowledge base import. Restart required after changing",
+            ),
+            placeholder="建议 100~2000",
+        ).model_dump(),
+    )
     MEMORY_CONSOLIDATION_FORCE_JSON_OUTPUT: bool = Field(
         default=True,
         title="强制沉淀模型输出 JSON",
