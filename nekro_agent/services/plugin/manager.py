@@ -252,8 +252,7 @@ async def update_plugin_call_priority(
     if not plugin:
         return False, f"插件 {plugin_id} 不存在"
 
-    set_plugin_call_priority(plugin.module_name, priority)
-    return True, None
+    return set_plugin_call_priority(plugin.module_name, priority)
 
 
 async def get_all_plugin_router_info() -> Dict[str, Any]:

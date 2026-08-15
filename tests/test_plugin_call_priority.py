@@ -19,21 +19,33 @@ def test_get_plugin_call_priority_defaults_to_auto(monkeypatch) -> None:
 def test_set_plugin_call_priority_persists_override(monkeypatch) -> None:
     saved: list[object] = []
     monkeypatch.setattr(config, "PLUGIN_CALL_PRIORITIES", {})
-    monkeypatch.setattr(ConfigService, "save_config", lambda *_args: saved.append(True))
+    monkeypatch.setattr(ConfigService, "save_config", lambda *_args: (saved.append(True) or (True, None)))
 
-    set_plugin_call_priority("example", "high")
+    result = set_plugin_call_priority("example", "high")
 
+    assert result == (True, None)
     assert config.PLUGIN_CALL_PRIORITIES == {"example": "high"}
     assert saved == [True]
 
 
 def test_set_plugin_call_priority_auto_removes_override(monkeypatch) -> None:
     monkeypatch.setattr(config, "PLUGIN_CALL_PRIORITIES", {"example": "low"})
-    monkeypatch.setattr(ConfigService, "save_config", lambda *_args: None)
+    monkeypatch.setattr(ConfigService, "save_config", lambda *_args: (True, None))
 
     set_plugin_call_priority("example", "auto")
 
     assert config.PLUGIN_CALL_PRIORITIES == {}
+
+
+def test_set_plugin_call_priority_rolls_back_when_persistence_fails(monkeypatch) -> None:
+    original = {"example": "low"}
+    monkeypatch.setattr(config, "PLUGIN_CALL_PRIORITIES", original)
+    monkeypatch.setattr(ConfigService, "save_config", lambda *_args: (False, "disk full"))
+
+    result = set_plugin_call_priority("example", "high")
+
+    assert result == (False, "disk full")
+    assert config.PLUGIN_CALL_PRIORITIES is original
 
 
 def test_plugin_prompt_exposes_call_priority() -> None:
@@ -56,4 +68,5 @@ def test_call_priority_rules_define_fallback_and_auto_semantics() -> None:
 
     assert "high, then medium, then low" in rules
     assert "try the next applicable lower-priority plugin" in rules
+    assert "activate it before selecting a lower-priority equivalent plugin" in rules
     assert "call_priority=auto" in rules
