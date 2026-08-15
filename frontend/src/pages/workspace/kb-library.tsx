@@ -93,7 +93,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from './kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from './kbCategoryTree'
-import { createSingleFileImportHandler } from './kbImportHandler'
+import { createSingleFileImportHandler, MAX_ZIP_ERRORS_SHOWN } from './kbImportHandler'
 
 type FilterStatus = 'all' | 'ready' | 'indexing' | 'failed'
 type BatchItemStatus = 'waiting' | 'uploading' | 'done' | 'error'
@@ -732,7 +732,12 @@ export default function KbLibraryPage() {
     upload: kbLibraryApi.uploadZip,
     onSuccess: result => {
       if (!result.ok) {
-        const errorMessages = result.errors.length > 0 ? result.errors.join('\n') : ''
+        const shownErrors = result.errors.slice(0, MAX_ZIP_ERRORS_SHOWN)
+        const moreCount = result.errors.length - shownErrors.length
+        let errorMessages = shownErrors.join('\n')
+        if (moreCount > 0) {
+          errorMessages += `\n${t('kbLibrary.notifications.zipImportMoreErrors', { count: moreCount })}`
+        }
         notification.error(
           t('kbLibrary.notifications.zipImportFailed', {
             message: errorMessages || t('kbLibrary.notifications.zipImportFailedGeneric'),

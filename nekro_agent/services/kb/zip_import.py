@@ -8,6 +8,7 @@
 """
 
 import io
+import posixpath
 import shutil
 import zipfile
 from collections.abc import Awaitable, Callable
@@ -95,10 +96,13 @@ def extract_zip_safe(content: bytes, target_dir: Path) -> list[ZipImportEntry]:
         # 按条目名去重（后出现的覆盖先出现的，与解压落盘行为一致）
         entries_by_path: dict[str, ZipImportEntry] = {}
         for member in members:
-            rel_path = member.filename
+            # 规范化条目路径：统一正斜杠、解析 ./ 与 ..、去除绝对路径前导，避免平台相关或畸形路径进入元数据
+            rel_path = posixpath.normpath(member.filename.replace("\\", "/")).lstrip("/")
+            if not rel_path:
+                continue
             dest = (target_root / rel_path).resolve()
             if not dest.is_relative_to(target_root):
-                raise ValueError(f"zip 包包含非法路径: {rel_path}")
+                raise ValueError(f"zip 包包含非法路径: {member.filename}")
             dest.parent.mkdir(parents=True, exist_ok=True)
             with zf.open(member) as src, open(dest, "wb") as out:
                 shutil.copyfileobj(src, out)

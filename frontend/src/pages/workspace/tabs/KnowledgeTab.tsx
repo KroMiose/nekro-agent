@@ -85,7 +85,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from '../kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from '../kbCategoryTree'
-import { createSingleFileImportHandler } from '../kbImportHandler'
+import { createSingleFileImportHandler, MAX_ZIP_ERRORS_SHOWN } from '../kbImportHandler'
 
 type KnowledgeSelection =
   | { kind: 'document'; id: number }
@@ -1005,7 +1005,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     upload: file => knowledgeBaseApi.uploadZip(workspace.id, file),
     onSuccess: result => {
       if (!result.ok) {
-        const errorMessages = result.errors.length > 0 ? result.errors.join('\n') : ''
+        const shownErrors = result.errors.slice(0, MAX_ZIP_ERRORS_SHOWN)
+        const moreCount = result.errors.length - shownErrors.length
+        let errorMessages = shownErrors.join('\n')
+        if (moreCount > 0) {
+          errorMessages += `\n${t('knowledge.notifications.zipImportMoreErrors', { count: moreCount })}`
+        }
         notification.error(
           t('knowledge.notifications.zipImportFailed', {
             message: errorMessages || t('knowledge.notifications.zipImportFailedGeneric'),

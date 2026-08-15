@@ -1,5 +1,8 @@
 import type { ChangeEvent } from 'react'
 
+/** 失败通知中最多展示的错误条数，超出部分以摘要形式提示 */
+export const MAX_ZIP_ERRORS_SHOWN = 10
+
 type FileImportConfig<Result> = {
   upload: (file: File) => Promise<Result>
   onSuccess: (result: Result) => void

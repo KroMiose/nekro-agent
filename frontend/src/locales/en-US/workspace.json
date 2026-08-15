@@ -1290,7 +1290,8 @@
       "dirImportCategoryTooLong": "The directory group \"{{category}}\" is {{length}} characters long, exceeding the limit of {{max}}. Shorten the folder name before uploading.",
       "zipImportSuccess": "Zip import done: {{imported}} imported, {{reused}} reused, {{skipped}} skipped, {{failed}} failed",
       "zipImportFailed": "Zip import failed: {{message}}",
-      "zipImportFailedGeneric": "Zip import failed, please check the archive and try again"
+      "zipImportFailedGeneric": "Zip import failed, please check the archive and try again",
+      "zipImportMoreErrors": "…and {{count}} more not shown"
     },
     "references": {
       "title": "References",
@@ -1493,7 +1494,8 @@
       "unsupportedFormat": "File {{name}} is not supported. Supported: {{formats}}",
       "zipImportSuccess": "Zip import done: {{imported}} imported, {{reused}} reused, {{skipped}} skipped, {{failed}} failed",
       "zipImportFailed": "Zip import failed: {{message}}",
-      "zipImportFailedGeneric": "Zip import failed, please check the archive and try again"
+      "zipImportFailedGeneric": "Zip import failed, please check the archive and try again",
+      "zipImportMoreErrors": "…and {{count}} more not shown"
     },
     "batchPanel": {
       "inProgress": "Uploading {{done}}/{{total}}",
