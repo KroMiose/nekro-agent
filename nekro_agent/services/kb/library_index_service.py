@@ -7,6 +7,7 @@ from typing import Any
 
 from tortoise.backends.base.client import BaseDBAsyncClient
 
+from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_kb_asset_chunk import DBKBAssetChunk
@@ -26,10 +27,21 @@ logger = get_sub_logger("kb.library_index")
 
 PREVIEW_MAX_CHARS = 360
 INDEX_BATCH_SIZE = 10
-_INDEX_CONCURRENCY = 3
-_index_semaphore = asyncio.Semaphore(_INDEX_CONCURRENCY)
 _index_tasks: dict[int, Any] = {}
 _pending_rebuilds: set[int] = set()
+_index_semaphore_cache: tuple[int, asyncio.Semaphore] | None = None
+
+
+def _get_index_semaphore() -> asyncio.Semaphore:
+    """获取索引并发信号量，并发数配置（KB_INDEX_CONCURRENCY）变更时自动重建。"""
+    global _index_semaphore_cache
+
+    concurrency = max(1, int(config.KB_INDEX_CONCURRENCY))
+    if _index_semaphore_cache is not None and _index_semaphore_cache[0] == concurrency:
+        return _index_semaphore_cache[1]
+    semaphore = asyncio.Semaphore(concurrency)
+    _index_semaphore_cache = (concurrency, semaphore)
+    return semaphore
 
 
 def _hash_text(text: str) -> str:
@@ -246,7 +258,7 @@ async def rebuild_asset(asset: DBKBAsset) -> int:
 async def _run_rebuild_asset_task(asset_id: int) -> None:
     task = _index_tasks.get(asset_id)
     try:
-        async with _index_semaphore:
+        async with _get_index_semaphore():
             while True:
                 _pending_rebuilds.discard(asset_id)
                 asset = await DBKBAsset.get_or_none(id=asset_id)
