@@ -186,7 +186,7 @@ export const chatChannelApi = {
   },
 
   refreshDetail: async (chatKey: string): Promise<ChatChannelDetail> => {
-    const response = await axios.post<ChatChannelDetail>(`/chat-channel/detail/${chatKey}/refresh`)
+    const response = await axios.get<ChatChannelDetail>(`/chat-channel/detail/${chatKey}/refresh`)
     return response.data
   },
 
