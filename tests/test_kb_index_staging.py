@@ -402,27 +402,41 @@ class _FakeChunkModel:
         return None
 
 
-class _RollingBackTransaction:
-    """模拟 upsert 之后、commit 之前失败：DB 侧回滚到旧 chunk。"""
+class _FakeTransaction:
+    """带回滚语义的假事务：异常或提交失败都把 chunk 行还原到进入事务前。"""
 
-    def __init__(self, model: _FakeChunkModel, snapshot_rows: list[_FakeChunk]) -> None:
+    def __init__(self, model: _FakeChunkModel, snapshot_rows: list[_FakeChunk], *, fail_commit: bool) -> None:
         self._model = model
         self._snapshot_rows = snapshot_rows
+        self._fail_commit = fail_commit
 
     async def __aenter__(self) -> object:
         return object()
 
-    async def __aexit__(self, *_exc: object) -> bool:
-        self._model.rows = list(self._snapshot_rows)
-        raise RuntimeError("commit failed")
+    async def __aexit__(self, exc_type: object, *_exc: object) -> bool:
+        if exc_type is not None:
+            self._model.rows = list(self._snapshot_rows)
+            return False
+        if self._fail_commit:
+            self._model.rows = list(self._snapshot_rows)
+            raise RuntimeError("commit failed")
+        return False
 
 
 def _install_swap_harness(
     monkeypatch: pytest.MonkeyPatch,
     *,
-    rolling_back: bool,
+    fail_commit: bool = False,
+    fail_activation: bool = False,
 ) -> tuple[_FakeQdrant, _FakeChunkModel, _FakeDocument]:
     qdrant = _FakeQdrant()
+    if fail_activation:
+
+        async def _failing_set_payload(*, chunk_ids: list[int], payload: dict[str, object]) -> None:
+            raise RuntimeError("qdrant activation down")
+
+        qdrant.set_payload = _failing_set_payload  # type: ignore[method-assign]
+
     model = _FakeChunkModel(existing_ids=[11, 12])
     snapshot_rows = list(model.rows)
     document = _FakeDocument()
@@ -434,18 +448,11 @@ def _install_swap_harness(
         "WorkspaceService",
         SimpleNamespace(resolve_kb_normalized_path=lambda _workspace_id, rel_path: Path(tempfile.gettempdir()) / rel_path),
     )
-    if rolling_back:
-        monkeypatch.setattr(index_service, "in_transaction", lambda: _RollingBackTransaction(model, snapshot_rows))
-    else:
-
-        class _OkTransaction:
-            async def __aenter__(self) -> object:
-                return object()
-
-            async def __aexit__(self, *_exc: object) -> bool:
-                return False
-
-        monkeypatch.setattr(index_service, "in_transaction", lambda: _OkTransaction())
+    monkeypatch.setattr(
+        index_service,
+        "in_transaction",
+        lambda: _FakeTransaction(model, snapshot_rows, fail_commit=fail_commit),
+    )
 
     return qdrant, model, document
 
@@ -458,9 +465,9 @@ def _swap_kwargs(document: _FakeDocument) -> dict[str, object]:
     }
 
 
-async def test_staged_points_are_written_unsearchable_before_commit(monkeypatch: pytest.MonkeyPatch) -> None:
-    """upsert 时新点必须 is_enabled=False，提交后才被激活成文档自身的可见性。"""
-    qdrant, _model, document = _install_swap_harness(monkeypatch, rolling_back=False)
+async def test_staged_points_are_written_unsearchable_before_activation(monkeypatch: pytest.MonkeyPatch) -> None:
+    """upsert 时新点必须 is_enabled=False，提交前才被激活成文档自身的可见性。"""
+    qdrant, _model, document = _install_swap_harness(monkeypatch)
 
     created = await index_service._swap_document_index(
         document,  # type: ignore[arg-type]
@@ -470,16 +477,35 @@ async def test_staged_points_are_written_unsearchable_before_commit(monkeypatch:
     )
 
     assert created == 2
-    # 阶段一：写入的点一律不可检索
     assert [payload["is_enabled"] for _id, _vec, payload in qdrant.upserted] == [False, False]
-    # 阶段二：提交后才激活，且旧点在激活之后才被删除
     assert qdrant.activated == [([100, 101], {"is_enabled": True})]
+    # 旧点只在提交成功之后才清理
     assert qdrant.deleted == [[11, 12]]
 
 
+async def test_activation_failure_keeps_old_index_intact(monkeypatch: pytest.MonkeyPatch) -> None:
+    """set_payload 抛错必须整体回滚：旧 chunk 行与旧向量点都还在，旧索引仍可检索。"""
+    qdrant, model, document = _install_swap_harness(monkeypatch, fail_activation=True)
+
+    with pytest.raises(RuntimeError, match="qdrant activation down"):
+        await index_service._swap_document_index(
+            document,  # type: ignore[arg-type]
+            [_draft("a"), _draft("bb")],
+            [[1.0], [2.0]],
+            **_swap_kwargs(document),  # type: ignore[arg-type]
+        )
+
+    # 旧 chunk 行随事务回滚，旧向量点绝不能被删除——两者齐全才谈得上仍可检索
+    assert [row.id for row in model.rows] == [11, 12]
+    assert [11, 12] not in qdrant.deleted
+    # 新点从未变成可检索，并且已被清理
+    assert all(payload["is_enabled"] is False for _id, _vec, payload in qdrant.upserted)
+    assert qdrant.deleted == [[100, 101]]
+
+
 async def test_rollback_after_upsert_leaves_no_searchable_orphan_points(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Qdrant upsert 成功后 DB flip 失败：新点既不能可检索，也不能残留。"""
-    qdrant, model, document = _install_swap_harness(monkeypatch, rolling_back=True)
+    """Qdrant upsert 成功后 DB commit 失败：新点必须被清理，旧点与旧行保留。"""
+    qdrant, model, document = _install_swap_harness(monkeypatch, fail_commit=True)
 
     with pytest.raises(RuntimeError, match="commit failed"):
         await index_service._swap_document_index(
@@ -489,11 +515,6 @@ async def test_rollback_after_upsert_leaves_no_searchable_orphan_points(monkeypa
             **_swap_kwargs(document),  # type: ignore[arg-type]
         )
 
-    # 写进去的点全部 is_enabled=False，不会挤占 grouped search 名额
-    assert all(payload["is_enabled"] is False for _id, _vec, payload in qdrant.upserted)
-    # 从未被激活，且已被清理
-    assert qdrant.activated == []
-    assert qdrant.deleted == [[100, 101]]
-    # 旧点没有被删除，旧 chunk 行随事务回滚
-    assert [11, 12] not in qdrant.deleted
     assert [row.id for row in model.rows] == [11, 12]
+    assert [11, 12] not in qdrant.deleted
+    assert qdrant.deleted == [[100, 101]]

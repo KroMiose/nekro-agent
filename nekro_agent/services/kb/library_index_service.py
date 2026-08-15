@@ -210,12 +210,13 @@ async def _swap_asset_index(
     normalized_rel_path: str,
     normalized_text_hash: str,
 ) -> int:
-    """两阶段切换资产索引。
+    """两阶段切换资产索引，DB 提交是唯一的切换点。
 
     Qdrant 写入不受 Postgres 事务保护，所以新向量点先以 is_enabled=False 写入：它们不满足
-    检索过滤条件，旧点仍是唯一可检索的一份。若 DB 事务在 upsert 之后回滚（save/commit/取消），
-    这些点只是惰性残留，不会挤占 grouped search 名额，并会被尽力清除。
-    事务提交成功后才激活新点、清理旧点与旧文本文件——这些都是提交后的纯清理动作。
+    检索过滤条件，旧点仍是唯一可检索的一份。激活放在事务内、紧邻提交的最后一步——激活失败会
+    连同 DB 一起回滚，旧 chunk 行、旧向量点、旧规范化文本全部原样保留，旧索引继续可检索；
+    回滚时刚写入的新点由 finally 尽力清除。
+    提交之后只剩纯清理动作（删旧点、删旧文本），失败仅留残留，不影响新索引可用性。
     """
     stale_chunk_ids = await list_asset_chunk_ids(asset.id)
     staged_point_ids: list[int] = []
@@ -290,25 +291,21 @@ async def _swap_asset_index(
                 ],
                 using_db=conn,
             )
+
+            # 提交前最后一步激活新点：失败即整体回滚，旧 chunk / 旧向量点 / 旧文本原封不动
+            if staged_point_ids:
+                await kb_library_qdrant_manager.set_payload(
+                    chunk_ids=staged_point_ids,
+                    payload={"is_enabled": asset.is_enabled},
+                )
         switched = True
     finally:
         if not switched and staged_point_ids:
             try:
                 await delete_asset_vector_points(staged_point_ids)
             except Exception as e:
-                logger.warning(
-                    f"清理全局知识库 staging 向量点失败（这些点不可检索，不影响搜索结果）: "
-                    f"asset_id={asset.id}, error={e}",
-                )
+                logger.warning(f"清理全局知识库 staging 向量点失败: asset_id={asset.id}, error={e}")
 
-    # 先激活新点再删旧点，保证任何时刻至少有一份点可检索；失败可由元数据同步或重建修复
-    try:
-        await kb_library_qdrant_manager.set_payload(
-            chunk_ids=staged_point_ids,
-            payload={"is_enabled": asset.is_enabled},
-        )
-    except Exception as e:
-        logger.warning(f"激活全局知识库新向量点失败，该资产检索暂不可用: asset_id={asset.id}, error={e}")
     try:
         await delete_asset_vector_points(stale_chunk_ids)
     except Exception as e:
