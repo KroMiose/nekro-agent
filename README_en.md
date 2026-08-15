@@ -262,4 +262,4 @@ Thanks to the following developers for their contributions to this project.
 
 ## ⭐ Star History
 
-![Star History Chart](https://api.star-history.com/svg?repos=KroMiose/nekro-agent&type=Date)
+![Star History Chart](https://star-history.dera.page/svg?repos=KroMiose/nekro-agent&type=Date)
