@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import io
-import shutil
-import tempfile
-import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -62,7 +59,7 @@ from nekro_agent.services.kb.index_service import (
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
 from nekro_agent.services.kb.search_service import search_workspace_kb
-from nekro_agent.services.kb.zip_import import KB_ZIP_MAX_UPLOAD_SIZE, extract_zip_safe
+from nekro_agent.services.kb.zip_import import ZipImportEntry, process_zip_upload
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -295,53 +292,39 @@ async def import_workspace_kb_zip(
     """上传 zip 压缩包，解压后按包内目录结构批量导入工作区知识库文档（分类=相对目录，路径=相对完整路径）。"""
     await _get_workspace_or_404(workspace_id)
     ensure_kb_embedding_configured()
-    file_name = file.filename or ""
-    if not file_name.lower().endswith(".zip"):
-        raise ValidationError(reason="仅支持上传 zip 压缩包")
-    if file.size is not None and file.size > KB_ZIP_MAX_UPLOAD_SIZE:
-        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_ZIP_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
-    content = await file.read()
-    if file.size is None and len(content) > KB_ZIP_MAX_UPLOAD_SIZE:
-        raise ValidationError(reason=f"文件大小超出限制（最大 {KB_ZIP_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
     await ensure_kb_collection()
 
-    tmp_dir = Path(tempfile.mkdtemp(prefix="kb-zip-"))
-    try:
+    async def handle_entry(entry: ZipImportEntry) -> tuple[bool, bool, str | None]:
         try:
-            entries = extract_zip_safe(content, tmp_dir)
-        except (zipfile.BadZipFile, ValueError) as e:
-            raise ValidationError(reason=str(e)) from e
-        filtered = [entry for entry in entries if Path(entry.source_path).suffix.lower() in ALLOWED_KB_EXTENSIONS]
-        skipped = len(entries) - len(filtered)
-        imported = 0
-        failed = 0
-        errors: list[str] = []
-        for entry in filtered:
-            try:
-                upload_file = UploadFile(
-                    filename=Path(entry.source_path).name,
-                    file=io.BytesIO(entry.path.read_bytes()),
-                )
-                document = await create_file_document(
-                    workspace_id=workspace_id,
-                    upload_file=upload_file,
-                    source_path=entry.source_path,
-                    title="",
-                    category=entry.category,
-                    tags=[],
-                    summary="",
-                    is_enabled=True,
-                )
-                await schedule_rebuild_document(document)
-                imported += 1
-            except Exception as e:
-                failed += 1
-                errors.append(f"{entry.source_path}: {e}")
-        if imported == 0 and failed > 0:
-            return KBZipImportResponse(ok=False, imported=0, skipped=skipped, failed=failed, errors=errors)
-        return KBZipImportResponse(imported=imported, skipped=skipped, failed=failed, errors=errors)
-    finally:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+            upload_file = UploadFile(
+                filename=Path(entry.source_path).name,
+                file=io.BytesIO(entry.path.read_bytes()),
+            )
+            document = await create_file_document(
+                workspace_id=workspace_id,
+                upload_file=upload_file,
+                source_path=entry.source_path,
+                title="",
+                category=entry.category,
+                tags=[],
+                summary="",
+                is_enabled=True,
+            )
+            await schedule_rebuild_document(document)
+            return True, False, None
+        except Exception as e:
+            return False, False, str(e)
+
+    result = await process_zip_upload(file=file, allowed_exts=ALLOWED_KB_EXTENSIONS, handle_entry=handle_entry)
+    ok = not (result.imported == 0 and result.failed > 0)
+    return KBZipImportResponse(
+        ok=ok,
+        imported=result.imported,
+        reused=result.reused,
+        skipped=result.skipped,
+        failed=result.failed,
+        errors=result.errors,
+    )
 
 
 @router.put(

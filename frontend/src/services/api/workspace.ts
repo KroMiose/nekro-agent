@@ -893,9 +893,7 @@ export const knowledgeBaseApi = {
   uploadZip: async (workspaceId: number, file: File): Promise<KBZipImportResponse> => {
     const formData = new FormData()
     formData.append('file', file)
-    const response = await axios.post<KBZipImportResponse>(`/workspaces/${workspaceId}/kb/zip`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const response = await axios.post<KBZipImportResponse>(`/workspaces/${workspaceId}/kb/zip`, formData)
     return response.data
   },
 
@@ -1042,9 +1040,7 @@ export const kbLibraryApi = {
   uploadZip: async (file: File): Promise<KBZipImportResponse> => {
     const formData = new FormData()
     formData.append('file', file)
-    const response = await axios.post<KBZipImportResponse>('/kb-library/assets/zip', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
+    const response = await axios.post<KBZipImportResponse>('/kb-library/assets/zip', formData)
     return response.data
   },
 
