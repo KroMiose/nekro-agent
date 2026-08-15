@@ -172,6 +172,7 @@ async def import_zip_with_upload(
                 await schedule_rebuild(obj)
             return True, reused_existing, None
         except Exception as e:
+            logger.warning(f"zip 导入条目失败: {entry.source_path}, error: {e}", exc_info=True)
             return False, False, str(e)
 
     return await process_zip_upload(file=file, allowed_exts=allowed_exts, handle_entry=handle_entry)
