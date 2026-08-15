@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -15,6 +16,8 @@ from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationE
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
+    KBBatchDeleteBody,
+    KBBatchDeleteResponse,
     KBCreateTextDocumentBody,
     KBDocumentDetailResponse,
     KBDocumentListResponse,
@@ -66,6 +69,9 @@ logger = get_sub_logger("kb.workspace_router")
 
 ALLOWED_KB_EXTENSIONS = {".md", ".txt", ".html", ".htm", ".json", ".yaml", ".yml", ".csv", ".xlsx", ".pdf", ".docx"}
 KB_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+# 批量删除单请求上限与并发数
+KB_BATCH_DELETE_MAX = 1000
+KB_BATCH_DELETE_CONCURRENCY = 8
 
 
 def _is_document_index_ready(document: DBKBDocument) -> bool:
@@ -333,16 +339,13 @@ async def update_workspace_kb_document(
     )
 
 
-@router.delete("/{workspace_id}/kb/documents/{document_id}", summary="删除知识库文档", response_model=KBActionResponse)
-@require_role(Role.Admin)
-async def delete_workspace_kb_document(
-    workspace_id: int,
-    document_id: int,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> KBActionResponse:
+async def _delete_document_record(workspace_id: int, document_id: int) -> list[str]:
+    """删除单个知识库文档记录及外部资源，返回清理警告列表；不存在或失败时抛异常（供单删与批量复用）。"""
     from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
 
-    document = await _get_document_or_404(workspace_id, document_id)
+    document = await get_document(workspace_id, document_id)
+    if document is None:
+        raise NotFoundError(resource=f"知识库文档 {document_id}")
     await cancel_rebuild_document(document.id)
     chunk_ids = await list_document_chunk_ids(document.id)
 
@@ -363,11 +366,58 @@ async def delete_workspace_kb_document(
     except Exception as e:
         logger.warning(f"删除知识库文档文件失败: document_id={document_id}, error={e}")
         cleanup_warnings.append("files")
+    return cleanup_warnings
 
+
+@router.delete("/{workspace_id}/kb/documents/{document_id}", summary="删除知识库文档", response_model=KBActionResponse)
+@require_role(Role.Admin)
+async def delete_workspace_kb_document(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBActionResponse:
+    await _get_workspace_or_404(workspace_id)
+    cleanup_warnings = await _delete_document_record(workspace_id, document_id)
     return KBActionResponse(
         ok=True,
         message="文档记录已删除，但部分外部资源清理失败" if cleanup_warnings else None,
     )
+
+
+@router.post(
+    "/{workspace_id}/kb/documents/batch-delete",
+    summary="批量删除知识库文档",
+    response_model=KBBatchDeleteResponse,
+)
+@require_role(Role.Admin)
+async def batch_delete_workspace_kb_documents(
+    workspace_id: int,
+    body: KBBatchDeleteBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBBatchDeleteResponse:
+    """一次请求批量删除多个文档：服务端限流并发处理，返回成功/失败统计，单条失败不中断整批。"""
+    await _get_workspace_or_404(workspace_id)
+    ids = list(dict.fromkeys(body.ids))
+    if len(ids) > KB_BATCH_DELETE_MAX:
+        raise ValidationError(reason=f"单次批量删除最多 {KB_BATCH_DELETE_MAX} 个")
+    if not ids:
+        return KBBatchDeleteResponse(ok=True, deleted=0, failed=0, errors=[])
+
+    semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
+
+    async def delete_one(document_id: int) -> str | None:
+        async with semaphore:
+            try:
+                await _delete_document_record(workspace_id, document_id)
+                return None
+            except Exception as e:
+                return f"文档 {document_id}: {e}"
+
+    results = await asyncio.gather(*(delete_one(i) for i in ids))
+    deleted = results.count(None)
+    failed = len(results) - deleted
+    errors = [result for result in results if result is not None]
+    return KBBatchDeleteResponse(ok=deleted + failed > 0, deleted=deleted, failed=failed, errors=errors)
 
 
 @router.get("/{workspace_id}/kb/documents/{document_id}/raw", summary="下载知识库原始文件")

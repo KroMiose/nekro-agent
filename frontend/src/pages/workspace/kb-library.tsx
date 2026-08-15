@@ -471,27 +471,22 @@ export default function KbLibraryPage() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: async (assetIds: number[]) => {
-      const results = await Promise.allSettled(assetIds.map(assetId => kbLibraryApi.deleteAsset(assetId)))
-      const deletedIds: number[] = []
-      let failedCount = 0
-      results.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          deletedIds.push(assetIds[index])
-          return
-        }
-        failedCount += 1
-      })
-      return { deletedCount: deletedIds.length, failedCount, deletedIds }
+      const result = await kbLibraryApi.batchDeleteAssets(assetIds)
+      return { deletedCount: result.deleted, failedCount: result.failed, assetIds }
+    },
+    onMutate: assetIds => {
+      notification.info(t('kbLibrary.notifications.bulkDeleting', { count: assetIds.length }), { key: 'kb-bulk-deleting' })
     },
     onSuccess: async result => {
+      notification.close('kb-bulk-deleting')
       setBulkDeleteOpen(false)
-      if (selectedAssetId != null && result.deletedIds.includes(selectedAssetId)) {
+      if (selectedAssetId != null && result.assetIds.includes(selectedAssetId)) {
         setSelectedAssetId(null)
       }
       setSelectedAssetIds(prev => {
-        if (result.deletedIds.length === 0) return prev
+        if (result.assetIds.length === 0) return prev
         const next = new Set(prev)
-        result.deletedIds.forEach(id => next.delete(id))
+        result.assetIds.forEach(id => next.delete(id))
         return next
       })
       clearInteractiveFocus()
@@ -507,7 +502,10 @@ export default function KbLibraryPage() {
         )
       }
     },
-    onError: (err: Error) => notification.error(t('kbLibrary.notifications.deleteFailed', { message: err.message })),
+    onError: (err: Error) => {
+      notification.close('kb-bulk-deleting')
+      notification.error(t('kbLibrary.notifications.deleteFailed', { message: err.message }))
+    },
   })
 
   const bulkReindexMutation = useMutation({

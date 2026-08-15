@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -15,12 +16,15 @@ from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationE
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
+    KBAssetBatchUnbindBody,
     KBAssetBindingsResponse,
     KBAssetBindingsUpdateBody,
     KBAssetDetailResponse,
     KBAssetListResponse,
     KBAssetReferences,
     KBAssetUploadResponse,
+    KBBatchDeleteBody,
+    KBBatchDeleteResponse,
     KBCreateTextDocumentBody,
     KBFullTextResponse,
     KBUpdateAssetBody,
@@ -78,6 +82,9 @@ ALLOWED_KB_LIBRARY_EXTENSIONS = {
     ".docx",
 }
 KB_LIBRARY_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+# 批量删除单请求上限与并发数
+KB_BATCH_DELETE_MAX = 1000
+KB_BATCH_DELETE_CONCURRENCY = 8
 
 
 def _is_asset_index_ready(asset: DBKBAsset) -> bool:
@@ -239,15 +246,13 @@ async def update_kb_library_asset(
     )
 
 
-@router.delete("/assets/{asset_id}", summary="删除全局知识库文件", response_model=KBActionResponse)
-@require_role(Role.Admin)
-async def delete_kb_library_asset(
-    asset_id: int,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> KBActionResponse:
+async def _delete_asset_record(asset_id: int) -> list[str]:
+    """删除单个全局资产记录及外部资源，返回清理警告列表；不存在/仍被绑定时抛异常（供单删与批量复用）。"""
     from nekro_agent.models.db_kb_asset_reference import DBKBAssetReference
 
-    asset = await _get_asset_or_404(asset_id)
+    asset = await get_asset(asset_id)
+    if asset is None:
+        raise NotFoundError(resource=f"全局知识库文件 {asset_id}")
     await cancel_rebuild_asset(asset.id)
     bound_workspaces = await list_asset_bound_workspaces(asset.id)
     if bound_workspaces:
@@ -271,11 +276,81 @@ async def delete_kb_library_asset(
     except Exception as e:
         logger.warning(f"删除全局知识库文件失败: asset_id={asset_id}, error={e}")
         cleanup_warnings.append("files")
+    return cleanup_warnings
 
+
+@router.delete("/assets/{asset_id}", summary="删除全局知识库文件", response_model=KBActionResponse)
+@require_role(Role.Admin)
+async def delete_kb_library_asset(
+    asset_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBActionResponse:
+    cleanup_warnings = await _delete_asset_record(asset_id)
     return KBActionResponse(
         ok=True,
         message="资产记录已删除，但部分外部资源清理失败" if cleanup_warnings else None,
     )
+
+
+@router.post("/assets/batch-delete", summary="批量删除全局知识库文件", response_model=KBBatchDeleteResponse)
+@require_role(Role.Admin)
+async def batch_delete_kb_library_assets(
+    body: KBBatchDeleteBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBBatchDeleteResponse:
+    """一次请求批量删除多个资产：服务端限流并发处理，返回成功/失败统计，单条失败（含仍被绑定）不中断整批。"""
+    ids = list(dict.fromkeys(body.ids))
+    if len(ids) > KB_BATCH_DELETE_MAX:
+        raise ValidationError(reason=f"单次批量删除最多 {KB_BATCH_DELETE_MAX} 个")
+    if not ids:
+        return KBBatchDeleteResponse(ok=True, deleted=0, failed=0, errors=[])
+
+    semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
+
+    async def delete_one(asset_id: int) -> str | None:
+        async with semaphore:
+            try:
+                await _delete_asset_record(asset_id)
+                return None
+            except Exception as e:
+                return f"资产 {asset_id}: {e}"
+
+    results = await asyncio.gather(*(delete_one(i) for i in ids))
+    deleted = results.count(None)
+    failed = len(results) - deleted
+    errors = [result for result in results if result is not None]
+    return KBBatchDeleteResponse(ok=deleted + failed > 0, deleted=deleted, failed=failed, errors=errors)
+
+
+@router.post("/assets/batch-unbind", summary="批量解绑全局知识库文件与工作区", response_model=KBBatchDeleteResponse)
+@require_role(Role.Admin)
+async def batch_unbind_kb_library_assets(
+    body: KBAssetBatchUnbindBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBBatchDeleteResponse:
+    """一次请求将多个资产从指定工作区解绑（工作区页面"批量移除"场景）。"""
+    await _ensure_workspace_exists(body.workspace_id)
+    ids = list(dict.fromkeys(body.asset_ids))
+    if len(ids) > KB_BATCH_DELETE_MAX:
+        raise ValidationError(reason=f"单次批量解绑最多 {KB_BATCH_DELETE_MAX} 个")
+    if not ids:
+        return KBBatchDeleteResponse(ok=True, deleted=0, failed=0, errors=[])
+
+    semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
+
+    async def unbind_one(asset_id: int) -> str | None:
+        async with semaphore:
+            try:
+                await unbind_asset_workspace(asset_id, body.workspace_id)
+                return None
+            except Exception as e:
+                return f"资产 {asset_id}: {e}"
+
+    results = await asyncio.gather(*(unbind_one(i) for i in ids))
+    deleted = results.count(None)
+    failed = len(results) - deleted
+    errors = [result for result in results if result is not None]
+    return KBBatchDeleteResponse(ok=deleted + failed > 0, deleted=deleted, failed=failed, errors=errors)
 
 
 @router.post("/assets/{asset_id}/reindex", summary="重建全局知识库文件索引", response_model=KBActionResponse)

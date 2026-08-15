@@ -12,6 +12,28 @@ class KBActionResponse(BaseModel):
     message: Optional[str] = None
 
 
+class KBBatchDeleteBody(BaseModel):
+    """批量删除请求体（工作区文档 / 全局资产通用 id 列表）"""
+
+    ids: list[int] = Field(default_factory=list, description="待删除的文档或资产 ID 列表")
+
+
+class KBAssetBatchUnbindBody(BaseModel):
+    """批量解绑全局资产与工作区"""
+
+    asset_ids: list[int] = Field(default_factory=list)
+    workspace_id: int = Field(..., description="目标工作区 ID")
+
+
+class KBBatchDeleteResponse(BaseModel):
+    """批量删除结果统计"""
+
+    ok: bool = True
+    deleted: int = 0
+    failed: int = 0
+    errors: list[str] = Field(default_factory=list)
+
+
 class KBTagUpdate(BaseModel):
     tags: list[str] = Field(default_factory=list)
 

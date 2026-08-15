@@ -576,20 +576,27 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const bulkDeleteSelectedMutation = useMutation({
     mutationFn: async ({ documentIds, assetIds }: { documentIds: number[]; assetIds: number[] }) => {
-      const operations = [
-        ...documentIds.map(documentId => () => knowledgeBaseApi.deleteDocument(workspace.id, documentId)),
-        ...assetIds.map(assetId => () => kbLibraryApi.unbindWorkspace(assetId, workspace.id)),
-      ]
-      const results = await Promise.allSettled(operations.map(run => run()))
-      let deletedCount = 0
-      let failedCount = 0
-      results.forEach(result => {
-        if (result.status === 'fulfilled') deletedCount += 1
-        else failedCount += 1
+      const emptyResult = { ok: true, deleted: 0, failed: 0, errors: [] as string[] }
+      const documentResult =
+        documentIds.length > 0
+          ? await knowledgeBaseApi.batchDeleteDocuments(workspace.id, documentIds)
+          : emptyResult
+      const unbindResult =
+        assetIds.length > 0 ? await kbLibraryApi.batchUnbindWorkspace(assetIds, workspace.id) : emptyResult
+      return {
+        deletedCount: documentResult.deleted + unbindResult.deleted,
+        failedCount: documentResult.failed + unbindResult.failed,
+        documentIds,
+        assetIds,
+      }
+    },
+    onMutate: ({ documentIds, assetIds }) => {
+      notification.info(t('knowledge.notifications.bulkDeleting', { count: documentIds.length + assetIds.length }), {
+        key: 'kb-bulk-deleting',
       })
-      return { deletedCount, failedCount, documentIds, assetIds }
     },
     onSuccess: async result => {
+      notification.close('kb-bulk-deleting')
       setBulkDeleteSelectedOpen(false)
       setSelectedEntryKeys(prev => {
         if (result.documentIds.length === 0 && result.assetIds.length === 0) return prev
@@ -617,7 +624,10 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         )
       }
     },
-    onError: (err: Error) => notification.error(t('knowledge.notifications.deleteFailed', { message: err.message })),
+    onError: (err: Error) => {
+      notification.close('kb-bulk-deleting')
+      notification.error(t('knowledge.notifications.deleteFailed', { message: err.message }))
+    },
   })
 
   const bulkReindexSelectedMutation = useMutation({
