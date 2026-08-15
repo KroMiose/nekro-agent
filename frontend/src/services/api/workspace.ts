@@ -851,6 +851,14 @@ export const workspaceApi = {
   },
 }
 
+/** zip 批量导入上传（工作区与全局库共用） */
+const postZipImport = async (url: string, file: File): Promise<KBZipImportResponse> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await axios.post<KBZipImportResponse>(url, formData)
+  return response.data
+}
+
 export const knowledgeBaseApi = {
   list: async (workspaceId: number): Promise<KBDocumentListItem[]> => {
     const response = await axios.get<KBDocumentListResponse>(`/workspaces/${workspaceId}/kb/documents`)
@@ -891,10 +899,7 @@ export const knowledgeBaseApi = {
   },
 
   uploadZip: async (workspaceId: number, file: File): Promise<KBZipImportResponse> => {
-    const formData = new FormData()
-    formData.append('file', file)
-    const response = await axios.post<KBZipImportResponse>(`/workspaces/${workspaceId}/kb/zip`, formData)
-    return response.data
+    return postZipImport(`/workspaces/${workspaceId}/kb/zip`, file)
   },
 
   updateDocument: async (
@@ -1038,10 +1043,7 @@ export const kbLibraryApi = {
   },
 
   uploadZip: async (file: File): Promise<KBZipImportResponse> => {
-    const formData = new FormData()
-    formData.append('file', file)
-    const response = await axios.post<KBZipImportResponse>('/kb-library/assets/zip', formData)
-    return response.data
+    return postZipImport('/kb-library/assets/zip', file)
   },
 
   deleteAsset: async (assetId: number): Promise<void> => {

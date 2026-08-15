@@ -61,6 +61,7 @@ import {
   KBReferenceItem,
   KBSearchResponse,
   KBUploadFilePayload,
+  KBZipImportResponse,
   kbLibraryApi,
   knowledgeBaseApi,
   WorkspaceDetail,
@@ -84,6 +85,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from '../kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from '../kbCategoryTree'
+import { createSingleFileImportHandler } from '../kbImportHandler'
 
 type KnowledgeSelection =
   | { kind: 'document'; id: number }
@@ -999,14 +1001,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     setBatchUploadOpen(true)
   }
 
-  const handleZipFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    try {
-      const result = await knowledgeBaseApi.uploadZip(workspace.id, file)
+  const handleZipFileChange = createSingleFileImportHandler<KBZipImportResponse>({
+    upload: file => knowledgeBaseApi.uploadZip(workspace.id, file),
+    onSuccess: result => {
       if (!result.ok) {
-        notification.error(t('knowledge.notifications.zipImportFailed', { message: result.errors[0] ?? '' }))
+        const errorMessages = result.errors.length > 0 ? result.errors.join('\n') : ''
+        notification.error(t('knowledge.notifications.zipImportFailed', { message: errorMessages }))
       } else {
         notification.success(
           t('knowledge.notifications.zipImportSuccess', {
@@ -1017,11 +1017,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           })
         )
       }
-      await refreshAll()
-    } catch (err) {
-      notification.error(t('knowledge.notifications.zipImportFailed', { message: err instanceof Error ? err.message : String(err) }))
-    }
-  }
+    },
+    onError: message => {
+      notification.error(t('knowledge.notifications.zipImportFailed', { message }))
+    },
+    refresh: refreshAll,
+  })
 
   const removeBatchQueueItem = useCallback((id: string) => {
     setExpandedBatchItemId(prev => (prev === id ? null : prev))

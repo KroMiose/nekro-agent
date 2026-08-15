@@ -136,3 +136,34 @@ async def process_zip_upload(
             elif success:
                 result.imported += 1
     return result
+
+
+CreateFromUploadFn = Callable[[ZipImportEntry, UploadFile], Awaitable[tuple[object, bool]]]
+ScheduleRebuildFn = Callable[[object], Awaitable[None]]
+
+
+async def import_zip_with_upload(
+    file: UploadFile,
+    allowed_exts: set[str],
+    create_from_upload: CreateFromUploadFn,
+    schedule_rebuild: ScheduleRebuildFn | None = None,
+) -> ZipImportResult:
+    """zip 导入编排的 UploadFile 封装版：路由只需提供"如何从上传创建对象"的业务逻辑。
+
+    create_from_upload 返回 (obj, reused_existing)：reused 时不触发重建索引。
+    """
+
+    async def handle_entry(entry: ZipImportEntry) -> tuple[bool, bool, str | None]:
+        try:
+            upload_file = UploadFile(
+                filename=Path(entry.source_path).name,
+                file=io.BytesIO(entry.path.read_bytes()),
+            )
+            obj, reused_existing = await create_from_upload(entry, upload_file)
+            if not reused_existing and schedule_rebuild is not None:
+                await schedule_rebuild(obj)
+            return True, reused_existing, None
+        except Exception as e:
+            return False, False, str(e)
+
+    return await process_zip_upload(file=file, allowed_exts=allowed_exts, handle_entry=handle_entry)

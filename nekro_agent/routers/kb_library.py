@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -60,7 +59,7 @@ from nekro_agent.services.kb.library_service import (
     update_asset_metadata,
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
-from nekro_agent.services.kb.zip_import import ZipImportEntry, process_zip_upload
+from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -218,29 +217,23 @@ async def import_kb_library_zip(
     ensure_kb_embedding_configured()
     await ensure_kb_library_collection()
 
-    async def handle_entry(entry: ZipImportEntry) -> tuple[bool, bool, str | None]:
-        try:
-            upload_file = UploadFile(
-                filename=Path(entry.source_path).name,
-                file=io.BytesIO(entry.path.read_bytes()),
-            )
-            asset, reused_existing = await create_asset_from_upload(
-                upload_file=upload_file,
-                source_path=entry.source_path,
-                title="",
-                category=entry.category,
-                tags=[],
-                summary="",
-                is_enabled=True,
-            )
-            if not reused_existing:
-                await schedule_rebuild_asset(asset)
-            return True, reused_existing, None
-        except Exception as e:
-            return False, False, str(e)
+    async def create_from_upload(entry: ZipImportEntry, upload_file: UploadFile) -> tuple[object, bool]:
+        asset, reused_existing = await create_asset_from_upload(
+            upload_file=upload_file,
+            source_path=entry.source_path,
+            title="",
+            category=entry.category,
+            tags=[],
+            summary="",
+            is_enabled=True,
+        )
+        return asset, reused_existing
 
-    result = await process_zip_upload(
-        file=file, allowed_exts=ALLOWED_KB_LIBRARY_EXTENSIONS, handle_entry=handle_entry
+    result = await import_zip_with_upload(
+        file=file,
+        allowed_exts=ALLOWED_KB_LIBRARY_EXTENSIONS,
+        create_from_upload=create_from_upload,
+        schedule_rebuild=schedule_rebuild_asset,
     )
     return KBZipImportResponse(
         ok=result.ok,

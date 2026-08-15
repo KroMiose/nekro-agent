@@ -71,6 +71,7 @@ import {
   KBCreateTextDocumentBody,
   type KBReferenceItem,
   KBUploadFilePayload,
+  KBZipImportResponse,
   kbLibraryApi,
   workspaceApi,
 } from '../../services/api/workspace'
@@ -92,6 +93,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from './kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from './kbCategoryTree'
+import { createSingleFileImportHandler } from './kbImportHandler'
 
 type FilterStatus = 'all' | 'ready' | 'indexing' | 'failed'
 type BatchItemStatus = 'waiting' | 'uploading' | 'done' | 'error'
@@ -726,14 +728,12 @@ export default function KbLibraryPage() {
     setBatchQueue(nextQueue)
   }
 
-  const handleZipFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    try {
-      const result = await kbLibraryApi.uploadZip(file)
+  const handleZipFileChange = createSingleFileImportHandler<KBZipImportResponse>({
+    upload: kbLibraryApi.uploadZip,
+    onSuccess: result => {
       if (!result.ok) {
-        notification.error(t('kbLibrary.notifications.zipImportFailed', { message: result.errors[0] ?? '' }))
+        const errorMessages = result.errors.length > 0 ? result.errors.join('\n') : ''
+        notification.error(t('kbLibrary.notifications.zipImportFailed', { message: errorMessages }))
       } else {
         notification.success(
           t('kbLibrary.notifications.zipImportSuccess', {
@@ -744,11 +744,12 @@ export default function KbLibraryPage() {
           })
         )
       }
-      await refreshAll()
-    } catch (err) {
-      notification.error(t('kbLibrary.notifications.zipImportFailed', { message: err instanceof Error ? err.message : String(err) }))
-    }
-  }
+    },
+    onError: message => {
+      notification.error(t('kbLibrary.notifications.zipImportFailed', { message }))
+    },
+    refresh: refreshAll,
+  })
 
   const removeBatchQueueItem = useCallback((id: string) => {
     setExpandedBatchItemId(prev => (prev === id ? null : prev))
