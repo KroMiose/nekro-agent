@@ -81,6 +81,7 @@
   "channelDetail": {
     "unnamedChat": "未命名聊天",
     "refreshInfo": "刷新聊天信息",
+    "refreshFallback": "频道信息同步失败，已回退为从数据库刷新",
     "group": "群聊",
     "private": "私聊",
     "activate": "激活",

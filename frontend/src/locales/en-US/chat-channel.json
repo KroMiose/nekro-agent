@@ -81,6 +81,7 @@
   "channelDetail": {
     "unnamedChat": "Unnamed Chat",
     "refreshInfo": "Refresh chat info",
+    "refreshFallback": "Failed to sync channel info, fell back to refreshing from database",
     "group": "Group",
     "private": "Private",
     "activate": "Activate",

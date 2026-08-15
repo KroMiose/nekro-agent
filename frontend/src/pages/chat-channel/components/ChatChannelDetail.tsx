@@ -43,6 +43,7 @@ import { useTranslation } from 'react-i18next'
 import { type ChatChannelDetailTab } from '../../../router/routes'
 import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
+import { useNotification } from '../../../hooks/useNotification'
 
 interface ChatChannelDetailProps {
   chatKey: string
@@ -65,6 +66,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const { t } = useTranslation('chat-channel')
+  const notification = useNotification()
 
   // 查询聊天详情
   const { data: channel, isLoading, isFetching } = useQuery({
@@ -105,8 +107,10 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
         const refreshedDetail = await chatChannelApi.refreshDetail(chatKey)
         // 返回的详情已是后端同步后的权威数据，直接更新详情缓存；仅使列表失效以同步名称展示
         queryClient.setQueryData(['chat-channel-detail', chatKey], refreshedDetail)
-      } catch {
-        // 平台同步失败时回退为普通缓存失效，仍从数据库刷新当前状态
+      } catch (error) {
+        // 平台同步失败时回退为普通缓存失效，仍从数据库刷新当前状态；记录失败原因避免被静默掩盖
+        console.error('[ChatChannelDetail] refreshDetail failed, falling back to invalidateQueries', { chatKey, error })
+        notification.warning(t('channelDetail.refreshFallback'))
         await queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
       }
       await queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
