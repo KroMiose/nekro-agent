@@ -30,7 +30,7 @@ import {
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
-import { chatChannelApi, getChannelDisplayName, type ChatChannelDetail } from '../../../services/api/chat-channel'
+import { chatChannelApi, getChannelDisplayName } from '../../../services/api/chat-channel'
 import BasicInfo from './detail-tabs/BasicInfo'
 import MessageHistory from './detail-tabs/MessageHistory'
 import OverrideSettings from './detail-tabs/OverrideSettings'
@@ -43,7 +43,7 @@ import { useTranslation } from 'react-i18next'
 import { type ChatChannelDetailTab } from '../../../router/routes'
 import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
-import { useNotification } from '../../../hooks/useNotification'
+import { useChatChannelRefresh } from './chat-channel-refresh'
 
 interface ChatChannelDetailProps {
   chatKey: string
@@ -66,7 +66,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const { t } = useTranslation('chat-channel')
-  const notification = useNotification()
+  const { refresh } = useChatChannelRefresh(chatKey)
 
   // 查询聊天详情
   const { data: channel, isLoading, isFetching } = useQuery({
@@ -102,25 +102,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      // 平台同步与缓存更新分离：同步失败不影响缓存失效回退
-      let refreshedDetail: ChatChannelDetail | null = null
-      try {
-        // 请求后端从平台实时同步频道名称（适配器不支持或获取失败时保留原名称）
-        refreshedDetail = await chatChannelApi.refreshDetail(chatKey)
-      } catch (error) {
-        const reason = error instanceof Error ? error.message : String(error)
-        console.error('[ChatChannelDetail] refreshDetail failed, falling back to invalidateQueries', { chatKey, error })
-        notification.warning(t('channelDetail.refreshFallback', { reason }))
-      }
-      if (refreshedDetail) {
-        // 返回的详情已是后端同步后的权威数据，直接更新详情缓存；仅使列表失效以同步名称展示
-        queryClient.setQueryData(['chat-channel-detail', chatKey], refreshedDetail)
-      } else {
-        // 同步失败时回退为普通缓存失效，仍从数据库刷新当前状态
-        await queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
-      }
-      await queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
-      await queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
+      await refresh()
     } finally {
       setIsRefreshing(false)
     }
