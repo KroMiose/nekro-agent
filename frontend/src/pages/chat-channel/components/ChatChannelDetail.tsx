@@ -100,6 +100,8 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
+      // 先请求后端从平台实时同步频道名称（适配器不支持或获取失败时保留原名称），再刷新各列表缓存
+      await chatChannelApi.refreshDetail(chatKey)
       await queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
       await queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
       await queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
