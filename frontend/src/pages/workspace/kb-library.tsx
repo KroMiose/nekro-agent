@@ -93,7 +93,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from './kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from './kbCategoryTree'
-import { createSingleFileImportHandler, formatZipImportErrors } from './kbImportHandler'
+import { createSingleFileUploadHandler, formatZipImportErrors } from './kbImportHandler'
 
 type FilterStatus = 'all' | 'ready' | 'indexing' | 'failed'
 type BatchItemStatus = 'waiting' | 'uploading' | 'done' | 'error'
@@ -728,31 +728,42 @@ export default function KbLibraryPage() {
     setBatchQueue(nextQueue)
   }
 
-  const handleZipFileChange = createSingleFileImportHandler<KBZipImportResponse>({
+  const handleZipFileChange = createSingleFileUploadHandler<KBZipImportResponse>({
     upload: kbLibraryApi.uploadZip,
-    onSuccess: result => {
-      const errorMessages = formatZipImportErrors(result.errors, count =>
-        t('kbLibrary.notifications.zipImportMoreErrors', { count })
-      )
-      const stats = {
-        imported: result.imported,
-        reused: result.reused,
-        skipped: result.skipped,
-        failed: result.failed,
-      }
-      if (!result.ok) {
+    onResult: async result => {
+      try {
+        const errorMessages = formatZipImportErrors(result.errors, count =>
+          t('kbLibrary.notifications.zipImportMoreErrors', { count })
+        )
+        const stats = {
+          imported: result.imported,
+          reused: result.reused,
+          skipped: result.skipped,
+          failed: result.failed,
+        }
+        if (result.imported + result.reused + result.failed === 0) {
+          notification.warning(t('kbLibrary.notifications.zipImportNothingImported'))
+        } else if (!result.ok) {
+          notification.error(
+            t('kbLibrary.notifications.zipImportFailed', {
+              message: errorMessages || t('kbLibrary.notifications.zipImportFailedGeneric'),
+            })
+          )
+        } else if (result.failed > 0) {
+          notification.warning(
+            `${t('kbLibrary.notifications.zipImportPartial', { ...stats })}${errorMessages ? `\n${errorMessages}` : ''}`
+          )
+        } else {
+          notification.success(t('kbLibrary.notifications.zipImportSuccess', { ...stats }))
+        }
+      } catch (err) {
         notification.error(
           t('kbLibrary.notifications.zipImportFailed', {
-            message: errorMessages || t('kbLibrary.notifications.zipImportFailedGeneric'),
+            message: err instanceof Error ? err.message : String(err),
           })
         )
-      } else if (result.failed > 0) {
-        notification.warning(
-          `${t('kbLibrary.notifications.zipImportPartial', { ...stats })}${errorMessages ? `\n${errorMessages}` : ''}`
-        )
-      } else {
-        notification.success(t('kbLibrary.notifications.zipImportSuccess', { ...stats }))
       }
+      await refreshAll()
     },
     onError: error => {
       notification.error(
@@ -761,7 +772,6 @@ export default function KbLibraryPage() {
         })
       )
     },
-    refresh: refreshAll,
   })
 
   const removeBatchQueueItem = useCallback((id: string) => {

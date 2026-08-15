@@ -85,7 +85,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from '../kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from '../kbCategoryTree'
-import { createSingleFileImportHandler, formatZipImportErrors } from '../kbImportHandler'
+import { createSingleFileUploadHandler, formatZipImportErrors } from '../kbImportHandler'
 
 type KnowledgeSelection =
   | { kind: 'document'; id: number }
@@ -1001,31 +1001,42 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     setBatchUploadOpen(true)
   }
 
-  const handleZipFileChange = createSingleFileImportHandler<KBZipImportResponse>({
+  const handleZipFileChange = createSingleFileUploadHandler<KBZipImportResponse>({
     upload: file => knowledgeBaseApi.uploadZip(workspace.id, file),
-    onSuccess: result => {
-      const errorMessages = formatZipImportErrors(result.errors, count =>
-        t('knowledge.notifications.zipImportMoreErrors', { count })
-      )
-      const stats = {
-        imported: result.imported,
-        reused: result.reused,
-        skipped: result.skipped,
-        failed: result.failed,
-      }
-      if (!result.ok) {
+    onResult: async result => {
+      try {
+        const errorMessages = formatZipImportErrors(result.errors, count =>
+          t('knowledge.notifications.zipImportMoreErrors', { count })
+        )
+        const stats = {
+          imported: result.imported,
+          reused: result.reused,
+          skipped: result.skipped,
+          failed: result.failed,
+        }
+        if (result.imported + result.reused + result.failed === 0) {
+          notification.warning(t('knowledge.notifications.zipImportNothingImported'))
+        } else if (!result.ok) {
+          notification.error(
+            t('knowledge.notifications.zipImportFailed', {
+              message: errorMessages || t('knowledge.notifications.zipImportFailedGeneric'),
+            })
+          )
+        } else if (result.failed > 0) {
+          notification.warning(
+            `${t('knowledge.notifications.zipImportPartial', { ...stats })}${errorMessages ? `\n${errorMessages}` : ''}`
+          )
+        } else {
+          notification.success(t('knowledge.notifications.zipImportSuccess', { ...stats }))
+        }
+      } catch (err) {
         notification.error(
           t('knowledge.notifications.zipImportFailed', {
-            message: errorMessages || t('knowledge.notifications.zipImportFailedGeneric'),
+            message: err instanceof Error ? err.message : String(err),
           })
         )
-      } else if (result.failed > 0) {
-        notification.warning(
-          `${t('knowledge.notifications.zipImportPartial', { ...stats })}${errorMessages ? `\n${errorMessages}` : ''}`
-        )
-      } else {
-        notification.success(t('knowledge.notifications.zipImportSuccess', { ...stats }))
       }
+      await refreshAll()
     },
     onError: error => {
       notification.error(
@@ -1034,7 +1045,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         })
       )
     },
-    refresh: refreshAll,
   })
 
   const removeBatchQueueItem = useCallback((id: string) => {

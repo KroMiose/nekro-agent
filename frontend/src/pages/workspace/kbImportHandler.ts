@@ -21,31 +21,27 @@ export function formatZipImportErrors(
   return message
 }
 
-type FileImportConfig<Result> = {
+type SingleFileUploadOptions<Result> = {
   upload: (file: File) => Promise<Result>
-  onSuccess: (result: Result) => void
+  onResult: (result: Result) => Promise<void> | void
   onError?: (error: unknown) => void
-  refresh?: () => Promise<void> | void
 }
 
-/** 通用"单文件上传 + 回调通知 + 刷新"导入处理器，供 zip 等单文件导入场景复用 */
-export function createSingleFileImportHandler<Result>(config: FileImportConfig<Result>) {
+/**
+ * 通用"单文件上传"处理器：抽取文件、重置 input、调用 upload 并统一错误处理。
+ * 成功后的通知与刷新流程由调用端在 onResult 中显式组合。
+ */
+export function createSingleFileUploadHandler<Result>(options: SingleFileUploadOptions<Result>) {
   return async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = event.target.files?.[0]
     event.target.value = '' // 允许再次选择同一文件
     if (!file) return
 
     try {
-      const result = await config.upload(file)
-      try {
-        config.onSuccess(result)
-      } catch (err) {
-        // onSuccess 内部异常统一交给 onError 暴露，且不阻断后续刷新
-        config.onError?.(err)
-      }
-      await config.refresh?.()
+      const result = await options.upload(file)
+      await options.onResult(result)
     } catch (err) {
-      config.onError?.(err)
+      options.onError?.(err)
     }
   }
 }

@@ -1290,6 +1290,7 @@
       "dirImportCategoryTooLong": "The directory group \"{{category}}\" is {{length}} characters long, exceeding the limit of {{max}}. Shorten the folder name before uploading.",
       "zipImportSuccess": "Zip import done: {{imported}} imported, {{reused}} reused, {{skipped}} skipped, {{failed}} failed",
       "zipImportPartial": "Zip import partially succeeded: {{imported}} imported, {{reused}} reused, {{skipped}} skipped, {{failed}} failed",
+      "zipImportNothingImported": "No supported importable files found in the archive (supported: md/txt/html/json/yaml/csv/xlsx/pdf/docx)",
       "zipImportFailed": "Zip import failed: {{message}}",
       "zipImportFailedGeneric": "Zip import failed, please check the archive and try again",
       "zipImportMoreErrors": "…and {{count}} more not shown"
@@ -1495,6 +1496,7 @@
       "unsupportedFormat": "File {{name}} is not supported. Supported: {{formats}}",
       "zipImportSuccess": "Zip import done: {{imported}} imported, {{reused}} reused, {{skipped}} skipped, {{failed}} failed",
       "zipImportPartial": "Zip import partially succeeded: {{imported}} imported, {{reused}} reused, {{skipped}} skipped, {{failed}} failed",
+      "zipImportNothingImported": "No supported importable files found in the archive (supported: md/txt/html/json/yaml/csv/xlsx/pdf/docx)",
       "zipImportFailed": "Zip import failed: {{message}}",
       "zipImportFailedGeneric": "Zip import failed, please check the archive and try again",
       "zipImportMoreErrors": "…and {{count}} more not shown"
