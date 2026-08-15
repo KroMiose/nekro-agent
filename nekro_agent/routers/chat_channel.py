@@ -355,9 +355,8 @@ async def refresh_chat_channel_detail(
     channel = await DBChatChannel.filter(chat_key=chat_key).first()
     if not channel:
         raise NotFoundError(resource="聊天频道")
+    # sync_channel_name 成功时更新内存实例并持久化（含 update_time），失败时不改动，实例始终与数据库一致
     await channel.sync_channel_name()
-    # 复用同一实例并从数据库刷新字段，确保返回最新状态（含 ORM 自动更新的 update_time）
-    await channel.refresh_from_db()
     return await _build_chat_channel_detail(channel)
 
 
