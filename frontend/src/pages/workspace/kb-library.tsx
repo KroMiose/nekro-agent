@@ -733,7 +733,11 @@ export default function KbLibraryPage() {
     onSuccess: result => {
       if (!result.ok) {
         const errorMessages = result.errors.length > 0 ? result.errors.join('\n') : ''
-        notification.error(t('kbLibrary.notifications.zipImportFailed', { message: errorMessages }))
+        notification.error(
+          t('kbLibrary.notifications.zipImportFailed', {
+            message: errorMessages || t('kbLibrary.notifications.zipImportFailedGeneric'),
+          })
+        )
       } else {
         notification.success(
           t('kbLibrary.notifications.zipImportSuccess', {

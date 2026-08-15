@@ -1006,7 +1006,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     onSuccess: result => {
       if (!result.ok) {
         const errorMessages = result.errors.length > 0 ? result.errors.join('\n') : ''
-        notification.error(t('knowledge.notifications.zipImportFailed', { message: errorMessages }))
+        notification.error(
+          t('knowledge.notifications.zipImportFailed', {
+            message: errorMessages || t('knowledge.notifications.zipImportFailedGeneric'),
+          })
+        )
       } else {
         notification.success(
           t('knowledge.notifications.zipImportSuccess', {
