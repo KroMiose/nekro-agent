@@ -1,5 +1,5 @@
-{% macro plugin_prompt(plugin_name, module_name, state, rounds_left, activation_hint, plugin_brief, plugin_injected_prompt, plugin_method_prompt) %}
-<plugin name="{{ plugin_name }}" module_name="{{ module_name }}" state="{{ state }}"{% if rounds_left is not none %} rounds_left="{{ rounds_left }}"{% endif %}>
+{% macro plugin_prompt(plugin_name, module_name, call_priority, state, rounds_left, activation_hint, plugin_brief, plugin_injected_prompt, plugin_method_prompt) %}
+<plugin name="{{ plugin_name }}" module_name="{{ module_name }}" call_priority="{{ call_priority }}" state="{{ state }}"{% if rounds_left is not none %} rounds_left="{{ rounds_left }}"{% endif %}>
 
 {% if state == "sleeping" and plugin_brief %}
 <capability_brief>

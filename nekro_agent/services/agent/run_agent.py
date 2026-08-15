@@ -13,6 +13,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_exec_code import ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.services.plugin.call_priority import build_plugin_call_priority_rules
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.prompt_activation import build_plugin_activation_rules
 from nekro_agent.services.sandbox.runner import limited_run_code
@@ -130,6 +131,7 @@ async def run_agent(
         plugins_prompt=rendered_plugins.system_prompt,
         plugins_runtime_prompt=runtime_prompt,
         plugin_activation_rules=build_plugin_activation_rules() if activation_enabled else "",
+        plugin_call_priority_rules=build_plugin_call_priority_rules(),
         enable_cot=used_model_group.ENABLE_COT,
         chat_key_rules="\n".join(f"- {r}" for r in db_chat_channel.adapter.chat_key_rules),
         enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
