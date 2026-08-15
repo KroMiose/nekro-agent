@@ -17,6 +17,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from fastapi import UploadFile
+from tortoise.exceptions import IntegrityError
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
@@ -129,6 +130,7 @@ async def process_zip_upload(
         raise ValidationError(reason=f"文件大小超出限制（最大 {_max_upload_size() // 1024 // 1024} MB）")
 
     result = ZipImportResult()
+    allowed_exts_lower = {ext.lower() for ext in allowed_exts}
     with TemporaryDirectory(prefix="kb-zip-") as tmp_dir_str:
         tmp_dir = Path(tmp_dir_str)
         try:
@@ -137,9 +139,7 @@ async def process_zip_upload(
             raise ValidationError(reason=str(e)) from e
 
         filtered = [
-            entry
-            for entry in entries
-            if Path(entry.source_path).suffix.lower() in {ext.lower() for ext in allowed_exts}
+            entry for entry in entries if Path(entry.source_path).suffix.lower() in allowed_exts_lower
         ]
         result.skipped = len(entries) - len(filtered)
         for entry in filtered:
@@ -156,6 +156,17 @@ async def process_zip_upload(
 
 CreateFromUploadFn = Callable[[ZipImportEntry, UploadFile], Awaitable[tuple[object, bool]]]
 ScheduleRebuildFn = Callable[[object], Awaitable[None]]
+
+
+def _friendly_entry_error(entry: ZipImportEntry, error: Exception) -> str:
+    """将条目级异常清洗为用户可读消息；完整细节由调用方记录日志。"""
+    if isinstance(error, FileExistsError):
+        return "目标路径已存在"
+    if isinstance(error, IntegrityError):
+        return "目标路径或内容与现有条目冲突"
+    if isinstance(error, ValueError):
+        return str(error) or "文件内容无效"
+    return "导入失败（详见服务端日志）"
 
 
 async def import_zip_with_upload(
@@ -181,6 +192,6 @@ async def import_zip_with_upload(
             return True, reused_existing, None
         except Exception as e:
             logger.warning(f"zip 导入条目失败: {entry.source_path}, error: {e}", exc_info=True)
-            return False, False, str(e)
+            return False, False, _friendly_entry_error(entry, e)
 
     return await process_zip_upload(file=file, allowed_exts=allowed_exts, handle_entry=handle_entry)
