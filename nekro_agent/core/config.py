@@ -2208,6 +2208,12 @@ class CoreConfig(ConfigBase):
         description="按插件 module_name 覆盖插件提示词激活策略",
         json_schema_extra=ExtraField(is_hidden=True).model_dump(),
     )
+    PLUGIN_CALL_PRIORITIES: Dict[str, Literal["high", "medium", "low"]] = Field(
+        default={},
+        title="插件调用优先级覆盖",
+        description="按插件 module_name 覆盖大模型在同类能力间的调用优先级",
+        json_schema_extra=ExtraField(is_hidden=True).model_dump(),
+    )
 
     def get_model_group_info(self, model_name: str) -> ModelConfigGroup:
         try:

@@ -1,4 +1,4 @@
-{% macro runtime_contract_prompt(platform_name, bot_platform_id, enable_cot, chat_key_rules, enable_at, plugin_activation_rules) %}
+{% macro runtime_contract_prompt(platform_name, bot_platform_id, enable_cot, chat_key_rules, enable_at, plugin_activation_rules, plugin_call_priority_rules) %}
 你的 {{ platform_name }} Id：{{ bot_platform_id }}（可用于识别消息发送者）
 
 你处于一个多用户聊天环境中。务必始终清楚每条消息是谁发送的。
@@ -172,6 +172,11 @@ send_msg_text(chat_key, "我必须要……") # 错误示例：这一行不会�
 {% if plugin_activation_rules %}
 #### 插件激活规则：
 {{ plugin_activation_rules }}
+{% endif %}
+
+{% if plugin_call_priority_rules %}
+#### 插件调用优先级规则：
+{{ plugin_call_priority_rules }}
 {% endif %}
 
 ### 警告：

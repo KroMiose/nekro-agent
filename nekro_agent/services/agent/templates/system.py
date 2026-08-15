@@ -14,6 +14,7 @@ class RuntimeContractPrompt(PromptTemplate):
     chat_key_rules: str
     enable_at: bool
     plugin_activation_rules: str
+    plugin_call_priority_rules: str
 
 
 @register_template("persona.j2", "persona_prompt")

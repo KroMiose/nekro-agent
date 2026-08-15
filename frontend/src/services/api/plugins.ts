@@ -3,6 +3,7 @@ import { createEventStream } from './utils/stream'
 import { I18nDict } from './types'
 
 export type MethodType = 'tool' | 'behavior' | 'agent' | 'multimodal_agent'
+export type PluginCallPriority = 'auto' | 'high' | 'medium' | 'low'
 
 export interface Method {
   name: string
@@ -40,6 +41,9 @@ export interface Plugin {
   errorType?: string
   filePath?: string
   stackTrace?: string
+  callPriority?: {
+    configured: PluginCallPriority
+  } | null
   activationStrategy?: {
     configured: 'auto' | 'allow_sleep' | 'forbid_sleep'
     effective: 'sleep' | 'always_loaded'
@@ -127,6 +131,16 @@ export const pluginsApi = {
   ): Promise<boolean> => {
     const response = await axios.post<ActionResponse>(`/plugins/activation-strategy/${pluginId}`, {
       strategy,
+    })
+    return response.data.ok
+  },
+
+  updatePluginCallPriority: async (
+    pluginId: string,
+    priority: PluginCallPriority
+  ): Promise<boolean> => {
+    const response = await axios.post<ActionResponse>(`/plugins/call-priority/${pluginId}`, {
+      priority,
     })
     return response.data.ok
   },

@@ -65,7 +65,7 @@ import {
   OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Method, Plugin, pluginsApi } from '../../services/api/plugins'
+import { Method, Plugin, PluginCallPriority, pluginsApi } from '../../services/api/plugins'
 
 import { unifiedConfigApi, createConfigService } from '../../services/api/unified-config'
 import ConfigTable from '../../components/common/ConfigTable'
@@ -229,6 +229,19 @@ function PluginDetails({
     },
   })
 
+  const updateCallPriorityMutation = useMutation({
+    mutationFn: (priority: PluginCallPriority) =>
+      pluginsApi.updatePluginCallPriority(plugin.id, priority),
+    onSuccess: () => {
+      notification.success(t('messages.callPriorityUpdated'))
+      queryClient.invalidateQueries({ queryKey: ['plugins'] })
+      queryClient.invalidateQueries({ queryKey: ['plugin-detail', plugin.id] })
+    },
+    onError: (error: Error) => {
+      notification.error(error.message)
+    },
+  })
+
   const updateActivationStrategyMutation = useMutation({
     mutationFn: (strategy: 'auto' | 'allow_sleep' | 'forbid_sleep') =>
       pluginsApi.updatePluginActivationStrategy(plugin.id, strategy),
@@ -294,6 +307,8 @@ function PluginDetails({
     return t(`types.${type}`)
   }
 
+  const callPriority = plugin.callPriority
+  const callPriorityConfigurable = !!callPriority && !plugin.loadFailed
   const activationStrategy = plugin.activationStrategy
   const activationConfigurable =
     !!activationStrategy && !plugin.loadFailed && activationStrategy.canChangeStrategy
@@ -665,6 +680,8 @@ function PluginDetails({
                           direction={{ xs: 'column', sm: 'row' }}
                           spacing={1}
                           alignItems={{ xs: 'stretch', sm: 'center' }}
+                          useFlexGap
+                          sx={{ flexWrap: { xs: 'nowrap', sm: 'wrap' } }}
                         >
                           <Typography variant="body2" sx={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}>
                             <strong>{t('activation.strategyLabel')}：</strong>
@@ -691,6 +708,34 @@ function PluginDetails({
                             </MenuItem>
                             <MenuItem value="forbid_sleep">{t('activation.options.forbid_sleep')}</MenuItem>
                           </TextField>
+                          {callPriority && (
+                            <>
+                              <Typography variant="body2" sx={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}>
+                                <strong>{t('callPriority.label')}：</strong>
+                              </Typography>
+                              <Tooltip arrow placement="top" title={t('callPriority.description')}>
+                                <TextField
+                                  select
+                                  size="small"
+                                  value={callPriority.configured}
+                                  disabled={
+                                    !callPriorityConfigurable || updateCallPriorityMutation.isPending
+                                  }
+                                  onChange={e =>
+                                    updateCallPriorityMutation.mutate(
+                                      e.target.value as PluginCallPriority
+                                    )
+                                  }
+                                  sx={{ minWidth: { xs: '100%', sm: 112 }, maxWidth: { sm: 140 } }}
+                                >
+                                  <MenuItem value="auto">{t('callPriority.options.auto')}</MenuItem>
+                                  <MenuItem value="high">{t('callPriority.options.high')}</MenuItem>
+                                  <MenuItem value="medium">{t('callPriority.options.medium')}</MenuItem>
+                                  <MenuItem value="low">{t('callPriority.options.low')}</MenuItem>
+                                </TextField>
+                              </Tooltip>
+                            </>
+                          )}
                           {activationStrategyLoading ? (
                             <Chip
                               icon={<CircularProgress size={14} color="inherit" />}
