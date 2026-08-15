@@ -100,10 +100,15 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      // 先请求后端从平台实时同步频道名称（适配器不支持或获取失败时保留原名称）
-      const refreshedDetail = await chatChannelApi.refreshDetail(chatKey)
-      // 返回的详情已是后端同步后的权威数据，直接更新详情缓存；仅使列表失效以同步名称展示
-      queryClient.setQueryData(['chat-channel-detail', chatKey], refreshedDetail)
+      try {
+        // 请求后端从平台实时同步频道名称（适配器不支持或获取失败时保留原名称）
+        const refreshedDetail = await chatChannelApi.refreshDetail(chatKey)
+        // 返回的详情已是后端同步后的权威数据，直接更新详情缓存；仅使列表失效以同步名称展示
+        queryClient.setQueryData(['chat-channel-detail', chatKey], refreshedDetail)
+      } catch {
+        // 平台同步失败时回退为普通缓存失效，仍从数据库刷新当前状态
+        await queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
+      }
       await queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
       await queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
     } finally {

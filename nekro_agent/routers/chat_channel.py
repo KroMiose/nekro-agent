@@ -346,7 +346,7 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
     return await _build_chat_channel_detail(channel)
 
 
-@router.get("/detail/{chat_key}/refresh", summary="刷新聊天频道信息", response_model=ChatChannelDetail)
+@router.post("/detail/{chat_key}/refresh", summary="刷新聊天频道信息", response_model=ChatChannelDetail)
 @require_role(Role.Admin)
 async def refresh_chat_channel_detail(
     chat_key: str, _current_user: DBUser = Depends(get_current_active_user)
