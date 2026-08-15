@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -58,7 +59,7 @@ from nekro_agent.services.kb.index_service import (
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
 from nekro_agent.services.kb.search_service import search_workspace_kb
-from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload, to_zip_import_response
+from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -293,7 +294,11 @@ async def import_workspace_kb_zip(
     ensure_kb_embedding_configured()
     await ensure_kb_collection()
 
-    async def create_from_upload(entry: ZipImportEntry, upload_file: UploadFile) -> tuple[object, bool]:
+    async def create_from_upload(entry: ZipImportEntry, content: bytes) -> tuple[object, bool]:
+        upload_file = UploadFile(
+            filename=Path(entry.source_path).name,
+            file=io.BytesIO(content),
+        )
         document = await create_file_document(
             workspace_id=workspace_id,
             upload_file=upload_file,
@@ -306,13 +311,12 @@ async def import_workspace_kb_zip(
         )
         return document, False
 
-    result = await import_zip_with_upload(
+    return await import_zip_with_upload(
         file=file,
         allowed_exts=ALLOWED_KB_EXTENSIONS,
         create_from_upload=create_from_upload,
         schedule_rebuild=schedule_rebuild_document,
     )
-    return to_zip_import_response(result)
 
 
 @router.put(
