@@ -482,13 +482,13 @@ class CoreConfig(ConfigBase):
     KB_INDEX_CONCURRENCY: int = Field(
         default=3,
         title="知识库索引并发数",
-        description="同时进行的知识库索引任务数（工作区文档与全局资产各按此值限制）。设为 1 时逐个串行索引，调大可加快批量索引，但会增加 Embedding 服务与 Qdrant 负载",
+        description="同时进行的知识库索引任务数（工作区文档与全局资产各按此值限制）。设为 1 时逐个串行索引，调大可加快批量索引，但会增加 Embedding 服务与 Qdrant 负载。修改后需重启服务生效",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
             i18n_title=i18n_text(zh_CN="知识库索引并发数", en_US="Knowledge Base Index Concurrency"),
             i18n_description=i18n_text(
-                zh_CN="同时进行的知识库索引任务数（工作区文档与全局资产各按此值限制）。设为 1 时逐个串行索引，调大可加快批量索引，但会增加 Embedding 服务与 Qdrant 负载",
-                en_US="Number of concurrent knowledge base indexing tasks (workspace documents and global assets are each limited by this value). Set to 1 for fully serial indexing; higher values speed up batch indexing at the cost of heavier Embedding service and Qdrant load",
+                zh_CN="同时进行的知识库索引任务数（工作区文档与全局资产各按此值限制）。设为 1 时逐个串行索引，调大可加快批量索引，但会增加 Embedding 服务与 Qdrant 负载。修改后需重启服务生效",
+                en_US="Number of concurrent knowledge base indexing tasks (workspace documents and global assets are each limited by this value). Set to 1 for fully serial indexing; higher values speed up batch indexing at the cost of heavier Embedding service and Qdrant load. Restart required after changing",
             ),
             placeholder="建议 1~8",
         ).model_dump(),

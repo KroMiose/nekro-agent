@@ -30,23 +30,13 @@ INDEX_BATCH_SIZE = 10
 _INDEX_CONCURRENCY_DEFAULT = 3
 _index_tasks: dict[int, Any] = {}
 _pending_rebuilds: set[int] = set()
-_index_semaphore_cache: tuple[int, asyncio.Semaphore] | None = None
 
-
-def _get_index_semaphore() -> asyncio.Semaphore:
-    """获取索引并发信号量，并发数配置（KB_INDEX_CONCURRENCY）变更时自动重建。"""
-    global _index_semaphore_cache
-
-    try:
-        concurrency = max(1, int(config.KB_INDEX_CONCURRENCY))
-    except (TypeError, ValueError):
-        # 配置值非法时回退默认并发，避免索引任务因错误配置而崩溃
-        concurrency = _INDEX_CONCURRENCY_DEFAULT
-    if _index_semaphore_cache is not None and _index_semaphore_cache[0] == concurrency:
-        return _index_semaphore_cache[1]
-    semaphore = asyncio.Semaphore(concurrency)
-    _index_semaphore_cache = (concurrency, semaphore)
-    return semaphore
+try:
+    _INDEX_CONCURRENCY = max(1, int(config.KB_INDEX_CONCURRENCY))
+except (TypeError, ValueError):
+    # 配置值非法时回退默认并发，避免索引任务因错误配置而崩溃
+    _INDEX_CONCURRENCY = _INDEX_CONCURRENCY_DEFAULT
+_index_semaphore = asyncio.Semaphore(_INDEX_CONCURRENCY)
 
 
 def _hash_text(text: str) -> str:
@@ -263,7 +253,7 @@ async def rebuild_asset(asset: DBKBAsset) -> int:
 async def _run_rebuild_asset_task(asset_id: int) -> None:
     task = _index_tasks.get(asset_id)
     try:
-        async with _get_index_semaphore():
+        async with _index_semaphore:
             while True:
                 _pending_rebuilds.discard(asset_id)
                 asset = await DBKBAsset.get_or_none(id=asset_id)
