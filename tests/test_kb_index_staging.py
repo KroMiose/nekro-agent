@@ -57,6 +57,7 @@ class _IndexHarness:
     normalized_dir: Path
     live_file: Path
     swap_kwargs: list[dict[str, object]]
+    embed_calls: list[list[str]]
 
     @property
     def new_file(self) -> Path:
@@ -68,6 +69,8 @@ def _install_harness(
     *,
     embedding_ok: bool,
     document: _FakeDocument | None = None,
+    extracted_text: str = _NEW_TEXT,
+    swap_chunk_count: int = 7,
 ) -> _IndexHarness:
     """把 index_document 的外部依赖（DB / 文件 / 向量库）替换成可观测的假实现。"""
     normalized_dir = Path(tempfile.mkdtemp(prefix="nekro-kb-index-"))
@@ -75,31 +78,40 @@ def _install_harness(
     live_file = normalized_dir / document.normalized_text_path
     live_file.write_text(_OLD_TEXT, "utf-8")
     swap_kwargs: list[dict[str, object]] = []
+    embed_calls: list[list[str]] = []
 
     async def _noop(*_args: object, **_kwargs: object) -> None:
         return None
 
+    async def _to_thread(func: object, *args: object, **kwargs: object) -> object:
+        assert callable(func)
+        return func(*args, **kwargs)
+
     async def _fake_embed(texts: list[str]) -> list[list[float] | None]:
+        embed_calls.append(list(texts))
         return [[1.0] if embedding_ok else None for _ in texts]
 
-    async def _recording_swap(*_args: object, **kwargs: object) -> int:
+    async def _recording_swap(*args: object, **kwargs: object) -> int:
         # 忠实模拟真实 _swap_document_index：元数据在同一事务内一并 flip
-        swap_kwargs.append(kwargs)
+        drafts = list(args[1]) if len(args) > 1 and isinstance(args[1], list) else []
+        vectors = list(args[2]) if len(args) > 2 and isinstance(args[2], list) else []
+        swap_kwargs.append({"drafts": drafts, "vectors": vectors, **kwargs})
         assert document is not None
         document.normalized_text_path = str(kwargs["normalized_rel_path"])
         document.normalized_text_hash = str(kwargs["normalized_text_hash"])
-        document.chunk_count = 7
+        document.chunk_count = swap_chunk_count
         document.extract_status = "ready"
         document.sync_status = "ready"
         document.last_indexed_at = "new-timestamp"
         document.last_error = None
-        return 7
+        return swap_chunk_count
 
     monkeypatch.setattr(index_service, "_publish_index_progress", _noop)
+    monkeypatch.setattr(index_service.asyncio, "to_thread", _to_thread)
     monkeypatch.setattr(index_service, "detect_and_sync_document_references", _noop)
     monkeypatch.setattr(index_service, "embed_kb_batch", _fake_embed)
     monkeypatch.setattr(index_service, "_swap_document_index", _recording_swap)
-    monkeypatch.setattr(index_service, "extract_source_file", lambda *_args: SimpleNamespace(text=_NEW_TEXT))
+    monkeypatch.setattr(index_service, "extract_source_file", lambda *_args: SimpleNamespace(text=extracted_text))
     monkeypatch.setattr(
         index_service,
         "WorkspaceService",
@@ -115,6 +127,92 @@ def _install_harness(
         normalized_dir=normalized_dir,
         live_file=live_file,
         swap_kwargs=swap_kwargs,
+        embed_calls=embed_calls,
+    )
+
+
+@dataclass
+class _FakeAsset:
+    id: int = 1
+    is_enabled: bool = True
+    source_path: str = "source.md"
+    file_name: str = "source.md"
+    normalized_text_path: str = "1.md"
+    normalized_text_hash: str = "old-hash"
+    extract_status: str = "ready"
+    sync_status: str = "ready"
+    last_error: str | None = None
+    chunk_count: int = 3
+    last_indexed_at: object = "old-timestamp"
+    saved_fields: list[list[str]] = field(default_factory=list)
+
+    async def save(self, update_fields: list[str] | None = None, using_db: object = None) -> None:
+        self.saved_fields.append(list(update_fields or []))
+
+
+@dataclass
+class _LibraryIndexHarness:
+    asset: _FakeAsset
+    normalized_dir: Path
+    live_file: Path
+    swap_kwargs: list[dict[str, object]]
+    embed_calls: list[list[str]]
+
+
+def _install_library_harness(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    extracted_text: str,
+    swap_chunk_count: int,
+) -> _LibraryIndexHarness:
+    """把 index_asset 的外部依赖替换成可观测的假实现。"""
+    normalized_dir = Path(tempfile.mkdtemp(prefix="nekro-kb-library-index-"))
+    asset = _FakeAsset()
+    live_file = normalized_dir / asset.normalized_text_path
+    live_file.write_text(_OLD_TEXT, "utf-8")
+    swap_kwargs: list[dict[str, object]] = []
+    embed_calls: list[list[str]] = []
+
+    async def _noop(*_args: object, **_kwargs: object) -> None:
+        return None
+
+    async def _to_thread(func: object, *args: object, **kwargs: object) -> object:
+        assert callable(func)
+        return func(*args, **kwargs)
+
+    async def _fake_embed(texts: list[str]) -> list[list[float] | None]:
+        embed_calls.append(list(texts))
+        return [[1.0] for _ in texts]
+
+    async def _recording_swap(*args: object, **kwargs: object) -> int:
+        drafts = list(args[1]) if len(args) > 1 and isinstance(args[1], list) else []
+        vectors = list(args[2]) if len(args) > 2 and isinstance(args[2], list) else []
+        swap_kwargs.append({"drafts": drafts, "vectors": vectors, **kwargs})
+        asset.normalized_text_path = str(kwargs["normalized_rel_path"])
+        asset.normalized_text_hash = str(kwargs["normalized_text_hash"])
+        asset.chunk_count = swap_chunk_count
+        asset.extract_status = "ready"
+        asset.sync_status = "ready"
+        asset.last_indexed_at = "new-timestamp"
+        asset.last_error = None
+        return swap_chunk_count
+
+    monkeypatch.setattr(library_index_service, "_publish_index_progress", _noop)
+    monkeypatch.setattr(library_index_service.asyncio, "to_thread", _to_thread)
+    monkeypatch.setattr(library_index_service, "detect_and_sync_asset_references", _noop)
+    monkeypatch.setattr(library_index_service, "embed_kb_batch", _fake_embed)
+    monkeypatch.setattr(library_index_service, "_swap_asset_index", _recording_swap)
+    monkeypatch.setattr(library_index_service, "extract_source_file", lambda *_args: SimpleNamespace(text=extracted_text))
+    monkeypatch.setattr(library_index_service, "ensure_kb_library_dirs", lambda: None)
+    monkeypatch.setattr(library_index_service, "resolve_kb_library_source_path", lambda _path: normalized_dir / "source.md")
+    monkeypatch.setattr(library_index_service, "resolve_kb_library_normalized_path", lambda rel_path: normalized_dir / rel_path)
+
+    return _LibraryIndexHarness(
+        asset=asset,
+        normalized_dir=normalized_dir,
+        live_file=live_file,
+        swap_kwargs=swap_kwargs,
+        embed_calls=embed_calls,
     )
 
 
@@ -294,6 +392,49 @@ async def test_ready_document_status_not_downgraded_during_rebuild(monkeypatch: 
 
     assert observed == [("ready", "ready")]
     assert all("sync_status" not in fields for fields in harness.document.saved_fields)
+
+
+async def test_index_document_empty_text_swaps_to_zero_chunks_without_embedding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """空规范化文本没有 drafts，也必须显式切换为 0 chunk，避免 chunk_count 未定义。"""
+    harness = _install_harness(
+        monkeypatch,
+        embedding_ok=True,
+        extracted_text="   \n",
+        swap_chunk_count=0,
+    )
+
+    chunk_count = await index_service.index_document(harness.document)  # type: ignore[arg-type]
+
+    assert chunk_count == 0
+    assert harness.document.chunk_count == 0
+    assert harness.document.extract_status == "ready"
+    assert harness.document.sync_status == "ready"
+    assert harness.embed_calls == []
+    assert harness.swap_kwargs[0]["drafts"] == []
+    assert harness.swap_kwargs[0]["vectors"] == []
+
+
+async def test_index_asset_empty_text_swaps_to_zero_chunks_without_embedding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """全局库资产的空 drafts 路径同样要返回 chunk_count=0 并完成切换。"""
+    harness = _install_library_harness(
+        monkeypatch,
+        extracted_text="\n\t",
+        swap_chunk_count=0,
+    )
+
+    chunk_count = await library_index_service.index_asset(harness.asset)  # type: ignore[arg-type]
+
+    assert chunk_count == 0
+    assert harness.asset.chunk_count == 0
+    assert harness.asset.extract_status == "ready"
+    assert harness.asset.sync_status == "ready"
+    assert harness.embed_calls == []
+    assert harness.swap_kwargs[0]["drafts"] == []
+    assert harness.swap_kwargs[0]["vectors"] == []
 
 
 async def test_post_commit_failure_does_not_roll_back_committed_index(monkeypatch: pytest.MonkeyPatch) -> None:

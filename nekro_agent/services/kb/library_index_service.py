@@ -353,9 +353,8 @@ async def index_asset(asset: DBKBAsset) -> int:
             await asyncio.to_thread(_write_normalized_text, staged_file, normalized_text)
 
         drafts = split_text_into_chunks(normalized_text)
-        vectors = await _embed_chunk_drafts(asset, drafts, started_at=started_at) if drafts else []
-
         if drafts:
+            vectors = await _embed_chunk_drafts(asset, drafts, started_at=started_at)
             await _publish_index_progress(
                 asset,
                 phase="upserting",
@@ -364,6 +363,9 @@ async def index_asset(asset: DBKBAsset) -> int:
                 total_chunks=len(drafts),
                 processed_chunks=len(drafts),
             )
+        else:
+            # 空文本也必须显式完成切换：清空旧 chunk/向量点，并把 chunk_count 落到 0。
+            vectors = []
         chunk_count = await _swap_asset_index(
             asset,
             drafts,
