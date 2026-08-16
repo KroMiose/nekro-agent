@@ -4,6 +4,7 @@ import difflib
 import hashlib
 import ipaddress
 import mimetypes
+import os
 import random
 import re
 from pathlib import Path
@@ -38,20 +39,82 @@ _SSRF_BLOCKED_NETWORKS = [
         "198.18.0.0/15",
         "224.0.0.0/4",
         "240.0.0.0/4",
-        "::1/128",
-        "fc00::/7",
-        "fe80::/10",
+        # IPv4-mapped(::ffff:0:0/96)与 NAT64(64:ff9b::/96)不整体封禁:
+        # 由 _candidate_ips 解出内嵌 IPv4 后按上述 IPv4 段判断,
+        # 保证编码公网地址(如 ::ffff:8.8.8.8)仍可正常放行
+        "::/127",  # 含 ::(未指定)与 ::1(环回)
+        "100::/64",  # 丢弃前缀
+        "2001:db8::/32",  # 文档示例段
+        "fc00::/7",  # ULA
+        "fe80::/10",  # 链路本地
     )
 ]
 
 
-def _is_ip_blocked(ip_text: str) -> bool:
-    """判断单个 IP 是否落在被拒绝的保留地址段内"""
+def _candidate_ips(ip_text: str) -> list[str]:
+    """展开一个地址文本为需逐一检查的等价地址列表
+
+    IPv6 的多种形式可编码可达 IPv4 的目标:
+    - ::ffff:127.0.0.1(IPv4-mapped)
+    - 64:ff9b::127.0.0.1(NAT64)
+    - 2002:7f00:1::(6to4,内嵌任意 IPv4)
+    全部解出后与原始形式一起比对,阻断经 IPv6 记法绕过 IPv4 封锁。
+    """
     try:
         ip = ipaddress.ip_address(ip_text)
     except ValueError:
+        return [ip_text]
+    candidates = [ip]
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped:
+            candidates.append(ip.ipv4_mapped)
+        sixtofour = ip.sixtofour
+        if sixtofour:
+            candidates.append(sixtofour)
+        teredo = ip.teredo
+        if teredo:
+            # teredo 返回 (server, client);client 才是实际通信对端
+            candidates.append(teredo[1])
+        if ip in ipaddress.ip_network("64:ff9b::/96"):
+            # NAT64(Well-Known Prefix):低 32 位即被编码的 IPv4,
+            # ipaddress 不自动解出,需手动提取
+            candidates.append(ipaddress.ip_address(int(ip) & 0xFFFFFFFF))
+    return [str(c) for c in candidates]
+
+
+def _extra_blocked_networks() -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    """读取运维追加的封锁网段(NEKRO_SSRF_EXTRA_BLOCKED_CIDRS)
+
+    逗号分隔的 CIDR 列表,如 "172.20.0.0/16,fd00::/8"。
+    仅支持追加:内置网段不可通过配置移除——若允许"放宽",
+    能写配置的人(或诱导修改配置的攻击者)即可解除防护。
+    非法条目记日志跳过,不影响其余条目生效。
+    """
+    raw = os.environ.get("NEKRO_SSRF_EXTRA_BLOCKED_CIDRS", "")
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    for item in raw.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(item, strict=False))
+        except ValueError:
+            logger.warning(f"NEKRO_SSRF_EXTRA_BLOCKED_CIDRS 中的非法 CIDR 已忽略: {item}")
+    return networks
+
+
+def _is_ip_blocked(ip_text: str) -> bool:
+    """判断地址(含 IPv6 编码的 IPv4 等价形式)是否落在被拒绝的保留地址段内"""
+    try:
+        for candidate in _candidate_ips(ip_text):
+            ip = ipaddress.ip_address(candidate)
+            if any(ip in network for network in _SSRF_BLOCKED_NETWORKS):
+                return True
+            if any(ip in network for network in _extra_blocked_networks()):
+                return True
+        return False
+    except ValueError:
         return True
-    return any(ip in network for network in _SSRF_BLOCKED_NETWORKS)
 
 
 class UnsafeDownloadUrl(ValueError):

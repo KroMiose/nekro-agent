@@ -2,8 +2,8 @@
 
 import os
 import re
-import shlex
 import shutil
+import subprocess
 from collections.abc import AsyncIterator
 from datetime import datetime
 from pathlib import Path
@@ -113,7 +113,14 @@ class DockerRestartCommand(BaseCommand):
         except ValueError as e:
             return CmdCtl.failed(str(e))
 
-        os.system(f"docker restart {shlex.quote(container)}")  # noqa: S605
+        proc = subprocess.run(["docker", "restart", container], capture_output=True, text=True)
+        if proc.returncode != 0:
+            return CmdCtl.failed(
+                t(
+                    zh_CN=f"重启容器失败: {proc.stderr.strip() or proc.stdout.strip()}",
+                    en_US=f"Failed to restart container: {proc.stderr.strip() or proc.stdout.strip()}",
+                )
+            )
         return CmdCtl.success(
             t(zh_CN=f"已发送重启命令: docker restart {container}", en_US=f"Restart command sent: docker restart {container}")
         )
@@ -153,7 +160,8 @@ class DockerLogsCommand(BaseCommand):
         except ValueError as e:
             return CmdCtl.failed(str(e))
 
-        logs = os.popen(f"docker logs {shlex.quote(container)} --tail 100").read()  # noqa: S605
+        proc = subprocess.run(["docker", "logs", container, "--tail", "100"], capture_output=True, text=True)
+        logs = proc.stdout or proc.stderr
         return CmdCtl.success(
             t(zh_CN=f"容器日志: \n{logs}", en_US=f"Container logs: \n{logs}")
         )
