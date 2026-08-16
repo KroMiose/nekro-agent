@@ -1226,7 +1226,7 @@
       "sourcePathPlaceholder": "例如 faq/getting-started.md",
       "supportedFormats": "支持上传的文件格式：{{formats}}",
       "dirImportHint": "选择本地文件夹，自动按子目录名分类，文档路径结构完整保留",
-      "zipImportHint": "支持上传 zip 压缩包，自动解压并按目录结构导入",
+      "zipImportHint": "支持上传 zip 压缩包，自动解压并按目录结构导入（不支持加密压缩包）",
       "dirImportModeHint": "文件夹导入模式：分类已按目录结构自动推断，可展开各文件修改",
       "reuseSearch": "搜索全局知识标题、路径、分类或标签",
       "fileName": "文件名",
