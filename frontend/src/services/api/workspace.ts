@@ -895,7 +895,11 @@ export const workspaceApi = {
 const postZipImport = async (url: string, file: File): Promise<KBZipImportResponse> => {
   const formData = new FormData()
   formData.append('file', file)
-  const response = await axios.post<KBZipImportResponse>(url, formData)
+  const response = await axios.post<KBZipImportResponse>(url, formData, {
+    // 必须显式指定 multipart：axios 实例默认 Content-Type 为 application/json，
+    // axios 1.15 会因此把 FormData 序列化成 JSON（File 被转成空对象 {}）导致后端 422
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
   return response.data
 }
 
