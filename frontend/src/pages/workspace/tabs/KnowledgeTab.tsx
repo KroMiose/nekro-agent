@@ -85,7 +85,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from '../kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from '../kbCategoryTree'
-import { createSingleFileUploadHandler, formatZipImportErrors } from '../kbImportHandler'
+import { createSingleFileUploadHandler, getZipImportNotice } from '../kbImportHandler'
 
 type KnowledgeSelection =
   | { kind: 'document'; id: number }
@@ -1005,30 +1005,10 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     upload: file => knowledgeBaseApi.uploadZip(workspace.id, file),
     onResult: async result => {
       try {
-        const errorMessages = formatZipImportErrors(result.errors, count =>
-          t('knowledge.notifications.zipImportMoreErrors', { count })
-        )
-        const stats = {
-          imported: result.imported,
-          reused: result.reused,
-          skipped: result.skipped,
-          failed: result.failed,
-        }
-        if (result.imported + result.reused + result.failed === 0) {
-          notification.warning(t('knowledge.notifications.zipImportNothingImported'))
-        } else if (!result.ok) {
-          notification.error(
-            t('knowledge.notifications.zipImportFailed', {
-              message: errorMessages || t('knowledge.notifications.zipImportFailedGeneric'),
-            })
-          )
-        } else if (result.failed > 0) {
-          notification.warning(
-            `${t('knowledge.notifications.zipImportPartial', { ...stats })}${errorMessages ? `\n${errorMessages}` : ''}`
-          )
-        } else {
-          notification.success(t('knowledge.notifications.zipImportSuccess', { ...stats }))
-        }
+        const notice = getZipImportNotice(result, t, 'knowledge')
+        if (notice.variant === 'success') notification.success(notice.message)
+        else if (notice.variant === 'warning') notification.warning(notice.message)
+        else notification.error(notice.message)
       } catch (err) {
         notification.error(
           t('knowledge.notifications.zipImportFailed', {

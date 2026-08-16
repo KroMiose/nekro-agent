@@ -113,6 +113,10 @@ def _friendly_entry_error(error: Exception) -> str:
         return "目标路径已存在"
     if isinstance(error, IntegrityError):
         return "目标路径或内容与现有条目冲突"
+    if isinstance(error, ValidationError):
+        # 保留 ValidationError 的具体原因（reason），避免丢失用户可读信息
+        reason = error.params.get("reason", "") if hasattr(error, "params") else ""
+        return reason or str(error) or "文件内容无效"
     if isinstance(error, ValueError):
         return str(error) or "文件内容无效"
     return "导入失败（详见服务端日志）"

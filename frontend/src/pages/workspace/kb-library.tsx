@@ -93,7 +93,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from './kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from './kbCategoryTree'
-import { createSingleFileUploadHandler, formatZipImportErrors } from './kbImportHandler'
+import { createSingleFileUploadHandler, getZipImportNotice } from './kbImportHandler'
 
 type FilterStatus = 'all' | 'ready' | 'indexing' | 'failed'
 type BatchItemStatus = 'waiting' | 'uploading' | 'done' | 'error'
@@ -732,30 +732,10 @@ export default function KbLibraryPage() {
     upload: kbLibraryApi.uploadZip,
     onResult: async result => {
       try {
-        const errorMessages = formatZipImportErrors(result.errors, count =>
-          t('kbLibrary.notifications.zipImportMoreErrors', { count })
-        )
-        const stats = {
-          imported: result.imported,
-          reused: result.reused,
-          skipped: result.skipped,
-          failed: result.failed,
-        }
-        if (result.imported + result.reused + result.failed === 0) {
-          notification.warning(t('kbLibrary.notifications.zipImportNothingImported'))
-        } else if (!result.ok) {
-          notification.error(
-            t('kbLibrary.notifications.zipImportFailed', {
-              message: errorMessages || t('kbLibrary.notifications.zipImportFailedGeneric'),
-            })
-          )
-        } else if (result.failed > 0) {
-          notification.warning(
-            `${t('kbLibrary.notifications.zipImportPartial', { ...stats })}${errorMessages ? `\n${errorMessages}` : ''}`
-          )
-        } else {
-          notification.success(t('kbLibrary.notifications.zipImportSuccess', { ...stats }))
-        }
+        const notice = getZipImportNotice(result, t, 'kbLibrary')
+        if (notice.variant === 'success') notification.success(notice.message)
+        else if (notice.variant === 'warning') notification.warning(notice.message)
+        else notification.error(notice.message)
       } catch (err) {
         notification.error(
           t('kbLibrary.notifications.zipImportFailed', {
