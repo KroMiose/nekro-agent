@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import difflib
 import hashlib
@@ -5,7 +6,6 @@ import ipaddress
 import mimetypes
 import random
 import re
-import socket
 from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
@@ -45,12 +45,26 @@ _SSRF_BLOCKED_NETWORKS = [
 ]
 
 
-def is_blocked_ssrf_url(url: str) -> bool:
+def _is_ip_blocked(ip_text: str) -> bool:
+    """判断单个 IP 是否落在被拒绝的保留地址段内"""
+    try:
+        ip = ipaddress.ip_address(ip_text)
+    except ValueError:
+        return True
+    return any(ip in network for network in _SSRF_BLOCKED_NETWORKS)
+
+
+async def is_blocked_ssrf_url(url: str) -> bool:
     """检查 URL 是否指向内网/环回/链路本地等敏感地址段
 
     用于在下载用户(或 LLM 生成代码)提供的文件前拦截 SSRF:
     阻止访问本机 API、内网 Postgres/Qdrant、云元数据服务等。
-    域名会做真实 DNS 解析后逐地址判断,拦截 DNS 重绑定的常见形式。
+
+    限制说明(调用方需知):
+    - 校验时与 httpx 实际连接时各自做一次 DNS 解析,理论存在重绑定
+      TOCTOU 窗口;当前 httpx 默认不跟随重定向,公网 302 → 内网的
+      绕径不可行。若未来开启 follow_redirects,需在传输层固定已校验 IP。
+    - DNS 解析通过事件循环的 getaddrinfo 执行,不阻塞其他协程。
     """
     try:
         parsed = urlparse(url)
@@ -62,14 +76,11 @@ def is_blocked_ssrf_url(url: str) -> bool:
     if not host:
         return True
     try:
-        addr_infos = socket.getaddrinfo(host, None)
+        loop = asyncio.get_running_loop()
+        addr_infos = await loop.getaddrinfo(host, None)
     except OSError:
         return True
-    for _, _, _, _, sockaddr in addr_infos:
-        ip = ipaddress.ip_address(sockaddr[0])
-        if any(ip in network for network in _SSRF_BLOCKED_NETWORKS):
-            return True
-    return False
+    return any(_is_ip_blocked(sockaddr[0]) for _, _, _, _, sockaddr in addr_infos)
 
 
 
@@ -149,7 +160,7 @@ async def download_file(
         Tuple[str, str]: 文件路径, 文件名
     """
 
-    if is_blocked_ssrf_url(url):
+    if await is_blocked_ssrf_url(url):
         logger.warning(f"已拦截指向内网/保留地址的下载请求: {limited_text_output(url)}")
         raise ValueError("不允许下载内网或保留地址的资源")
 
