@@ -326,6 +326,40 @@ export interface KBZipImportResponse {
   errors: KBZipImportError[]
 }
 
+export interface KBBatchDeleteResponse {
+  ok: boolean
+  deleted: number
+  failed: number
+  deleted_ids: number[]
+  failed_ids: number[]
+  warnings: string[]
+  errors: string[]
+}
+
+export interface KBBatchReindexResponse {
+  ok: boolean
+  queued: number
+  failed: number
+  queued_ids: number[]
+  failed_ids: number[]
+  warnings: string[]
+  errors: string[]
+}
+
+export interface KBBatchUnbindResponse {
+  ok: boolean
+  unbound: number
+  failed: number
+  unbound_ids: number[]
+  failed_ids: number[]
+  warnings: string[]
+  errors: string[]
+}
+
+/** 空批次占位响应：无操作成功，供前端批量 mutation 的"未选中该类型"分支复用 */
+export const EMPTY_BATCH_DELETE: KBBatchDeleteResponse = { ok: true, deleted: 0, failed: 0, deleted_ids: [], failed_ids: [], warnings: [], errors: [] }
+export const EMPTY_BATCH_UNBIND: KBBatchUnbindResponse = { ok: true, unbound: 0, failed: 0, unbound_ids: [], failed_ids: [], warnings: [], errors: [] }
+export const EMPTY_BATCH_REINDEX: KBBatchReindexResponse = { ok: true, queued: 0, failed: 0, queued_ids: [], failed_ids: [], warnings: [], errors: [] }
 export interface KBUploadFilePayload {
   file: File
   title?: string
@@ -920,6 +954,20 @@ export const knowledgeBaseApi = {
     await axios.delete(`/workspaces/${workspaceId}/kb/documents/${documentId}`)
   },
 
+  batchDeleteDocuments: async (workspaceId: number, documentIds: number[]): Promise<KBBatchDeleteResponse> => {
+    const response = await axios.post<KBBatchDeleteResponse>(`/workspaces/${workspaceId}/kb/documents/batch-delete`, {
+      ids: documentIds,
+    })
+    return response.data
+  },
+
+  batchReindexDocuments: async (workspaceId: number, documentIds: number[]): Promise<KBBatchReindexResponse> => {
+    const response = await axios.post<KBBatchReindexResponse>(`/workspaces/${workspaceId}/kb/documents/batch-reindex`, {
+      ids: documentIds,
+    })
+    return response.data
+  },
+
   getFulltext: async (workspaceId: number, documentId: number, maxChars = 20000): Promise<KBFullTextResponse> => {
     const response = await axios.get<KBFullTextResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}/fulltext`, {
       params: { max_chars: maxChars },
@@ -1078,6 +1126,24 @@ export const kbLibraryApi = {
 
   unbindWorkspace: async (assetId: number, workspaceId: number): Promise<KBAssetBindingsResponse> => {
     const response = await axios.delete<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings/${workspaceId}`)
+    return response.data
+  },
+
+  batchDeleteAssets: async (assetIds: number[]): Promise<KBBatchDeleteResponse> => {
+    const response = await axios.post<KBBatchDeleteResponse>('/kb-library/assets/batch-delete', { ids: assetIds })
+    return response.data
+  },
+
+  batchReindexAssets: async (assetIds: number[]): Promise<KBBatchReindexResponse> => {
+    const response = await axios.post<KBBatchReindexResponse>('/kb-library/assets/batch-reindex', { ids: assetIds })
+    return response.data
+  },
+
+  batchUnbindWorkspace: async (assetIds: number[], workspaceId: number): Promise<KBBatchUnbindResponse> => {
+    const response = await axios.post<KBBatchUnbindResponse>('/kb-library/assets/batch-unbind', {
+      asset_ids: assetIds,
+      workspace_id: workspaceId,
+    })
     return response.data
   },
 

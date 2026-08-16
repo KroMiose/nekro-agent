@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from nekro_agent.models.db_plugin_data import DBPluginData
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.errors import NotFoundError, PluginLoadError, PluginNotFoundError, ValidationError
+from nekro_agent.services.plugin.call_priority import PluginCallPriority
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.manager import (
     disable_plugin,
@@ -14,6 +15,7 @@ from nekro_agent.services.plugin.manager import (
     get_all_plugin_router_info,
     get_plugin_detail,
     update_plugin_activation_strategy,
+    update_plugin_call_priority,
 )
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
@@ -39,6 +41,10 @@ class BatchUpdateConfig(BaseModel):
 
 class PluginActivationStrategyRequest(BaseModel):
     strategy: str
+
+
+class PluginCallPriorityRequest(BaseModel):
+    priority: PluginCallPriority
 
 
 class ActionResponse(BaseModel):
@@ -144,6 +150,19 @@ async def update_plugin_activation_strategy_handler(
     success, error = await update_plugin_activation_strategy(plugin_id, body.strategy)  # type: ignore[arg-type]
     if not success:
         raise ValidationError(reason=error or "插件激活策略更新失败")
+    return ActionResponse(ok=True)
+
+
+@router.post("/call-priority/{plugin_id}", summary="更新插件调用优先级", response_model=ActionResponse)
+@require_role(Role.Admin)
+async def update_plugin_call_priority_handler(
+    plugin_id: str,
+    body: PluginCallPriorityRequest = Body(...),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionResponse:
+    success, error = await update_plugin_call_priority(plugin_id, body.priority)
+    if not success:
+        raise ValidationError(reason=error or "插件调用优先级更新失败")
     return ActionResponse(ok=True)
 
 

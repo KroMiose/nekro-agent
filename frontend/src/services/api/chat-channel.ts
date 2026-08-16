@@ -185,6 +185,11 @@ export const chatChannelApi = {
     return response.data
   },
 
+  refreshDetail: async (chatKey: string): Promise<ChatChannelDetail> => {
+    const response = await axios.post<ChatChannelDetail>(`/chat-channel/detail/${chatKey}/refresh`)
+    return response.data
+  },
+
   getDirectory: async (): Promise<ChannelDirectoryEntry[]> => {
     const response = await axios.get<{ items: ChannelDirectoryEntry[] }>('/chat-channel/directory')
     return response.data.items

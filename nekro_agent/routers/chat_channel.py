@@ -291,18 +291,14 @@ async def stream_chat_channel_list(
     )
 
 
-@router.get("/detail/{chat_key}", summary="获取聊天频道详情")
-@require_role(Role.Admin)
-async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends(get_current_active_user)) -> ChatChannelDetail:
-    """获取聊天频道详情"""
-    channel = await DBChatChannel.filter(chat_key=chat_key).first()
-    if not channel:
-        raise NotFoundError(resource="聊天频道")
-
-    message_count = await DBChatMessage.filter(chat_key=chat_key, create_time__gte=channel.conversation_start_time).count()
-    last_message = await DBChatMessage.filter(chat_key=chat_key).order_by("-create_time").first()
+async def _build_chat_channel_detail(channel: DBChatChannel) -> ChatChannelDetail:
+    """构建聊天频道详情响应"""
+    message_count = await DBChatMessage.filter(
+        chat_key=channel.chat_key, create_time__gte=channel.conversation_start_time
+    ).count()
+    last_message = await DBChatMessage.filter(chat_key=channel.chat_key).order_by("-create_time").first()
     last_message_time = last_message.create_time if last_message else None
-    unique_users = await DBChatMessage.filter(chat_key=chat_key).distinct().values_list("sender_id", flat=True)
+    unique_users = await DBChatMessage.filter(chat_key=channel.chat_key).distinct().values_list("sender_id", flat=True)
 
     # 检测适配器是否支持 WebUI 发送
     can_send = False
@@ -315,7 +311,7 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
     # 获取频道有效配置
     ai_always_include_msg_id = False
     try:
-        effective_config = await config_resolver.get_effective_config(chat_key)
+        effective_config = await config_resolver.get_effective_config(channel.chat_key)
         ai_always_include_msg_id = effective_config.AI_ALWAYS_INCLUDE_MSG_ID
     except Exception:
         pass
@@ -338,6 +334,30 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
         can_send=can_send,
         ai_always_include_msg_id=ai_always_include_msg_id,
     )
+
+
+@router.get("/detail/{chat_key}", summary="获取聊天频道详情")
+@require_role(Role.Admin)
+async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends(get_current_active_user)) -> ChatChannelDetail:
+    """获取聊天频道详情"""
+    channel = await DBChatChannel.filter(chat_key=chat_key).first()
+    if not channel:
+        raise NotFoundError(resource="聊天频道")
+    return await _build_chat_channel_detail(channel)
+
+
+@router.post("/detail/{chat_key}/refresh", summary="刷新聊天频道信息", response_model=ChatChannelDetail)
+@require_role(Role.Admin)
+async def refresh_chat_channel_detail(
+    chat_key: str, _current_user: DBUser = Depends(get_current_active_user)
+) -> ChatChannelDetail:
+    """从平台实时同步频道名称并返回最新详情（适配器不支持或获取失败时保留原名称）"""
+    channel = await DBChatChannel.filter(chat_key=chat_key).first()
+    if not channel:
+        raise NotFoundError(resource="聊天频道")
+    # sync_channel_name 成功时更新内存实例并持久化（含 update_time），失败时不改动，实例始终与数据库一致
+    await channel.sync_channel_name()
+    return await _build_chat_channel_detail(channel)
 
 
 @router.post("/{chat_key}/active", summary="设置聊天频道激活状态")

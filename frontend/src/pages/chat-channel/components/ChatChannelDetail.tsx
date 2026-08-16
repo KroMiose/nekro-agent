@@ -43,6 +43,8 @@ import { useTranslation } from 'react-i18next'
 import { type ChatChannelDetailTab } from '../../../router/routes'
 import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
+import { useChatChannelRefresh } from './chat-channel-refresh'
+import { CHANNEL_DIRECTORY_KEY, CHAT_CHANNEL_DETAIL_KEY, CHAT_CHANNEL_LIST_KEY } from '../queryKeys'
 
 interface ChatChannelDetailProps {
   chatKey: string
@@ -65,10 +67,11 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const { t } = useTranslation('chat-channel')
+  const { refresh } = useChatChannelRefresh(chatKey)
 
   // 查询聊天详情
   const { data: channel, isLoading, isFetching } = useQuery({
-    queryKey: ['chat-channel-detail', chatKey],
+    queryKey: [CHAT_CHANNEL_DETAIL_KEY, chatKey],
     queryFn: () => chatChannelApi.getDetail(chatKey),
     staleTime: 30_000,
     placeholderData: keepPreviousData,
@@ -81,9 +84,9 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const { mutate: setChannelStatus, isPending: isToggling } = useMutation({
     mutationFn: (status: 'active' | 'observe' | 'disabled') => chatChannelApi.setStatus(chatKey, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
-      queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
-      queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
+      queryClient.invalidateQueries({ queryKey: [CHAT_CHANNEL_DETAIL_KEY, chatKey] })
+      queryClient.invalidateQueries({ queryKey: [CHAT_CHANNEL_LIST_KEY] })
+      queryClient.invalidateQueries({ queryKey: [CHANNEL_DIRECTORY_KEY] })
     },
   })
 
@@ -91,7 +94,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const { mutate: resetChannel, isPending: isResetting } = useMutation({
     mutationFn: () => chatChannelApi.reset(chatKey),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
+      queryClient.invalidateQueries({ queryKey: [CHAT_CHANNEL_DETAIL_KEY, chatKey] })
       setResetDialogOpen(false)
     },
   })
@@ -100,9 +103,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      await queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
-      await queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
-      await queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
+      await refresh()
     } finally {
       setIsRefreshing(false)
     }

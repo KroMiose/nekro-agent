@@ -33,6 +33,7 @@ import {
   chatChannelApi,
   type ChatChannel,
 } from '../../services/api/chat-channel'
+import { CHAT_CHANNEL_LIST_KEY } from './queryKeys'
 
 export default function ChatChannelPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -60,7 +61,7 @@ export default function ChatChannelPage() {
   const deferredSearch = useDeferredValue(search)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['chat-channel-management-list', deferredSearch, chatType, status],
+    queryKey: [CHAT_CHANNEL_LIST_KEY, deferredSearch, chatType, status],
     queryFn: () =>
       chatChannelApi.getList({
         page: 1,

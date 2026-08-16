@@ -59,6 +59,16 @@
       "always_loaded": "Always fully visible"
     }
   },
+  "callPriority": {
+    "label": "Call Priority",
+    "description": "When multiple plugins provide equivalent capabilities, prefer higher-priority plugins and fall back to medium or low if needed. Auto leaves the decision to the model.",
+    "options": {
+      "auto": "Auto",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    }
+  },
   "methods": {
     "name": "Method Name",
     "title": "Title",
@@ -155,6 +165,7 @@
     "resetFailed": "Reset failed",
     "refreshFailed": "Refresh failed",
     "updateFailedWithMessage": "Update failed: {{message}}",
+    "callPriorityUpdated": "Plugin call priority updated",
     "activationStrategyUpdated": "Plugin activation strategy updated",
     "pluginNotFound": "Target plugin not found"
   },

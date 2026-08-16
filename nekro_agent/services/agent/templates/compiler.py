@@ -39,6 +39,7 @@ class PromptCompiler:
         plugins_prompt: str,
         plugins_runtime_prompt: str,
         plugin_activation_rules: str,
+        plugin_call_priority_rules: str,
         enable_cot: bool,
         chat_key_rules: str,
         enable_at: bool,
@@ -49,6 +50,7 @@ class PromptCompiler:
         self.plugins_prompt = plugins_prompt
         self.plugins_runtime_prompt = plugins_runtime_prompt
         self.plugin_activation_rules = plugin_activation_rules
+        self.plugin_call_priority_rules = plugin_call_priority_rules
         self.enable_cot = enable_cot
         self.chat_key_rules = chat_key_rules
         self.enable_at = enable_at
@@ -64,6 +66,7 @@ class PromptCompiler:
                 chat_key_rules=self.chat_key_rules,
                 enable_at=self.enable_at,
                 plugin_activation_rules=self.plugin_activation_rules,
+                plugin_call_priority_rules=self.plugin_call_priority_rules,
             ).render(default_env),
         )
 

@@ -59,6 +59,16 @@
       "always_loaded": "始终完整可见"
     }
   },
+  "callPriority": {
+    "label": "调用优先级",
+    "description": "当多个插件提供相同或相似功能时，优先调用高优先级插件；高优先级插件无法完成时再尝试中、低优先级。自动表示由大模型自行判断。",
+    "options": {
+      "auto": "自动",
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    }
+  },
   "methods": {
     "name": "方法名",
     "title": "标题",
@@ -155,6 +165,7 @@
     "resetFailed": "重置失败",
     "refreshFailed": "刷新失败",
     "updateFailedWithMessage": "更新失败: {{message}}",
+    "callPriorityUpdated": "插件调用优先级已更新",
     "activationStrategyUpdated": "插件激活策略已更新",
     "pluginNotFound": "未找到目标插件"
   },
