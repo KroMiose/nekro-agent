@@ -92,6 +92,10 @@ def extract_zip_safe(content: bytes, target_dir: Path) -> list[ZipImportEntry]:
     target_root = target_dir.resolve()
     with zipfile.ZipFile(io.BytesIO(content)) as zf:
         members = [member for member in zf.infolist() if not member.is_dir()]
+        # 加密条目（zip 加密标志位 0x1）无法无密码解压，解压前整体拒绝并给出明确提示，
+        # 避免 zf.open 抛出的 RuntimeError 冒泡成 500
+        if any(member.flag_bits & 0x1 for member in members):
+            raise ValueError("zip 包包含加密文件，暂不支持加密压缩包")
         _validate_zip_limits(members)
 
         # 按条目名去重（后出现的覆盖先出现的，与解压落盘行为一致）
@@ -109,6 +113,9 @@ def extract_zip_safe(content: bytes, target_dir: Path) -> list[ZipImportEntry]:
                 # 目录/文件同名冲突（如先有 a/b.txt 再出现 a，或反之）等落盘失败，
                 # 统一转为用户可读的校验错误，避免以 500 冒泡
                 raise ValueError(f"zip 包条目路径冲突或非法: {member.filename}") from e
+            except (zipfile.BadZipFile, RuntimeError, NotImplementedError) as e:
+                # 加密预检之外的解压失败（条目损坏、不支持的压缩方式等），同样转校验错误
+                raise ValueError(f"zip 包条目无法解压: {member.filename}") from e
             entries_by_path[rel_path] = _derive_entry(rel_path, dest)
     return list(entries_by_path.values())
 
@@ -132,15 +139,24 @@ def _friendly_entry_error(error: Exception) -> str:
     return "导入失败（详见服务端日志）"
 
 
+_READ_CHUNK_SIZE = 1024 * 1024  # 分块读取大小（1 MiB），避免超限文件整体载入内存
+
+
 async def _read_and_validate_zip_upload(file: UploadFile) -> bytes:
-    """校验并读取 zip 上传内容。"""
+    """分块读取并校验 zip 上传内容（边读边累计大小，超限立即拒绝）。"""
     file_name = file.filename or ""
     if not file_name.lower().endswith(".zip"):
         raise ValidationError(reason="仅支持上传 zip 压缩包")
-    content = await file.read()
-    if len(content) > _MAX_UPLOAD_SIZE:
-        raise ValidationError(reason=f"文件大小超出限制（最大 {_MAX_UPLOAD_SIZE // 1024 // 1024} MB）")
-    return content
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := await file.read(_READ_CHUNK_SIZE):
+        total += len(chunk)
+        if total > _MAX_UPLOAD_SIZE:
+            raise ValidationError(
+                reason=f"文件大小超出限制（最大 {_MAX_UPLOAD_SIZE // 1024 // 1024} MB）"
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 async def _import_entries(
