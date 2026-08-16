@@ -54,7 +54,7 @@ class OsEnv:
     不再支持 "*" 通配:Starlette 在 allow_credentials=True 下会反射任意 Origin,
     导致任何恶意网页都能以受害者浏览器凭据调用管理 API。
     """
-    CORS_ORIGINS: str = OsEnvTypes.Str("CORS_ORIGINS", default="")
+    CORS_ORIGINS: str = OsEnvTypes.Str("NEKRO_CORS_ORIGINS", default="")
 
     """沙箱安全配置
 

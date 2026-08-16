@@ -1,3 +1,4 @@
+import hmac
 import json
 from typing import Any, Dict, Optional
 
@@ -33,7 +34,8 @@ def _verify_webhook_token(request: Request) -> None:
     if not secret:
         return
     provided = request.headers.get("X-Webhook-Token") or request.query_params.get("webhook_token", "")
-    if provided != secret:
+    # 常时比较,避免逐字节比较的时序侧信道泄露密钥
+    if not hmac.compare_digest(provided.encode("utf-8"), secret.encode("utf-8")):
         logger.warning("Webhook 令牌校验失败")
         raise UnauthorizedError
 

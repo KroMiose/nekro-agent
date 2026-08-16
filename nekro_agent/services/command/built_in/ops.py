@@ -108,6 +108,11 @@ class DockerRestartCommand(BaseCommand):
                 t(zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
             )
 
+        try:
+            _validate_container_name(container)
+        except ValueError as e:
+            return CmdCtl.failed(str(e))
+
         os.system(f"docker restart {shlex.quote(container)}")  # noqa: S605
         return CmdCtl.success(
             t(zh_CN=f"已发送重启命令: docker restart {container}", en_US=f"Restart command sent: docker restart {container}")
@@ -142,6 +147,11 @@ class DockerLogsCommand(BaseCommand):
             return CmdCtl.failed(
                 t(zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
             )
+
+        try:
+            _validate_container_name(container)
+        except ValueError as e:
+            return CmdCtl.failed(str(e))
 
         logs = os.popen(f"docker logs {shlex.quote(container)} --tail 100").read()  # noqa: S605
         return CmdCtl.success(

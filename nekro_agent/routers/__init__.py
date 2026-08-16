@@ -74,7 +74,7 @@ def mount_middlewares(app: FastAPI):
         )
         logger.info(f"已启用 CORS,允许来源: {cors_origins}")
     else:
-        logger.info("未配置 CORS_ORIGINS,仅允许同源访问(前端 /webui 不受影响)")
+        logger.info("未配置 NEKRO_CORS_ORIGINS,仅允许同源访问(前端 /webui 不受影响)")
 
     @app.middleware("http")
     async def request_timing_middleware(request: Request, call_next):
