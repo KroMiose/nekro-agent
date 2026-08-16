@@ -493,6 +493,22 @@ class CoreConfig(ConfigBase):
             placeholder="建议 1~8",
         ).model_dump(),
     )
+    KB_RERANK_MODEL_GROUP: str = Field(
+        default="",
+        title="知识库重排模型组",
+        description="用于知识库检索结果重排的 rerank 模型组（OpenAI 兼容 /v1/rerank 接口）。应选择 MODEL_TYPE 为 rerank 的模型组；留空则跳过重排",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            ref_model_groups=True,
+            model_type="rerank",
+            i18n_title=i18n_text(zh_CN="知识库重排模型组", en_US="Knowledge Base Rerank Model Group"),
+            i18n_description=i18n_text(
+                zh_CN="用于知识库检索结果重排的 rerank 模型组（OpenAI 兼容 /v1/rerank 接口）。应选择 MODEL_TYPE 为 rerank 的模型组；留空则跳过重排",
+                en_US="Rerank model group used for re-ranking knowledge base retrieval results (OpenAI-compatible /v1/rerank endpoint). Should use a model group with MODEL_TYPE set to rerank; leave empty to skip reranking",
+            ),
+            placeholder="例: bge-reranker-v2-m3",
+        ).model_dump(),
+    )
     KB_ZIP_MAX_UPLOAD_SIZE_MB: int = Field(
         default=100,
         title="知识库 Zip 单包大小上限 (MB)",
