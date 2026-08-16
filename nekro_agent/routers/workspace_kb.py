@@ -409,7 +409,7 @@ async def batch_delete_workspace_kb_documents(
     results = await run_batched_ids(ids, KB_BATCH_CONCURRENCY, op)
     deleted_ids, failed_ids, warnings, errors = aggregate_batch_results(results, "文档")
     return KBBatchDeleteResponse(
-        ok=len(errors) == 0,
+        ok=len(failed_ids) == 0,
         deleted=len(deleted_ids),
         failed=len(failed_ids),
         deleted_ids=deleted_ids,
@@ -445,9 +445,10 @@ async def batch_reindex_workspace_kb_documents(
     results = await run_batched_ids(ids, KB_BATCH_CONCURRENCY, op)
     queued_ids, failed_ids, warnings, errors = aggregate_batch_results(results, "文档")
     return KBBatchReindexResponse(
-        ok=len(errors) == 0,
+        ok=len(failed_ids) == 0,
         queued=len(queued_ids),
         failed=len(failed_ids),
+        queued_ids=queued_ids,
         failed_ids=failed_ids,
         warnings=warnings,
         errors=errors,

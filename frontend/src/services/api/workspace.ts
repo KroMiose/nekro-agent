@@ -326,6 +326,7 @@ export interface KBBatchReindexResponse {
   ok: boolean
   queued: number
   failed: number
+  queued_ids: number[]
   failed_ids: number[]
   warnings: string[]
   errors: string[]
@@ -344,7 +345,7 @@ export interface KBBatchUnbindResponse {
 /** 空批次占位响应：无操作成功，供前端批量 mutation 的"未选中该类型"分支复用 */
 export const EMPTY_BATCH_DELETE: KBBatchDeleteResponse = { ok: true, deleted: 0, failed: 0, deleted_ids: [], failed_ids: [], warnings: [], errors: [] }
 export const EMPTY_BATCH_UNBIND: KBBatchUnbindResponse = { ok: true, unbound: 0, failed: 0, unbound_ids: [], failed_ids: [], warnings: [], errors: [] }
-export const EMPTY_BATCH_REINDEX: KBBatchReindexResponse = { ok: true, queued: 0, failed: 0, failed_ids: [], warnings: [], errors: [] }
+export const EMPTY_BATCH_REINDEX: KBBatchReindexResponse = { ok: true, queued: 0, failed: 0, queued_ids: [], failed_ids: [], warnings: [], errors: [] }
 
 export interface KBUploadFilePayload {
   file: File

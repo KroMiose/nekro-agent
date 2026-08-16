@@ -43,6 +43,7 @@ class KBBatchReindexResponse(BaseModel):
     ok: bool = True
     queued: int = 0
     failed: int = 0
+    queued_ids: list[int] = Field(default_factory=list, description="已提交重建索引任务的 ID 列表")
     failed_ids: list[int] = Field(default_factory=list, description="重建索引提交失败的 ID 列表")
     warnings: list[str] = Field(default_factory=list, description="重建过程中产生的警告（当前为空）")
     errors: list[str] = Field(default_factory=list)
