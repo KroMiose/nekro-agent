@@ -1,4 +1,4 @@
-"""知识库批量操作通用执行器：去重、数量上限、限流并发、单条错误隔离。"""
+"""知识库批量操作通用执行器：去重/上限校验、限流并发、单条错误隔离、结果聚合。"""
 
 import asyncio
 from collections.abc import Awaitable, Callable
@@ -28,24 +28,22 @@ class BatchItemResult:
 BatchOpFn = Callable[[int], Awaitable[list[str] | None]]
 
 
-async def run_batched_ids(
-    ids: list[int],
-    max_size: int,
-    concurrency: int,
-    op: BatchOpFn,
-    label: str,
-) -> tuple[list[BatchItemResult], list[str]]:
-    """批量执行单元素操作：去重保序 → 数量上限校验 → 限流并发 → 单条失败隔离。
-
-    - op 对单个 id 执行操作，返回该条目的清理警告列表（best-effort，不失败）；
-    - 业务错误（AppError）返回本地化消息，其他异常记录日志并返回通用文案。
-    返回 (逐条结果, 格式化后的错误列表)；清理警告由调用方通过 aggregate_batch_results 聚合。
-    """
+def normalize_batch_ids(ids: list[int], max_size: int) -> list[int]:
+    """去重保序 + 数量上限校验。"""
     unique_ids = list(dict.fromkeys(ids))
     if len(unique_ids) > max_size:
         raise ValidationError(reason=_MSG_EXCEED_LIMIT.format(max_size=max_size))
-    if not unique_ids:
-        return [], []
+    return unique_ids
+
+
+async def run_batched_ids(
+    ids: list[int],
+    concurrency: int,
+    op: BatchOpFn,
+) -> list[BatchItemResult]:
+    """限流并发执行单元素操作，单条失败隔离；不做去重/校验（由 normalize_batch_ids 负责）。"""
+    if not ids:
+        return []
 
     semaphore = asyncio.Semaphore(concurrency)
 
@@ -61,14 +59,15 @@ async def run_batched_ids(
                 logger.warning(f"批量操作失败: id={item_id}, error={e}", exc_info=True)
                 return BatchItemResult(id=item_id, success=False, error=_MSG_INTERNAL_ERROR)
 
-    results = await asyncio.gather(*(run_one(i) for i in unique_ids))
-    errors = [f"{label} {r.id}: {r.error}" for r in results if not r.success and r.error]
-    return results, errors
+    return await asyncio.gather(*(run_one(i) for i in ids))
 
 
-def aggregate_batch_results(results: list[BatchItemResult], label: str) -> tuple[list[int], list[int], list[str]]:
-    """从批量结果中聚合成功 id 列表、失败 id 列表与清理警告列表（供各批量接口构建响应复用）。"""
+def aggregate_batch_results(
+    results: list[BatchItemResult], label: str
+) -> tuple[list[int], list[int], list[str], list[str]]:
+    """聚合批量结果：成功 id、失败 id、清理警告（格式化）、错误消息（格式化）。"""
     success_ids = [r.id for r in results if r.success]
     failed_ids = [r.id for r in results if not r.success]
     warnings = [f"{label} {r.id}: {w}" for r in results if r.success for w in r.warnings]
-    return success_ids, failed_ids, warnings
+    errors = [f"{label} {r.id}: {r.error}" for r in results if not r.success and r.error]
+    return success_ids, failed_ids, warnings, errors

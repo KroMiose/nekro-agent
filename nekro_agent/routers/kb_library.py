@@ -31,7 +31,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateAssetBody,
     KBUpdateReferenceBody,
 )
-from nekro_agent.services.kb.batch_ops import aggregate_batch_results, run_batched_ids
+from nekro_agent.services.kb.batch_ops import aggregate_batch_results, normalize_batch_ids, run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.constants import KB_BATCH_CONCURRENCY, KB_BATCH_MAX_SIZE
 from nekro_agent.services.kb.library_index_service import (
@@ -304,14 +304,9 @@ async def batch_delete_kb_library_assets(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBBatchDeleteResponse:
     """一次请求批量删除多个资产：服务端限流并发处理，返回成功/失败统计，单条失败（含仍被绑定）不中断整批。"""
-    results, errors = await run_batched_ids(
-        ids=body.ids,
-        max_size=KB_BATCH_MAX_SIZE,
-        concurrency=KB_BATCH_CONCURRENCY,
-        op=_delete_asset_record,
-        label="资产",
-    )
-    deleted_ids, failed_ids, warnings = aggregate_batch_results(results, "资产")
+    ids = normalize_batch_ids(body.ids, KB_BATCH_MAX_SIZE)
+    results = await run_batched_ids(ids, KB_BATCH_CONCURRENCY, _delete_asset_record)
+    deleted_ids, failed_ids, warnings, errors = aggregate_batch_results(results, "资产")
     return KBBatchDeleteResponse(
         ok=len(errors) == 0,
         deleted=len(deleted_ids),
@@ -335,14 +330,9 @@ async def batch_unbind_kb_library_assets(
     async def op(asset_id: int) -> None:
         await unbind_asset_workspace(asset_id, body.workspace_id)
 
-    results, errors = await run_batched_ids(
-        ids=body.asset_ids,
-        max_size=KB_BATCH_MAX_SIZE,
-        concurrency=KB_BATCH_CONCURRENCY,
-        op=op,
-        label="资产",
-    )
-    unbound_ids, failed_ids, warnings = aggregate_batch_results(results, "资产")
+    ids = normalize_batch_ids(body.asset_ids, KB_BATCH_MAX_SIZE)
+    results = await run_batched_ids(ids, KB_BATCH_CONCURRENCY, op)
+    unbound_ids, failed_ids, warnings, errors = aggregate_batch_results(results, "资产")
     return KBBatchUnbindResponse(
         ok=len(errors) == 0,
         unbound=len(unbound_ids),
@@ -370,14 +360,9 @@ async def batch_reindex_kb_library_assets(
             raise NotFoundError(resource=f"全局知识库文件 {asset_id}")
         await schedule_rebuild_asset(asset)
 
-    results, errors = await run_batched_ids(
-        ids=body.ids,
-        max_size=KB_BATCH_MAX_SIZE,
-        concurrency=KB_BATCH_CONCURRENCY,
-        op=op,
-        label="资产",
-    )
-    queued_ids, failed_ids, warnings = aggregate_batch_results(results, "资产")
+    ids = normalize_batch_ids(body.ids, KB_BATCH_MAX_SIZE)
+    results = await run_batched_ids(ids, KB_BATCH_CONCURRENCY, op)
+    queued_ids, failed_ids, warnings, errors = aggregate_batch_results(results, "资产")
     return KBBatchReindexResponse(
         ok=len(errors) == 0,
         queued=len(queued_ids),
