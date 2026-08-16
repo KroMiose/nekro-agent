@@ -1,6 +1,6 @@
 """知识库批量操作共享常量"""
 
-# 批量删除/解绑单请求上限
-KB_BATCH_DELETE_MAX = 1000
-# 批量删除/解绑服务端并发数
-KB_BATCH_DELETE_CONCURRENCY = 8
+# 批量操作单请求上限（删除/解绑/重建索引共用）
+KB_BATCH_MAX_SIZE = 1000
+# 批量操作服务端并发数
+KB_BATCH_CONCURRENCY = 8

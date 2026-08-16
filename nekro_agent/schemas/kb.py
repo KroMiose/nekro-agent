@@ -12,10 +12,10 @@ class KBActionResponse(BaseModel):
     message: Optional[str] = None
 
 
-class KBBatchDeleteBody(BaseModel):
-    """批量删除请求体（工作区文档 / 全局资产通用 id 列表）"""
+class KBBatchIdsBody(BaseModel):
+    """批量操作请求体（删除/解绑/重建索引通用的 id 列表）"""
 
-    ids: list[int] = Field(default_factory=list, description="待删除的文档或资产 ID 列表")
+    ids: list[int] = Field(default_factory=list, description="待操作的文档或资产 ID 列表")
 
 
 class KBAssetBatchUnbindBody(BaseModel):

@@ -15,8 +15,8 @@ from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationE
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
-    KBBatchDeleteBody,
     KBBatchDeleteResponse,
+    KBBatchIdsBody,
     KBBatchReindexResponse,
     KBCreateTextDocumentBody,
     KBDocumentDetailResponse,
@@ -34,7 +34,7 @@ from nekro_agent.schemas.kb import (
 )
 from nekro_agent.services.kb.batch_ops import run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
-from nekro_agent.services.kb.constants import KB_BATCH_DELETE_CONCURRENCY, KB_BATCH_DELETE_MAX
+from nekro_agent.services.kb.constants import KB_BATCH_CONCURRENCY, KB_BATCH_MAX_SIZE
 from nekro_agent.services.kb.document_service import (
     add_document_reference,
     create_file_document,
@@ -391,7 +391,7 @@ async def delete_workspace_kb_document(
 @require_role(Role.Admin)
 async def batch_delete_workspace_kb_documents(
     workspace_id: int,
-    body: KBBatchDeleteBody,
+    body: KBBatchIdsBody,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBBatchDeleteResponse:
     """一次请求批量删除多个文档：服务端限流并发处理，返回成功/失败统计，单条失败不中断整批。"""
@@ -402,14 +402,14 @@ async def batch_delete_workspace_kb_documents(
 
     results, errors = await run_batched_ids(
         ids=body.ids,
-        max_size=KB_BATCH_DELETE_MAX,
-        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        max_size=KB_BATCH_MAX_SIZE,
+        concurrency=KB_BATCH_CONCURRENCY,
         op=op,
         label="文档",
     )
     deleted_ids = [r.id for r in results if r.success]
     return KBBatchDeleteResponse(
-        ok=bool(results),
+        ok=len(errors) == 0,
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
@@ -425,7 +425,7 @@ async def batch_delete_workspace_kb_documents(
 @require_role(Role.Admin)
 async def batch_reindex_workspace_kb_documents(
     workspace_id: int,
-    body: KBBatchDeleteBody,
+    body: KBBatchIdsBody,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBBatchReindexResponse:
     """一次请求批量提交文档重建索引任务，服务端限流并发处理。"""
@@ -441,8 +441,8 @@ async def batch_reindex_workspace_kb_documents(
 
     results, errors = await run_batched_ids(
         ids=body.ids,
-        max_size=KB_BATCH_DELETE_MAX,
-        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        max_size=KB_BATCH_MAX_SIZE,
+        concurrency=KB_BATCH_CONCURRENCY,
         op=op,
         label="文档",
     )

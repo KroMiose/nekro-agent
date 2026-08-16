@@ -22,8 +22,8 @@ from nekro_agent.schemas.kb import (
     KBAssetListResponse,
     KBAssetReferences,
     KBAssetUploadResponse,
-    KBBatchDeleteBody,
     KBBatchDeleteResponse,
+    KBBatchIdsBody,
     KBBatchReindexResponse,
     KBCreateTextDocumentBody,
     KBFullTextResponse,
@@ -32,7 +32,7 @@ from nekro_agent.schemas.kb import (
 )
 from nekro_agent.services.kb.batch_ops import run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
-from nekro_agent.services.kb.constants import KB_BATCH_DELETE_CONCURRENCY, KB_BATCH_DELETE_MAX
+from nekro_agent.services.kb.constants import KB_BATCH_CONCURRENCY, KB_BATCH_MAX_SIZE
 from nekro_agent.services.kb.library_index_service import (
     cancel_rebuild_asset,
     delete_asset_chunk_rows,
@@ -294,20 +294,20 @@ async def delete_kb_library_asset(
 @router.post("/assets/batch-delete", summary="批量删除全局知识库文件", response_model=KBBatchDeleteResponse)
 @require_role(Role.Admin)
 async def batch_delete_kb_library_assets(
-    body: KBBatchDeleteBody,
+    body: KBBatchIdsBody,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBBatchDeleteResponse:
     """一次请求批量删除多个资产：服务端限流并发处理，返回成功/失败统计，单条失败（含仍被绑定）不中断整批。"""
     results, errors = await run_batched_ids(
         ids=body.ids,
-        max_size=KB_BATCH_DELETE_MAX,
-        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        max_size=KB_BATCH_MAX_SIZE,
+        concurrency=KB_BATCH_CONCURRENCY,
         op=_delete_asset_record,
         label="资产",
     )
     deleted_ids = [r.id for r in results if r.success]
     return KBBatchDeleteResponse(
-        ok=bool(results),
+        ok=len(errors) == 0,
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
@@ -329,14 +329,14 @@ async def batch_unbind_kb_library_assets(
 
     results, errors = await run_batched_ids(
         ids=body.asset_ids,
-        max_size=KB_BATCH_DELETE_MAX,
-        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        max_size=KB_BATCH_MAX_SIZE,
+        concurrency=KB_BATCH_CONCURRENCY,
         op=op,
         label="资产",
     )
     deleted_ids = [r.id for r in results if r.success]
     return KBBatchDeleteResponse(
-        ok=bool(results),
+        ok=len(errors) == 0,
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
@@ -347,7 +347,7 @@ async def batch_unbind_kb_library_assets(
 @router.post("/assets/batch-reindex", summary="批量重建全局知识库文件索引", response_model=KBBatchReindexResponse)
 @require_role(Role.Admin)
 async def batch_reindex_kb_library_assets(
-    body: KBBatchDeleteBody,
+    body: KBBatchIdsBody,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBBatchReindexResponse:
     """一次请求批量提交资产重建索引任务，服务端限流并发处理。"""
@@ -362,8 +362,8 @@ async def batch_reindex_kb_library_assets(
 
     results, errors = await run_batched_ids(
         ids=body.ids,
-        max_size=KB_BATCH_DELETE_MAX,
-        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        max_size=KB_BATCH_MAX_SIZE,
+        concurrency=KB_BATCH_CONCURRENCY,
         op=op,
         label="资产",
     )
