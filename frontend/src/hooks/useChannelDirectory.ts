@@ -5,6 +5,7 @@ import {
   type ChannelDirectoryEntry,
   type ChannelListStreamEvent,
 } from '../services/api/chat-channel'
+import { CHANNEL_DIRECTORY_KEY, CHAT_CHANNEL_LIST_KEY } from '../pages/chat-channel/queryKeys'
 
 export type { ChannelDirectoryEntry }
 
@@ -63,7 +64,7 @@ export function useChannelDirectory(): ChannelDirectoryState {
   const [channels, setChannels] = useState<ChannelDirectoryEntry[]>([])
 
   const { data, isLoading } = useQuery({
-    queryKey: ['channel-directory'],
+    queryKey: [CHANNEL_DIRECTORY_KEY],
     queryFn: () => chatChannelApi.getDirectory(),
     staleTime: 5 * 60 * 1000,
   })
@@ -76,8 +77,8 @@ export function useChannelDirectory(): ChannelDirectoryState {
   useEffect(() => {
     const cancel = chatChannelApi.streamChannels((event) => {
       setChannels(prev => applyChannelStreamEvent(prev, event))
-      queryClient.invalidateQueries({ queryKey: ['channel-directory'] })
-      queryClient.invalidateQueries({ queryKey: ['chat-channel-management-list'] })
+      queryClient.invalidateQueries({ queryKey: [CHANNEL_DIRECTORY_KEY] })
+      queryClient.invalidateQueries({ queryKey: [CHAT_CHANNEL_LIST_KEY] })
     })
     return () => cancel()
   }, [queryClient])
