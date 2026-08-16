@@ -404,8 +404,8 @@ async def batch_delete_workspace_kb_documents(
     """一次请求批量删除多个文档：服务端限流并发处理，返回成功/失败统计，单条失败不中断整批。"""
     await _get_workspace_or_404(workspace_id)
 
-    async def op(document_id: int) -> None:
-        await _delete_document_record(workspace_id, document_id)
+    async def op(document_id: int) -> list[str] | None:
+        return await _delete_document_record(workspace_id, document_id)
 
     results, errors = await run_batched_ids(
         ids=body.ids,
@@ -415,11 +415,13 @@ async def batch_delete_workspace_kb_documents(
         label="文档",
     )
     deleted_ids = [r.id for r in results if r.success]
+    warnings = [f"文档 {r.id}: {w}" for r in results if r.success for w in r.warnings]
     return KBBatchDeleteResponse(
         ok=len(errors) == 0,
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
+        warnings=warnings,
         errors=errors,
     )
 
@@ -454,7 +456,10 @@ async def batch_reindex_workspace_kb_documents(
         label="文档",
     )
     queued = sum(1 for r in results if r.success)
-    return KBBatchReindexResponse(ok=len(errors) == 0, queued=queued, failed=len(errors), errors=errors)
+    warnings = [f"文档 {r.id}: {w}" for r in results if r.success for w in r.warnings]
+    return KBBatchReindexResponse(
+        ok=len(errors) == 0, queued=queued, failed=len(errors), warnings=warnings, errors=errors
+    )
 
 
 @router.get("/{workspace_id}/kb/documents/{document_id}/raw", summary="下载知识库原始文件")

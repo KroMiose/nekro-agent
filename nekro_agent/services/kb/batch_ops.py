@@ -2,13 +2,17 @@
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.errors import AppError, ValidationError
 
 logger = get_sub_logger("kb.batch_ops")
+
+# 面向用户的通用文案（与服务端 AppError 的 zh 文案保持一致；项目暂无按请求语言的错误本地化管线）
+_MSG_INTERNAL_ERROR = "内部错误（详见服务端日志）"
+_MSG_EXCEED_LIMIT = "单次批量操作最多 {max_size} 个"
 
 
 @dataclass
@@ -18,6 +22,7 @@ class BatchItemResult:
     id: int
     success: bool
     error: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
 
 async def run_batched_ids(
@@ -29,12 +34,13 @@ async def run_batched_ids(
 ) -> tuple[list[BatchItemResult], list[str]]:
     """批量执行单元素操作：去重保序 → 数量上限校验 → 限流并发 → 单条失败隔离。
 
-    op 对单个 id 执行操作；业务错误（AppError）返回本地化消息，其他异常记录日志并返回通用文案。
-    返回 (逐条结果, 格式化后的错误列表)。
+    - op 对单个 id 执行操作，返回值若为字符串列表则视为该条目的清理警告（best-effort，不失败）；
+    - 业务错误（AppError）返回本地化消息，其他异常记录日志并返回通用文案。
+    返回 (逐条结果, 格式化后的错误列表)；清理警告由调用方从 results 中聚合。
     """
     unique_ids = list(dict.fromkeys(ids))
     if len(unique_ids) > max_size:
-        raise ValidationError(reason=f"单次批量操作最多 {max_size} 个")
+        raise ValidationError(reason=_MSG_EXCEED_LIMIT.format(max_size=max_size))
     if not unique_ids:
         return [], []
 
@@ -43,14 +49,15 @@ async def run_batched_ids(
     async def run_one(item_id: int) -> BatchItemResult:
         async with semaphore:
             try:
-                await op(item_id)
-                return BatchItemResult(id=item_id, success=True)
+                result = await op(item_id)
+                warnings = list(result) if isinstance(result, list) else []
+                return BatchItemResult(id=item_id, success=True, warnings=warnings)
             except AppError as e:
                 # 业务错误（不存在/冲突等）：返回本地化消息，不暴露内部细节
                 return BatchItemResult(id=item_id, success=False, error=str(e))
             except Exception as e:
                 logger.warning(f"批量操作失败: id={item_id}, error={e}", exc_info=True)
-                return BatchItemResult(id=item_id, success=False, error="内部错误（详见服务端日志）")
+                return BatchItemResult(id=item_id, success=False, error=_MSG_INTERNAL_ERROR)
 
     results = await asyncio.gather(*(run_one(i) for i in unique_ids))
     errors = [f"{label} {r.id}: {r.error}" for r in results if not r.success and r.error]

@@ -314,11 +314,13 @@ async def batch_delete_kb_library_assets(
         label="资产",
     )
     deleted_ids = [r.id for r in results if r.success]
+    warnings = [f"资产 {r.id}: {w}" for r in results if r.success for w in r.warnings]
     return KBBatchDeleteResponse(
         ok=len(errors) == 0,
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
+        warnings=warnings,
         errors=errors,
     )
 
@@ -343,11 +345,13 @@ async def batch_unbind_kb_library_assets(
         label="资产",
     )
     unbound_ids = [r.id for r in results if r.success]
+    warnings = [f"资产 {r.id}: {w}" for r in results if r.success for w in r.warnings]
     return KBBatchUnbindResponse(
         ok=len(errors) == 0,
         unbound=len(unbound_ids),
         failed=len(errors),
         unbound_ids=unbound_ids,
+        warnings=warnings,
         errors=errors,
     )
 
@@ -376,7 +380,10 @@ async def batch_reindex_kb_library_assets(
         label="资产",
     )
     queued = sum(1 for r in results if r.success)
-    return KBBatchReindexResponse(ok=len(errors) == 0, queued=queued, failed=len(errors), errors=errors)
+    warnings = [f"资产 {r.id}: {w}" for r in results if r.success for w in r.warnings]
+    return KBBatchReindexResponse(
+        ok=len(errors) == 0, queued=queued, failed=len(errors), warnings=warnings, errors=errors
+    )
 
 
 @router.post("/assets/{asset_id}/reindex", summary="重建全局知识库文件索引", response_model=KBActionResponse)

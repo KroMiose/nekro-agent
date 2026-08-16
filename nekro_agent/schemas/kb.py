@@ -32,6 +32,7 @@ class KBBatchDeleteResponse(BaseModel):
     deleted: int = 0
     failed: int = 0
     deleted_ids: list[int] = Field(default_factory=list, description="实际删除/解绑成功的 ID 列表")
+    warnings: list[str] = Field(default_factory=list, description="外部资源清理警告（best-effort 失败不中断）")
     errors: list[str] = Field(default_factory=list)
 
 
@@ -41,6 +42,7 @@ class KBBatchReindexResponse(BaseModel):
     ok: bool = True
     queued: int = 0
     failed: int = 0
+    warnings: list[str] = Field(default_factory=list, description="重建过程中产生的警告（当前为空）")
     errors: list[str] = Field(default_factory=list)
 
 
@@ -51,6 +53,7 @@ class KBBatchUnbindResponse(BaseModel):
     unbound: int = 0
     failed: int = 0
     unbound_ids: list[int] = Field(default_factory=list, description="实际解绑成功的资产 ID 列表")
+    warnings: list[str] = Field(default_factory=list, description="外部资源清理警告（当前为空）")
     errors: list[str] = Field(default_factory=list)
 
 
