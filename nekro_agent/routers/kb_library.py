@@ -313,12 +313,13 @@ async def batch_delete_kb_library_assets(
         op=_delete_asset_record,
         label="资产",
     )
-    deleted_ids, warnings = aggregate_batch_results(results, "资产")
+    deleted_ids, failed_ids, warnings = aggregate_batch_results(results, "资产")
     return KBBatchDeleteResponse(
         ok=len(errors) == 0,
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
+        failed_ids=failed_ids,
         warnings=warnings,
         errors=errors,
     )
@@ -343,12 +344,13 @@ async def batch_unbind_kb_library_assets(
         op=op,
         label="资产",
     )
-    unbound_ids, warnings = aggregate_batch_results(results, "资产")
+    unbound_ids, failed_ids, warnings = aggregate_batch_results(results, "资产")
     return KBBatchUnbindResponse(
         ok=len(errors) == 0,
         unbound=len(unbound_ids),
         failed=len(errors),
         unbound_ids=unbound_ids,
+        failed_ids=failed_ids,
         warnings=warnings,
         errors=errors,
     )
@@ -377,9 +379,14 @@ async def batch_reindex_kb_library_assets(
         op=op,
         label="资产",
     )
-    queued_ids, warnings = aggregate_batch_results(results, "资产")
+    queued_ids, failed_ids, warnings = aggregate_batch_results(results, "资产")
     return KBBatchReindexResponse(
-        ok=len(errors) == 0, queued=len(queued_ids), failed=len(errors), warnings=warnings, errors=errors
+        ok=len(errors) == 0,
+        queued=len(queued_ids),
+        failed=len(errors),
+        failed_ids=failed_ids,
+        warnings=warnings,
+        errors=errors,
     )
 
 

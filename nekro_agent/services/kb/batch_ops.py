@@ -66,8 +66,9 @@ async def run_batched_ids(
     return results, errors
 
 
-def aggregate_batch_results(results: list[BatchItemResult], label: str) -> tuple[list[int], list[str]]:
-    """从批量结果中聚合成功 id 列表与清理警告列表（供各批量接口构建响应复用）。"""
+def aggregate_batch_results(results: list[BatchItemResult], label: str) -> tuple[list[int], list[int], list[str]]:
+    """从批量结果中聚合成功 id 列表、失败 id 列表与清理警告列表（供各批量接口构建响应复用）。"""
     success_ids = [r.id for r in results if r.success]
+    failed_ids = [r.id for r in results if not r.success]
     warnings = [f"{label} {r.id}: {w}" for r in results if r.success for w in r.warnings]
-    return success_ids, warnings
+    return success_ids, failed_ids, warnings
