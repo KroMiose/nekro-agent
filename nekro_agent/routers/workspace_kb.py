@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -12,12 +11,13 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.models.db_workspace import DBWorkspace
-from nekro_agent.schemas.errors import AppError, ConflictError, NotFoundError, ValidationError
+from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
     KBBatchDeleteBody,
     KBBatchDeleteResponse,
+    KBBatchReindexResponse,
     KBCreateTextDocumentBody,
     KBDocumentDetailResponse,
     KBDocumentListResponse,
@@ -32,6 +32,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateDocumentBody,
     KBUpdateReferenceBody,
 )
+from nekro_agent.services.kb.batch_ops import run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.constants import KB_BATCH_DELETE_CONCURRENCY, KB_BATCH_DELETE_MAX
 from nekro_agent.services.kb.document_service import (
@@ -395,36 +396,58 @@ async def batch_delete_workspace_kb_documents(
 ) -> KBBatchDeleteResponse:
     """一次请求批量删除多个文档：服务端限流并发处理，返回成功/失败统计，单条失败不中断整批。"""
     await _get_workspace_or_404(workspace_id)
-    ids = list(dict.fromkeys(body.ids))
-    if len(ids) > KB_BATCH_DELETE_MAX:
-        raise ValidationError(reason=f"单次批量删除最多 {KB_BATCH_DELETE_MAX} 个")
-    if not ids:
-        return KBBatchDeleteResponse(ok=True, deleted=0, failed=0, errors=[])
 
-    semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
+    async def op(document_id: int) -> None:
+        await _delete_document_record(workspace_id, document_id)
 
-    async def delete_one(document_id: int) -> int | str:
-        async with semaphore:
-            try:
-                await _delete_document_record(workspace_id, document_id)
-                return 0  # 成功
-            except AppError as e:
-                # 业务错误（不存在/冲突等）：返回本地化消息，不暴露内部细节
-                return str(e)
-            except Exception as e:
-                logger.warning(f"批量删除文档失败: document_id={document_id}, error={e}", exc_info=True)
-                return "内部错误（详见服务端日志）"
-
-    results = await asyncio.gather(*(delete_one(i) for i in ids))
-    deleted_ids = [doc_id for doc_id, result in zip(ids, results) if isinstance(result, int)]
-    errors = [f"文档 {doc_id}: {result}" for doc_id, result in zip(ids, results) if isinstance(result, str)]
+    results, errors = await run_batched_ids(
+        ids=body.ids,
+        max_size=KB_BATCH_DELETE_MAX,
+        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        op=op,
+        label="文档",
+    )
+    deleted_ids = [r.id for r in results if r.success]
     return KBBatchDeleteResponse(
-        ok=len(deleted_ids) + len(errors) > 0,
+        ok=bool(results),
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
         errors=errors,
     )
+
+
+@router.post(
+    "/{workspace_id}/kb/documents/batch-reindex",
+    summary="批量重建知识库文档索引",
+    response_model=KBBatchReindexResponse,
+)
+@require_role(Role.Admin)
+async def batch_reindex_workspace_kb_documents(
+    workspace_id: int,
+    body: KBBatchDeleteBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBBatchReindexResponse:
+    """一次请求批量提交文档重建索引任务，服务端限流并发处理。"""
+    await _get_workspace_or_404(workspace_id)
+    ensure_kb_embedding_configured()
+    await ensure_kb_collection()
+
+    async def op(document_id: int) -> None:
+        document = await get_document(workspace_id, document_id)
+        if document is None:
+            raise NotFoundError(resource=f"知识库文档 {document_id}")
+        await schedule_rebuild_document(document)
+
+    results, errors = await run_batched_ids(
+        ids=body.ids,
+        max_size=KB_BATCH_DELETE_MAX,
+        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        op=op,
+        label="文档",
+    )
+    queued = sum(1 for r in results if r.success)
+    return KBBatchReindexResponse(ok=bool(results), queued=queued, failed=len(errors), errors=errors)
 
 
 @router.get("/{workspace_id}/kb/documents/{document_id}/raw", summary="下载知识库原始文件")

@@ -35,6 +35,15 @@ class KBBatchDeleteResponse(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class KBBatchReindexResponse(BaseModel):
+    """批量重建索引结果统计"""
+
+    ok: bool = True
+    queued: int = 0
+    failed: int = 0
+    errors: list[str] = Field(default_factory=list)
+
+
 class KBTagUpdate(BaseModel):
     tags: list[str] = Field(default_factory=list)
 

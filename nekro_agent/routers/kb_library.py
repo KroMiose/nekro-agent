@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -12,7 +11,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.models.db_workspace import DBWorkspace
-from nekro_agent.schemas.errors import AppError, ConflictError, NotFoundError, ValidationError
+from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
@@ -25,11 +24,13 @@ from nekro_agent.schemas.kb import (
     KBAssetUploadResponse,
     KBBatchDeleteBody,
     KBBatchDeleteResponse,
+    KBBatchReindexResponse,
     KBCreateTextDocumentBody,
     KBFullTextResponse,
     KBUpdateAssetBody,
     KBUpdateReferenceBody,
 )
+from nekro_agent.services.kb.batch_ops import run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.constants import KB_BATCH_DELETE_CONCURRENCY, KB_BATCH_DELETE_MAX
 from nekro_agent.services.kb.library_index_service import (
@@ -297,31 +298,16 @@ async def batch_delete_kb_library_assets(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBBatchDeleteResponse:
     """一次请求批量删除多个资产：服务端限流并发处理，返回成功/失败统计，单条失败（含仍被绑定）不中断整批。"""
-    ids = list(dict.fromkeys(body.ids))
-    if len(ids) > KB_BATCH_DELETE_MAX:
-        raise ValidationError(reason=f"单次批量删除最多 {KB_BATCH_DELETE_MAX} 个")
-    if not ids:
-        return KBBatchDeleteResponse(ok=True, deleted=0, failed=0, errors=[])
-
-    semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
-
-    async def delete_one(asset_id: int) -> int | str:
-        async with semaphore:
-            try:
-                await _delete_asset_record(asset_id)
-                return 0  # 成功
-            except AppError as e:
-                # 业务错误（不存在/仍被绑定等）：返回本地化消息，不暴露内部细节
-                return str(e)
-            except Exception as e:
-                logger.warning(f"批量删除资产失败: asset_id={asset_id}, error={e}", exc_info=True)
-                return "内部错误（详见服务端日志）"
-
-    results = await asyncio.gather(*(delete_one(i) for i in ids))
-    deleted_ids = [asset_id for asset_id, result in zip(ids, results) if isinstance(result, int)]
-    errors = [f"资产 {asset_id}: {result}" for asset_id, result in zip(ids, results) if isinstance(result, str)]
+    results, errors = await run_batched_ids(
+        ids=body.ids,
+        max_size=KB_BATCH_DELETE_MAX,
+        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        op=_delete_asset_record,
+        label="资产",
+    )
+    deleted_ids = [r.id for r in results if r.success]
     return KBBatchDeleteResponse(
-        ok=len(deleted_ids) + len(errors) > 0,
+        ok=bool(results),
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
@@ -337,35 +323,52 @@ async def batch_unbind_kb_library_assets(
 ) -> KBBatchDeleteResponse:
     """一次请求将多个资产从指定工作区解绑（工作区页面"批量移除"场景）。"""
     await _ensure_workspace_exists(body.workspace_id)
-    ids = list(dict.fromkeys(body.asset_ids))
-    if len(ids) > KB_BATCH_DELETE_MAX:
-        raise ValidationError(reason=f"单次批量解绑最多 {KB_BATCH_DELETE_MAX} 个")
-    if not ids:
-        return KBBatchDeleteResponse(ok=True, deleted=0, failed=0, errors=[])
 
-    semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
+    async def op(asset_id: int) -> None:
+        await unbind_asset_workspace(asset_id, body.workspace_id)
 
-    async def unbind_one(asset_id: int) -> int | str:
-        async with semaphore:
-            try:
-                await unbind_asset_workspace(asset_id, body.workspace_id)
-                return 0  # 成功
-            except AppError as e:
-                return str(e)
-            except Exception as e:
-                logger.warning(f"批量解绑资产失败: asset_id={asset_id}, error={e}", exc_info=True)
-                return "内部错误（详见服务端日志）"
-
-    results = await asyncio.gather(*(unbind_one(i) for i in ids))
-    deleted_ids = [asset_id for asset_id, result in zip(ids, results) if isinstance(result, int)]
-    errors = [f"资产 {asset_id}: {result}" for asset_id, result in zip(ids, results) if isinstance(result, str)]
+    results, errors = await run_batched_ids(
+        ids=body.asset_ids,
+        max_size=KB_BATCH_DELETE_MAX,
+        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        op=op,
+        label="资产",
+    )
+    deleted_ids = [r.id for r in results if r.success]
     return KBBatchDeleteResponse(
-        ok=len(deleted_ids) + len(errors) > 0,
+        ok=bool(results),
         deleted=len(deleted_ids),
         failed=len(errors),
         deleted_ids=deleted_ids,
         errors=errors,
     )
+
+
+@router.post("/assets/batch-reindex", summary="批量重建全局知识库文件索引", response_model=KBBatchReindexResponse)
+@require_role(Role.Admin)
+async def batch_reindex_kb_library_assets(
+    body: KBBatchDeleteBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBBatchReindexResponse:
+    """一次请求批量提交资产重建索引任务，服务端限流并发处理。"""
+    ensure_kb_embedding_configured()
+    await ensure_kb_library_collection()
+
+    async def op(asset_id: int) -> None:
+        asset = await get_asset(asset_id)
+        if asset is None:
+            raise NotFoundError(resource=f"全局知识库文件 {asset_id}")
+        await schedule_rebuild_asset(asset)
+
+    results, errors = await run_batched_ids(
+        ids=body.ids,
+        max_size=KB_BATCH_DELETE_MAX,
+        concurrency=KB_BATCH_DELETE_CONCURRENCY,
+        op=op,
+        label="资产",
+    )
+    queued = sum(1 for r in results if r.success)
+    return KBBatchReindexResponse(ok=bool(results), queued=queued, failed=len(errors), errors=errors)
 
 
 @router.post("/assets/{asset_id}/reindex", summary="重建全局知识库文件索引", response_model=KBActionResponse)

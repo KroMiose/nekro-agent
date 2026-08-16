@@ -510,14 +510,8 @@ export default function KbLibraryPage() {
 
   const bulkReindexMutation = useMutation({
     mutationFn: async (assetIds: number[]) => {
-      const results = await Promise.allSettled(assetIds.map(assetId => kbLibraryApi.reindexAsset(assetId)))
-      let queuedCount = 0
-      let failedCount = 0
-      results.forEach(result => {
-        if (result.status === 'fulfilled') queuedCount += 1
-        else failedCount += 1
-      })
-      return { queuedCount, failedCount }
+      const result = await kbLibraryApi.batchReindexAssets(assetIds)
+      return { queuedCount: result.queued, failedCount: result.failed }
     },
     onSuccess: async result => {
       await refreshAll()

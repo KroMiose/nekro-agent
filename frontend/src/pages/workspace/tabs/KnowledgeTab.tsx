@@ -632,18 +632,16 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const bulkReindexSelectedMutation = useMutation({
     mutationFn: async ({ documentIds, assetIds }: { documentIds: number[]; assetIds: number[] }) => {
-      const operations = [
-        ...documentIds.map(documentId => () => knowledgeBaseApi.reindexDocument(workspace.id, documentId)),
-        ...assetIds.map(assetId => () => kbLibraryApi.reindexAsset(assetId)),
-      ]
-      const results = await Promise.allSettled(operations.map(run => run()))
-      let queuedCount = 0
-      let failedCount = 0
-      results.forEach(result => {
-        if (result.status === 'fulfilled') queuedCount += 1
-        else failedCount += 1
-      })
-      return { queuedCount, failedCount }
+      const emptyResult = { ok: true, queued: 0, failed: 0, errors: [] as string[] }
+      const documentResult =
+        documentIds.length > 0
+          ? await knowledgeBaseApi.batchReindexDocuments(workspace.id, documentIds)
+          : emptyResult
+      const assetResult = assetIds.length > 0 ? await kbLibraryApi.batchReindexAssets(assetIds) : emptyResult
+      return {
+        queuedCount: documentResult.queued + assetResult.queued,
+        failedCount: documentResult.failed + assetResult.failed,
+      }
     },
     onSuccess: async result => {
       await refreshAll()
