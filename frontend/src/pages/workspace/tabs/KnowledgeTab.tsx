@@ -227,6 +227,12 @@ function kbProgressLabel(phase: string, t: (key: string, options?: Record<string
   return t(`knowledge.progress.phase.${phase}`, { defaultValue: phase })
 }
 
+/**
+ * 图谱引用批量拉取上限：文档+资产总数超过该值时，图谱默认折叠只显示根节点，
+ * 此时跳过对每个条目发起引用请求（否则大知识库会触发成千上万个并发请求导致卡死）。
+ */
+const GRAPH_REFERENCE_FETCH_LIMIT = 2000
+
 
 export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail }) {
   const theme = useTheme()
@@ -262,11 +268,13 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const [reuseOpen, setReuseOpen] = useState(false)
   const [listView, setListView] = useState<'grouped' | 'graph'>('graph')
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
+  const [userToggledCategories, setUserToggledCategories] = useState<Set<string>>(new Set())
   const [selectedEntryKeys, setSelectedEntryKeys] = useState<Set<string>>(new Set())
   const [addMenuAnchorEl, setAddMenuAnchorEl] = useState<HTMLElement | null>(null)
   const [reuseSearch, setReuseSearch] = useState('')
   const [reuseAssetIds, setReuseAssetIds] = useState<number[]>([])
   const [reuseCollapsedCategories, setReuseCollapsedCategories] = useState<Set<string>>(new Set())
+  const [userToggledReuseCategories, setUserToggledReuseCategories] = useState<Set<string>>(new Set())
 
   const [editMetaOpen, setEditMetaOpen] = useState(false)
   const [editMetaForm, setEditMetaForm] = useState({ title: '', category: '', tagsInput: '', summary: '' })
@@ -1137,6 +1145,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   }
 
   const toggleCategoryCollapse = useCallback((category: string) => {
+    setUserToggledCategories(prev => new Set(prev).add(category))
     setCollapsedCategories(prev => {
       const next = new Set(prev)
       if (next.has(category)) next.delete(category)
@@ -1175,6 +1184,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   }
 
   const toggleReuseCategoryCollapse = useCallback((categoryKey: string) => {
+    setUserToggledReuseCategories(prev => new Set(prev).add(categoryKey))
     setReuseCollapsedCategories(prev => {
       const next = new Set(prev)
       if (next.has(categoryKey)) next.delete(categoryKey)
@@ -1222,9 +1232,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     return next
   }, [workspaceProgresses])
 
-  // Batch-fetch all document references when the graph view is active
+  // Batch-fetch all document references when the graph view is active.
+  // 条目总数超过阈值时图谱默认折叠只显示根节点，跳过批量拉取，避免请求风暴
+  const graphReferencesDisabled = defaultListEntries.length > GRAPH_REFERENCE_FETCH_LIMIT
   const docRefResults = useQueries({
-    queries: listView === 'graph' && !hasSearchResult
+    queries: listView === 'graph' && !hasSearchResult && !graphReferencesDisabled
       ? documents.map(doc => ({
           queryKey: ['kb-document-references', workspace.id, doc.id],
           queryFn: () => knowledgeBaseApi.getReferences(workspace.id, doc.id),
@@ -1234,7 +1246,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   })
 
   const assetRefResults = useQueries({
-    queries: listView === 'graph' && !hasSearchResult
+    queries: listView === 'graph' && !hasSearchResult && !graphReferencesDisabled
       ? boundGlobalAssets.map(asset => ({
           queryKey: ['kb-asset-references', asset.id] as const,
           queryFn: () => kbLibraryApi.getReferences(asset.id),
@@ -1465,7 +1477,8 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   }
 
   const renderCategoryNode = (node: KBCategoryTreeNode<(typeof defaultListEntries)[number]>) => {
-    const isCollapsed = collapsedCategories.has(node.key)
+    // 用户手动操作过的分类尊重用户状态；未操作过的默认收起，避免大列表一次性渲染卡顿
+    const isCollapsed = userToggledCategories.has(node.key) ? collapsedCategories.has(node.key) : true
     const categoryEntryKeys = node.allItems.map(entry => getKnowledgeEntrySelectionKey(entry.kind, entry.id))
     const selectedCount = categoryEntryKeys.filter(key => selectedEntryKeys.has(key)).length
     const categoryChecked = selectedCount > 0 && selectedCount === categoryEntryKeys.length
@@ -1605,7 +1618,8 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   }
 
   const renderReuseCategoryNode = (node: KBCategoryTreeNode<KBAssetListItem>) => {
-    const isCollapsed = reuseCollapsedCategories.has(node.key)
+    // 用户手动操作过的分类尊重用户状态；未操作过的默认收起，避免大列表一次性渲染卡顿
+    const isCollapsed = userToggledReuseCategories.has(node.key) ? reuseCollapsedCategories.has(node.key) : true
     const categoryAssetIds = node.allItems.map(asset => asset.id)
     const selectedCount = categoryAssetIds.filter(id => reuseAssetIdSet.has(id)).length
     const categoryChecked = selectedCount > 0 && selectedCount === categoryAssetIds.length
