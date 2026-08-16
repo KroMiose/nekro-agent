@@ -12,7 +12,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.models.db_workspace import DBWorkspace
-from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
+from nekro_agent.schemas.errors import AppError, ConflictError, NotFoundError, ValidationError
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
@@ -33,6 +33,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateReferenceBody,
 )
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
+from nekro_agent.services.kb.constants import KB_BATCH_DELETE_CONCURRENCY, KB_BATCH_DELETE_MAX
 from nekro_agent.services.kb.document_service import (
     add_document_reference,
     create_file_document,
@@ -69,9 +70,6 @@ logger = get_sub_logger("kb.workspace_router")
 
 ALLOWED_KB_EXTENSIONS = {".md", ".txt", ".html", ".htm", ".json", ".yaml", ".yml", ".csv", ".xlsx", ".pdf", ".docx"}
 KB_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
-# 批量删除单请求上限与并发数
-KB_BATCH_DELETE_MAX = 1000
-KB_BATCH_DELETE_CONCURRENCY = 8
 
 
 def _is_document_index_ready(document: DBKBDocument) -> bool:
@@ -405,19 +403,28 @@ async def batch_delete_workspace_kb_documents(
 
     semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
 
-    async def delete_one(document_id: int) -> str | None:
+    async def delete_one(document_id: int) -> int | str:
         async with semaphore:
             try:
                 await _delete_document_record(workspace_id, document_id)
-                return None
+                return 0  # 成功
+            except AppError as e:
+                # 业务错误（不存在/冲突等）：返回本地化消息，不暴露内部细节
+                return str(e)
             except Exception as e:
-                return f"文档 {document_id}: {e}"
+                logger.warning(f"批量删除文档失败: document_id={document_id}, error={e}", exc_info=True)
+                return "内部错误（详见服务端日志）"
 
     results = await asyncio.gather(*(delete_one(i) for i in ids))
-    deleted = results.count(None)
-    failed = len(results) - deleted
-    errors = [result for result in results if result is not None]
-    return KBBatchDeleteResponse(ok=deleted + failed > 0, deleted=deleted, failed=failed, errors=errors)
+    deleted_ids = [doc_id for doc_id, result in zip(ids, results) if isinstance(result, int)]
+    errors = [f"文档 {doc_id}: {result}" for doc_id, result in zip(ids, results) if isinstance(result, str)]
+    return KBBatchDeleteResponse(
+        ok=len(deleted_ids) + len(errors) > 0,
+        deleted=len(deleted_ids),
+        failed=len(errors),
+        deleted_ids=deleted_ids,
+        errors=errors,
+    )
 
 
 @router.get("/{workspace_id}/kb/documents/{document_id}/raw", summary="下载知识库原始文件")

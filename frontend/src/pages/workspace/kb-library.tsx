@@ -472,7 +472,7 @@ export default function KbLibraryPage() {
   const bulkDeleteMutation = useMutation({
     mutationFn: async (assetIds: number[]) => {
       const result = await kbLibraryApi.batchDeleteAssets(assetIds)
-      return { deletedCount: result.deleted, failedCount: result.failed, assetIds }
+      return { deletedCount: result.deleted, failedCount: result.failed, deletedIds: result.deleted_ids }
     },
     onMutate: assetIds => {
       notification.info(t('kbLibrary.notifications.bulkDeleting', { count: assetIds.length }), { key: 'kb-bulk-deleting' })
@@ -480,13 +480,13 @@ export default function KbLibraryPage() {
     onSuccess: async result => {
       notification.close('kb-bulk-deleting')
       setBulkDeleteOpen(false)
-      if (selectedAssetId != null && result.assetIds.includes(selectedAssetId)) {
+      if (selectedAssetId != null && result.deletedIds.includes(selectedAssetId)) {
         setSelectedAssetId(null)
       }
       setSelectedAssetIds(prev => {
-        if (result.assetIds.length === 0) return prev
+        if (result.deletedIds.length === 0) return prev
         const next = new Set(prev)
-        result.assetIds.forEach(id => next.delete(id))
+        result.deletedIds.forEach(id => next.delete(id))
         return next
       })
       clearInteractiveFocus()

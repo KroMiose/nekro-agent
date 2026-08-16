@@ -12,7 +12,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.models.db_workspace import DBWorkspace
-from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationError
+from nekro_agent.schemas.errors import AppError, ConflictError, NotFoundError, ValidationError
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
@@ -31,6 +31,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateReferenceBody,
 )
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
+from nekro_agent.services.kb.constants import KB_BATCH_DELETE_CONCURRENCY, KB_BATCH_DELETE_MAX
 from nekro_agent.services.kb.library_index_service import (
     cancel_rebuild_asset,
     delete_asset_chunk_rows,
@@ -82,9 +83,6 @@ ALLOWED_KB_LIBRARY_EXTENSIONS = {
     ".docx",
 }
 KB_LIBRARY_MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
-# 批量删除单请求上限与并发数
-KB_BATCH_DELETE_MAX = 1000
-KB_BATCH_DELETE_CONCURRENCY = 8
 
 
 def _is_asset_index_ready(asset: DBKBAsset) -> bool:
@@ -307,19 +305,28 @@ async def batch_delete_kb_library_assets(
 
     semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
 
-    async def delete_one(asset_id: int) -> str | None:
+    async def delete_one(asset_id: int) -> int | str:
         async with semaphore:
             try:
                 await _delete_asset_record(asset_id)
-                return None
+                return 0  # 成功
+            except AppError as e:
+                # 业务错误（不存在/仍被绑定等）：返回本地化消息，不暴露内部细节
+                return str(e)
             except Exception as e:
-                return f"资产 {asset_id}: {e}"
+                logger.warning(f"批量删除资产失败: asset_id={asset_id}, error={e}", exc_info=True)
+                return "内部错误（详见服务端日志）"
 
     results = await asyncio.gather(*(delete_one(i) for i in ids))
-    deleted = results.count(None)
-    failed = len(results) - deleted
-    errors = [result for result in results if result is not None]
-    return KBBatchDeleteResponse(ok=deleted + failed > 0, deleted=deleted, failed=failed, errors=errors)
+    deleted_ids = [asset_id for asset_id, result in zip(ids, results) if isinstance(result, int)]
+    errors = [f"资产 {asset_id}: {result}" for asset_id, result in zip(ids, results) if isinstance(result, str)]
+    return KBBatchDeleteResponse(
+        ok=len(deleted_ids) + len(errors) > 0,
+        deleted=len(deleted_ids),
+        failed=len(errors),
+        deleted_ids=deleted_ids,
+        errors=errors,
+    )
 
 
 @router.post("/assets/batch-unbind", summary="批量解绑全局知识库文件与工作区", response_model=KBBatchDeleteResponse)
@@ -338,19 +345,27 @@ async def batch_unbind_kb_library_assets(
 
     semaphore = asyncio.Semaphore(KB_BATCH_DELETE_CONCURRENCY)
 
-    async def unbind_one(asset_id: int) -> str | None:
+    async def unbind_one(asset_id: int) -> int | str:
         async with semaphore:
             try:
                 await unbind_asset_workspace(asset_id, body.workspace_id)
-                return None
+                return 0  # 成功
+            except AppError as e:
+                return str(e)
             except Exception as e:
-                return f"资产 {asset_id}: {e}"
+                logger.warning(f"批量解绑资产失败: asset_id={asset_id}, error={e}", exc_info=True)
+                return "内部错误（详见服务端日志）"
 
     results = await asyncio.gather(*(unbind_one(i) for i in ids))
-    deleted = results.count(None)
-    failed = len(results) - deleted
-    errors = [result for result in results if result is not None]
-    return KBBatchDeleteResponse(ok=deleted + failed > 0, deleted=deleted, failed=failed, errors=errors)
+    deleted_ids = [asset_id for asset_id, result in zip(ids, results) if isinstance(result, int)]
+    errors = [f"资产 {asset_id}: {result}" for asset_id, result in zip(ids, results) if isinstance(result, str)]
+    return KBBatchDeleteResponse(
+        ok=len(deleted_ids) + len(errors) > 0,
+        deleted=len(deleted_ids),
+        failed=len(errors),
+        deleted_ids=deleted_ids,
+        errors=errors,
+    )
 
 
 @router.post("/assets/{asset_id}/reindex", summary="重建全局知识库文件索引", response_model=KBActionResponse)

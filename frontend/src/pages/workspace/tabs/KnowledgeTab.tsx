@@ -586,8 +586,8 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       return {
         deletedCount: documentResult.deleted + unbindResult.deleted,
         failedCount: documentResult.failed + unbindResult.failed,
-        documentIds,
-        assetIds,
+        deletedDocumentIds: documentResult.deleted_ids,
+        deletedAssetIds: unbindResult.deleted_ids,
       }
     },
     onMutate: ({ documentIds, assetIds }) => {
@@ -599,16 +599,16 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       notification.close('kb-bulk-deleting')
       setBulkDeleteSelectedOpen(false)
       setSelectedEntryKeys(prev => {
-        if (result.documentIds.length === 0 && result.assetIds.length === 0) return prev
+        if (result.deletedDocumentIds.length === 0 && result.deletedAssetIds.length === 0) return prev
         const next = new Set(prev)
-        result.documentIds.forEach(id => next.delete(getKnowledgeEntrySelectionKey('document', id)))
-        result.assetIds.forEach(id => next.delete(getKnowledgeEntrySelectionKey('asset', id)))
+        result.deletedDocumentIds.forEach(id => next.delete(getKnowledgeEntrySelectionKey('document', id)))
+        result.deletedAssetIds.forEach(id => next.delete(getKnowledgeEntrySelectionKey('asset', id)))
         return next
       })
       if (
         selectedItem != null &&
-        ((selectedItem.kind === 'document' && result.documentIds.includes(selectedItem.id)) ||
-          (selectedItem.kind === 'asset' && result.assetIds.includes(selectedItem.id)))
+        ((selectedItem.kind === 'document' && result.deletedDocumentIds.includes(selectedItem.id)) ||
+          (selectedItem.kind === 'asset' && result.deletedAssetIds.includes(selectedItem.id)))
       ) {
         setSelectedItem(null)
       }

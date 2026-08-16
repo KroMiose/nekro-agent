@@ -31,6 +31,7 @@ class KBBatchDeleteResponse(BaseModel):
     ok: bool = True
     deleted: int = 0
     failed: int = 0
+    deleted_ids: list[int] = Field(default_factory=list, description="实际删除/解绑成功的 ID 列表")
     errors: list[str] = Field(default_factory=list)
 
 

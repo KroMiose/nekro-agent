@@ -316,6 +316,7 @@ export interface KBBatchDeleteResponse {
   ok: boolean
   deleted: number
   failed: number
+  deleted_ids: number[]
   errors: string[]
 }
 
