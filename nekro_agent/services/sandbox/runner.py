@@ -229,14 +229,17 @@ async def run_code_in_sandbox(
                     ],
                     "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
                     "NanoCPUs": 1000000000,  # CPU 限制 (1 core)
-                    "SecurityOpt": (
-                        []
-                        if OsEnv.RUN_IN_DOCKER
-                        else [
-                            # "no-new-privileges",  # 禁止提升权限
-                            "apparmor=unconfined",  # 禁止 AppArmor 配置
-                        ]
-                    ),
+                    "SecurityOpt": [
+                        "no-new-privileges",  # 禁止提升权限
+                        # apparmor=unconfined 会完全关闭 AppArmor 隔离,
+                        # 仅在本地环境确实被 AppArmor 拦截时通过
+                        # NEKRO_SANDBOX_DISABLE_APPARMOR=true 显式开启
+                        *(
+                            ["apparmor=unconfined"]
+                            if (not OsEnv.RUN_IN_DOCKER and OsEnv.SANDBOX_DISABLE_APPARMOR)
+                            else []
+                        ),
+                    ],
                     "NetworkMode": "bridge",
                     "ExtraHosts": ["host.docker.internal:host-gateway"],
                 },

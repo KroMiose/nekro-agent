@@ -39,8 +39,30 @@ class OsEnv:
     """RPC 配置"""
     RPC_SECRET_KEY: str = OsEnvTypes.Str("RPC_SECRET_KEY", default=f"rpc:{secrets.token_urlsafe(32)}")
 
-    """Webhook 配置"""
-    WEBHOOK_SECRET_KEY: str = OsEnvTypes.Str("WEBHOOK_SECRET_KEY", default=f"webhook:{secrets.token_urlsafe(32)}")
+    """Webhook 配置
+
+    WEBHOOK_SECRET_KEY 显式设置后,所有 /api/webhook/* 调用必须携带
+    X-Webhook-Token 请求头(或 ?webhook_token= 查询参数)且值匹配;
+    留空(默认)则保持旧行为不校验,避免破坏既有外部调用方。
+    """
+    WEBHOOK_SECRET_KEY: str = OsEnvTypes.Str("WEBHOOK_SECRET_KEY", default="")
+
+    """CORS 允许来源
+
+    逗号分隔的来源列表,如 "http://127.0.0.1:8021,https://na.example.com"。
+    留空(默认)则不启用跨域,前端与本服务同源部署(/webui)不受影响。
+    不再支持 "*" 通配:Starlette 在 allow_credentials=True 下会反射任意 Origin,
+    导致任何恶意网页都能以受害者浏览器凭据调用管理 API。
+    """
+    CORS_ORIGINS: str = OsEnvTypes.Str("CORS_ORIGINS", default="")
+
+    """沙箱安全配置
+
+    仅当非 Docker 本地运行且确实被宿主 AppArmor 拦截时,
+    设置 NEKRO_SANDBOX_DISABLE_APPARMOR=true 关闭沙箱容器的 AppArmor 配置。
+    默认关闭该逃生通道,始终为沙箱容器启用 no-new-privileges。
+    """
+    SANDBOX_DISABLE_APPARMOR: bool = OsEnvTypes.Bool("NEKRO_SANDBOX_DISABLE_APPARMOR", default=False)
 
     """其他配置"""
     RUN_IN_DOCKER: bool = OsEnvTypes.Bool("RUN_IN_DOCKER")

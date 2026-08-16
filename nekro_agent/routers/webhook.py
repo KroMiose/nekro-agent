@@ -6,7 +6,8 @@ from pydantic import BaseModel
 
 from nekro_agent.api.schemas import AgentCtx, WebhookRequest
 from nekro_agent.core.logger import get_sub_logger
-from nekro_agent.schemas.errors import NotFoundError
+from nekro_agent.core.os_env import OsEnv
+from nekro_agent.schemas.errors import NotFoundError, UnauthorizedError
 from nekro_agent.services.plugin.collector import plugin_collector
 
 logger = get_sub_logger("webhook")
@@ -19,6 +20,22 @@ class WebhookResponse(BaseModel):
     success: bool
     message: str
     data: Optional[Dict[str, Any]] = None
+
+
+def _verify_webhook_token(request: Request) -> None:
+    """校验 Webhook 调用令牌
+
+    设置 WEBHOOK_SECRET_KEY 后,调用方必须携带匹配的
+    X-Webhook-Token 请求头(或 ?webhook_token= 查询参数)。
+    未设置时保持旧行为(不校验),通过日志提醒。
+    """
+    secret = OsEnv.WEBHOOK_SECRET_KEY
+    if not secret:
+        return
+    provided = request.headers.get("X-Webhook-Token") or request.query_params.get("webhook_token", "")
+    if provided != secret:
+        logger.warning("Webhook 令牌校验失败")
+        raise UnauthorizedError
 
 
 @router.post("/{endpoint}", summary="Webhook 调用")
@@ -36,6 +53,7 @@ async def webhook_handler(
     Returns:
         WebhookResponse: Webhook 响应
     """
+    _verify_webhook_token(request)
     logger.info(f"收到 Webhook 请求: {endpoint}")
 
     # 获取所有处理这个endpoint的webhook方法

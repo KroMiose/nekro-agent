@@ -1,6 +1,8 @@
 """内置命令 - 运维类: clear_sandbox_cache, docker_restart, docker_logs, sh, instance_id, github_stars_check, log_err_list"""
 
 import os
+import re
+import shlex
 import shutil
 from collections.abc import AsyncIterator
 from datetime import datetime
@@ -67,6 +69,16 @@ class ClearSandboxCacheCommand(BaseCommand):
         )
 
 
+logger_container_name = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+
+
+def _validate_container_name(container: str) -> str:
+    """容器名仅允许 Docker 合法字符,阻断 shell 元字符注入"""
+    if not logger_container_name.match(container):
+        raise ValueError(f"非法的容器名称: {container}")
+    return container
+
+
 class DockerRestartCommand(BaseCommand):
     """重启 Docker 容器"""
 
@@ -96,7 +108,7 @@ class DockerRestartCommand(BaseCommand):
                 t(zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
             )
 
-        os.system(f"docker restart {container}")  # noqa: S605
+        os.system(f"docker restart {shlex.quote(container)}")  # noqa: S605
         return CmdCtl.success(
             t(zh_CN=f"已发送重启命令: docker restart {container}", en_US=f"Restart command sent: docker restart {container}")
         )
@@ -131,7 +143,7 @@ class DockerLogsCommand(BaseCommand):
                 t(zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
             )
 
-        logs = os.popen(f"docker logs {container} --tail 100").read()  # noqa: S605
+        logs = os.popen(f"docker logs {shlex.quote(container)} --tail 100").read()  # noqa: S605
         return CmdCtl.success(
             t(zh_CN=f"容器日志: \n{logs}", en_US=f"Container logs: \n{logs}")
         )

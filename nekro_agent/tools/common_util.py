@@ -1,11 +1,14 @@
 import base64
 import difflib
 import hashlib
+import ipaddress
 import mimetypes
 import random
 import re
+import socket
 from pathlib import Path
 from typing import Tuple
+from urllib.parse import urlparse
 
 import aiofiles
 import httpx
@@ -19,6 +22,55 @@ from nekro_agent.core.os_env import USER_UPLOAD_DIR
 from nekro_agent.tools.path_convertor import is_url_path, sanitize_chat_key_for_path
 
 _APP_VERSION: str = ""
+
+# 解析 URL 主机名后拒绝的地址段(环回/内网/链路本地/云元数据等)
+_SSRF_BLOCKED_NETWORKS = [
+    ipaddress.ip_network(n)
+    for n in (
+        "0.0.0.0/8",
+        "10.0.0.0/8",
+        "100.64.0.0/10",
+        "127.0.0.0/8",
+        "169.254.0.0/16",
+        "172.16.0.0/12",
+        "192.0.0.0/24",
+        "192.168.0.0/16",
+        "198.18.0.0/15",
+        "224.0.0.0/4",
+        "240.0.0.0/4",
+        "::1/128",
+        "fc00::/7",
+        "fe80::/10",
+    )
+]
+
+
+def is_blocked_ssrf_url(url: str) -> bool:
+    """检查 URL 是否指向内网/环回/链路本地等敏感地址段
+
+    用于在下载用户(或 LLM 生成代码)提供的文件前拦截 SSRF:
+    阻止访问本机 API、内网 Postgres/Qdrant、云元数据服务等。
+    域名会做真实 DNS 解析后逐地址判断,拦截 DNS 重绑定的常见形式。
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return True
+    if parsed.scheme not in ("http", "https"):
+        return True
+    host = parsed.hostname
+    if not host:
+        return True
+    try:
+        addr_infos = socket.getaddrinfo(host, None)
+    except OSError:
+        return True
+    for _, _, _, _, sockaddr in addr_infos:
+        ip = ipaddress.ip_address(sockaddr[0])
+        if any(ip in network for network in _SSRF_BLOCKED_NETWORKS):
+            return True
+    return False
+
 
 
 def get_app_version() -> str:
@@ -96,6 +148,10 @@ async def download_file(
     Returns:
         Tuple[str, str]: 文件路径, 文件名
     """
+
+    if is_blocked_ssrf_url(url):
+        logger.warning(f"已拦截指向内网/保留地址的下载请求: {limited_text_output(url)}")
+        raise ValueError("不允许下载内网或保留地址的资源")
 
     try:
         async with httpx.AsyncClient() as client:

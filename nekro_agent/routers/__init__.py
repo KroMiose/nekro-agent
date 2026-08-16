@@ -60,13 +60,21 @@ from .workspaces import router as workspaces_router
 
 def mount_middlewares(app: FastAPI):
     """挂载中间件和全局处理器"""
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # 前端静态资源与本服务同源部署(/webui),默认无需开放跨域。
+    # 仅当 NEKRO_CORS_ORIGINS 显式配置来源列表时启用 CORS,
+    # 避免通配来源 + allow_credentials 组合反射任意 Origin(CWE-942)。
+    cors_origins = [origin.strip() for origin in OsEnv.CORS_ORIGINS.split(",") if origin.strip()]
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        logger.info(f"已启用 CORS,允许来源: {cors_origins}")
+    else:
+        logger.info("未配置 CORS_ORIGINS,仅允许同源访问(前端 /webui 不受影响)")
 
     @app.middleware("http")
     async def request_timing_middleware(request: Request, call_next):
