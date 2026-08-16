@@ -38,12 +38,14 @@
     "types": {
       "chat": "Chat",
       "embedding": "Embedding",
-      "draw": "Drawing"
+      "draw": "Drawing",
+      "rerank": "Rerank"
     },
     "typeDescriptions": {
       "chat": "Model for conversation",
       "embedding": "Model for converting text to vectors",
-      "draw": "Model for image generation"
+      "draw": "Model for image generation",
+      "rerank": "Model for relevance reranking of retrieval results"
     },
     "form": {
       "groupName": "Group Name",

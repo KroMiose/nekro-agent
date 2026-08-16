@@ -527,7 +527,7 @@ function EditDialog({
                   {getModelTypeIcon(type.value)}
                   <Box sx={{ ml: 1 }}>
                     <Typography variant="body2" sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}>
-                      {t(`modelGroup.types.${type.value as 'chat' | 'embedding' | 'draw'}`, {
+                      {t(`modelGroup.types.${type.value as 'chat' | 'embedding' | 'draw' | 'rerank'}`, {
                         defaultValue: type.label,
                       })}
                     </Typography>
@@ -538,7 +538,7 @@ function EditDialog({
                         sx={{ fontSize: isSmall ? '0.7rem' : 'inherit' }}
                       >
                         {t(
-                          `modelGroup.typeDescriptions.${type.value as 'chat' | 'embedding' | 'draw'}`,
+                          `modelGroup.typeDescriptions.${type.value as 'chat' | 'embedding' | 'draw' | 'rerank'}`,
                           {
                             defaultValue: type.description,
                           }
@@ -823,7 +823,7 @@ export default function ModelGroupsPage() {
   // 获取模型类型的显示名称
   const getModelTypeLabel = (type: string | undefined) => {
     if (!type) return t('modelGroup.types.chat', { ns: 'settings', defaultValue: '聊天' })
-    return t(`modelGroup.types.${type as 'chat' | 'embedding' | 'draw'}`, {
+    return t(`modelGroup.types.${type as 'chat' | 'embedding' | 'draw' | 'rerank'}`, {
       ns: 'settings',
       defaultValue: modelTypes.find(mt => mt.value === type)?.label || type,
     })

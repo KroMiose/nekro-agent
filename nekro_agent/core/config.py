@@ -23,10 +23,10 @@ class ModelConfigGroup(ConfigBase):
     CHAT_PROXY: str = Field(default="", title="聊天模型访问代理")
     BASE_URL: str = Field(default="", title="聊天模型 API 地址")
     API_KEY: str = Field(default="", title="聊天模型 API 密钥")
-    MODEL_TYPE: Literal["chat", "embedding", "draw"] = Field(
+    MODEL_TYPE: Literal["chat", "embedding", "draw", "rerank"] = Field(
         default="chat",
         title="模型类型",
-        description="模型的用途类型，可以是聊天(chat)、向量嵌入(embedding)或绘图(draw)",
+        description="模型的用途类型，可以是聊天(chat)、向量嵌入(embedding)、绘图(draw)或重排(rerank)",
     )
     ENABLE_VISION: bool = Field(
         default=False,

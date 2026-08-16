@@ -38,12 +38,14 @@
     "types": {
       "chat": "聊天",
       "embedding": "嵌入",
-      "draw": "绘图"
+      "draw": "绘图",
+      "rerank": "重排"
     },
     "typeDescriptions": {
       "chat": "用于对话的模型",
       "embedding": "用于将文本转换为向量的模型",
-      "draw": "用于生成图像的模型"
+      "draw": "用于生成图像的模型",
+      "rerank": "用于对检索结果进行相关性重排的模型"
     },
     "form": {
       "groupName": "组名",
