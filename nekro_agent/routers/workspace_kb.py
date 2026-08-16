@@ -349,9 +349,7 @@ async def _delete_document_record(workspace_id: int, document_id: int) -> list[s
     """
     from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
 
-    document = await get_document(workspace_id, document_id)
-    if document is None:
-        raise NotFoundError(resource=f"知识库文档 {document_id}")
+    document = await _get_document_or_404(workspace_id, document_id)
     await cancel_rebuild_document(document.id)
     chunk_ids = await list_document_chunk_ids(document.id)
 
@@ -418,7 +416,7 @@ async def batch_delete_workspace_kb_documents(
     return KBBatchDeleteResponse(
         ok=len(errors) == 0,
         deleted=len(deleted_ids),
-        failed=len(errors),
+        failed=len(failed_ids),
         deleted_ids=deleted_ids,
         failed_ids=failed_ids,
         warnings=warnings,
@@ -459,7 +457,7 @@ async def batch_reindex_workspace_kb_documents(
     return KBBatchReindexResponse(
         ok=len(errors) == 0,
         queued=len(queued_ids),
-        failed=len(errors),
+        failed=len(failed_ids),
         failed_ids=failed_ids,
         warnings=warnings,
         errors=errors,

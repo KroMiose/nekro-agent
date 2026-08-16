@@ -257,9 +257,7 @@ async def _delete_asset_record(asset_id: int) -> list[str]:
     """
     from nekro_agent.models.db_kb_asset_reference import DBKBAssetReference
 
-    asset = await get_asset(asset_id)
-    if asset is None:
-        raise NotFoundError(resource=f"全局知识库文件 {asset_id}")
+    asset = await _get_asset_or_404(asset_id)
     await cancel_rebuild_asset(asset.id)
     bound_workspaces = await list_asset_bound_workspaces(asset.id)
     if bound_workspaces:
@@ -317,7 +315,7 @@ async def batch_delete_kb_library_assets(
     return KBBatchDeleteResponse(
         ok=len(errors) == 0,
         deleted=len(deleted_ids),
-        failed=len(errors),
+        failed=len(failed_ids),
         deleted_ids=deleted_ids,
         failed_ids=failed_ids,
         warnings=warnings,
@@ -348,7 +346,7 @@ async def batch_unbind_kb_library_assets(
     return KBBatchUnbindResponse(
         ok=len(errors) == 0,
         unbound=len(unbound_ids),
-        failed=len(errors),
+        failed=len(failed_ids),
         unbound_ids=unbound_ids,
         failed_ids=failed_ids,
         warnings=warnings,
@@ -383,7 +381,7 @@ async def batch_reindex_kb_library_assets(
     return KBBatchReindexResponse(
         ok=len(errors) == 0,
         queued=len(queued_ids),
-        failed=len(errors),
+        failed=len(failed_ids),
         failed_ids=failed_ids,
         warnings=warnings,
         errors=errors,
