@@ -60,6 +60,9 @@ import {
   KBReferenceItem,
   KBSearchResponse,
   KBUploadFilePayload,
+  EMPTY_BATCH_DELETE,
+  EMPTY_BATCH_REINDEX,
+  EMPTY_BATCH_UNBIND,
   kbLibraryApi,
   knowledgeBaseApi,
   WorkspaceDetail,
@@ -576,14 +579,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const bulkDeleteSelectedMutation = useMutation({
     mutationFn: async ({ documentIds, assetIds }: { documentIds: number[]; assetIds: number[] }) => {
-      const emptyDelete = { ok: true, deleted: 0, failed: 0, deleted_ids: [] as number[], errors: [] as string[] }
-      const emptyUnbind = { ok: true, unbound: 0, failed: 0, unbound_ids: [] as number[], errors: [] as string[] }
       const documentResult =
         documentIds.length > 0
           ? await knowledgeBaseApi.batchDeleteDocuments(workspace.id, documentIds)
-          : emptyDelete
+          : EMPTY_BATCH_DELETE
       const unbindResult =
-        assetIds.length > 0 ? await kbLibraryApi.batchUnbindWorkspace(assetIds, workspace.id) : emptyUnbind
+        assetIds.length > 0 ? await kbLibraryApi.batchUnbindWorkspace(assetIds, workspace.id) : EMPTY_BATCH_UNBIND
       return {
         deletedCount: documentResult.deleted + unbindResult.unbound,
         failedCount: documentResult.failed + unbindResult.failed,
@@ -633,12 +634,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const bulkReindexSelectedMutation = useMutation({
     mutationFn: async ({ documentIds, assetIds }: { documentIds: number[]; assetIds: number[] }) => {
-      const emptyResult = { ok: true, queued: 0, failed: 0, errors: [] as string[] }
       const documentResult =
         documentIds.length > 0
           ? await knowledgeBaseApi.batchReindexDocuments(workspace.id, documentIds)
-          : emptyResult
-      const assetResult = assetIds.length > 0 ? await kbLibraryApi.batchReindexAssets(assetIds) : emptyResult
+          : EMPTY_BATCH_REINDEX
+      const assetResult = assetIds.length > 0 ? await kbLibraryApi.batchReindexAssets(assetIds) : EMPTY_BATCH_REINDEX
       return {
         queuedCount: documentResult.queued + assetResult.queued,
         failedCount: documentResult.failed + assetResult.failed,

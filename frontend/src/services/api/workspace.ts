@@ -335,6 +335,11 @@ export interface KBBatchUnbindResponse {
   errors: string[]
 }
 
+/** 空批次占位响应：无操作成功，供前端批量 mutation 的"未选中该类型"分支复用 */
+export const EMPTY_BATCH_DELETE: KBBatchDeleteResponse = { ok: true, deleted: 0, failed: 0, deleted_ids: [], errors: [] }
+export const EMPTY_BATCH_UNBIND: KBBatchUnbindResponse = { ok: true, unbound: 0, failed: 0, unbound_ids: [], errors: [] }
+export const EMPTY_BATCH_REINDEX: KBBatchReindexResponse = { ok: true, queued: 0, failed: 0, errors: [] }
+
 export interface KBUploadFilePayload {
   file: File
   title?: string

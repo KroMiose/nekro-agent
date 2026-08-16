@@ -316,7 +316,7 @@ async def batch_delete_kb_library_assets(
     )
 
 
-@router.post("/assets/batch-unbind", summary="批量解绑全局知识库文件与工作区", response_model=KBBatchDeleteResponse)
+@router.post("/assets/batch-unbind", summary="批量解绑全局知识库文件与工作区", response_model=KBBatchUnbindResponse)
 @require_role(Role.Admin)
 async def batch_unbind_kb_library_assets(
     body: KBAssetBatchUnbindBody,
