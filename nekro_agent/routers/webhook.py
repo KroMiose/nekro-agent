@@ -14,8 +14,6 @@ from nekro_agent.services.plugin.collector import plugin_collector
 logger = get_sub_logger("webhook")
 router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
-_webhook_no_token_warned = False
-
 
 class WebhookResponse(BaseModel):
     """WebhookResponse"""
@@ -30,14 +28,11 @@ def _verify_webhook_token(request: Request) -> None:
 
     设置 WEBHOOK_SECRET_KEY 后,调用方必须携带匹配的
     X-Webhook-Token 请求头(或 ?webhook_token= 查询参数)。
-    未设置时保持旧行为(不校验),首次调用时记录一次日志提醒。
+    未设置时保持旧行为(不校验);启动阶段的 mount_api_routes
+    会输出一次性提醒日志。
     """
-    global _webhook_no_token_warned
     secret = OsEnv.WEBHOOK_SECRET_KEY
     if not secret:
-        if not _webhook_no_token_warned:
-            logger.info("未设置 WEBHOOK_SECRET_KEY,webhook 端点未启用鉴权;如需防护请配置该环境变量")
-            _webhook_no_token_warned = True
         return
     provided = request.headers.get("X-Webhook-Token") or request.query_params.get("webhook_token", "")
     # 常时比较,避免逐字节比较的时序侧信道泄露密钥

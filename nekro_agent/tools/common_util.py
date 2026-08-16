@@ -54,11 +54,28 @@ def _is_ip_blocked(ip_text: str) -> bool:
     return any(ip in network for network in _SSRF_BLOCKED_NETWORKS)
 
 
-async def is_blocked_ssrf_url(url: str) -> bool:
-    """检查 URL 是否指向内网/环回/链路本地等敏感地址段
+class UnsafeDownloadUrl(ValueError):
+    """URL 本身不合法(格式错误/协议不支持/域名无法解析)
+
+    与 BlockedDownloadAddress 区分:调用方可将本错误作为用户输入校验
+    问题处理(提示修改 URL),而不是安全拦截。
+    """
+
+
+class BlockedDownloadAddress(ValueError):
+    """URL 指向内网/环回/链路本地等保留地址,被 SSRF 防护拦截"""
+
+
+async def assert_safe_download_url(url: str) -> None:
+    """下载前校验 URL,不通过时抛出分类异常
 
     用于在下载用户(或 LLM 生成代码)提供的文件前拦截 SSRF:
     阻止访问本机 API、内网 Postgres/Qdrant、云元数据服务等。
+
+    异常分类:
+    - UnsafeDownloadUrl:URL 格式非法、协议不受支持或域名解析失败
+      (输入本身有问题,重试无意义)
+    - BlockedDownloadAddress:URL 指向保留地址段(安全拦截)
 
     限制说明(调用方需知):
     - 校验时与 httpx 实际连接时各自做一次 DNS 解析,理论存在重绑定
@@ -68,19 +85,24 @@ async def is_blocked_ssrf_url(url: str) -> bool:
     """
     try:
         parsed = urlparse(url)
-    except ValueError:
-        return True
+    except ValueError as e:
+        raise UnsafeDownloadUrl(f"URL 格式无效: {limited_text_output(url)}") from e
     if parsed.scheme not in ("http", "https"):
-        return True
+        raise UnsafeDownloadUrl(f"仅支持 http/https 协议: {limited_text_output(url)}")
     host = parsed.hostname
     if not host:
-        return True
+        raise UnsafeDownloadUrl(f"URL 缺少主机名: {limited_text_output(url)}")
     try:
         loop = asyncio.get_running_loop()
         addr_infos = await loop.getaddrinfo(host, None)
-    except OSError:
-        return True
-    return any(_is_ip_blocked(sockaddr[0]) for _, _, _, _, sockaddr in addr_infos)
+    except OSError as e:
+        raise UnsafeDownloadUrl(f"域名无法解析: {limited_text_output(host)}") from e
+    for _, _, _, _, sockaddr in addr_infos:
+        if _is_ip_blocked(sockaddr[0]):
+            raise BlockedDownloadAddress(
+                f"不允许下载内网或保留地址的资源: {limited_text_output(url)}"
+            )
+
 
 
 
@@ -160,9 +182,14 @@ async def download_file(
         Tuple[str, str]: 文件路径, 文件名
     """
 
-    if await is_blocked_ssrf_url(url):
+    try:
+        await assert_safe_download_url(url)
+    except UnsafeDownloadUrl as e:
+        # URL 本身不合法,重试无意义,直接返回用户级校验错误
+        raise ValueError(str(e)) from e
+    except BlockedDownloadAddress as e:
         logger.warning(f"已拦截指向内网/保留地址的下载请求: {limited_text_output(url)}")
-        raise ValueError("不允许下载内网或保留地址的资源")
+        raise ValueError(str(e)) from e
 
     try:
         async with httpx.AsyncClient() as client:

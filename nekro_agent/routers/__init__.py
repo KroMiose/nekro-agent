@@ -131,6 +131,9 @@ def mount_middlewares(app: FastAPI):
 
 def mount_api_routes(app: FastAPI):
     """挂载 API 路由"""
+    if not OsEnv.WEBHOOK_SECRET_KEY:
+        logger.info("未设置 WEBHOOK_SECRET_KEY,webhook 端点未启用鉴权;如需防护请配置该环境变量")
+
     api = APIRouter(prefix="/api")
 
     api.include_router(user_router)

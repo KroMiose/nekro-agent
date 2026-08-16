@@ -230,10 +230,16 @@ async def run_code_in_sandbox(
                     "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
                     "NanoCPUs": 1000000000,  # CPU 限制 (1 core)
                     "SecurityOpt": [
+                        # 行为矩阵(相对旧版的变更):
+                        # - RUN_IN_DOCKER=true:  旧 []            -> ["no-new-privileges"]
+                        # - RUN_IN_DOCKER=false: 旧 ["apparmor=unconfined"]
+                        #   -> 默认 ["no-new-privileges"];
+                        #      仅 NEKRO_SANDBOX_DISABLE_APPARMOR=true 时追加 apparmor=unconfined
+                        # 说明:沙箱以 nobody 用户运行、pip 使用 --target 安装,不依赖
+                        # setuid/setcap 提权,no-new-privileges 不影响既有功能;
+                        # 非本地宿主若被默认 AppArmor profile 拦截(旧版因此强制
+                        # unconfined),可通过上述环境变量恢复旧行为。
                         "no-new-privileges",  # 禁止提升权限
-                        # apparmor=unconfined 会完全关闭 AppArmor 隔离,
-                        # 仅在本地环境确实被 AppArmor 拦截时通过
-                        # NEKRO_SANDBOX_DISABLE_APPARMOR=true 显式开启
                         *(
                             ["apparmor=unconfined"]
                             if (not OsEnv.RUN_IN_DOCKER and OsEnv.SANDBOX_DISABLE_APPARMOR)
