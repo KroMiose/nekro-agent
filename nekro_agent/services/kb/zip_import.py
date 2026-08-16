@@ -67,8 +67,13 @@ def _validate_zip_limits(members: list[zipfile.ZipInfo]) -> None:
 
 def _normalize_member_path(name: str) -> str | None:
     """规范化条目路径：统一正斜杠、解析 ./ 与 ..、去除绝对路径前导；空路径返回 None。"""
+    if not name:
+        return None
     rel_path = posixpath.normpath(name.replace("\\", "/")).lstrip("/")
-    return rel_path or None
+    # posixpath.normpath("") 与 normpath(".") 都会得到 "."，"." 不是有效文件条目，显式跳过
+    if rel_path in ("", "."):
+        return None
+    return rel_path
 
 
 def _safe_dest_path(target_root: Path, rel_path: str, raw_name: str) -> Path:
@@ -96,9 +101,14 @@ def extract_zip_safe(content: bytes, target_dir: Path) -> list[ZipImportEntry]:
             if not rel_path:
                 continue
             dest = _safe_dest_path(target_root, rel_path, member.filename)
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            with zf.open(member) as src, open(dest, "wb") as out:
-                shutil.copyfileobj(src, out)
+            try:
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(member) as src, open(dest, "wb") as out:
+                    shutil.copyfileobj(src, out)
+            except (IsADirectoryError, PermissionError, FileExistsError) as e:
+                # 目录/文件同名冲突（如先有 a/b.txt 再出现 a，或反之）等落盘失败，
+                # 统一转为用户可读的校验错误，避免以 500 冒泡
+                raise ValueError(f"zip 包条目路径冲突或非法: {member.filename}") from e
             entries_by_path[rel_path] = _derive_entry(rel_path, dest)
     return list(entries_by_path.values())
 
