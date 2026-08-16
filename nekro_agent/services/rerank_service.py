@@ -38,6 +38,11 @@ def get_kb_rerank_model_group() -> str:
     return config.KB_RERANK_MODEL_GROUP.strip()
 
 
+def get_kb_rerank_endpoint() -> str:
+    """获取 rerank 接口路径（相对 BASE_URL，默认 /rerank；阿里云百炼为 /reranks）"""
+    return config.KB_RERANK_ENDPOINT.strip() or "/rerank"
+
+
 def validate_rerank_model_group() -> str:
     """校验知识库重排模型组存在且类型正确，返回模型组名。
 
@@ -117,7 +122,7 @@ async def rerank(
                 ) as client,
             ):
                 response = await client.post(
-                    "/rerank",
+                    get_kb_rerank_endpoint(),
                     cast_to=httpx.Response,
                     body=payload,
                 )
