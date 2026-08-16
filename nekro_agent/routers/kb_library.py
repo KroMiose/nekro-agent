@@ -247,7 +247,14 @@ async def update_kb_library_asset(
 
 
 async def _delete_asset_record(asset_id: int) -> list[str]:
-    """删除单个全局资产记录及外部资源，返回清理警告列表；不存在/仍被绑定时抛异常（供单删与批量复用）。"""
+    """删除单个全局资产记录，并尽力清理关联外部资源（分块、文件等）。
+
+    行为约定:
+    - 资产不存在或仍被工作区绑定时抛出业务异常（NotFoundError/ConflictError）；
+    - 外部资源（Qdrant 向量点 / 源文件）清理为 best-effort，失败不抛异常，
+      以警告字符串列表返回；调用方（单删或批量）自行决定是否展示。
+    返回: 清理警告列表（为空表示无清理问题）。
+    """
     from nekro_agent.models.db_kb_asset_reference import DBKBAssetReference
 
     asset = await get_asset(asset_id)

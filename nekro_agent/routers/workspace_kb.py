@@ -339,7 +339,14 @@ async def update_workspace_kb_document(
 
 
 async def _delete_document_record(workspace_id: int, document_id: int) -> list[str]:
-    """删除单个知识库文档记录及外部资源，返回清理警告列表；不存在或失败时抛异常（供单删与批量复用）。"""
+    """删除单个知识库文档记录，并尽力清理关联外部资源（分块、文件等）。
+
+    行为约定:
+    - 文档记录不存在或删除记录本身失败时抛出异常；
+    - 外部资源（Qdrant 向量点 / 源文件）清理为 best-effort，失败不抛异常，
+      以警告字符串列表返回；调用方（单删或批量）自行决定是否展示。
+    返回: 清理警告列表（为空表示无清理问题）。
+    """
     from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
 
     document = await get_document(workspace_id, document_id)
@@ -447,7 +454,7 @@ async def batch_reindex_workspace_kb_documents(
         label="文档",
     )
     queued = sum(1 for r in results if r.success)
-    return KBBatchReindexResponse(ok=bool(results), queued=queued, failed=len(errors), errors=errors)
+    return KBBatchReindexResponse(ok=len(errors) == 0, queued=queued, failed=len(errors), errors=errors)
 
 
 @router.get("/{workspace_id}/kb/documents/{document_id}/raw", summary="下载知识库原始文件")
