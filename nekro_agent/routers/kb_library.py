@@ -328,6 +328,8 @@ async def batch_unbind_kb_library_assets(
     await _ensure_workspace_exists(body.workspace_id)
 
     async def op(asset_id: int) -> None:
+        # 先校验资产存在，避免不存在的 ID 被静默计入成功（与单接口解绑一致）
+        await _get_asset_or_404(asset_id)
         await unbind_asset_workspace(asset_id, body.workspace_id)
 
     ids = normalize_batch_ids(body.asset_ids, KB_BATCH_MAX_SIZE)
