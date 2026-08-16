@@ -60,6 +60,9 @@ import {
   KBReferenceItem,
   KBSearchResponse,
   KBUploadFilePayload,
+  EMPTY_BATCH_DELETE,
+  EMPTY_BATCH_REINDEX,
+  EMPTY_BATCH_UNBIND,
   kbLibraryApi,
   knowledgeBaseApi,
   WorkspaceDetail,
@@ -576,32 +579,38 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const bulkDeleteSelectedMutation = useMutation({
     mutationFn: async ({ documentIds, assetIds }: { documentIds: number[]; assetIds: number[] }) => {
-      const operations = [
-        ...documentIds.map(documentId => () => knowledgeBaseApi.deleteDocument(workspace.id, documentId)),
-        ...assetIds.map(assetId => () => kbLibraryApi.unbindWorkspace(assetId, workspace.id)),
-      ]
-      const results = await Promise.allSettled(operations.map(run => run()))
-      let deletedCount = 0
-      let failedCount = 0
-      results.forEach(result => {
-        if (result.status === 'fulfilled') deletedCount += 1
-        else failedCount += 1
+      const documentResult =
+        documentIds.length > 0
+          ? await knowledgeBaseApi.batchDeleteDocuments(workspace.id, documentIds)
+          : EMPTY_BATCH_DELETE
+      const unbindResult =
+        assetIds.length > 0 ? await kbLibraryApi.batchUnbindWorkspace(assetIds, workspace.id) : EMPTY_BATCH_UNBIND
+      return {
+        deletedCount: documentResult.deleted + unbindResult.unbound,
+        failedCount: documentResult.failed + unbindResult.failed,
+        deletedDocumentIds: documentResult.deleted_ids,
+        deletedAssetIds: unbindResult.unbound_ids,
+      }
+    },
+    onMutate: ({ documentIds, assetIds }) => {
+      notification.info(t('knowledge.notifications.bulkDeleting', { count: documentIds.length + assetIds.length }), {
+        key: 'kb-bulk-deleting-ws',
       })
-      return { deletedCount, failedCount, documentIds, assetIds }
     },
     onSuccess: async result => {
+      notification.close('kb-bulk-deleting-ws')
       setBulkDeleteSelectedOpen(false)
       setSelectedEntryKeys(prev => {
-        if (result.documentIds.length === 0 && result.assetIds.length === 0) return prev
+        if (result.deletedDocumentIds.length === 0 && result.deletedAssetIds.length === 0) return prev
         const next = new Set(prev)
-        result.documentIds.forEach(id => next.delete(getKnowledgeEntrySelectionKey('document', id)))
-        result.assetIds.forEach(id => next.delete(getKnowledgeEntrySelectionKey('asset', id)))
+        result.deletedDocumentIds.forEach(id => next.delete(getKnowledgeEntrySelectionKey('document', id)))
+        result.deletedAssetIds.forEach(id => next.delete(getKnowledgeEntrySelectionKey('asset', id)))
         return next
       })
       if (
         selectedItem != null &&
-        ((selectedItem.kind === 'document' && result.documentIds.includes(selectedItem.id)) ||
-          (selectedItem.kind === 'asset' && result.assetIds.includes(selectedItem.id)))
+        ((selectedItem.kind === 'document' && result.deletedDocumentIds.includes(selectedItem.id)) ||
+          (selectedItem.kind === 'asset' && result.deletedAssetIds.includes(selectedItem.id)))
       ) {
         setSelectedItem(null)
       }
@@ -617,23 +626,23 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         )
       }
     },
-    onError: (err: Error) => notification.error(t('knowledge.notifications.deleteFailed', { message: err.message })),
+    onError: (err: Error) => {
+      notification.close('kb-bulk-deleting-ws')
+      notification.error(t('knowledge.notifications.deleteFailed', { message: err.message }))
+    },
   })
 
   const bulkReindexSelectedMutation = useMutation({
     mutationFn: async ({ documentIds, assetIds }: { documentIds: number[]; assetIds: number[] }) => {
-      const operations = [
-        ...documentIds.map(documentId => () => knowledgeBaseApi.reindexDocument(workspace.id, documentId)),
-        ...assetIds.map(assetId => () => kbLibraryApi.reindexAsset(assetId)),
-      ]
-      const results = await Promise.allSettled(operations.map(run => run()))
-      let queuedCount = 0
-      let failedCount = 0
-      results.forEach(result => {
-        if (result.status === 'fulfilled') queuedCount += 1
-        else failedCount += 1
-      })
-      return { queuedCount, failedCount }
+      const documentResult =
+        documentIds.length > 0
+          ? await knowledgeBaseApi.batchReindexDocuments(workspace.id, documentIds)
+          : EMPTY_BATCH_REINDEX
+      const assetResult = assetIds.length > 0 ? await kbLibraryApi.batchReindexAssets(assetIds) : EMPTY_BATCH_REINDEX
+      return {
+        queuedCount: documentResult.queued + assetResult.queued,
+        failedCount: documentResult.failed + assetResult.failed,
+      }
     },
     onSuccess: async result => {
       await refreshAll()

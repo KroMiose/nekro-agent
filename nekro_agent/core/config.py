@@ -493,6 +493,34 @@ class CoreConfig(ConfigBase):
             placeholder="建议 1~8",
         ).model_dump(),
     )
+    KB_BATCH_MAX_SIZE: int = Field(
+        default=1000,
+        title="知识库批量操作单请求上限",
+        description="知识库批量删除/解绑/重建索引的单请求 ID 数量上限，超限拒绝。修改后需重启服务生效",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            i18n_title=i18n_text(zh_CN="知识库批量操作单请求上限", en_US="Knowledge Base Batch Operation Size Limit"),
+            i18n_description=i18n_text(
+                zh_CN="知识库批量删除/解绑/重建索引的单请求 ID 数量上限，超限拒绝。修改后需重启服务生效",
+                en_US="Maximum number of IDs per batch request for knowledge base delete/unbind/reindex; exceeding it is rejected. Restart required after changing",
+            ),
+            placeholder="建议 100~5000",
+        ).model_dump(),
+    )
+    KB_BATCH_CONCURRENCY: int = Field(
+        default=8,
+        title="知识库批量操作并发数",
+        description="知识库批量删除/解绑/重建索引时服务端并发处理数。修改后需重启服务生效",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            i18n_title=i18n_text(zh_CN="知识库批量操作并发数", en_US="Knowledge Base Batch Operation Concurrency"),
+            i18n_description=i18n_text(
+                zh_CN="知识库批量删除/解绑/重建索引时服务端并发处理数。修改后需重启服务生效",
+                en_US="Server-side concurrency for knowledge base batch delete/unbind/reindex. Restart required after changing",
+            ),
+            placeholder="建议 1~32",
+        ).model_dump(),
+    )
     MEMORY_CONSOLIDATION_FORCE_JSON_OUTPUT: bool = Field(
         default=True,
         title="强制沉淀模型输出 JSON",

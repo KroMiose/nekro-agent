@@ -15,6 +15,9 @@ from nekro_agent.schemas.errors import ConflictError, NotFoundError, ValidationE
 from nekro_agent.schemas.kb import (
     KBActionResponse,
     KBAddReferenceBody,
+    KBBatchDeleteResponse,
+    KBBatchIdsBody,
+    KBBatchReindexResponse,
     KBCreateTextDocumentBody,
     KBDocumentDetailResponse,
     KBDocumentListResponse,
@@ -29,7 +32,9 @@ from nekro_agent.schemas.kb import (
     KBUpdateDocumentBody,
     KBUpdateReferenceBody,
 )
+from nekro_agent.services.kb.batch_ops import aggregate_batch_results, normalize_batch_ids, run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
+from nekro_agent.services.kb.constants import KB_BATCH_CONCURRENCY, KB_BATCH_MAX_SIZE
 from nekro_agent.services.kb.document_service import (
     add_document_reference,
     create_file_document,
@@ -333,13 +338,15 @@ async def update_workspace_kb_document(
     )
 
 
-@router.delete("/{workspace_id}/kb/documents/{document_id}", summary="删除知识库文档", response_model=KBActionResponse)
-@require_role(Role.Admin)
-async def delete_workspace_kb_document(
-    workspace_id: int,
-    document_id: int,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> KBActionResponse:
+async def _delete_document_record(workspace_id: int, document_id: int) -> list[str]:
+    """删除单个知识库文档记录，并尽力清理关联外部资源（分块、文件等）。
+
+    行为约定:
+    - 文档记录不存在或删除记录本身失败时抛出异常；
+    - 外部资源（Qdrant 向量点 / 源文件）清理为 best-effort，失败不抛异常，
+      以警告字符串列表返回；调用方（单删或批量）自行决定是否展示。
+    返回: 清理警告列表（为空表示无清理问题）。
+    """
     from nekro_agent.models.db_kb_document_reference import DBKBDocumentReference
 
     document = await _get_document_or_404(workspace_id, document_id)
@@ -363,10 +370,88 @@ async def delete_workspace_kb_document(
     except Exception as e:
         logger.warning(f"删除知识库文档文件失败: document_id={document_id}, error={e}")
         cleanup_warnings.append("files")
+    return cleanup_warnings
 
+
+@router.delete("/{workspace_id}/kb/documents/{document_id}", summary="删除知识库文档", response_model=KBActionResponse)
+@require_role(Role.Admin)
+async def delete_workspace_kb_document(
+    workspace_id: int,
+    document_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBActionResponse:
+    await _get_workspace_or_404(workspace_id)
+    cleanup_warnings = await _delete_document_record(workspace_id, document_id)
     return KBActionResponse(
         ok=True,
         message="文档记录已删除，但部分外部资源清理失败" if cleanup_warnings else None,
+    )
+
+
+@router.post(
+    "/{workspace_id}/kb/documents/batch-delete",
+    summary="批量删除知识库文档",
+    response_model=KBBatchDeleteResponse,
+)
+@require_role(Role.Admin)
+async def batch_delete_workspace_kb_documents(
+    workspace_id: int,
+    body: KBBatchIdsBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBBatchDeleteResponse:
+    """一次请求批量删除多个文档：服务端限流并发处理，返回成功/失败统计，单条失败不中断整批。"""
+    await _get_workspace_or_404(workspace_id)
+
+    async def op(document_id: int) -> list[str] | None:
+        return await _delete_document_record(workspace_id, document_id)
+
+    ids = normalize_batch_ids(body.ids, KB_BATCH_MAX_SIZE)
+    results = await run_batched_ids(ids, KB_BATCH_CONCURRENCY, op)
+    deleted_ids, failed_ids, warnings, errors = aggregate_batch_results(results, "文档")
+    return KBBatchDeleteResponse(
+        ok=len(failed_ids) == 0,
+        deleted=len(deleted_ids),
+        failed=len(failed_ids),
+        deleted_ids=deleted_ids,
+        failed_ids=failed_ids,
+        warnings=warnings,
+        errors=errors,
+    )
+
+
+@router.post(
+    "/{workspace_id}/kb/documents/batch-reindex",
+    summary="批量重建知识库文档索引",
+    response_model=KBBatchReindexResponse,
+)
+@require_role(Role.Admin)
+async def batch_reindex_workspace_kb_documents(
+    workspace_id: int,
+    body: KBBatchIdsBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBBatchReindexResponse:
+    """一次请求批量提交文档重建索引任务，服务端限流并发处理。"""
+    await _get_workspace_or_404(workspace_id)
+    ensure_kb_embedding_configured()
+    await ensure_kb_collection()
+
+    async def op(document_id: int) -> None:
+        document = await get_document(workspace_id, document_id)
+        if document is None:
+            raise NotFoundError(resource=f"知识库文档 {document_id}")
+        await schedule_rebuild_document(document)
+
+    ids = normalize_batch_ids(body.ids, KB_BATCH_MAX_SIZE)
+    results = await run_batched_ids(ids, KB_BATCH_CONCURRENCY, op)
+    queued_ids, failed_ids, warnings, errors = aggregate_batch_results(results, "文档")
+    return KBBatchReindexResponse(
+        ok=len(failed_ids) == 0,
+        queued=len(queued_ids),
+        failed=len(failed_ids),
+        queued_ids=queued_ids,
+        failed_ids=failed_ids,
+        warnings=warnings,
+        errors=errors,
     )
 
 
