@@ -10,6 +10,7 @@ import {
   DialogTitle,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   IconButton,
   InputLabel,
   MenuItem,
@@ -39,9 +40,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useNotification } from '../../../hooks/useNotification'
-import { EmailAccount, EmailProvider, EmailPullResult, emailApi } from '../../../services/api/email'
+import { EmailAccount, EmailProvider, EmailPullResult, EmailTransportType, emailApi } from '../../../services/api/email'
 
 const providers: EmailProvider[] = ['QQ邮箱', '163邮箱', 'Gmail', 'Outlook', '自定义']
+
+/** 各提供商支持的收发信方式；未列出的提供商仅支持 IMAP/SMTP */
+const providerTransportOptions: Partial<Record<EmailProvider, EmailTransportType[]>> = {
+  Gmail: ['imap_smtp', 'gmail_api'],
+  Outlook: ['imap_smtp', 'microsoft_graph'],
+}
+
+/** 保留仍然合法的连接方式，否则回落到该提供商的首选方式 */
+function resolveTransportType(provider: EmailProvider, current: EmailTransportType): EmailTransportType {
+  const allowed = providerTransportOptions[provider]
+  if (!allowed) return 'imap_smtp'
+  return allowed.includes(current) ? current : allowed[0]
+}
 
 const providerLinks: Partial<Record<EmailProvider, Array<{ labelKey: string; url: string }>>> = {
   Gmail: [
@@ -208,14 +222,13 @@ export default function EmailAccountsPage() {
 
   const buildAccountPayload = (editing: boolean) => {
     const payload = buildPayload(form, editing)
+    payload.TRANSPORT_TYPE = resolveTransportType(form.EMAIL_ACCOUNT, form.TRANSPORT_TYPE)
     if (form.EMAIL_ACCOUNT === 'Gmail') {
       payload.AUTH_TYPE = 'oauth2'
-      payload.TRANSPORT_TYPE = 'imap_smtp'
       payload.OAUTH_PROVIDER = 'google'
       payload.USERNAME = form.USERNAME.trim() || `pending-google-${Date.now()}`
     } else if (form.EMAIL_ACCOUNT === 'Outlook') {
       payload.AUTH_TYPE = 'oauth2'
-      payload.TRANSPORT_TYPE = 'imap_smtp'
       payload.OAUTH_PROVIDER = 'microsoft'
       payload.USERNAME = form.USERNAME.trim() || `pending-microsoft-${Date.now()}`
     }
@@ -261,6 +274,7 @@ export default function EmailAccountsPage() {
   const isOutlook = form.EMAIL_ACCOUNT === 'Outlook'
   const isOauthProvider = isGmail || isOutlook
   const currentProviderLinks = providerLinks[form.EMAIL_ACCOUNT] ?? []
+  const currentTransportOptions = providerTransportOptions[form.EMAIL_ACCOUNT] ?? []
 
   const handleOpenAuthorizeUrl = async () => {
     try {
@@ -507,7 +521,7 @@ export default function EmailAccountsPage() {
                     ...prev,
                     EMAIL_ACCOUNT: provider,
                     AUTH_TYPE: provider === 'Gmail' || provider === 'Outlook' ? 'oauth2' : 'password',
-                    TRANSPORT_TYPE: 'imap_smtp',
+                    TRANSPORT_TYPE: resolveTransportType(provider, prev.TRANSPORT_TYPE),
                     OAUTH_PROVIDER: provider === 'Gmail' ? 'google' : provider === 'Outlook' ? 'microsoft' : '',
                   }))
                 }}
@@ -558,6 +572,23 @@ export default function EmailAccountsPage() {
             )}
             {isOauthProvider ? (
               <Stack spacing={2}>
+                {currentTransportOptions.length > 1 && (
+                  <FormControl fullWidth>
+                    <InputLabel>{t('emailAccounts.transportType')}</InputLabel>
+                    <Select
+                      label={t('emailAccounts.transportType')}
+                      value={resolveTransportType(form.EMAIL_ACCOUNT, form.TRANSPORT_TYPE)}
+                      onChange={event => updateForm('TRANSPORT_TYPE', event.target.value as EmailTransportType)}
+                    >
+                      {currentTransportOptions.map(option => (
+                        <MenuItem key={option} value={option}>
+                          {t(`emailAccounts.transportTypes.${option}`)}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    <FormHelperText>{t('emailAccounts.transportTypeHelp')}</FormHelperText>
+                  </FormControl>
+                )}
                 <TextField
                   label={t('emailAccounts.clientId')}
                   value={form.CLIENT_ID}
