@@ -32,7 +32,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateDocumentBody,
     KBUpdateReferenceBody,
 )
-from nekro_agent.services.kb.batch_ops import run_batched_ids
+from nekro_agent.services.kb.batch_ops import aggregate_batch_results, run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.constants import KB_BATCH_CONCURRENCY, KB_BATCH_MAX_SIZE
 from nekro_agent.services.kb.document_service import (
@@ -414,8 +414,7 @@ async def batch_delete_workspace_kb_documents(
         op=op,
         label="文档",
     )
-    deleted_ids = [r.id for r in results if r.success]
-    warnings = [f"文档 {r.id}: {w}" for r in results if r.success for w in r.warnings]
+    deleted_ids, warnings = aggregate_batch_results(results, "文档")
     return KBBatchDeleteResponse(
         ok=len(errors) == 0,
         deleted=len(deleted_ids),
@@ -455,10 +454,9 @@ async def batch_reindex_workspace_kb_documents(
         op=op,
         label="文档",
     )
-    queued = sum(1 for r in results if r.success)
-    warnings = [f"文档 {r.id}: {w}" for r in results if r.success for w in r.warnings]
+    queued_ids, warnings = aggregate_batch_results(results, "文档")
     return KBBatchReindexResponse(
-        ok=len(errors) == 0, queued=queued, failed=len(errors), warnings=warnings, errors=errors
+        ok=len(errors) == 0, queued=len(queued_ids), failed=len(errors), warnings=warnings, errors=errors
     )
 
 

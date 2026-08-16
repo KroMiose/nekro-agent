@@ -31,7 +31,7 @@ from nekro_agent.schemas.kb import (
     KBUpdateAssetBody,
     KBUpdateReferenceBody,
 )
-from nekro_agent.services.kb.batch_ops import run_batched_ids
+from nekro_agent.services.kb.batch_ops import aggregate_batch_results, run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
 from nekro_agent.services.kb.constants import KB_BATCH_CONCURRENCY, KB_BATCH_MAX_SIZE
 from nekro_agent.services.kb.library_index_service import (
@@ -313,8 +313,7 @@ async def batch_delete_kb_library_assets(
         op=_delete_asset_record,
         label="资产",
     )
-    deleted_ids = [r.id for r in results if r.success]
-    warnings = [f"资产 {r.id}: {w}" for r in results if r.success for w in r.warnings]
+    deleted_ids, warnings = aggregate_batch_results(results, "资产")
     return KBBatchDeleteResponse(
         ok=len(errors) == 0,
         deleted=len(deleted_ids),
@@ -344,8 +343,7 @@ async def batch_unbind_kb_library_assets(
         op=op,
         label="资产",
     )
-    unbound_ids = [r.id for r in results if r.success]
-    warnings = [f"资产 {r.id}: {w}" for r in results if r.success for w in r.warnings]
+    unbound_ids, warnings = aggregate_batch_results(results, "资产")
     return KBBatchUnbindResponse(
         ok=len(errors) == 0,
         unbound=len(unbound_ids),
@@ -379,10 +377,9 @@ async def batch_reindex_kb_library_assets(
         op=op,
         label="资产",
     )
-    queued = sum(1 for r in results if r.success)
-    warnings = [f"资产 {r.id}: {w}" for r in results if r.success for w in r.warnings]
+    queued_ids, warnings = aggregate_batch_results(results, "资产")
     return KBBatchReindexResponse(
-        ok=len(errors) == 0, queued=queued, failed=len(errors), warnings=warnings, errors=errors
+        ok=len(errors) == 0, queued=len(queued_ids), failed=len(errors), warnings=warnings, errors=errors
     )
 
 

@@ -3,7 +3,6 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.errors import AppError, ValidationError
@@ -25,18 +24,22 @@ class BatchItemResult:
     warnings: list[str] = field(default_factory=list)
 
 
+# op 对单个 id 执行操作，返回该条目的外部资源清理警告（best-effort，无警告时返回 None）
+BatchOpFn = Callable[[int], Awaitable[list[str] | None]]
+
+
 async def run_batched_ids(
     ids: list[int],
     max_size: int,
     concurrency: int,
-    op: Callable[[int], Awaitable[Any]],
+    op: BatchOpFn,
     label: str,
 ) -> tuple[list[BatchItemResult], list[str]]:
     """批量执行单元素操作：去重保序 → 数量上限校验 → 限流并发 → 单条失败隔离。
 
-    - op 对单个 id 执行操作，返回值若为字符串列表则视为该条目的清理警告（best-effort，不失败）；
+    - op 对单个 id 执行操作，返回该条目的清理警告列表（best-effort，不失败）；
     - 业务错误（AppError）返回本地化消息，其他异常记录日志并返回通用文案。
-    返回 (逐条结果, 格式化后的错误列表)；清理警告由调用方从 results 中聚合。
+    返回 (逐条结果, 格式化后的错误列表)；清理警告由调用方通过 aggregate_batch_results 聚合。
     """
     unique_ids = list(dict.fromkeys(ids))
     if len(unique_ids) > max_size:
@@ -49,8 +52,7 @@ async def run_batched_ids(
     async def run_one(item_id: int) -> BatchItemResult:
         async with semaphore:
             try:
-                result = await op(item_id)
-                warnings = list(result) if isinstance(result, list) else []
+                warnings = await op(item_id) or []
                 return BatchItemResult(id=item_id, success=True, warnings=warnings)
             except AppError as e:
                 # 业务错误（不存在/冲突等）：返回本地化消息，不暴露内部细节
@@ -62,3 +64,10 @@ async def run_batched_ids(
     results = await asyncio.gather(*(run_one(i) for i in unique_ids))
     errors = [f"{label} {r.id}: {r.error}" for r in results if not r.success and r.error]
     return results, errors
+
+
+def aggregate_batch_results(results: list[BatchItemResult], label: str) -> tuple[list[int], list[str]]:
+    """从批量结果中聚合成功 id 列表与清理警告列表（供各批量接口构建响应复用）。"""
+    success_ids = [r.id for r in results if r.success]
+    warnings = [f"{label} {r.id}: {w}" for r in results if r.success for w in r.warnings]
+    return success_ids, warnings
