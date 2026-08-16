@@ -594,11 +594,11 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     },
     onMutate: ({ documentIds, assetIds }) => {
       notification.info(t('knowledge.notifications.bulkDeleting', { count: documentIds.length + assetIds.length }), {
-        key: 'kb-bulk-deleting',
+        key: 'kb-bulk-deleting-ws',
       })
     },
     onSuccess: async result => {
-      notification.close('kb-bulk-deleting')
+      notification.close('kb-bulk-deleting-ws')
       setBulkDeleteSelectedOpen(false)
       setSelectedEntryKeys(prev => {
         if (result.deletedDocumentIds.length === 0 && result.deletedAssetIds.length === 0) return prev
@@ -627,7 +627,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       }
     },
     onError: (err: Error) => {
-      notification.close('kb-bulk-deleting')
+      notification.close('kb-bulk-deleting-ws')
       notification.error(t('knowledge.notifications.deleteFailed', { message: err.message }))
     },
   })

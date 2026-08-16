@@ -475,10 +475,10 @@ export default function KbLibraryPage() {
       return { deletedCount: result.deleted, failedCount: result.failed, deletedIds: result.deleted_ids }
     },
     onMutate: assetIds => {
-      notification.info(t('kbLibrary.notifications.bulkDeleting', { count: assetIds.length }), { key: 'kb-bulk-deleting' })
+      notification.info(t('kbLibrary.notifications.bulkDeleting', { count: assetIds.length }), { key: 'kb-bulk-deleting-lib' })
     },
     onSuccess: async result => {
-      notification.close('kb-bulk-deleting')
+      notification.close('kb-bulk-deleting-lib')
       setBulkDeleteOpen(false)
       if (selectedAssetId != null && result.deletedIds.includes(selectedAssetId)) {
         setSelectedAssetId(null)
@@ -503,7 +503,7 @@ export default function KbLibraryPage() {
       }
     },
     onError: (err: Error) => {
-      notification.close('kb-bulk-deleting')
+      notification.close('kb-bulk-deleting-lib')
       notification.error(t('kbLibrary.notifications.deleteFailed', { message: err.message }))
     },
   })
