@@ -88,6 +88,9 @@ const CATEGORY_LEVEL_X = 210
 const ENTRY_SPACING = 34
 const ROOT_GAP = 28
 
+/** 图谱自动折叠阈值：文档+资产总数超过该值时，默认折叠所有分类，仅显示根节点 */
+const AUTO_COLLAPSE_GRAPH_SIZE = 2000
+
 // ─── utils ────────────────────────────────────────────────────────────────────
 
 function categoryHue(name: string): number {
@@ -834,7 +837,23 @@ export default function KBGraphDialog({
   const [size, setSize] = useState({ w: 600, h: 400 })
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 })
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set())
+  // 条目总数超过阈值时默认折叠所有分类（仅显示根节点），避免一次性渲染海量节点卡死；
+  // 用户点击任意分类可展开，展开状态由 collapsedCategories 正常管理
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => {
+    const totalCount = documents.length + boundGlobalAssets.length
+    if (totalCount <= AUTO_COLLAPSE_GRAPH_SIZE) return new Set<string>()
+    const collapsed = new Set<string>()
+    const collectCategory = (category: string) => {
+      let path = ''
+      for (const segment of splitCategoryPath(category)) {
+        path = `${path}${segment}/`
+        collapsed.add(path)
+      }
+    }
+    documents.forEach(doc => collectCategory(doc.category ?? ''))
+    boundGlobalAssets.forEach(asset => collectCategory(asset.category ?? ''))
+    return collapsed
+  })
   const [showAllReferences, setShowAllReferences] = useState(false)
 
   useEffect(() => {
