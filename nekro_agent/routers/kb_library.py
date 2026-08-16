@@ -25,6 +25,7 @@ from nekro_agent.schemas.kb import (
     KBBatchDeleteResponse,
     KBBatchIdsBody,
     KBBatchReindexResponse,
+    KBBatchUnbindResponse,
     KBCreateTextDocumentBody,
     KBFullTextResponse,
     KBUpdateAssetBody,
@@ -320,7 +321,7 @@ async def batch_delete_kb_library_assets(
 async def batch_unbind_kb_library_assets(
     body: KBAssetBatchUnbindBody,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> KBBatchDeleteResponse:
+) -> KBBatchUnbindResponse:
     """一次请求将多个资产从指定工作区解绑（工作区页面"批量移除"场景）。"""
     await _ensure_workspace_exists(body.workspace_id)
 
@@ -334,12 +335,12 @@ async def batch_unbind_kb_library_assets(
         op=op,
         label="资产",
     )
-    deleted_ids = [r.id for r in results if r.success]
-    return KBBatchDeleteResponse(
+    unbound_ids = [r.id for r in results if r.success]
+    return KBBatchUnbindResponse(
         ok=len(errors) == 0,
-        deleted=len(deleted_ids),
+        unbound=len(unbound_ids),
         failed=len(errors),
-        deleted_ids=deleted_ids,
+        unbound_ids=unbound_ids,
         errors=errors,
     )
 
@@ -368,7 +369,7 @@ async def batch_reindex_kb_library_assets(
         label="资产",
     )
     queued = sum(1 for r in results if r.success)
-    return KBBatchReindexResponse(ok=bool(results), queued=queued, failed=len(errors), errors=errors)
+    return KBBatchReindexResponse(ok=len(errors) == 0, queued=queued, failed=len(errors), errors=errors)
 
 
 @router.post("/assets/{asset_id}/reindex", summary="重建全局知识库文件索引", response_model=KBActionResponse)

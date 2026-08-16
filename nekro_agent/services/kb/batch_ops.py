@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.errors import AppError, ValidationError
@@ -23,7 +24,7 @@ async def run_batched_ids(
     ids: list[int],
     max_size: int,
     concurrency: int,
-    op: Callable[[int], Awaitable[None]],
+    op: Callable[[int], Awaitable[Any]],
     label: str,
 ) -> tuple[list[BatchItemResult], list[str]]:
     """批量执行单元素操作：去重保序 → 数量上限校验 → 限流并发 → 单条失败隔离。

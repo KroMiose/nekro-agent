@@ -44,6 +44,16 @@ class KBBatchReindexResponse(BaseModel):
     errors: list[str] = Field(default_factory=list)
 
 
+class KBBatchUnbindResponse(BaseModel):
+    """批量解绑资产与工作区结果统计"""
+
+    ok: bool = True
+    unbound: int = 0
+    failed: int = 0
+    unbound_ids: list[int] = Field(default_factory=list, description="实际解绑成功的资产 ID 列表")
+    errors: list[str] = Field(default_factory=list)
+
+
 class KBTagUpdate(BaseModel):
     tags: list[str] = Field(default_factory=list)
 

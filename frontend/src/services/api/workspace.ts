@@ -327,6 +327,14 @@ export interface KBBatchReindexResponse {
   errors: string[]
 }
 
+export interface KBBatchUnbindResponse {
+  ok: boolean
+  unbound: number
+  failed: number
+  unbound_ids: number[]
+  errors: string[]
+}
+
 export interface KBUploadFilePayload {
   file: File
   title?: string
@@ -1090,8 +1098,8 @@ export const kbLibraryApi = {
     return response.data
   },
 
-  batchUnbindWorkspace: async (assetIds: number[], workspaceId: number): Promise<KBBatchDeleteResponse> => {
-    const response = await axios.post<KBBatchDeleteResponse>('/kb-library/assets/batch-unbind', {
+  batchUnbindWorkspace: async (assetIds: number[], workspaceId: number): Promise<KBBatchUnbindResponse> => {
+    const response = await axios.post<KBBatchUnbindResponse>('/kb-library/assets/batch-unbind', {
       asset_ids: assetIds,
       workspace_id: workspaceId,
     })

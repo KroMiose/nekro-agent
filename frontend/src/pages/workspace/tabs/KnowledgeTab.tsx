@@ -576,18 +576,19 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const bulkDeleteSelectedMutation = useMutation({
     mutationFn: async ({ documentIds, assetIds }: { documentIds: number[]; assetIds: number[] }) => {
-      const emptyResult = { ok: true, deleted: 0, failed: 0, errors: [] as string[] }
+      const emptyDelete = { ok: true, deleted: 0, failed: 0, deleted_ids: [] as number[], errors: [] as string[] }
+      const emptyUnbind = { ok: true, unbound: 0, failed: 0, unbound_ids: [] as number[], errors: [] as string[] }
       const documentResult =
         documentIds.length > 0
           ? await knowledgeBaseApi.batchDeleteDocuments(workspace.id, documentIds)
-          : emptyResult
+          : emptyDelete
       const unbindResult =
-        assetIds.length > 0 ? await kbLibraryApi.batchUnbindWorkspace(assetIds, workspace.id) : emptyResult
+        assetIds.length > 0 ? await kbLibraryApi.batchUnbindWorkspace(assetIds, workspace.id) : emptyUnbind
       return {
-        deletedCount: documentResult.deleted + unbindResult.deleted,
+        deletedCount: documentResult.deleted + unbindResult.unbound,
         failedCount: documentResult.failed + unbindResult.failed,
         deletedDocumentIds: documentResult.deleted_ids,
-        deletedAssetIds: unbindResult.deleted_ids,
+        deletedAssetIds: unbindResult.unbound_ids,
       }
     },
     onMutate: ({ documentIds, assetIds }) => {
