@@ -45,6 +45,7 @@ import {
   FileUpload as FileUploadIcon,
   FolderOpen as FolderOpenIcon,
   DriveFileMove as ImportFolderIcon,
+  Archive as ArchiveIcon,
   Hub as GraphViewIcon,
   InsertLink as RefLinkIcon,
   Link as BindIcon,
@@ -70,6 +71,7 @@ import {
   KBCreateTextDocumentBody,
   type KBReferenceItem,
   KBUploadFilePayload,
+  KBZipImportResponse,
   kbLibraryApi,
   workspaceApi,
 } from '../../services/api/workspace'
@@ -91,6 +93,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from './kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from './kbCategoryTree'
+import { createSingleFileUploadHandler, getZipImportNotice } from './kbImportHandler'
 
 type FilterStatus = 'all' | 'ready' | 'indexing' | 'failed'
 type BatchItemStatus = 'waiting' | 'uploading' | 'done' | 'error'
@@ -180,6 +183,7 @@ export default function KbLibraryPage() {
   const lastProgressTerminalRef = useRef('')
   const batchInputRef = useRef<HTMLInputElement | null>(null)
   const dirInputRef = useRef<HTMLInputElement | null>(null)
+  const zipInputRef = useRef<HTMLInputElement | null>(null)
   const batchProcessingRef = useRef(false)
   const batchQueueRef = useRef<BatchQueueItem[]>([])
   const batchCancelRequestedRef = useRef(false)
@@ -715,6 +719,32 @@ export default function KbLibraryPage() {
     }
     setBatchQueue(nextQueue)
   }
+
+  const handleZipFileChange = createSingleFileUploadHandler<KBZipImportResponse>({
+    upload: kbLibraryApi.uploadZip,
+    onResult: async result => {
+      try {
+        const notice = getZipImportNotice(result, t, 'kbLibrary')
+        if (notice.variant === 'success') notification.success(notice.message)
+        else if (notice.variant === 'warning') notification.warning(notice.message)
+        else notification.error(notice.message)
+      } catch (err) {
+        notification.error(
+          t('kbLibrary.notifications.zipImportFailed', {
+            message: err instanceof Error ? err.message : String(err),
+          })
+        )
+      }
+      await refreshAll()
+    },
+    onError: error => {
+      notification.error(
+        t('kbLibrary.notifications.zipImportFailed', {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      )
+    },
+  })
 
   const removeBatchQueueItem = useCallback((id: string) => {
     setExpandedBatchItemId(prev => (prev === id ? null : prev))
@@ -1716,8 +1746,14 @@ export default function KbLibraryPage() {
                 <ActionButton tone="secondary" startIcon={<ImportFolderIcon />} onClick={() => dirInputRef.current?.click()} disabled={withEmbeddingGuard()}>
                   {t('knowledge.actions.importFolder')}
                 </ActionButton>
+                <ActionButton tone="secondary" startIcon={<ArchiveIcon />} onClick={() => zipInputRef.current?.click()} disabled={withEmbeddingGuard()}>
+                  {t('knowledge.actions.importZip')}
+                </ActionButton>
                 <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
                   {t('knowledge.form.dirImportHint')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+                  {t('knowledge.form.zipImportHint')}
                 </Typography>
               </Stack>
             ) : (
@@ -1850,6 +1886,13 @@ export default function KbLibraryPage() {
               // @ts-expect-error webkitdirectory is non-standard but widely supported
               webkitdirectory=""
               onChange={handleDirFileChange}
+            />
+            <input
+              ref={zipInputRef}
+              type="file"
+              hidden
+              accept=".zip"
+              onChange={handleZipFileChange}
             />
           </Stack>
         </DialogContent>

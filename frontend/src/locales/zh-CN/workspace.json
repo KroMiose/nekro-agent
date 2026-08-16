@@ -1111,6 +1111,7 @@
       "chooseFiles": "选择文件（支持多选）",
       "reChooseFiles": "重新选择文件",
       "importFolder": "导入文件夹",
+      "importZip": "导入 Zip 包",
       "reChooseFolder": "重新选择文件夹",
       "or": "或",
       "startUpload": "开始上传（{{count}} 个文件）",
@@ -1225,6 +1226,7 @@
       "sourcePathPlaceholder": "例如 faq/getting-started.md",
       "supportedFormats": "支持上传的文件格式：{{formats}}",
       "dirImportHint": "选择本地文件夹，自动按子目录名分类，文档路径结构完整保留",
+      "zipImportHint": "支持上传 zip 压缩包，自动解压并按目录结构导入（不支持加密压缩包）",
       "dirImportModeHint": "文件夹导入模式：分类已按目录结构自动推断，可展开各文件修改",
       "reuseSearch": "搜索全局知识标题、路径、分类或标签",
       "fileName": "文件名",
@@ -1286,7 +1288,13 @@
       "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}",
       "dirImportSkipped": "已跳过 {{count}} 个不受支持格式的文件",
       "dirImportNoSupported": "所选文件夹中没有受支持的文件，仅支持：{{formats}}",
-      "dirImportCategoryTooLong": "目录分组“{{category}}”长度为 {{length}}，超过上限 {{max}}。请缩短目录名称后再上传。"
+      "dirImportCategoryTooLong": "目录分组“{{category}}”长度为 {{length}}，超过上限 {{max}}。请缩短目录名称后再上传。",
+      "zipImportSuccess": "Zip 导入完成：成功 {{imported}} 个，复用 {{reused}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
+      "zipImportPartial": "Zip 导入部分成功：成功 {{imported}} 个，复用 {{reused}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
+      "zipImportNothingImported": "压缩包中没有受支持的可导入文件（支持：md/txt/html/json/yaml/csv/xlsx/pdf/docx）",
+      "zipImportFailed": "Zip 导入失败：{{message}}",
+      "zipImportFailedGeneric": "Zip 导入失败，请检查压缩包内容后重试",
+      "zipImportMoreErrors": "…等 {{count}} 条未显示"
     },
     "references": {
       "title": "引用关系",
@@ -1487,7 +1495,13 @@
       "bindSuccess": "工作区绑定已更新",
       "bindFailed": "绑定失败：{{message}}",
       "downloadFailed": "下载失败：{{message}}",
-      "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}"
+      "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}",
+      "zipImportSuccess": "Zip 导入完成：成功 {{imported}} 个，复用 {{reused}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
+      "zipImportPartial": "Zip 导入部分成功：成功 {{imported}} 个，复用 {{reused}} 个，跳过 {{skipped}} 个，失败 {{failed}} 个",
+      "zipImportNothingImported": "压缩包中没有受支持的可导入文件（支持：md/txt/html/json/yaml/csv/xlsx/pdf/docx）",
+      "zipImportFailed": "Zip 导入失败：{{message}}",
+      "zipImportFailedGeneric": "Zip 导入失败，请检查压缩包内容后重试",
+      "zipImportMoreErrors": "…等 {{count}} 条未显示"
     },
     "batchPanel": {
       "inProgress": "上传中 {{done}}/{{total}}",

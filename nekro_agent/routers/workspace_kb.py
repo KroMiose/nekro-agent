@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -31,6 +32,7 @@ from nekro_agent.schemas.kb import (
     KBTreeResponse,
     KBUpdateDocumentBody,
     KBUpdateReferenceBody,
+    KBZipImportResponse,
 )
 from nekro_agent.services.kb.batch_ops import aggregate_batch_results, normalize_batch_ids, run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
@@ -62,6 +64,7 @@ from nekro_agent.services.kb.index_service import (
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_document_references
 from nekro_agent.services.kb.search_service import search_workspace_kb
+from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -281,6 +284,43 @@ async def upload_workspace_kb_file(
         if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
         else None,
         normalized_content=None,
+    )
+
+
+@router.post("/{workspace_id}/kb/zip", summary="上传 zip 批量导入知识库文档", response_model=KBZipImportResponse)
+@require_role(Role.Admin)
+async def import_workspace_kb_zip(
+    workspace_id: int,
+    file: UploadFile = File(...),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBZipImportResponse:
+    """上传 zip 压缩包，解压后按包内目录结构批量导入工作区知识库文档（分类=相对目录，路径=相对完整路径）。"""
+    await _get_workspace_or_404(workspace_id)
+    ensure_kb_embedding_configured()
+    await ensure_kb_collection()
+
+    async def create_from_upload(entry: ZipImportEntry, content: bytes) -> tuple[object, bool]:
+        upload_file = UploadFile(
+            filename=Path(entry.source_path).name,
+            file=io.BytesIO(content),
+        )
+        document = await create_file_document(
+            workspace_id=workspace_id,
+            upload_file=upload_file,
+            source_path=entry.source_path,
+            title="",
+            category=entry.category,
+            tags=[],
+            summary="",
+            is_enabled=True,
+        )
+        return document, False
+
+    return await import_zip_with_upload(
+        file=file,
+        allowed_exts=ALLOWED_KB_EXTENSIONS,
+        create_from_upload=create_from_upload,
+        schedule_rebuild=schedule_rebuild_document,
     )
 
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -30,6 +31,7 @@ from nekro_agent.schemas.kb import (
     KBFullTextResponse,
     KBUpdateAssetBody,
     KBUpdateReferenceBody,
+    KBZipImportResponse,
 )
 from nekro_agent.services.kb.batch_ops import aggregate_batch_results, normalize_batch_ids, run_batched_ids
 from nekro_agent.services.kb.config_guard import ensure_kb_embedding_configured
@@ -65,6 +67,7 @@ from nekro_agent.services.kb.library_service import (
     update_asset_metadata,
 )
 from nekro_agent.services.kb.reference_detector import detect_and_sync_asset_references
+from nekro_agent.services.kb.zip_import import ZipImportEntry, import_zip_with_upload
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -210,6 +213,40 @@ async def upload_kb_library_asset(
     if not reused_existing:
         await schedule_rebuild_asset(refreshed)
     return KBAssetUploadResponse(asset=await asset_to_list_item(refreshed), reused_existing=reused_existing)
+
+
+@router.post("/assets/zip", summary="上传 zip 批量导入全局知识库文件", response_model=KBZipImportResponse)
+@require_role(Role.Admin)
+async def import_kb_library_zip(
+    file: UploadFile = File(...),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBZipImportResponse:
+    """上传 zip 压缩包，解压后按包内目录结构批量导入全局知识库文件（分类=相对目录，路径=相对完整路径），同内容自动去重复用。"""
+    ensure_kb_embedding_configured()
+    await ensure_kb_library_collection()
+
+    async def create_from_upload(entry: ZipImportEntry, content: bytes) -> tuple[object, bool]:
+        upload_file = UploadFile(
+            filename=Path(entry.source_path).name,
+            file=io.BytesIO(content),
+        )
+        asset, reused_existing = await create_asset_from_upload(
+            upload_file=upload_file,
+            source_path=entry.source_path,
+            title="",
+            category=entry.category,
+            tags=[],
+            summary="",
+            is_enabled=True,
+        )
+        return asset, reused_existing
+
+    return await import_zip_with_upload(
+        file=file,
+        allowed_exts=ALLOWED_KB_LIBRARY_EXTENSIONS,
+        create_from_upload=create_from_upload,
+        schedule_rebuild=schedule_rebuild_asset,
+    )
 
 
 @router.put("/assets/{asset_id}", summary="更新全局知识库文件", response_model=KBAssetDetailResponse)

@@ -312,6 +312,20 @@ export interface KBReindexResponse {
   failed: number
 }
 
+export interface KBZipImportError {
+  source_path: string
+  reason: string
+}
+
+export interface KBZipImportResponse {
+  ok: boolean
+  imported: number
+  reused: number
+  skipped: number
+  failed: number
+  errors: KBZipImportError[]
+}
+
 export interface KBBatchDeleteResponse {
   ok: boolean
   deleted: number
@@ -877,6 +891,14 @@ export const workspaceApi = {
   },
 }
 
+/** zip 批量导入上传（工作区与全局库共用） */
+const postZipImport = async (url: string, file: File): Promise<KBZipImportResponse> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await axios.post<KBZipImportResponse>(url, formData)
+  return response.data
+}
+
 export const knowledgeBaseApi = {
   list: async (workspaceId: number): Promise<KBDocumentListItem[]> => {
     const response = await axios.get<KBDocumentListResponse>(`/workspaces/${workspaceId}/kb/documents`)
@@ -914,6 +936,10 @@ export const knowledgeBaseApi = {
       },
     })
     return response.data
+  },
+
+  uploadZip: async (workspaceId: number, file: File): Promise<KBZipImportResponse> => {
+    return postZipImport(`/workspaces/${workspaceId}/kb/zip`, file)
   },
 
   updateDocument: async (
@@ -1068,6 +1094,10 @@ export const kbLibraryApi = {
       },
     })
     return response.data
+  },
+
+  uploadZip: async (file: File): Promise<KBZipImportResponse> => {
+    return postZipImport('/kb-library/assets/zip', file)
   },
 
   deleteAsset: async (assetId: number): Promise<void> => {

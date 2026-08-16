@@ -40,6 +40,7 @@ import {
   LibraryBooks as LibraryIcon,
   FolderOpen as FolderOpenIcon,
   DriveFileMove as ImportFolderIcon,
+  Archive as ArchiveIcon,
   Clear as ClearIcon,
   CheckCircleOutline as CheckCircleIcon,
   ErrorOutline as ErrorOutlineIcon,
@@ -60,6 +61,7 @@ import {
   KBReferenceItem,
   KBSearchResponse,
   KBUploadFilePayload,
+  KBZipImportResponse,
   EMPTY_BATCH_DELETE,
   EMPTY_BATCH_REINDEX,
   EMPTY_BATCH_UNBIND,
@@ -86,6 +88,7 @@ import {
   KB_CATEGORY_MAX_LENGTH,
 } from '../kbFolderImport'
 import { buildCategoryTree, type KBCategoryTreeNode } from '../kbCategoryTree'
+import { createSingleFileUploadHandler, getZipImportNotice } from '../kbImportHandler'
 
 type KnowledgeSelection =
   | { kind: 'document'; id: number }
@@ -234,6 +237,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
   const batchInputRef = useRef<HTMLInputElement | null>(null)
   const dirInputRef = useRef<HTMLInputElement | null>(null)
+  const zipInputRef = useRef<HTMLInputElement | null>(null)
   const batchProcessingRef = useRef(false)
   const batchQueueRef = useRef<BatchQueueItem[]>([])
   const batchCancelRequestedRef = useRef(false)
@@ -1005,6 +1009,32 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     setBatchQueue(nextQueue)
     setBatchUploadOpen(true)
   }
+
+  const handleZipFileChange = createSingleFileUploadHandler<KBZipImportResponse>({
+    upload: file => knowledgeBaseApi.uploadZip(workspace.id, file),
+    onResult: async result => {
+      try {
+        const notice = getZipImportNotice(result, t, 'knowledge')
+        if (notice.variant === 'success') notification.success(notice.message)
+        else if (notice.variant === 'warning') notification.warning(notice.message)
+        else notification.error(notice.message)
+      } catch (err) {
+        notification.error(
+          t('knowledge.notifications.zipImportFailed', {
+            message: err instanceof Error ? err.message : String(err),
+          })
+        )
+      }
+      await refreshAll()
+    },
+    onError: error => {
+      notification.error(
+        t('knowledge.notifications.zipImportFailed', {
+          message: error instanceof Error ? error.message : String(error),
+        })
+      )
+    },
+  })
 
   const removeBatchQueueItem = useCallback((id: string) => {
     setExpandedBatchItemId(prev => (prev === id ? null : prev))
@@ -2435,8 +2465,19 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 >
                   {t('knowledge.actions.importFolder')}
                 </ActionButton>
+                <ActionButton
+                  tone="secondary"
+                  startIcon={<ArchiveIcon />}
+                  onClick={() => zipInputRef.current?.click()}
+                  disabled={withEmbeddingGuard()}
+                >
+                  {t('knowledge.actions.importZip')}
+                </ActionButton>
                 <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
                   {t('knowledge.form.dirImportHint')}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+                  {t('knowledge.form.zipImportHint')}
                 </Typography>
               </Stack>
             ) : (
@@ -2580,6 +2621,13 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               // @ts-expect-error webkitdirectory is non-standard but widely supported
               webkitdirectory=""
               onChange={handleDirFileChange}
+            />
+            <input
+              ref={zipInputRef}
+              type="file"
+              hidden
+              accept=".zip"
+              onChange={handleZipFileChange}
             />
           </Stack>
         </DialogContent>

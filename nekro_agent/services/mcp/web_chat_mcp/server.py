@@ -4,7 +4,6 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
-
 from nekro_agent.schemas.errors import AppError
 
 from .service import WebChatMcpService, app_error_result
