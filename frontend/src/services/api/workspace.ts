@@ -360,6 +360,7 @@ export interface KBBatchUnbindResponse {
 export const EMPTY_BATCH_DELETE: KBBatchDeleteResponse = { ok: true, deleted: 0, failed: 0, deleted_ids: [], failed_ids: [], warnings: [], errors: [] }
 export const EMPTY_BATCH_UNBIND: KBBatchUnbindResponse = { ok: true, unbound: 0, failed: 0, unbound_ids: [], failed_ids: [], warnings: [], errors: [] }
 export const EMPTY_BATCH_REINDEX: KBBatchReindexResponse = { ok: true, queued: 0, failed: 0, queued_ids: [], failed_ids: [], warnings: [], errors: [] }
+
 export interface KBUploadFilePayload {
   file: File
   title?: string
