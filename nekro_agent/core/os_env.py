@@ -53,8 +53,11 @@ class OsEnv:
     留空(默认)则不启用跨域,前端与本服务同源部署(/webui)不受影响。
     不再支持 "*" 通配:Starlette 在 allow_credentials=True 下会反射任意 Origin,
     导致任何恶意网页都能以受害者浏览器凭据调用管理 API。
+
+    注意:OsEnvTypes 会自动为键名加 NEKRO_ 前缀,此处传 "CORS_ORIGINS"
+    即读取环境变量 NEKRO_CORS_ORIGINS(与其余配置项约定一致)。
     """
-    CORS_ORIGINS: str = OsEnvTypes.Str("NEKRO_CORS_ORIGINS", default="")
+    CORS_ORIGINS: str = OsEnvTypes.Str("CORS_ORIGINS", default="")
 
     """沙箱安全配置
 
@@ -62,7 +65,7 @@ class OsEnv:
     设置 NEKRO_SANDBOX_DISABLE_APPARMOR=true 关闭沙箱容器的 AppArmor 配置。
     默认关闭该逃生通道,始终为沙箱容器启用 no-new-privileges。
     """
-    SANDBOX_DISABLE_APPARMOR: bool = OsEnvTypes.Bool("NEKRO_SANDBOX_DISABLE_APPARMOR", default=False)
+    SANDBOX_DISABLE_APPARMOR: bool = OsEnvTypes.Bool("SANDBOX_DISABLE_APPARMOR", default=False)
 
     """其他配置"""
     RUN_IN_DOCKER: bool = OsEnvTypes.Bool("RUN_IN_DOCKER")

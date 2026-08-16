@@ -184,12 +184,12 @@ async def download_file(
 
     try:
         await assert_safe_download_url(url)
-    except UnsafeDownloadUrl as e:
-        # URL 本身不合法,重试无意义,直接返回用户级校验错误
-        raise ValueError(str(e)) from e
-    except BlockedDownloadAddress as e:
+    except UnsafeDownloadUrl:
+        # URL 本身不合法,重试无意义,直接抛出(ValueError 子类,向后兼容)
+        raise
+    except BlockedDownloadAddress:
         logger.warning(f"已拦截指向内网/保留地址的下载请求: {limited_text_output(url)}")
-        raise ValueError(str(e)) from e
+        raise
 
     try:
         async with httpx.AsyncClient() as client:
