@@ -449,6 +449,19 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    MEMORY_RERANK_ENABLED: bool = Field(
+        default=False,
+        title="记忆检索重排开关",
+        description="开启后，记忆检索的有效权重排序结果会再经过重排模型二次打分排序。复用 KB_RERANK_MODEL_GROUP 模型组；重排失败时自动回退原排序",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="记忆检索重排开关", en_US="Memory Retrieval Rerank Switch"),
+            i18n_description=i18n_text(
+                zh_CN="开启后，记忆检索的有效权重排序结果会再经过重排模型二次打分排序。复用 KB_RERANK_MODEL_GROUP 模型组；重排失败时自动回退原排序",
+                en_US="When enabled, memory retrieval results ranked by effective weight are re-scored by the rerank model. Reuses the KB_RERANK_MODEL_GROUP; falls back to original ranking on rerank failure",
+            ),
+        ).model_dump(),
+    )
     KB_EMBEDDING_MODEL_GROUP: str = Field(
         default="text-embedding",
         title="知识库 Embedding 模型组",
@@ -521,6 +534,19 @@ class CoreConfig(ConfigBase):
                 en_US="Rerank endpoint path relative to the model group BASE_URL. Defaults to /rerank for SiliconFlow / Jina; use /reranks for Alibaba Cloud Bailian compatible-api",
             ),
             placeholder="例: /rerank 或 /reranks",
+        ).model_dump(),
+    )
+    KB_RERANK_ENABLED: bool = Field(
+        default=False,
+        title="知识库检索重排开关",
+        description="开启后，知识库检索的融合结果会再经过重排模型二次打分排序。需同时配置 KB_RERANK_MODEL_GROUP；重排失败时自动回退原排序",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            i18n_title=i18n_text(zh_CN="知识库检索重排开关", en_US="Knowledge Base Rerank Switch"),
+            i18n_description=i18n_text(
+                zh_CN="开启后，知识库检索的融合结果会再经过重排模型二次打分排序。需同时配置 KB_RERANK_MODEL_GROUP；重排失败时自动回退原排序",
+                en_US="When enabled, fused knowledge base retrieval results are re-scored by the rerank model. Requires KB_RERANK_MODEL_GROUP; falls back to original ranking on rerank failure",
+            ),
         ).model_dump(),
     )
     KB_ZIP_MAX_UPLOAD_SIZE_MB: int = Field(
