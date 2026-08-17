@@ -47,6 +47,11 @@ class ModelConfigGroup(ConfigBase):
     PRESENCE_PENALTY: Optional[float] = Field(default=None, title="提示重复惩罚")
     FREQUENCY_PENALTY: Optional[float] = Field(default=None, title="补全重复惩罚")
     EXTRA_BODY: Optional[str] = Field(default=None, title="额外参数 (JSON)")
+    RERANK_ENDPOINT: str = Field(
+        default="/rerank",
+        title="重排接口路径",
+        description="重排接口路径（相对 BASE_URL）。默认 /rerank 兼容 SiliconFlow / Jina；阿里云百炼 compatible-api 请填 /reranks",
+    )
 
 
 class CoreConfig(ConfigBase):
@@ -520,20 +525,6 @@ class CoreConfig(ConfigBase):
                 en_US="Rerank model group used for re-ranking knowledge base retrieval results (OpenAI-compatible API). Should use a model group with MODEL_TYPE set to rerank; leave empty to skip reranking",
             ),
             placeholder="例: bge-reranker-v2-m3",
-        ).model_dump(),
-    )
-    KB_RERANK_ENDPOINT: str = Field(
-        default="/rerank",
-        title="知识库重排接口路径",
-        description="rerank 接口路径（相对模型组 BASE_URL）。默认 /rerank 兼容 SiliconFlow / Jina；阿里云百炼 compatible-api 请填 /reranks",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
-            i18n_title=i18n_text(zh_CN="知识库重排接口路径", en_US="Knowledge Base Rerank Endpoint"),
-            i18n_description=i18n_text(
-                zh_CN="rerank 接口路径（相对模型组 BASE_URL）。默认 /rerank 兼容 SiliconFlow / Jina；阿里云百炼 compatible-api 请填 /reranks",
-                en_US="Rerank endpoint path relative to the model group BASE_URL. Defaults to /rerank for SiliconFlow / Jina; use /reranks for Alibaba Cloud Bailian compatible-api",
-            ),
-            placeholder="例: /rerank 或 /reranks",
         ).model_dump(),
     )
     KB_RERANK_ENABLED: bool = Field(

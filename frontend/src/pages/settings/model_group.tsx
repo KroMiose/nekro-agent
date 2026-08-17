@@ -92,6 +92,7 @@ function EditDialog({
     PRESENCE_PENALTY: null,
     FREQUENCY_PENALTY: null,
     EXTRA_BODY: null,
+    RERANK_ENDPOINT: '/rerank',
     ENABLE_VISION: true,
     ENABLE_COT: false,
   })
@@ -207,6 +208,7 @@ function EditDialog({
       setConfig({
         ...initialConfig,
         MODEL_TYPE: initialConfig.MODEL_TYPE || 'chat',
+        RERANK_ENDPOINT: initialConfig.RERANK_ENDPOINT || '/rerank',
         ENABLE_VISION:
           initialConfig.ENABLE_VISION !== undefined ? initialConfig.ENABLE_VISION : true,
         ENABLE_COT: initialConfig.ENABLE_COT !== undefined ? initialConfig.ENABLE_COT : false,
@@ -224,6 +226,7 @@ function EditDialog({
         PRESENCE_PENALTY: null,
         FREQUENCY_PENALTY: null,
         EXTRA_BODY: null,
+        RERANK_ENDPOINT: '/rerank',
         ENABLE_VISION: true,
         ENABLE_COT: false,
       })
@@ -304,6 +307,7 @@ function EditDialog({
       API_KEY: (config.API_KEY || '').trim(),
       MODEL_TYPE: (config.MODEL_TYPE || 'chat').trim(),
       EXTRA_BODY: config.EXTRA_BODY ? config.EXTRA_BODY.trim() || null : null,
+      RERANK_ENDPOINT: (config.RERANK_ENDPOINT || '/rerank').trim(),
     }
 
     // 验证组名
@@ -695,6 +699,14 @@ function EditDialog({
                 rows={3}
                 helperText={t('modelGroup.helpers.extraBody') || '额外的请求参数 (JSON 格式)'}
               />
+              <TextField
+                label={t('modelGroup.form.rerankEndpoint')}
+                value={config.RERANK_ENDPOINT ?? '/rerank'}
+                onChange={e => setConfig({ ...config, RERANK_ENDPOINT: e.target.value })}
+                fullWidth
+                size={isSmall ? 'small' : 'medium'}
+                helperText={t('modelGroup.helpers.rerankEndpoint')}
+              />
             </Stack>
           )}
 
@@ -936,6 +948,7 @@ export default function ModelGroupsPage() {
       API_KEY: (config.API_KEY || '').trim(),
       MODEL_TYPE: (config.MODEL_TYPE || 'chat').trim(),
       EXTRA_BODY: config.EXTRA_BODY ? config.EXTRA_BODY.trim() || null : null,
+      RERANK_ENDPOINT: (config.RERANK_ENDPOINT || '/rerank').trim(),
     }
     // 检查新模型组名称是否已存在
     if (modelGroups[trimmedName] && !editingGroup.isCopy && editingGroup.name === trimmedName) {
