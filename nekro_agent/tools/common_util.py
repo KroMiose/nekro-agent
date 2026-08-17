@@ -177,31 +177,30 @@ async def assert_safe_download_url(url: str) -> str:
 class _PinnedAsyncTransport(httpx.AsyncHTTPTransport):
     """把连接固定到已校验 IP 的传输层
 
-    防 DNS 重绑定:校验阶段解析的 IP 与实际连接的 IP 必须一致。
-    请求 URL 的主机部分改写为已校验 IP(连接目标固定),Host 头与
-    TLS SNI 保留为原始域名——SNI 来自 URL host,因此需要把原始
-    域名记入 transport 并在改写后还原 Host 头。
+    防 DNS 重绑定:TCP 连接目标固定为校验阶段解析的 IP,HTTP Host、
+    TLS SNI 与证书主机名校验仍使用原始 URL 的规范化域名。
     """
 
-    def __init__(self, pinned_ip: str, original_host: str, original_port: int | None = None):
+    def __init__(self, pinned_ip: str):
         super().__init__()
         self._pinned_ip = pinned_ip
-        self._original_host = original_host
-        self._original_port = original_port
 
     async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        original = request.url
-        pinned_url = original.copy_with(host=self._pinned_ip)
-        # Host 头保留原始域名(改写 URL 会连带改 Host)
-        if self._original_port and self._original_port not in (80, 443):
-            request.headers["Host"] = f"{self._original_host}:{self._original_port}"
-        else:
-            request.headers["Host"] = self._original_host
-        request.url = pinned_url
-        # 还原 URL 显示用的原始地址(不影响已生成的 headers/连接目标)
-        response = await super().handle_async_request(request)
-        request.url = original
-        return response
+        original_url = request.url
+        original_headers = request.headers
+        original_extensions = request.extensions
+        try:
+            request.url = original_url.copy_with(host=self._pinned_ip)
+            request.headers = original_headers.copy()
+            request.headers["Host"] = original_url.netloc.decode("ascii")
+            request.extensions = dict(original_extensions)
+            if original_url.scheme == "https":
+                request.extensions["sni_hostname"] = original_url.raw_host.decode("ascii")
+            return await super().handle_async_request(request)
+        finally:
+            request.url = original_url
+            request.headers = original_headers
+            request.extensions = original_extensions
 
 
 
@@ -296,12 +295,7 @@ async def download_file(
         # 跟随重定向并在每一跳重新校验+重新固定(默认上限 5 跳)
         current_url, redirects_done = url, 0
         while True:
-            parsed = urlparse(current_url)
-            transport = _PinnedAsyncTransport(
-                pinned_ip=pinned_ip,
-                original_host=parsed.hostname or "",
-                original_port=parsed.port,
-            )
+            transport = _PinnedAsyncTransport(pinned_ip=pinned_ip)
             async with httpx.AsyncClient(transport=transport, follow_redirects=False) as client:
                 response = await client.get(current_url)
             if response.is_redirect:

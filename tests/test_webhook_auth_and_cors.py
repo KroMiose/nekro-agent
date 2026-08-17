@@ -4,7 +4,6 @@ import pytest
 
 from nekro_agent.core.cors_origins import parse_cors_origins
 
-
 # ===================== CORS =====================
 
 

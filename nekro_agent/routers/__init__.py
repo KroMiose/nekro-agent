@@ -137,6 +137,8 @@ def mount_middlewares(app: FastAPI):
 
 def mount_api_routes(app: FastAPI):
     """挂载 API 路由"""
+    if OsEnv.RPC_MAX_BODY_BYTES <= 0:
+        raise ValueError("NEKRO_RPC_MAX_BODY_BYTES 必须大于 0")
     if not OsEnv.WEBHOOK_SECRET_KEY and not OsEnv.ALLOW_UNAUTHENTICATED_WEBHOOKS:
         logger.info("未设置 WEBHOOK_SECRET_KEY,webhook 端点已默认拒绝所有请求(fail-closed);如需兼容旧部署可设置 NEKRO_ALLOW_UNAUTHENTICATED_WEBHOOKS=true")
 

@@ -114,49 +114,110 @@ async def test_assert_safe_url_returns_pinned_ip():
 
 
 @pytest.mark.asyncio
-async def test_download_pins_connection_and_revalidates_redirects(monkeypatch: pytest.MonkeyPatch, tmp_path):
-    """重绑定防护:校验后连接必须固定到首次解析的 IP;重定向每跳重新校验
-
-    模拟攻击:DNS 交替返回公网/内网地址——任何"连接时重新解析"或
-    "重定向跳过校验"的实现都会命中内网目标。
-    """
+@pytest.mark.parametrize(
+    ("url", "pinned_ip", "expected_host", "expected_sni"),
+    [
+        ("https://example.com/path", "93.184.216.34", "example.com", "example.com"),
+        ("https://example.com:8443/path", "93.184.216.34", "example.com:8443", "example.com"),
+        ("http://example.com:443/path", "93.184.216.34", "example.com:443", None),
+        (
+            "https://[2606:4700::1111]:8443/path",
+            "2606:4700::1111",
+            "[2606:4700::1111]:8443",
+            "2606:4700::1111",
+        ),
+    ],
+)
+async def test_pinned_transport_preserves_authority_and_sni(
+    monkeypatch: pytest.MonkeyPatch,
+    url: str,
+    pinned_ip: str,
+    expected_host: str,
+    expected_sni: str | None,
+):
     import httpx
 
     import nekro_agent.tools.common_util as cu
 
-    PUBLIC = "93.184.216.34"
-    calls = {"dns": 0, "connect_hosts": []}
+    captured: dict[str, object] = {}
 
-    async def rebinding_getaddrinfo(host, port=None, **kw):
+    async def capture_transport(_transport, request: httpx.Request) -> httpx.Response:
+        captured.update(
+            url_host=request.url.host,
+            host=request.headers["Host"],
+            sni=request.extensions.get("sni_hostname"),
+        )
+        return httpx.Response(200, content=b"ok", request=request)
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", capture_transport)
+    request = httpx.Request("GET", url, headers={"Host": "attacker.invalid"}, extensions={"trace": "keep"})
+    original_url = request.url
+    original_headers = request.headers
+    original_extensions = request.extensions
+    transport = cu._PinnedAsyncTransport(pinned_ip)
+
+    response = await transport.handle_async_request(request)
+
+    assert response.status_code == 200
+    assert captured == {"url_host": pinned_ip, "host": expected_host, "sni": expected_sni}
+    assert request.url is original_url
+    assert request.headers is original_headers
+    assert request.headers["Host"] == "attacker.invalid"
+    assert request.extensions is original_extensions
+    assert request.extensions == {"trace": "keep"}
+
+
+@pytest.mark.asyncio
+async def test_pinned_transport_restores_request_after_error(monkeypatch: pytest.MonkeyPatch):
+    import httpx
+
+    import nekro_agent.tools.common_util as cu
+
+    async def fail_transport(_transport, _request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("test failure")
+
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", fail_transport)
+    request = httpx.Request("GET", "https://example.com/path", extensions={"trace": "keep"})
+    original_url = request.url
+    original_headers = request.headers
+    original_extensions = request.extensions
+    transport = cu._PinnedAsyncTransport("93.184.216.34")
+
+    with pytest.raises(httpx.ConnectError, match="test failure"):
+        await transport.handle_async_request(request)
+
+    assert request.url is original_url
+    assert request.headers is original_headers
+    assert request.extensions is original_extensions
+    assert "sni_hostname" not in request.extensions
+
+
+@pytest.mark.asyncio
+async def test_download_pins_connection_and_revalidates_redirects(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    """连接固定到首次解析的 IP,重定向目标在连接前重新校验"""
+    import httpx
+
+    import nekro_agent.tools.common_util as cu
+
+    public_ip = "93.184.216.34"
+    calls: dict[str, object] = {"dns": 0, "connect_hosts": [], "host_headers": []}
+
+    async def rebinding_getaddrinfo(host, port=None, **_kwargs):
         calls["dns"] += 1
-        ip = PUBLIC if calls["dns"] % 2 == 1 else "127.0.0.1"
+        ip = public_ip if calls["dns"] % 2 == 1 else "127.0.0.1"
         return [(0, 2, 6, "", (ip, port))]
 
-    class RecordingTransport(cu._PinnedAsyncTransport):
-        """保留连接固定改写逻辑,在改写后、真实连接前记录目标并伪造响应"""
+    async def recording_transport(_transport, request: httpx.Request) -> httpx.Response:
+        calls["connect_hosts"].append(str(request.url.host))
+        calls["host_headers"].append(request.headers["Host"])
+        return httpx.Response(
+            302,
+            headers={"location": "http://internal.rebind.example/x"},
+            content=b"",
+            request=request,
+        )
 
-        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-            # super 的默认实现会真实连网;这里直接在改写完成点拦截:
-            # 复制父类改写逻辑(与实现保持一致),然后记录并返回伪造响应
-            original = request.url
-            pinned_url = original.copy_with(host=self._pinned_ip)
-            if self._original_port and self._original_port not in (80, 443):
-                request.headers["Host"] = f"{self._original_host}:{self._original_port}"
-            else:
-                request.headers["Host"] = self._original_host
-            request.url = pinned_url
-            calls["connect_hosts"].append(str(request.url.host))
-            calls.setdefault("host_headers", []).append(request.headers.get("Host", ""))
-            if len(calls["connect_hosts"]) == 1:
-                # 第一跳 302 -> 指向内网名(第二跳解析返回 127.0.0.1,必须被拒)
-                return httpx.Response(
-                    302, headers={"location": "http://internal.rebind.example/x"}, request=request
-                )
-            return httpx.Response(200, content=b"should-never-reach", request=request)
-
-    # 正常构造子类(保留 httpx 内部状态),仅拦截在连接之前
-    monkeypatch.setattr(cu, "_PinnedAsyncTransport", RecordingTransport)
-    # patch 运行中事件循环的 getaddrinfo(download_file 的解析入口)
+    monkeypatch.setattr(httpx.AsyncHTTPTransport, "handle_async_request", recording_transport)
     loop = asyncio.get_running_loop()
     monkeypatch.setattr(loop, "getaddrinfo", rebinding_getaddrinfo)
 
@@ -167,8 +228,6 @@ async def test_download_pins_connection_and_revalidates_redirects(monkeypatch: p
             file_name="out.bin",
         )
 
-    # 第一跳连接固定在校验过的公网 IP;第二跳在校验层被拒,未发起连接
-    assert calls["connect_hosts"] == [PUBLIC], (
-        f"连接目标必须是已校验 IP: {calls['connect_hosts']}"
-    )
-    assert calls["dns"] == 2  # 每跳各一次校验解析,连接阶段不再解析
+    assert calls["connect_hosts"] == [public_ip]
+    assert calls["host_headers"] == ["first.rebind.example"]
+    assert calls["dns"] == 2
