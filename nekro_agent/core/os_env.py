@@ -36,16 +36,24 @@ class OsEnv:
     ACCESS_TOKEN_EXPIRE_DAYS: int = OsEnvTypes.Int("ACCESS_TOKEN_EXPIRE_DAYS", default=7)
     ENCRYPT_ALGORITHM: str = OsEnvTypes.Str("ENCRYPT_ALGORITHM", default="HS256")
 
-    """RPC 配置"""
-    RPC_SECRET_KEY: str = OsEnvTypes.Str("RPC_SECRET_KEY", default=f"rpc:{secrets.token_urlsafe(32)}")
-
     """Webhook 配置
 
     WEBHOOK_SECRET_KEY 显式设置后,所有 /api/webhook/* 调用必须携带
-    X-Webhook-Token 请求头(或 ?webhook_token= 查询参数)且值匹配;
-    留空(默认)则保持旧行为不校验,避免破坏既有外部调用方。
+    匹配的 X-Webhook-Token 请求头;未设置时默认拒绝所有 webhook 请求
+    (fail-closed)。如需兼容旧的未鉴权部署,显式设置
+    NEKRO_ALLOW_UNAUTHENTICATED_WEBHOOKS=true 逃生开关。
     """
     WEBHOOK_SECRET_KEY: str = OsEnvTypes.Str("WEBHOOK_SECRET_KEY", default="")
+    ALLOW_UNAUTHENTICATED_WEBHOOKS: bool = OsEnvTypes.Bool("ALLOW_UNAUTHENTICATED_WEBHOOKS", default=False)
+
+    """RPC 配置
+
+    RPC_SECRET_KEY 为宿主与沙箱间的调用令牌(运行时随机生成)。
+    RPC_MAX_BODY_BYTES 限制 /ext/rpc_exec 请求体大小,防止超大
+    pickle 造成内存型拒绝服务。
+    """
+    RPC_SECRET_KEY: str = OsEnvTypes.Str("RPC_SECRET_KEY", default=f"rpc:{secrets.token_urlsafe(32)}")
+    RPC_MAX_BODY_BYTES: int = OsEnvTypes.Int("RPC_MAX_BODY_BYTES", default=8 * 1024 * 1024)
 
     """CORS 允许来源
 

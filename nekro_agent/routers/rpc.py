@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, Request, Response
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
-from nekro_agent.schemas.errors import NotFoundError, UnauthorizedError
+from nekro_agent.schemas.errors import NotFoundError, PayloadTooLargeError, UnauthorizedError
 from nekro_agent.schemas.rpc import RPCRequest
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
@@ -28,7 +28,12 @@ async def verify_rpc_token(x_rpc_token: str = Header(...)):
 
 @router.post("/rpc_exec", summary="RPC 命令执行", dependencies=[Depends(verify_rpc_token)])
 async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Response:
-    rpc_request: RPCRequest = decode_rpc_request(await data.body())
+    body = await data.body()
+    # 限制请求体大小,防止超大 pickle 造成内存型拒绝服务
+    if len(body) > OsEnv.RPC_MAX_BODY_BYTES:
+        logger.warning(f"RPC 请求体过大已拒绝: {len(body)} bytes (limit={OsEnv.RPC_MAX_BODY_BYTES})")
+        raise PayloadTooLargeError(resource="RPC 请求体")
+    rpc_request: RPCRequest = decode_rpc_request(body)
 
     logger.info(f"收到 RPC 执行请求: {rpc_request.method}")
 

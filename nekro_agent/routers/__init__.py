@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from nekro_agent.adapters import load_adapters_api
 from nekro_agent.adapters.email.routers import router as email_adapter_config_router
 from nekro_agent.core.args import Args
+from nekro_agent.core.cors_origins import parse_cors_origins
 from nekro_agent.core.exception_handlers import register_exception_handlers
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
@@ -61,9 +62,14 @@ from .workspaces import router as workspaces_router
 def mount_middlewares(app: FastAPI):
     """挂载中间件和全局处理器"""
     # 前端静态资源与本服务同源部署(/webui),默认无需开放跨域。
-    # 仅当 NEKRO_CORS_ORIGINS 显式配置来源列表时启用 CORS,
-    # 避免通配来源 + allow_credentials 组合反射任意 Origin(CWE-942)。
-    cors_origins = [origin.strip() for origin in OsEnv.CORS_ORIGINS.split(",") if origin.strip()]
+    # 仅当 NEKRO_CORS_ORIGINS 显式配置来源列表时启用 CORS;
+    # 通配符或非法 Origin 会在解析时抛错终止启动,防止
+    # "*" + allow_credentials 反射任意 Origin(CWE-942)。
+    try:
+        cors_origins = parse_cors_origins(OsEnv.CORS_ORIGINS)
+    except ValueError as e:
+        logger.error(str(e))
+        raise
     if cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -131,8 +137,8 @@ def mount_middlewares(app: FastAPI):
 
 def mount_api_routes(app: FastAPI):
     """挂载 API 路由"""
-    if not OsEnv.WEBHOOK_SECRET_KEY:
-        logger.info("未设置 WEBHOOK_SECRET_KEY,webhook 端点未启用鉴权;如需防护请配置该环境变量")
+    if not OsEnv.WEBHOOK_SECRET_KEY and not OsEnv.ALLOW_UNAUTHENTICATED_WEBHOOKS:
+        logger.info("未设置 WEBHOOK_SECRET_KEY,webhook 端点已默认拒绝所有请求(fail-closed);如需兼容旧部署可设置 NEKRO_ALLOW_UNAUTHENTICATED_WEBHOOKS=true")
 
     api = APIRouter(prefix="/api")
 

@@ -4,6 +4,7 @@
 阻断环回/内网/链路本地/云元数据及 IPv6 编码形式(ipv4-mapped/6to4/NAT64/Teredo)的绕过。
 """
 
+import asyncio
 import ipaddress
 
 import pytest
@@ -100,3 +101,74 @@ def test_blocked_networks_parse():
     from nekro_agent.tools.common_util import _SSRF_BLOCKED_NETWORKS
 
     assert all(isinstance(n, (ipaddress.IPv4Network, ipaddress.IPv6Network)) for n in _SSRF_BLOCKED_NETWORKS)
+
+
+# ===================== DNS 重绑定:连接固定 =====================
+
+
+@pytest.mark.asyncio
+async def test_assert_safe_url_returns_pinned_ip():
+    """校验函数返回可用于连接固定的已校验 IP"""
+    pinned = await assert_safe_download_url("http://one.one.one.one/x")
+    ipaddress.ip_address(pinned)  # 返回值必须是合法 IP 文本
+
+
+@pytest.mark.asyncio
+async def test_download_pins_connection_and_revalidates_redirects(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    """重绑定防护:校验后连接必须固定到首次解析的 IP;重定向每跳重新校验
+
+    模拟攻击:DNS 交替返回公网/内网地址——任何"连接时重新解析"或
+    "重定向跳过校验"的实现都会命中内网目标。
+    """
+    import httpx
+
+    import nekro_agent.tools.common_util as cu
+
+    PUBLIC = "93.184.216.34"
+    calls = {"dns": 0, "connect_hosts": []}
+
+    async def rebinding_getaddrinfo(host, port=None, **kw):
+        calls["dns"] += 1
+        ip = PUBLIC if calls["dns"] % 2 == 1 else "127.0.0.1"
+        return [(0, 2, 6, "", (ip, port))]
+
+    class RecordingTransport(cu._PinnedAsyncTransport):
+        """保留连接固定改写逻辑,在改写后、真实连接前记录目标并伪造响应"""
+
+        async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+            # super 的默认实现会真实连网;这里直接在改写完成点拦截:
+            # 复制父类改写逻辑(与实现保持一致),然后记录并返回伪造响应
+            original = request.url
+            pinned_url = original.copy_with(host=self._pinned_ip)
+            if self._original_port and self._original_port not in (80, 443):
+                request.headers["Host"] = f"{self._original_host}:{self._original_port}"
+            else:
+                request.headers["Host"] = self._original_host
+            request.url = pinned_url
+            calls["connect_hosts"].append(str(request.url.host))
+            calls.setdefault("host_headers", []).append(request.headers.get("Host", ""))
+            if len(calls["connect_hosts"]) == 1:
+                # 第一跳 302 -> 指向内网名(第二跳解析返回 127.0.0.1,必须被拒)
+                return httpx.Response(
+                    302, headers={"location": "http://internal.rebind.example/x"}, request=request
+                )
+            return httpx.Response(200, content=b"should-never-reach", request=request)
+
+    # 正常构造子类(保留 httpx 内部状态),仅拦截在连接之前
+    monkeypatch.setattr(cu, "_PinnedAsyncTransport", RecordingTransport)
+    # patch 运行中事件循环的 getaddrinfo(download_file 的解析入口)
+    loop = asyncio.get_running_loop()
+    monkeypatch.setattr(loop, "getaddrinfo", rebinding_getaddrinfo)
+
+    with pytest.raises(BlockedDownloadAddress):
+        await cu.download_file(
+            "http://first.rebind.example/x",
+            file_path=str(tmp_path / "out.bin"),
+            file_name="out.bin",
+        )
+
+    # 第一跳连接固定在校验过的公网 IP;第二跳在校验层被拒,未发起连接
+    assert calls["connect_hosts"] == [PUBLIC], (
+        f"连接目标必须是已校验 IP: {calls['connect_hosts']}"
+    )
+    assert calls["dns"] == 2  # 每跳各一次校验解析,连接阶段不再解析

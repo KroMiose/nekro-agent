@@ -129,22 +129,23 @@ class BlockedDownloadAddress(ValueError):
     """URL 指向内网/环回/链路本地等保留地址,被 SSRF 防护拦截"""
 
 
-async def assert_safe_download_url(url: str) -> None:
-    """下载前校验 URL,不通过时抛出分类异常
+async def assert_safe_download_url(url: str) -> str:
+    """下载前校验 URL,返回通过校验的连接用 IP(用于固定连接)
 
     用于在下载用户(或 LLM 生成代码)提供的文件前拦截 SSRF:
     阻止访问本机 API、内网 Postgres/Qdrant、云元数据服务等。
 
+    返回值:已校验的 IP 文本。调用方应通过 _pinned_transport 把
+    实际连接固定到该 IP(保留原始 Host 头与 HTTPS SNI),否则校验
+    与连接之间的二次 DNS 解析会留下重绑定 TOCTOU 窗口。
+
     异常分类:
     - UnsafeDownloadUrl:URL 格式非法、协议不受支持或域名解析失败
       (输入本身有问题,重试无意义)
-    - BlockedDownloadAddress:URL 指向保留地址段(安全拦截)
+    - BlockedDownloadAddress:URL 指向保留地址段(安全拦截);
+      域名的任一 A/AAAA 记录命中保留段即整体拒绝
 
-    限制说明(调用方需知):
-    - 校验时与 httpx 实际连接时各自做一次 DNS 解析,理论存在重绑定
-      TOCTOU 窗口;当前 httpx 默认不跟随重定向,公网 302 → 内网的
-      绕径不可行。若未来开启 follow_redirects,需在传输层固定已校验 IP。
-    - DNS 解析通过事件循环的 getaddrinfo 执行,不阻塞其他协程。
+    DNS 解析通过事件循环的 getaddrinfo 执行,不阻塞其他协程。
     """
     try:
         parsed = urlparse(url)
@@ -160,11 +161,47 @@ async def assert_safe_download_url(url: str) -> None:
         addr_infos = await loop.getaddrinfo(host, None)
     except OSError as e:
         raise UnsafeDownloadUrl(f"域名无法解析: {limited_text_output(host)}") from e
+    resolved_ips: list[str] = []
     for _, _, _, _, sockaddr in addr_infos:
-        if _is_ip_blocked(sockaddr[0]):
+        ip_text = sockaddr[0]
+        if _is_ip_blocked(ip_text):
             raise BlockedDownloadAddress(
                 f"不允许下载内网或保留地址的资源: {limited_text_output(url)}"
             )
+        resolved_ips.append(ip_text)
+    if not resolved_ips:
+        raise UnsafeDownloadUrl(f"域名未解析到任何地址: {limited_text_output(host)}")
+    return resolved_ips[0]
+
+
+class _PinnedAsyncTransport(httpx.AsyncHTTPTransport):
+    """把连接固定到已校验 IP 的传输层
+
+    防 DNS 重绑定:校验阶段解析的 IP 与实际连接的 IP 必须一致。
+    请求 URL 的主机部分改写为已校验 IP(连接目标固定),Host 头与
+    TLS SNI 保留为原始域名——SNI 来自 URL host,因此需要把原始
+    域名记入 transport 并在改写后还原 Host 头。
+    """
+
+    def __init__(self, pinned_ip: str, original_host: str, original_port: int | None = None):
+        super().__init__()
+        self._pinned_ip = pinned_ip
+        self._original_host = original_host
+        self._original_port = original_port
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        original = request.url
+        pinned_url = original.copy_with(host=self._pinned_ip)
+        # Host 头保留原始域名(改写 URL 会连带改 Host)
+        if self._original_port and self._original_port not in (80, 443):
+            request.headers["Host"] = f"{self._original_host}:{self._original_port}"
+        else:
+            request.headers["Host"] = self._original_host
+        request.url = pinned_url
+        # 还原 URL 显示用的原始地址(不影响已生成的 headers/连接目标)
+        response = await super().handle_async_request(request)
+        request.url = original
+        return response
 
 
 
@@ -246,7 +283,7 @@ async def download_file(
     """
 
     try:
-        await assert_safe_download_url(url)
+        pinned_ip = await assert_safe_download_url(url)
     except UnsafeDownloadUrl:
         # URL 本身不合法,重试无意义,直接抛出(ValueError 子类,向后兼容)
         raise
@@ -255,8 +292,29 @@ async def download_file(
         raise
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
+        # 连接固定到已校验 IP,关闭校验-连接之间的 DNS 重绑定窗口;
+        # 跟随重定向并在每一跳重新校验+重新固定(默认上限 5 跳)
+        current_url, redirects_done = url, 0
+        while True:
+            parsed = urlparse(current_url)
+            transport = _PinnedAsyncTransport(
+                pinned_ip=pinned_ip,
+                original_host=parsed.hostname or "",
+                original_port=parsed.port,
+            )
+            async with httpx.AsyncClient(transport=transport, follow_redirects=False) as client:
+                response = await client.get(current_url)
+            if response.is_redirect:
+                redirects_done += 1
+                if redirects_done > 5:
+                    raise ValueError("重定向次数超过上限(5)")
+                next_url = str(response.headers["location"])
+                if not next_url.startswith(("http://", "https://")):
+                    next_url = str(httpx.URL(current_url).join(next_url))
+                # 每一跳重新执行完整校验(含保留段与 IPv6 编码检查)
+                pinned_ip = await assert_safe_download_url(next_url)
+                current_url = next_url
+                continue
             response.raise_for_status()
             content = response.content
             if not use_suffix:
@@ -272,6 +330,11 @@ async def download_file(
                 file_path = str(save_path)
             Path(file_path).write_bytes(content)
             Path(file_path).chmod(0o755)
+            break
+    except (UnsafeDownloadUrl, BlockedDownloadAddress):
+        # 安全校验异常不重试:重绑定攻击可利用 DNS 抖动让下一次解析
+        # 恰好返回公网地址,重试等于放行;直接上抛
+        raise
     except Exception:
         if retry_count > 0:
             return await download_file(

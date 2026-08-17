@@ -24,17 +24,20 @@ class WebhookResponse(BaseModel):
 
 
 def _verify_webhook_token(request: Request) -> None:
-    """校验 Webhook 调用令牌
+    """校验 Webhook 调用令牌(fail-closed)
 
-    设置 WEBHOOK_SECRET_KEY 后,调用方必须携带匹配的
-    X-Webhook-Token 请求头(或 ?webhook_token= 查询参数)。
-    未设置时保持旧行为(不校验);启动阶段的 mount_api_routes
-    会输出一次性提醒日志。
+    - 设置了 WEBHOOK_SECRET_KEY:必须携带匹配的 X-Webhook-Token 请求头。
+      仅接受请求头:查询参数形式的令牌容易进入反向代理访问日志、
+      浏览器历史与监控记录,不再支持。
+    - 未设置密钥:默认拒绝所有请求。如需兼容旧的未鉴权部署,
+      显式设置 NEKRO_ALLOW_UNAUTHENTICATED_WEBHOOKS=true。
     """
     secret = OsEnv.WEBHOOK_SECRET_KEY
     if not secret:
-        return
-    provided = request.headers.get("X-Webhook-Token") or request.query_params.get("webhook_token", "")
+        if OsEnv.ALLOW_UNAUTHENTICATED_WEBHOOKS:
+            return
+        raise UnauthorizedError
+    provided = request.headers.get("X-Webhook-Token", "")
     # 常时比较,避免逐字节比较的时序侧信道泄露密钥
     if not hmac.compare_digest(provided.encode("utf-8"), secret.encode("utf-8")):
         logger.warning("Webhook 令牌校验失败")

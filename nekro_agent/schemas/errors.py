@@ -114,6 +114,19 @@ class NotFoundError(AppError):
         super().__init__(resource=resource, **kwargs)
 
 
+class PayloadTooLargeError(AppError):
+    """请求体超过大小限制"""
+
+    http_status: ClassVar[int] = 413
+    i18n_message: ClassVar[I18nDict] = i18n_text(
+        zh_CN="{resource}超过大小限制",
+        en_US="{resource} exceeds size limit",
+    )
+
+    def __init__(self, resource: str, **kwargs: Any):
+        super().__init__(resource=resource, **kwargs)
+
+
 class ConflictError(AppError):
     """资源冲突"""
 
