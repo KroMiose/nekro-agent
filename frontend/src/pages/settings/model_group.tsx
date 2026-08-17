@@ -44,6 +44,7 @@ import {
   Chat as ChatIcon,
   Code as CodeIcon,
   Brush as BrushIcon,
+  FilterAlt as FilterAltIcon,
   EmojiObjects as EmojiObjectsIcon,
   ContentCopy as ContentCopyIcon,
   NetworkCheck as NetworkCheckIcon,
@@ -194,6 +195,7 @@ function EditDialog({
       Chat: <ChatIcon fontSize="small" />,
       Code: <CodeIcon fontSize="small" />,
       Brush: <BrushIcon fontSize="small" />,
+      FilterAlt: <FilterAltIcon fontSize="small" />,
       EmojiObjects: <EmojiObjectsIcon fontSize="small" />,
     }
 
@@ -864,6 +866,7 @@ export default function ModelGroupsPage() {
       Chat: <ChatIcon fontSize="small" />,
       Code: <CodeIcon fontSize="small" />,
       Brush: <BrushIcon fontSize="small" />,
+      FilterAlt: <FilterAltIcon fontSize="small" />,
       EmojiObjects: <EmojiObjectsIcon fontSize="small" />,
     }
 

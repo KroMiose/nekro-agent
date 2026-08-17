@@ -402,7 +402,7 @@ async def get_model_types(_current_user: DBUser = Depends(get_current_active_use
             "label": "重排",
             "description": "用于对检索结果进行相关性重排的模型",
             "color": "success",
-            "icon": "Sort",
+            "icon": "FilterAlt",
         },
     }
 
