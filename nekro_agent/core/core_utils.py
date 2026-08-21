@@ -109,7 +109,7 @@ class ExtraField(BaseModel):
         title="引用启用发信的邮箱账户",
         description="设置为True时，表示该字段需要从 Email 适配器配置中已启用发信的邮箱账户列表中选择",
     )
-    model_type: Literal["chat", "embedding", "draw"] = Field(
+    model_type: Literal["chat", "embedding", "draw", "rerank"] = Field(
         default="chat",
         title="模型类型规范",
         description="指定引用的模型类型标识符，仅在ref_model_groups为True时生效",

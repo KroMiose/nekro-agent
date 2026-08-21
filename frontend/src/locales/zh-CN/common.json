@@ -197,7 +197,8 @@
     "modelTypes": {
       "chat": "聊天",
       "embedding": "嵌入",
-      "draw": "绘图"
+      "draw": "绘图",
+      "rerank": "重排"
     },
     "addNewItem": "添加新{{name}}",
     "newItemPlaceholder": "输入新键名，按回车添加",
