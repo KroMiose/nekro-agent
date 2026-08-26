@@ -57,10 +57,10 @@ const DONE_LINGER_MS = 1200
 // ── 通用计时 hook ─────────────────────────────────────────────────────────────
 
 function useElapsedSeconds(startTime: number) {
-  const [elapsed, setElapsed] = useState(Math.floor((Date.now() - startTime) / 1000))
+  const [elapsed, setElapsed] = useState(Math.max(0, Math.floor((Date.now() - startTime) / 1000)))
   useEffect(() => {
     const id = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTime) / 1000))
+      setElapsed(Math.max(0, Math.floor((Date.now() - startTime) / 1000)))
     }, 1000)
     return () => clearInterval(id)
   }, [startTime])
