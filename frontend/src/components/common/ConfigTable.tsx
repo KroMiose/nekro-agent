@@ -1327,7 +1327,7 @@ export default function ConfigTable({
               disabled={disabled}
             >
               {t('configTable.ModelGroup', {
-                label: t(`configTable.modelTypes.${typeOption.value as 'chat' | 'embedding' | 'draw'}`, {
+                label: t(`configTable.modelTypes.${typeOption.value as 'chat' | 'embedding' | 'draw' | 'rerank'}`, {
                   defaultValue: typeOption.label,
                 }),
               })}

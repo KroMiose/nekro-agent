@@ -6,6 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_asset import DBKBAsset
 from nekro_agent.models.db_kb_asset_binding import DBKBAssetBinding
@@ -30,6 +31,7 @@ from nekro_agent.services.kb.library_service import (
 )
 from nekro_agent.services.kb.qdrant_manager import kb_qdrant_manager
 from nekro_agent.services.memory.embedding_service import embed_kb_text
+from nekro_agent.services.rerank_service import rerank as rerank_candidates
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 logger = get_sub_logger("kb.search")
@@ -39,6 +41,8 @@ KEYWORD_HIT_FACTOR = 4
 KEYWORD_CHUNK_SCORE_THRESHOLD = 0.22
 KEYWORD_DOCUMENT_FALLBACK_THRESHOLD = 0.4
 FUSED_SCORE_CAP = 1.8
+# 重排候选池上限：融合结果中最多取前 N 条送重排模型二次打分
+RERANK_CANDIDATE_LIMIT = 60
 
 
 _SourceKind = Literal["document", "asset"]
@@ -323,6 +327,51 @@ def _merge_hits(vector_hits: list[_ScoredHit], keyword_hits: list[_ScoredHit]) -
     for hit in keyword_hits:
         _merge_one(hit)
     return list(merged.values())
+
+
+async def _apply_rerank(query: str, hits: list[_ScoredHit]) -> list[_ScoredHit] | None:
+    """对融合后的候选 chunk 做重排二次打分；返回重排后的列表，失败或不可用时返回 None。"""
+    candidates = sorted(hits, key=lambda item: item.score, reverse=True)[:RERANK_CANDIDATE_LIMIT]
+    if len(candidates) < 2:
+        return None
+
+    texts: list[str] = []
+    normalized_cache: dict[int, str] = {}
+    for hit in candidates:
+        if hit.source_kind == "document":
+            nc = await _read_normalized_cached(hit.source, normalized_cache)  # type: ignore[arg-type]
+            text = _extract_chunk_text(
+                document=hit.source,  # type: ignore[arg-type]
+                chunk=hit.chunk,  # type: ignore[arg-type]
+                normalized_content=nc,
+            )
+        else:
+            anc = await _read_asset_normalized_cached(hit.source, normalized_cache)  # type: ignore[arg-type]
+            text = _extract_chunk_text_from_asset(
+                asset=hit.source,  # type: ignore[arg-type]
+                chunk=hit.chunk,  # type: ignore[arg-type]
+                normalized_content=anc,
+            )
+        texts.append(text or hit.content_preview)
+
+    try:
+        reranked = await rerank_candidates(query=query, documents=texts)
+    except Exception as e:
+        logger.warning(f"知识库检索重排失败，回退融合分数排序: {e}")
+        return None
+    if not reranked:
+        return None
+
+    score_map = {result.index: result.score for result in reranked}
+    for index, hit in enumerate(candidates):
+        # 重排分数覆盖原融合分；未返回的候选视为 0 分（排在末尾）
+        hit.score = score_map.get(index, 0.0)
+
+    reranked_hits = [candidates[index] for index, _score in sorted(score_map.items(), key=lambda item: item[1], reverse=True)]
+    reranked_hits = [hit for hit in reranked_hits if hit.score > 0]
+    unranked_hits = [hit for hit in hits if hit not in candidates]
+    unranked_hits.sort(key=lambda item: item.score, reverse=True)
+    return reranked_hits + unranked_hits
 
 
 async def _collect_keyword_hits(
@@ -835,6 +884,10 @@ async def search_workspace_kb(
         )
 
     scored_hits = _merge_hits(vector_hits, keyword_hits)
+    if config.KB_RERANK_ENABLED:
+        reranked_hits = await _apply_rerank(query, scored_hits)
+        if reranked_hits is not None:
+            scored_hits = reranked_hits
     scored_hits.sort(key=lambda item: item.score, reverse=True)
 
     buckets: dict[tuple[_SourceKind, int], _DocumentBucket] = {}
