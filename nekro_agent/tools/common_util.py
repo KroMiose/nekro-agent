@@ -1,11 +1,15 @@
+import asyncio
 import base64
 import difflib
 import hashlib
+import ipaddress
 import mimetypes
+import os
 import random
 import re
 from pathlib import Path
 from typing import Tuple
+from urllib.parse import urlparse
 
 import aiofiles
 import httpx
@@ -19,6 +23,186 @@ from nekro_agent.core.os_env import USER_UPLOAD_DIR
 from nekro_agent.tools.path_convertor import is_url_path, sanitize_chat_key_for_path
 
 _APP_VERSION: str = ""
+
+# 解析 URL 主机名后拒绝的地址段(环回/内网/链路本地/云元数据等)
+_SSRF_BLOCKED_NETWORKS = [
+    ipaddress.ip_network(n)
+    for n in (
+        "0.0.0.0/8",
+        "10.0.0.0/8",
+        "100.64.0.0/10",
+        "127.0.0.0/8",
+        "169.254.0.0/16",
+        "172.16.0.0/12",
+        "192.0.0.0/24",
+        "192.168.0.0/16",
+        "198.18.0.0/15",
+        "224.0.0.0/4",
+        "240.0.0.0/4",
+        # IPv4-mapped(::ffff:0:0/96)与 NAT64(64:ff9b::/96)不整体封禁:
+        # 由 _candidate_ips 解出内嵌 IPv4 后按上述 IPv4 段判断,
+        # 保证编码公网地址(如 ::ffff:8.8.8.8)仍可正常放行
+        "::/127",  # 含 ::(未指定)与 ::1(环回)
+        "100::/64",  # 丢弃前缀
+        "2001:db8::/32",  # 文档示例段
+        "fc00::/7",  # ULA
+        "fe80::/10",  # 链路本地
+    )
+]
+
+
+def _candidate_ips(ip_text: str) -> list[str]:
+    """展开一个地址文本为需逐一检查的等价地址列表
+
+    IPv6 的多种形式可编码可达 IPv4 的目标:
+    - ::ffff:127.0.0.1(IPv4-mapped)
+    - 64:ff9b::127.0.0.1(NAT64)
+    - 2002:7f00:1::(6to4,内嵌任意 IPv4)
+    全部解出后与原始形式一起比对,阻断经 IPv6 记法绕过 IPv4 封锁。
+    """
+    try:
+        ip = ipaddress.ip_address(ip_text)
+    except ValueError:
+        return [ip_text]
+    candidates = [ip]
+    if isinstance(ip, ipaddress.IPv6Address):
+        if ip.ipv4_mapped:
+            candidates.append(ip.ipv4_mapped)
+        sixtofour = ip.sixtofour
+        if sixtofour:
+            candidates.append(sixtofour)
+        teredo = ip.teredo
+        if teredo:
+            # teredo 返回 (server, client);client 才是实际通信对端
+            candidates.append(teredo[1])
+        if ip in ipaddress.ip_network("64:ff9b::/96"):
+            # NAT64(Well-Known Prefix):低 32 位即被编码的 IPv4,
+            # ipaddress 不自动解出,需手动提取
+            candidates.append(ipaddress.ip_address(int(ip) & 0xFFFFFFFF))
+    return [str(c) for c in candidates]
+
+
+def _extra_blocked_networks() -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    """读取运维追加的封锁网段(NEKRO_SSRF_EXTRA_BLOCKED_CIDRS)
+
+    逗号分隔的 CIDR 列表,如 "172.20.0.0/16,fd00::/8"。
+    仅支持追加:内置网段不可通过配置移除——若允许"放宽",
+    能写配置的人(或诱导修改配置的攻击者)即可解除防护。
+    非法条目记日志跳过,不影响其余条目生效。
+    """
+    raw = os.environ.get("NEKRO_SSRF_EXTRA_BLOCKED_CIDRS", "")
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    for item in raw.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(item, strict=False))
+        except ValueError:
+            logger.warning(f"NEKRO_SSRF_EXTRA_BLOCKED_CIDRS 中的非法 CIDR 已忽略: {item}")
+    return networks
+
+
+def _is_ip_blocked(ip_text: str) -> bool:
+    """判断地址(含 IPv6 编码的 IPv4 等价形式)是否落在被拒绝的保留地址段内"""
+    try:
+        for candidate in _candidate_ips(ip_text):
+            ip = ipaddress.ip_address(candidate)
+            if any(ip in network for network in _SSRF_BLOCKED_NETWORKS):
+                return True
+            if any(ip in network for network in _extra_blocked_networks()):
+                return True
+        return False
+    except ValueError:
+        return True
+
+
+class UnsafeDownloadUrl(ValueError):
+    """URL 本身不合法(格式错误/协议不支持/域名无法解析)
+
+    与 BlockedDownloadAddress 区分:调用方可将本错误作为用户输入校验
+    问题处理(提示修改 URL),而不是安全拦截。
+    """
+
+
+class BlockedDownloadAddress(ValueError):
+    """URL 指向内网/环回/链路本地等保留地址,被 SSRF 防护拦截"""
+
+
+async def assert_safe_download_url(url: str) -> str:
+    """下载前校验 URL,返回通过校验的连接用 IP(用于固定连接)
+
+    用于在下载用户(或 LLM 生成代码)提供的文件前拦截 SSRF:
+    阻止访问本机 API、内网 Postgres/Qdrant、云元数据服务等。
+
+    返回值:已校验的 IP 文本。调用方应通过 _pinned_transport 把
+    实际连接固定到该 IP(保留原始 Host 头与 HTTPS SNI),否则校验
+    与连接之间的二次 DNS 解析会留下重绑定 TOCTOU 窗口。
+
+    异常分类:
+    - UnsafeDownloadUrl:URL 格式非法、协议不受支持或域名解析失败
+      (输入本身有问题,重试无意义)
+    - BlockedDownloadAddress:URL 指向保留地址段(安全拦截);
+      域名的任一 A/AAAA 记录命中保留段即整体拒绝
+
+    DNS 解析通过事件循环的 getaddrinfo 执行,不阻塞其他协程。
+    """
+    try:
+        parsed = urlparse(url)
+    except ValueError as e:
+        raise UnsafeDownloadUrl(f"URL 格式无效: {limited_text_output(url)}") from e
+    if parsed.scheme not in ("http", "https"):
+        raise UnsafeDownloadUrl(f"仅支持 http/https 协议: {limited_text_output(url)}")
+    host = parsed.hostname
+    if not host:
+        raise UnsafeDownloadUrl(f"URL 缺少主机名: {limited_text_output(url)}")
+    try:
+        loop = asyncio.get_running_loop()
+        addr_infos = await loop.getaddrinfo(host, None)
+    except OSError as e:
+        raise UnsafeDownloadUrl(f"域名无法解析: {limited_text_output(host)}") from e
+    resolved_ips: list[str] = []
+    for _, _, _, _, sockaddr in addr_infos:
+        ip_text = sockaddr[0]
+        if _is_ip_blocked(ip_text):
+            raise BlockedDownloadAddress(
+                f"不允许下载内网或保留地址的资源: {limited_text_output(url)}"
+            )
+        resolved_ips.append(ip_text)
+    if not resolved_ips:
+        raise UnsafeDownloadUrl(f"域名未解析到任何地址: {limited_text_output(host)}")
+    return resolved_ips[0]
+
+
+class _PinnedAsyncTransport(httpx.AsyncHTTPTransport):
+    """把连接固定到已校验 IP 的传输层
+
+    防 DNS 重绑定:TCP 连接目标固定为校验阶段解析的 IP,HTTP Host、
+    TLS SNI 与证书主机名校验仍使用原始 URL 的规范化域名。
+    """
+
+    def __init__(self, pinned_ip: str):
+        super().__init__()
+        self._pinned_ip = pinned_ip
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        original_url = request.url
+        original_headers = request.headers
+        original_extensions = request.extensions
+        try:
+            request.url = original_url.copy_with(host=self._pinned_ip)
+            request.headers = original_headers.copy()
+            request.headers["Host"] = original_url.netloc.decode("ascii")
+            request.extensions = dict(original_extensions)
+            if original_url.scheme == "https":
+                request.extensions["sni_hostname"] = original_url.raw_host.decode("ascii")
+            return await super().handle_async_request(request)
+        finally:
+            request.url = original_url
+            request.headers = original_headers
+            request.extensions = original_extensions
+
+
 
 
 def get_app_version() -> str:
@@ -98,8 +282,33 @@ async def download_file(
     """
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
+        pinned_ip = await assert_safe_download_url(url)
+    except UnsafeDownloadUrl:
+        # URL 本身不合法,重试无意义,直接抛出(ValueError 子类,向后兼容)
+        raise
+    except BlockedDownloadAddress:
+        logger.warning(f"已拦截指向内网/保留地址的下载请求: {limited_text_output(url)}")
+        raise
+
+    try:
+        # 连接固定到已校验 IP,关闭校验-连接之间的 DNS 重绑定窗口;
+        # 跟随重定向并在每一跳重新校验+重新固定(默认上限 5 跳)
+        current_url, redirects_done = url, 0
+        while True:
+            transport = _PinnedAsyncTransport(pinned_ip=pinned_ip)
+            async with httpx.AsyncClient(transport=transport, follow_redirects=False) as client:
+                response = await client.get(current_url)
+            if response.is_redirect:
+                redirects_done += 1
+                if redirects_done > 5:
+                    raise ValueError("重定向次数超过上限(5)")
+                next_url = str(response.headers["location"])
+                if not next_url.startswith(("http://", "https://")):
+                    next_url = str(httpx.URL(current_url).join(next_url))
+                # 每一跳重新执行完整校验(含保留段与 IPv6 编码检查)
+                pinned_ip = await assert_safe_download_url(next_url)
+                current_url = next_url
+                continue
             response.raise_for_status()
             content = response.content
             if not use_suffix:
@@ -115,6 +324,11 @@ async def download_file(
                 file_path = str(save_path)
             Path(file_path).write_bytes(content)
             Path(file_path).chmod(0o755)
+            break
+    except (UnsafeDownloadUrl, BlockedDownloadAddress):
+        # 安全校验异常不重试:重绑定攻击可利用 DNS 抖动让下一次解析
+        # 恰好返回公网地址,重试等于放行;直接上抛
+        raise
     except Exception:
         if retry_count > 0:
             return await download_file(
