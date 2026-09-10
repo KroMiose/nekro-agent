@@ -306,7 +306,7 @@ export default function ChatChannelPage() {
           </Drawer>
 
           {/* 浮动按钮 - 打开聊天列表 */}
-          {!drawerOpen && (
+          {!drawerOpen && !selectedChatKey && (
             <Fab
               color="primary"
               size={isSmall ? 'medium' : 'large'}

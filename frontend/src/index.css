@@ -154,3 +154,33 @@ body {
     -webkit-backdrop-filter: blur(var(--nekro-blur-effect)) !important;
   }
 }
+
+/* 窄屏设备：弹窗占满可用宽度，内容纵向排列，避免页面被固定宽度撑开。 */
+@media (max-width: 599.95px) {
+  .MuiDialog-paper:not(.MuiDialog-paperFullScreen) {
+    width: calc(100% - 16px);
+    max-width: calc(100% - 16px) !important;
+    max-height: calc(100dvh - 16px);
+    margin: 8px;
+  }
+
+  .MuiDialogTitle-root,
+  .MuiDialogContent-root,
+  .MuiDialogActions-root {
+    min-width: 0;
+  }
+
+  .MuiDialogContent-root {
+    overflow-x: hidden;
+    overflow-wrap: anywhere;
+  }
+
+  .MuiDialogActions-root {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .MuiDialogActions-root > * {
+    max-width: 100%;
+  }
+}

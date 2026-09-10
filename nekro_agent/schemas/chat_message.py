@@ -206,6 +206,8 @@ def segments_from_list(data: List[Dict]) -> List[ChatMessageSegment]:
 class ChatMessage(BaseModel):
     """聊天消息"""
 
+    # 数据库自增 ID 仅在持久化后可用，用于 WebUI 历史分页与实时消息去重。
+    id: Optional[int] = None
     message_id: str  # 消息的平台 ID
     sender_id: str  # 发送者人平台 id
     sender_name: str  # 发送者原始昵称
