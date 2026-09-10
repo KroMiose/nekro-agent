@@ -963,9 +963,20 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
     }
-    fetchNextPage().finally(() => {
-      isLoadingMoreRef.current = false
-    })
+    void fetchNextPage()
+      .then(result => {
+        // React Query 在默认配置下可能将请求错误作为结果返回，不能只依赖 catch。
+        if (result.isError) {
+          prevScrollMetricsRef.current = null
+        }
+      })
+      .catch(() => {
+        // 请求异常时必须清理快照，否则后续 SSE 或其他数据更新会误恢复滚动位置。
+        prevScrollMetricsRef.current = null
+      })
+      .finally(() => {
+        isLoadingMoreRef.current = false
+      })
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   // 处理滚动事件

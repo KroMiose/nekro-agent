@@ -44,11 +44,28 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
   fullWidth = true,
   dividers = false,
   fullScreen = false,
+  PaperProps: callerPaperProps,
   ...props
 }) => {
   const theme = useTheme()
   const { t } = useTranslation('common')
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const generatedPaperSx = {
+    borderRadius: BORDER_RADIUS.DEFAULT,
+    background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+    backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+    border: UI_STYLES.BORDERS.CARD.DEFAULT,
+    overflow: 'hidden',
+    width: fullScreen || isMobile ? '100%' : undefined,
+    maxWidth: fullScreen || isMobile ? '100%' : '800px',
+    maxHeight: fullScreen ? '100%' : isMobile ? 'calc(100dvh - 16px)' : '80vh',
+    margin: fullScreen ? 0 : isMobile ? 1 : undefined,
+  }
+  const mergedPaperProps = {
+    ...callerPaperProps,
+    elevation: callerPaperProps?.elevation ?? 8,
+    sx: [generatedPaperSx, callerPaperProps?.sx],
+  }
 
   return (
     <MuiDialog
@@ -59,20 +76,7 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
       fullScreen={fullScreen}
       TransitionComponent={Fade}
       transitionDuration={{ enter: 300, exit: 200 }}
-      PaperProps={{
-        elevation: 8,
-        sx: {
-          borderRadius: BORDER_RADIUS.DEFAULT,
-          background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-          backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-          border: UI_STYLES.BORDERS.CARD.DEFAULT,
-          overflow: 'hidden',
-          width: fullScreen || isMobile ? '100%' : undefined,
-          maxWidth: fullScreen || isMobile ? '100%' : '800px',
-          maxHeight: fullScreen ? '100%' : isMobile ? 'calc(100dvh - 16px)' : '80vh',
-          margin: fullScreen ? 0 : isMobile ? 1 : undefined,
-        },
-      }}
+      PaperProps={mergedPaperProps}
       {...props}
     >
       {title && (
