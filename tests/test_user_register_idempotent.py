@@ -1,0 +1,161 @@
+import asyncio
+from datetime import datetime, timezone
+from typing import Any, Optional
+
+import pytest
+from tortoise import Tortoise
+
+from nekro_agent.adapters.interface import collector as collector_mod
+from nekro_agent.adapters.interface.collector import collect_message
+from nekro_agent.adapters.interface.schemas.platform import PlatformChannel, PlatformMessage, PlatformUser
+from nekro_agent.models.db_user import DBUser
+from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.schemas.errors import ConflictError
+from nekro_agent.schemas.user import UserCreate
+from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.user.util import user_register
+
+_USER_ONLY_APPS = {"models": ["nekro_agent.models.db_user"]}
+
+
+@pytest.fixture
+async def user_db():
+    await Tortoise.init(db_url="sqlite://:memory:", modules=_USER_ONLY_APPS)
+    await Tortoise.generate_schemas()
+    yield DBUser
+    await Tortoise.close_connections()
+
+
+async def _register(platform_userid: str) -> None:
+    await user_register(
+        UserCreate(username="群友A", password="", adapter_key="onebot_v11", platform_userid=platform_userid)
+    )
+
+
+async def _seed_duplicate_rows(db: Any, platform_userid: str) -> tuple[Any, Any]:
+    now = datetime.now(timezone.utc)
+    first = await db.create(
+        username="第一次建档", password="", adapter_key="onebot_v11", platform_userid=platform_userid, perm_level=0, login_time=now
+    )
+    second = await db.create(
+        username="第二次建档", password="", adapter_key="onebot_v11", platform_userid=platform_userid, perm_level=0, login_time=now
+    )
+    return first, second
+
+
+async def test_concurrent_register_creates_single_user(user_db: Any) -> None:
+    """同一平台用户的并发建档只允许留下一行"""
+    await asyncio.gather(_register("10001"), _register("10001"), return_exceptions=True)
+
+    rows = await user_db.filter(adapter_key="onebot_v11", platform_userid="10001")
+
+    assert [r.username for r in rows] == ["群友A"], f"重复建档出了 {len(rows)} 行用户"
+
+
+async def test_union_lookup_returns_earliest_row_when_duplicates_exist(user_db: Any) -> None:
+    """历史重复行不能让读取路径抛异常，必须确定性地返回最早那行"""
+    first, _second = await _seed_duplicate_rows(user_db, "10002")
+
+    user = await DBUser.get_by_union_id(adapter_key="onebot_v11", platform_userid="10002")
+
+    assert user is not None
+    assert user.id == first.id
+
+
+async def test_register_reports_conflict_when_duplicates_exist(user_db: Any) -> None:
+    """重复行存在时再次建档应当报“已存在”，而不是把 DB 异常抛给调用方"""
+    await _seed_duplicate_rows(user_db, "10003")
+
+    with pytest.raises(ConflictError):
+        await _register("10003")
+
+
+class _FakeAdapter:
+    key = "onebot_v11"
+    record_command_input = False
+
+    def build_chat_key(self, channel_id: str) -> str:
+        return f"onebot_v11:group:{channel_id}"
+
+    def detect_command(self, content_text: str) -> Optional[tuple[str, str]]:
+        del content_text
+        return None
+
+    async def get_user_command_permission(self, *args: Any) -> CommandPermission:
+        return CommandPermission.USER
+
+    async def set_user_command_permission(self, *args: Any, **kwargs: Any) -> None:
+        return None
+
+
+class _FakeChannel:
+    chat_key = "onebot_v11:group:1"
+    is_active = True
+    channel_name = "G"
+    workspace_id: Optional[int] = None
+
+
+async def _push_collector_messages(user_db: Any, monkeypatch: pytest.MonkeyPatch, platform_userid: str, count: int) -> list[Any]:
+    pushed: list[Any] = []
+
+    async def fake_get_or_create(**kwargs: Any) -> _FakeChannel:
+        del kwargs
+        return _FakeChannel()
+
+    async def fake_push_human_message(**kwargs: Any) -> None:
+        pushed.append(kwargs["user"])
+
+    monkeypatch.setattr(collector_mod.DBChatChannel, "get_or_create", fake_get_or_create)
+    monkeypatch.setattr(collector_mod.message_service, "push_human_message", fake_push_human_message)
+
+    async def one(index: int) -> None:
+        await collect_message(
+            _FakeAdapter(),
+            PlatformChannel(channel_id="1", channel_name="G", channel_type=ChatType.GROUP),
+            PlatformUser(platform_name="qq", user_id=platform_userid, user_name="群友A"),
+            PlatformMessage(message_id=f"m{index}", sender_id=platform_userid, sender_name="群友A", content_text="你好"),
+        )
+
+    await asyncio.gather(*(one(i) for i in range(count)))
+    return pushed
+
+
+async def test_concurrent_messages_from_new_user_register_once(
+    user_db: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """新用户连发两条消息并发进管线：只建一行，且两条消息都不能被丢掉"""
+    pushed = await _push_collector_messages(user_db, monkeypatch, "10005", 2)
+
+    rows = await user_db.filter(adapter_key="onebot_v11", platform_userid="10005")
+    user_ids = await user_db.all().values_list("id", flat=True)
+
+    assert len(rows) == 1, f"并发建档留下 {len(rows)} 行（全表 {len(user_ids)} 行）"
+    assert len(pushed) == 2
+    assert {u.id for u in pushed} == {rows[0].id}
+
+
+
+async def test_collect_message_survives_duplicate_user_rows(user_db: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """issue #312 的实际症状：存在重复行的用户一发言，整条消息处理链就抛错"""
+    pushed: list[Any] = []
+
+    async def fake_get_or_create(**kwargs: Any) -> _FakeChannel:
+        del kwargs
+        return _FakeChannel()
+
+    async def fake_push_human_message(**kwargs: Any) -> None:
+        pushed.append(kwargs["user"])
+
+    monkeypatch.setattr(collector_mod.DBChatChannel, "get_or_create", fake_get_or_create)
+    monkeypatch.setattr(collector_mod.message_service, "push_human_message", fake_push_human_message)
+
+    first, _second = await _seed_duplicate_rows(user_db, "10004")
+
+    await collect_message(
+        _FakeAdapter(),
+        PlatformChannel(channel_id="1", channel_name="G", channel_type=ChatType.GROUP),
+        PlatformUser(platform_name="qq", user_id="10004", user_name="群友A"),
+        PlatformMessage(message_id="m1", sender_id="10004", sender_name="群友A", content_text="你好"),
+    )
+
+    assert [u.id for u in pushed] == [first.id]
