@@ -1306,7 +1306,8 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     "创建并绑定 CC Workspace",
     description=(
         "为当前会话创建专属的 CC Workspace 沙盒环境并自动绑定。"
-        "创建后需启动沙盒容器才能开始使用（由 AI 调用 start_cc_sandbox，或由管理员在工作区管理页面手动启动）。"
+        "创建后需启动沙盒容器才能开始使用，返回结果中的下一步会说明由你调用启动方法，"
+        "还是由管理员在工作区管理页面手动启动。"
         "如果用户有特殊需求（自定义镜像、运行策略等），建议引导其在工作区管理页面手动创建。"
     ),
 )
@@ -1314,8 +1315,9 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
     """Create a new CC Workspace and bind it to the current channel.
 
     This sets up a dedicated Claude Code sandbox environment for this channel.
-    After creation, the sandbox container must be started before use, either with
-    `start_cc_sandbox` or manually on the workspace management page.
+    After creation, the sandbox container must be started before use; the
+    returned next step says whether you may call a start method, or an
+    administrator has to start it on the workspace management page.
 
     If the user has special requirements (custom image, specific runtime policy, etc.),
     inform them to create the workspace manually in the workspace management page instead.

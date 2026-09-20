@@ -150,6 +150,16 @@ def test_stopped_prompt_keeps_start_hint_when_start_granted(monkeypatch: pytest.
     assert "start_cc_sandbox" in prompt
 
 
+def test_injected_tool_spec_does_not_name_hidden_start_method(monkeypatch: pytest.MonkeyPatch) -> None:
+    """工具说明由 docstring 渲染，静态文案里不得点名一个当前不可见的方法"""
+    _set_grants(monkeypatch, True, False)
+
+    prompt = asyncio.run(cc_main.plugin.render_sandbox_methods_prompt(_FakeCtx(None)))
+
+    assert "create_and_bind_workspace" in prompt
+    assert "start_cc_sandbox" not in prompt
+
+
 # ---------------------------------------------------------------------------
 # 运行时复查：可见性门可被 RPC 绕过，函数体须自行拒绝
 # ---------------------------------------------------------------------------
