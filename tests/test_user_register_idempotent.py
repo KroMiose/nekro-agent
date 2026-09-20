@@ -18,11 +18,32 @@ from nekro_agent.services.user.util import user_register
 
 _USER_ONLY_APPS = {"models": ["nekro_agent.models.db_user"]}
 
+# 表结构与部署对齐，来源 migrations/models/0_20260209003607_init.py:222-235。
+# 迁移链本身是 PostgreSQL 方言（SERIAL/TIMESTAMPTZ/JSONB）跑不到 SQLite 上，而
+# .cursor/rules/backend-rules.mdc 明确禁止调用 generate_schemas()，故此处手写等价 DDL。
+# 模型加了列而这里漏了，INSERT 会直接报错，不会静默放过。
+_USER_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS "user" (
+    "id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    "username" VARCHAR(128) NOT NULL,
+    "password" VARCHAR(128) NOT NULL,
+    "adapter_key" VARCHAR(64) NOT NULL,
+    "platform_userid" VARCHAR(256) NOT NULL,
+    "perm_level" INT NOT NULL,
+    "login_time" TIMESTAMP NOT NULL,
+    "ban_until" TIMESTAMP,
+    "prevent_trigger_until" TIMESTAMP,
+    "ext_data" JSON NOT NULL,
+    "create_time" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "update_time" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
 
 @pytest.fixture
 async def user_db():
     await Tortoise.init(db_url="sqlite://:memory:", modules=_USER_ONLY_APPS)
-    await Tortoise.generate_schemas()
+    await Tortoise.get_connection("default").execute_script(_USER_TABLE_SQL)
     yield DBUser
     await Tortoise.close_connections()
 
