@@ -45,12 +45,16 @@ async def _seed_duplicate_rows(db: Any, platform_userid: str) -> tuple[Any, Any]
 
 
 async def test_concurrent_register_creates_single_user(user_db: Any) -> None:
-    """同一平台用户的并发建档只允许留下一行"""
-    await asyncio.gather(_register("10001"), _register("10001"), return_exceptions=True)
+    """同一平台用户的并发建档只允许留下一行，且落败方必须报 ConflictError"""
+    results = await asyncio.gather(_register("10001"), _register("10001"), return_exceptions=True)
 
     rows = await user_db.filter(adapter_key="onebot_v11", platform_userid="10001")
 
     assert [r.username for r in rows] == ["群友A"], f"重复建档出了 {len(rows)} 行用户"
+    # 落败方必须是 ConflictError：collector 只在这种情况下复用已存在的行，
+    # 换成别的异常（如包装成 OperationFailedError）那条消息就会被直接丢掉。
+    assert sum(result is None for result in results) == 1
+    assert sum(isinstance(result, ConflictError) for result in results) == 1
 
 
 async def test_union_lookup_returns_earliest_row_when_duplicates_exist(user_db: Any) -> None:
