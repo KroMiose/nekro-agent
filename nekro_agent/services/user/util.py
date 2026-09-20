@@ -24,6 +24,10 @@ from nekro_agent.services.user.perm import Role
 
 # 锁必须跟着事件循环走：模块级 asyncio.Lock 会绑死在首个 await 所在的循环上，
 # 之后换循环（重载、脚本、测试）再复用就直接 RuntimeError。
+#
+# 注意这里只保证单进程内互斥：NoneBot 与 uvicorn 启动路径都没有 workers，Docker
+# 也固定了 container_name 因而不便横向扩容。若将来真的多实例共库，串行化必须落到
+# user 表 (adapter_key, platform_userid) 的唯一约束上，进程内的锁兜不住。
 _REGISTER_LOCKS: WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock] = WeakKeyDictionary()
 
 
