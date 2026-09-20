@@ -46,13 +46,15 @@ async def user_register(data: UserCreate) -> None:
         raise ConflictError(resource="用户名")
     # user 表上没有 (adapter_key, platform_userid) 唯一约束，先查后插必须整体串行；
     # 否则同一用户并发发言时两个任务都查不到而各插一行，之后该用户每条消息都会读失败。
+    # 摘要放在锁外算：它是锁无关的纯计算，留在临界区里会把不相干用户的建档也串起来。
+    hashed_password = get_hashed_password(data.password)
     async with _user_register_lock():
         if await DBUser.get_by_union_id(adapter_key=data.adapter_key, platform_userid=data.platform_userid):
             raise ConflictError(resource="用户")
         try:
             await DBUser.create(
                 username=data.username,
-                password=get_hashed_password(data.password),
+                password=hashed_password,
                 adapter_key=data.adapter_key,
                 platform_userid=data.platform_userid,
                 perm_level=Role.User,
