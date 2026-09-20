@@ -1,4 +1,6 @@
-from pydantic import Field
+from typing import Any
+
+from pydantic import Field, model_validator
 
 from nekro_agent.api import i18n
 from nekro_agent.api.plugin import ConfigBase, ExtraField, NekroPlugin
@@ -30,22 +32,41 @@ class CCWorkspaceConfig(ConfigBase):
 
     ALLOW_AUTO_CREATE_WORKSPACE: bool = Field(
         default=False,
-        title="允许 AI 自动创建/启动工作区",
+        title="允许 AI 自动创建并绑定工作区",
         description=(
-            "启用后，AI 可通过对话自动创建并启动 CC Workspace；"
-            "禁用时，AI 仅能使用已由管理员手动创建并启动的工作区"
+            "仅控制创建：启用后，AI 可通过对话为未绑定的频道自动创建 CC Workspace 并绑定；"
+            "禁用时，工作区只能由管理员在工作区管理页面手动创建并绑定"
         ),
         json_schema_extra=ExtraField(
             i18n_title=i18n.i18n_text(
-                zh_CN="允许 AI 自动创建/启动工作区",
-                en_US="Allow AI to Auto-create/Start Workspaces",
+                zh_CN="允许 AI 自动创建并绑定工作区",
+                en_US="Allow AI to Auto-create and Bind Workspaces",
             ),
             i18n_description=i18n.i18n_text(
-                zh_CN="启用后，AI 可通过对话自动创建并启动 CC Workspace；禁用时，AI 仅能使用已由管理员手动创建并启动的工作区",
-                en_US="When enabled, AI can automatically create and start CC Workspaces via conversation; when disabled, AI can only use workspaces manually created and started by administrators",
+                zh_CN="仅控制创建：启用后，AI 可通过对话为未绑定的频道自动创建 CC Workspace 并绑定；禁用时，工作区只能由管理员在工作区管理页面手动创建并绑定",
+                en_US="Controls creation only: when enabled, AI can automatically create and bind a CC Workspace for an unbound channel via conversation; when disabled, workspaces can only be created and bound manually by administrators on the workspace management page",
             ),
         ).model_dump(),
     )
+    ALLOW_AUTO_START_SANDBOX: bool = Field(
+        default=False,
+        title="允许 AI 自动唤醒工作区沙盒",
+        description=(
+            "仅控制唤醒：启用后，AI 可启动已绑定但处于停止状态的沙盒容器（含主程序重启后的重新唤醒）；"
+            "禁用时，沙盒只能由管理员在工作区管理页面手动启动"
+        ),
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="允许 AI 自动唤醒工作区沙盒",
+                en_US="Allow AI to Auto-start Workspace Sandboxes",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="仅控制唤醒：启用后，AI 可启动已绑定但处于停止状态的沙盒容器（含主程序重启后的重新唤醒）；禁用时，沙盒只能由管理员在工作区管理页面手动启动",
+                en_US="Controls wake-up only: when enabled, AI can start a bound sandbox that is currently stopped (including re-waking it after a main-process restart); when disabled, sandboxes can only be started manually by administrators on the workspace management page",
+            ),
+        ).model_dump(),
+    )
+
     SHARED_DIR_MAX_FILES: int = Field(
         default=10,
         title="共享目录展示文件数量",
@@ -109,6 +130,15 @@ class CCWorkspaceConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _inherit_start_sandbox_grant(cls, data: Any) -> Any:
+        """旧配置缺少唤醒轴时沿用创建轴，避免升级后静默改变既有授权范围"""
+        if not isinstance(data, dict) or "ALLOW_AUTO_START_SANDBOX" in data:
+            return data
+        create_default = cls.model_fields["ALLOW_AUTO_CREATE_WORKSPACE"].default
+        return {**data, "ALLOW_AUTO_START_SANDBOX": data.get("ALLOW_AUTO_CREATE_WORKSPACE", create_default)}
 
 
 # 获取配置

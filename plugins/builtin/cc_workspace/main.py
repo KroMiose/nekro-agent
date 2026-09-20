@@ -14,10 +14,10 @@
 - **upload_file_to_cc**（BEHAVIOR 类型）：将主沙盒文件上传/共享至 CC Workspace 数据目录
 - **download_file_from_cc**（TOOL 类型）：将 CC Workspace 数据目录中的文件引入主沙盒
 
-方法可见性根据工作区状态动态调整（三态）：
-- 未绑定工作区：仅展示 create_and_bind_workspace
-- 已绑定但沙盒未运行：仅展示 start_cc_sandbox
-- 正常运行：展示所有工作方法，屏蔽创建/启动方法
+方法可见性根据工作区状态与两项独立授权动态调整（三态）：
+- 未绑定工作区：ALLOW_AUTO_CREATE_WORKSPACE 开启时仅展示 create_and_bind_workspace
+- 已绑定但沙盒未运行：ALLOW_AUTO_START_SANDBOX 开启时仅展示 start_cc_sandbox
+- 正常运行：展示所有工作方法，屏蔽创建/唤醒方法
 """
 
 import asyncio
@@ -165,6 +165,20 @@ async def _require_bound_workspace(_ctx: schemas.AgentCtx) -> DBWorkspace:
     return workspace
 
 
+def _create_workspace_hint() -> str:
+    """按创建轴授权给出未绑定工作区时的下一步指引。"""
+    if cc_config.ALLOW_AUTO_CREATE_WORKSPACE:
+        return "可在工作区管理页面手动绑定，或让 Agent 调用 `create_and_bind_workspace` 自动创建并绑定。"
+    return "请由管理员在工作区管理页面创建 CC 工作区并绑定到当前频道。"
+
+
+def _start_sandbox_hint() -> str:
+    """按唤醒轴授权给出沙盒未运行时的下一步指引。"""
+    if cc_config.ALLOW_AUTO_START_SANDBOX:
+        return "如果沙盒未运行，可调用 `start_cc_sandbox` 启动容器。"
+    return "如果沙盒未运行，请由管理员在工作区管理页面手动启动。"
+
+
 async def _build_cc_status_message(_ctx: schemas.AgentCtx) -> tuple[str, dict]:
     """生成面向用户的 CC 协作状态摘要。"""
     workspace = await _ctx.get_bound_workspace()
@@ -175,8 +189,7 @@ async def _build_cc_status_message(_ctx: schemas.AgentCtx) -> tuple[str, dict]:
 
     if workspace is None:
         return (
-            "当前频道未绑定 CC 工作区。\n"
-            "可在工作区管理页面手动绑定，或让 Agent 调用 `create_and_bind_workspace` 自动创建。",
+            f"当前频道未绑定 CC 工作区。\n{_create_workspace_hint()}",
             base_data,
         )
 
@@ -1017,11 +1030,20 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
 
     # ── 状态1：未绑定工作区 ──────────────────────────────────────────────────
     if workspace is None:
+        if cc_config.ALLOW_AUTO_CREATE_WORKSPACE:
+            guidance = (
+                "Use `create_and_bind_workspace` to create and bind one, then `start_cc_sandbox` to start it.\n"
+                "For special requirements such as custom images or runtime policies, guide the user to create it manually in the workspace management page.\n"
+            )
+        else:
+            guidance = (
+                "Only administrators may create workspaces: ask the user to create and bind one "
+                "in the workspace management page.\n"
+            )
         return (
             "[CC Workspace] Unbound\n"
             "CC Workspace is an isolated Claude Code sandbox for persistent code execution, file handling, and command execution.\n"
-            "Use `create_and_bind_workspace` to create and bind one, then `start_cc_sandbox` to start it.\n"
-            "For special requirements such as custom images or runtime policies, guide the user to create it manually in the workspace management page.\n"
+            f"{guidance}"
         )
 
     metadata = workspace.metadata or {}
@@ -1042,9 +1064,15 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     if workspace.status != "active":
         status_label = {"stopped": "Stopped", "failed": "Start failed", "deleting": "Deleting"}.get(workspace.status, workspace.status)
         error_hint = f" (error: {workspace.last_error[:50]}...)" if workspace.last_error else ""
+        if workspace.last_error:
+            action_hint = "Ask the user to check the workspace management page."
+        elif cc_config.ALLOW_AUTO_START_SANDBOX:
+            action_hint = "It can be started with `start_cc_sandbox`."
+        else:
+            action_hint = "Ask the user to start it in the workspace management page."
         return (
             f"[CC Workspace] {workspace.name} - {status_label}{error_hint}\n"
-            f"{'Ask the user to check the workspace management page.' if workspace.last_error else 'It can be started with `start_cc_sandbox`.'}\n"
+            f"{action_hint}\n"
             f"{shared_rules_hint}"
             f"{na_rules_hint}"
         )
@@ -1272,7 +1300,7 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     "创建并绑定 CC Workspace",
     description=(
         "为当前会话创建专属的 CC Workspace 沙盒环境并自动绑定。"
-        "创建后需调用 start_cc_sandbox 启动容器才能开始使用。"
+        "创建后需启动沙盒容器才能开始使用（由 AI 调用 start_cc_sandbox，或由管理员在工作区管理页面手动启动）。"
         "如果用户有特殊需求（自定义镜像、运行策略等），建议引导其在工作区管理页面手动创建。"
     ),
 )
@@ -1280,7 +1308,8 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
     """Create a new CC Workspace and bind it to the current channel.
 
     This sets up a dedicated Claude Code sandbox environment for this channel.
-    After creation, call `start_cc_sandbox` to launch the sandbox container.
+    After creation, the sandbox container must be started before use, either with
+    `start_cc_sandbox` or manually on the workspace management page.
 
     If the user has special requirements (custom image, specific runtime policy, etc.),
     inform them to create the workspace manually in the workspace management page instead.
@@ -1301,6 +1330,9 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
         create_and_bind_workspace("data-analysis")
         ```
     """
+    if not cc_config.ALLOW_AUTO_CREATE_WORKSPACE:
+        raise PermissionError("自动创建工作区未启用，请由管理员在工作区管理页面创建 CC 工作区并绑定到当前频道。")
+
     chat_key = _ctx.from_chat_key
 
     # 当前频道已绑定工作区时，不允许重复创建
@@ -1308,7 +1340,7 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
     if existing is not None:
         raise ValueError(
             f"当前频道已绑定工作区 '{existing.name}'（ID: {existing.id}，状态: {existing.status}）。"
-            f"如果沙盒未运行，请调用 `start_cc_sandbox` 启动容器。"
+            f"{_start_sandbox_hint()}"
         )
 
     # 生成唯一工作区名称
@@ -1353,12 +1385,17 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
             pass
         raise ValueError(f"工作区创建成功但绑定到当前频道失败：{e}") from e
 
+    next_step = (
+        "调用 `start_cc_sandbox` 启动沙盒容器，即可开始使用 CC Workspace。"
+        if cc_config.ALLOW_AUTO_START_SANDBOX
+        else "请由管理员在工作区管理页面启动沙盒容器（自动唤醒未启用），之后即可使用 CC Workspace。"
+    )
     logger.info(f"[cc_workspace] 已创建并绑定工作区: {final_name}（ID: {ws.id}），chat_key={chat_key}")
     return (
         f"工作区已创建并绑定到当前频道。\n"
         f"工作区名称: {final_name}（ID: {ws.id}）\n"
         f"运行策略: agent\n"
-        f"下一步：调用 `start_cc_sandbox` 启动沙盒容器，即可开始使用 CC Workspace。"
+        f"下一步：{next_step}"
     )
 
 
@@ -1389,9 +1426,12 @@ async def start_cc_sandbox(_ctx: schemas.AgentCtx) -> str:
         start_cc_sandbox()
         ```
     """
+    if not cc_config.ALLOW_AUTO_START_SANDBOX:
+        raise PermissionError("自动唤醒沙盒未启用，请由管理员在工作区管理页面手动启动工作区沙盒。")
+
     workspace = await _ctx.get_bound_workspace()
     if workspace is None:
-        raise ValueError("当前频道未绑定工作区，请先调用 `create_and_bind_workspace` 创建工作区。")
+        raise ValueError(f"当前频道未绑定工作区。{_create_workspace_hint()}")
 
     if workspace.status == "active":
         raise ValueError(
@@ -1797,7 +1837,7 @@ async def cc_help_cmd(context: CommandExecutionContext) -> CommandResponse:
     workspace = await agent_ctx.get_bound_workspace()
 
     status_hint = (
-        "当前频道尚未绑定 CC 工作区。请先在工作区页面绑定，或让 Agent 调用 `create_and_bind_workspace`。"
+        f"当前频道尚未绑定 CC 工作区。{_create_workspace_hint()}"
         if workspace is None
         else f"当前绑定工作区: {workspace.name}（状态: {_format_workspace_status(workspace.status)}）。"
     )
@@ -2262,9 +2302,11 @@ async def _collect_cc_methods(ctx: schemas.AgentCtx) -> List:
       - ALLOW_AUTO_CREATE_WORKSPACE=True  → 展示 create_and_bind_workspace
       - ALLOW_AUTO_CREATE_WORKSPACE=False → 返回空列表（AI 无法创建）
     状态2 - 已绑定但沙盒未运行：
-      - ALLOW_AUTO_CREATE_WORKSPACE=True  → 展示 start_cc_sandbox
-      - ALLOW_AUTO_CREATE_WORKSPACE=False → 返回空列表（AI 无法启动）
-    状态3 - 沙盒正常运行：展示所有工作方法，隐藏创建/启动方法
+      - ALLOW_AUTO_START_SANDBOX=True  → 展示 start_cc_sandbox
+      - ALLOW_AUTO_START_SANDBOX=False → 返回空列表（AI 无法唤醒）
+    状态3 - 沙盒正常运行：展示所有工作方法，隐藏创建/唤醒方法
+
+    可见性只是第一道门：沙盒内 RPC 可绕过本函数，因此两个方法内部各自复查授权。
     """
     workspace = await ctx.get_bound_workspace()
 
@@ -2276,7 +2318,7 @@ async def _collect_cc_methods(ctx: schemas.AgentCtx) -> List:
 
     # 状态2：有工作区但沙盒未运行
     if workspace.status != "active":
-        if cc_config.ALLOW_AUTO_CREATE_WORKSPACE:
+        if cc_config.ALLOW_AUTO_START_SANDBOX:
             return [start_cc_sandbox]
         return []
 
