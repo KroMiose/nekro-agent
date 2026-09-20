@@ -123,6 +123,16 @@ def test_unbound_prompt_keeps_create_hint_when_create_granted(monkeypatch: pytes
     assert "create_and_bind_workspace" in prompt
 
 
+def test_unbound_prompt_omits_start_hint_when_only_start_denied(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_grants(monkeypatch, True, False)
+
+    prompt = asyncio.run(cc_main.cc_workspace_status(_FakeCtx(None)))
+
+    assert "create_and_bind_workspace" in prompt
+    assert "workspace management page" in prompt
+    assert "start_cc_sandbox" not in prompt
+
+
 def test_stopped_prompt_omits_start_hint_when_start_denied(monkeypatch: pytest.MonkeyPatch) -> None:
     _set_grants(monkeypatch, True, False)
 

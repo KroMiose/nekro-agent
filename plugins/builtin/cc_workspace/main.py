@@ -1031,9 +1031,15 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     # ── 状态1：未绑定工作区 ──────────────────────────────────────────────────
     if workspace is None:
         if cc_config.ALLOW_AUTO_CREATE_WORKSPACE:
-            guidance = (
-                "Use `create_and_bind_workspace` to create and bind one, then `start_cc_sandbox` to start it.\n"
-                "For special requirements such as custom images or runtime policies, guide the user to create it manually in the workspace management page.\n"
+            guidance = "Use `create_and_bind_workspace` to create and bind one.\n"
+            guidance += (
+                "Then use `start_cc_sandbox` to start it.\n"
+                if cc_config.ALLOW_AUTO_START_SANDBOX
+                else "The sandbox itself must be started by an administrator in the workspace management page.\n"
+            )
+            guidance += (
+                "For special requirements such as custom images or runtime policies, "
+                "guide the user to create it manually in the workspace management page.\n"
             )
         else:
             guidance = (
@@ -1321,6 +1327,10 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
     Returns:
         str: Result message with workspace info and next steps.
 
+    Raises:
+        PermissionError: If ALLOW_AUTO_CREATE_WORKSPACE is disabled by the administrator.
+        ValueError: If the channel already has a bound workspace, or creation/binding fails.
+
     Example:
         ```python
         # Auto-generate a name
@@ -1420,6 +1430,10 @@ async def start_cc_sandbox(_ctx: schemas.AgentCtx) -> str:
 
     Returns:
         str: Success message, or error/guidance information.
+
+    Raises:
+        PermissionError: If ALLOW_AUTO_START_SANDBOX is disabled by the administrator.
+        ValueError: If no workspace is bound, or the sandbox is already running.
 
     Example:
         ```python
