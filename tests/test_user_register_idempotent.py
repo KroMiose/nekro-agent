@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from typing import Any, Optional
 
 import pytest
@@ -159,3 +160,37 @@ async def test_collect_message_survives_duplicate_user_rows(user_db: Any, monkey
     )
 
     assert [u.id for u in pushed] == [first.id]
+
+
+async def test_rejected_registration_keeps_a_log_line(user_db: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    """昵称撞上保留名 admin 时建不了档，这条消息被丢弃必须留下日志，不能静默吞掉"""
+    logs: list[str] = []
+
+    def _record(msg: Any) -> None:
+        logs.append(str(msg))
+
+    monkeypatch.setattr(
+        collector_mod,
+        "logger",
+        SimpleNamespace(info=_record, warning=_record, error=_record, exception=_record, debug=_record),
+    )
+
+    async def fake_get_or_create(**kwargs: Any) -> _FakeChannel:
+        del kwargs
+        return _FakeChannel()
+
+    async def fake_push_human_message(**kwargs: Any) -> None:
+        raise AssertionError("建档失败的用户不应进入人工消息管线")
+
+    monkeypatch.setattr(collector_mod.DBChatChannel, "get_or_create", fake_get_or_create)
+    monkeypatch.setattr(collector_mod.message_service, "push_human_message", fake_push_human_message)
+
+    await collect_message(
+        _FakeAdapter(),
+        PlatformChannel(channel_id="1", channel_name="G", channel_type=ChatType.GROUP),
+        PlatformUser(platform_name="qq", user_id="10006", user_name="admin"),
+        PlatformMessage(message_id="m1", sender_id="10006", sender_name="admin", content_text="你好"),
+    )
+
+    assert await user_db.filter(adapter_key="onebot_v11", platform_userid="10006").count() == 0
+    assert any("10006" in line for line in logs), f"消息被丢弃但没有任何日志: {logs}"

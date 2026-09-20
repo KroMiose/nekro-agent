@@ -111,9 +111,13 @@ async def _register_message_user(
                 platform_userid=platform_user.user_id,
             ),
         )
-    except ConflictError:
-        # 同一用户的另一条消息并发完成了建档，直接复用那一行，不算这次失败
-        return await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
+    except ConflictError as e:
+        existing = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
+        if existing:
+            # 同一用户的另一条消息并发完成了建档，直接复用那一行，不算这次失败
+            return existing
+        logger.warning(f"注册用户被拒绝，消息丢弃: {platform_user.user_name} - {platform_user.user_id} - {e}")
+        return None
     except Exception:
         logger.exception(f"注册用户失败: {platform_user.user_name} - {platform_user.user_id}")
         return None
