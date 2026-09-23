@@ -11,7 +11,7 @@ WORKDIR /app/frontend
 RUN npm install -g pnpm && pnpm config set registry https://registry.npmmirror.com
 
 # 首先复制依赖文件，利用缓存
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # 然后复制源代码并构建
