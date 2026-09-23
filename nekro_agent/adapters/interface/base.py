@@ -12,6 +12,7 @@ from nekro_agent.core.core_utils import ConfigBase, ExtraField
 if TYPE_CHECKING:
     from nekro_agent.schemas.agent_message import AgentMessageSegment
     from nekro_agent.services.command.manager import UserPermissionSource
+    from nekro_agent.services.command.registry import CommandRegexMatch
     from nekro_agent.services.command.schemas import CommandResponse
 from nekro_agent.core import config
 from nekro_agent.core.os_env import OsEnv
@@ -385,8 +386,20 @@ class BaseAdapter(ABC, Generic[TConfig]):
 
     # region 命令系统
 
+    @property
+    def supports_regex_commands(self) -> bool:
+        """是否允许无前缀普通消息触发正则命令。"""
+        return True
+
+    def is_command_system_enabled(self) -> bool:
+        """返回全局与适配器级命令开关的合并状态。"""
+        return config.COMMAND_ENABLED and self.config.COMMAND_ENABLED
+
     def detect_command(self, text: str) -> Optional[Tuple[str, str]]:
         """检测文本是否为命令，返回 (command_name, raw_args) 或 None"""
+        if not config.COMMAND_ENABLED or not self.config.COMMAND_ENABLED:
+            return None
+
         prefix = self.config.COMMAND_PREFIX
         if not text.startswith(prefix):
             return None
@@ -395,6 +408,19 @@ class BaseAdapter(ABC, Generic[TConfig]):
         if not parts:
             return None
         return parts[0], parts[1] if len(parts) > 1 else ""
+
+    def detect_regex_command(self, text: str, chat_key: str) -> Optional["CommandRegexMatch"]:
+        """检测无前缀普通消息是否命中已启用的正则命令。"""
+        if (
+            not self.supports_regex_commands
+            or not config.COMMAND_ENABLED
+            or not self.config.COMMAND_ENABLED
+        ):
+            return None
+
+        from nekro_agent.services.command.registry import command_registry
+
+        return command_registry.match_regex(text, chat_key)
 
     async def execute_command(
         self,
@@ -405,6 +431,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
         raw_args: str,
         is_super_user: bool = False,
         is_advanced_user: bool = False,
+        matched_args: Optional[dict[str, str]] = None,
     ) -> Optional[List["CommandResponse"]]:
         """执行命令并消费流式输出 - 自动检查适配器级开关"""
         from nekro_agent.services.command.registry import command_registry
@@ -419,7 +446,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
         )
         from nekro_agent.services.command.wait_manager import wait_manager
 
-        if not self.config.COMMAND_ENABLED:
+        if not config.COMMAND_ENABLED or not self.config.COMMAND_ENABLED:
             return None
 
         # 用户发送新命令时自动取消挂起的 wait
@@ -437,7 +464,12 @@ class BaseAdapter(ABC, Generic[TConfig]):
             is_advanced_user=is_advanced_user,
             lang=SupportedLang(config.SYSTEM_LANG),
         )
-        request = CommandRequest(context=context, command_name=command_name, raw_args=raw_args)
+        request = CommandRequest(
+            context=context,
+            command_name=command_name,
+            raw_args=raw_args,
+            matched_args=matched_args,
+        )
 
         from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
 

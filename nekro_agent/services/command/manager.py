@@ -1,5 +1,6 @@
 """命令状态管理 - 基于 JSON 文件存储"""
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -46,6 +47,28 @@ class CommandManager:
         self._channel_permission_cache: dict[str, dict[str, CommandPermission]] = {}
         self._user_permission_cache: Optional[dict[str, UserPermissionRecord]] = None
 
+    @staticmethod
+    def _channel_state_path(base_dir: str, chat_key: str) -> Path:
+        """生成不会逃逸状态目录的频道状态文件路径。
+
+        常规 chat_key 继续使用原文件名以兼容已有数据；带路径分隔符、
+        控制字符或过长的值使用稳定哈希映射。
+        """
+        encoded_length = len(chat_key.encode("utf-8"))
+        unsafe = (
+            not chat_key
+            or "/" in chat_key
+            or "\\" in chat_key
+            or not chat_key.isprintable()
+            or encoded_length > 240
+        )
+        file_stem = (
+            f"channel-{hashlib.sha256(chat_key.encode()).hexdigest()}"
+            if unsafe
+            else chat_key
+        )
+        return Path(base_dir) / f"{file_stem}.json"
+
     def _load_system_state(self) -> dict[str, bool]:
         """加载系统级状态（带缓存）"""
         if self._system_cache is None:
@@ -64,7 +87,7 @@ class CommandManager:
     def _load_channel_state(self, chat_key: str) -> dict[str, bool]:
         """加载频道级状态（带缓存）"""
         if chat_key not in self._channel_cache:
-            path = Path(COMMAND_CHANNEL_STATE_DIR) / f"{chat_key}.json"
+            path = self._channel_state_path(COMMAND_CHANNEL_STATE_DIR, chat_key)
             if path.exists():
                 try:
                     self._channel_cache[chat_key] = json.loads(path.read_text(encoding="utf-8"))
@@ -115,7 +138,7 @@ class CommandManager:
         返回内部共享缓存，调用方仅应在 setter 流程中原地修改并立即持久化。
         """
         if chat_key not in self._channel_permission_cache:
-            path = Path(COMMAND_CHANNEL_PERMISSION_DIR) / f"{chat_key}.json"
+            path = self._channel_state_path(COMMAND_CHANNEL_PERMISSION_DIR, chat_key)
             if path.exists():
                 try:
                     raw_state = json.loads(path.read_text(encoding="utf-8"))
@@ -187,7 +210,7 @@ class CommandManager:
         self._system_cache = state
 
     def _save_channel_state(self, chat_key: str, state: dict[str, bool]) -> None:
-        path = Path(COMMAND_CHANNEL_STATE_DIR) / f"{chat_key}.json"
+        path = self._channel_state_path(COMMAND_CHANNEL_STATE_DIR, chat_key)
         if state:
             path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         else:
@@ -202,7 +225,7 @@ class CommandManager:
         self._system_permission_cache = state
 
     def _save_channel_permission_state(self, chat_key: str, state: dict[str, CommandPermission]) -> None:
-        path = Path(COMMAND_CHANNEL_PERMISSION_DIR) / f"{chat_key}.json"
+        path = self._channel_state_path(COMMAND_CHANNEL_PERMISSION_DIR, chat_key)
         if state:
             path.write_text(
                 json.dumps({key: value.value for key, value in state.items()}, ensure_ascii=False, indent=2),
@@ -267,6 +290,11 @@ class CommandManager:
         plugin_enabled_cache: Optional[dict[str, bool]] = None,
     ) -> bool:
         """统一的命令启用检查实现。"""
+        from nekro_agent.core.config import config
+
+        if not config.COMMAND_ENABLED:
+            return False
+
         target_meta = meta
         if target_meta is None:
             from nekro_agent.services.command.registry import command_registry
@@ -274,6 +302,13 @@ class CommandManager:
             command = command_registry.resolve(command_name)
             if command is not None:
                 target_meta = command.metadata
+
+        if (
+            target_meta is not None
+            and target_meta.requires_advanced_command
+            and not config.ENABLE_ADVANCED_COMMAND
+        ):
+            return False
 
         state_key = target_meta.name if target_meta is not None else command_name
         if target_meta is not None and not self._is_plugin_command_source_enabled(
@@ -523,6 +558,7 @@ class CommandManager:
                 "name": meta.name,
                 "namespace": meta.namespace,
                 "aliases": meta.aliases,
+                "regex_patterns": meta.regex_patterns,
                 "description": meta.description,
                 "usage": meta.usage,
                 "permission": permission.value,

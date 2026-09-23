@@ -9,7 +9,8 @@ from collections.abc import AsyncIterator
 from enum import Enum
 from typing import Any, Callable, Optional, Union
 
-from pydantic import BaseModel
+import regex
+from pydantic import BaseModel, model_validator
 
 from nekro_agent.schemas.i18n import I18nDict, SupportedLang, get_text, t
 from nekro_agent.services.command.schemas import (
@@ -23,6 +24,38 @@ BUILT_IN_SOURCE = "built_in"
 """内置命令的 source / namespace 标识符，用于与插件命令来源区分。"""
 
 
+def compile_command_regex_patterns(
+    patterns: list[str],
+    parameter_names: set[str],
+    required_parameter_names: set[str],
+    command_name: str,
+) -> list[regex.Pattern[str]]:
+    """编译命令正则，并校验命名组与命令参数是否一致。"""
+    compiled_patterns: list[regex.Pattern[str]] = []
+    for pattern in patterns:
+        try:
+            compiled = regex.compile(pattern)
+        except regex.error as e:
+            raise ValueError(f"命令 {command_name} 的正则表达式无效: {pattern!r}: {e}") from e
+
+        capture_names = set(compiled.groupindex)
+        unknown_names = sorted(capture_names - parameter_names)
+        if unknown_names:
+            raise ValueError(
+                f"命令 {command_name} 的正则表达式 {pattern!r} 包含未知命名组: {', '.join(unknown_names)}"
+            )
+
+        missing_names = sorted(required_parameter_names - capture_names)
+        if missing_names:
+            raise ValueError(
+                f"命令 {command_name} 的正则表达式 {pattern!r} 未提供必填参数: {', '.join(missing_names)}"
+            )
+
+        compiled_patterns.append(compiled)
+
+    return compiled_patterns
+
+
 class CommandPermission(str, Enum):
     PUBLIC = "public"
     USER = "user"
@@ -34,6 +67,7 @@ class CommandMetadata(BaseModel):
     name: str
     namespace: str = BUILT_IN_SOURCE  # 命名空间（内置命令为 BUILT_IN_SOURCE，插件命令自动填充为插件 key）
     aliases: list[str] = []
+    regex_patterns: list[str] = []  # 无前缀普通消息的全文匹配规则
     description: str
     i18n_description: Optional[I18nDict] = None  # 国际化描述
     usage: str = ""
@@ -45,6 +79,7 @@ class CommandMetadata(BaseModel):
     tags: list[str] = []  # 标签 (便于 Agent 检索)
     params_schema: Optional[dict] = None  # 自动生成的 JSON Schema (用于 Agent Tool-Use)
     internal: bool = False  # 内部命令 (不在帮助列表和补全中显示, 如 wait 的 callback_cmd)
+    requires_advanced_command: bool = False  # 是否需要显式开启高风险管理命令
 
     def get_description(self, lang: SupportedLang = SupportedLang.ZH_CN) -> str:
         return get_text(self.i18n_description, self.description, lang)
@@ -91,6 +126,15 @@ class BaseCommand(ABC):
         from nekro_agent.services.command.manager import command_manager
 
         meta = self.metadata
+        if meta.requires_advanced_command:
+            from nekro_agent.core.config import config
+
+            if not config.ENABLE_ADVANCED_COMMAND:
+                return False, t(
+                    zh_CN="高级管理命令未启用，请先在系统配置中开启",
+                    en_US="Advanced admin commands are disabled; enable them in system settings first",
+                )
+
         perm = command_manager.get_command_permission(meta.name, meta.permission, context.chat_key)
         if perm == CommandPermission.PUBLIC:
             return True, None
@@ -126,7 +170,11 @@ class BaseCommand(ABC):
 
         try:
             # 解析参数
-            parsed_kwargs = self._parse_args(request.raw_args, request.context.lang)
+            parsed_kwargs = self._parse_args(
+                request.raw_args,
+                request.context.lang,
+                matched_args=request.matched_args,
+            )
             result_or_gen = self.execute(request.context, **parsed_kwargs)
 
             # 子类 execute 可能是 async generator (用 yield) 或普通 coroutine (用 return)
@@ -152,11 +200,23 @@ class BaseCommand(ABC):
                 message=t(zh_CN="命令执行出错: ", en_US="Command execution error: ") + str(e),
             )
 
-    def _parse_args(self, raw_args: str, lang: SupportedLang = SupportedLang.ZH_CN) -> dict[str, Any]:
+    def _parse_args(
+        self,
+        raw_args: str,
+        lang: SupportedLang = SupportedLang.ZH_CN,
+        *,
+        matched_args: Optional[dict[str, str]] = None,
+    ) -> dict[str, Any]:
         """根据 execute 方法的类型注解解析参数"""
         from nekro_agent.services.command.parser import ArgumentParser
 
-        return ArgumentParser.parse(self.execute, raw_args, lang=lang)
+        return ArgumentParser.parse(self.execute, raw_args, lang=lang, matched_args=matched_args)
+
+    def get_parameter_names(self) -> tuple[set[str], set[str]]:
+        """返回命令处理函数的全部参数名与必填参数名。"""
+        from nekro_agent.services.command.parser import ArgumentParser
+
+        return ArgumentParser.get_parameter_names(self.execute)
 
 
 class PluginCommand(BaseModel):
@@ -166,6 +226,7 @@ class PluginCommand(BaseModel):
     description: str
     i18n_description: Optional[I18nDict] = None
     aliases: list[str] = []
+    regex_patterns: list[str] = []
     permission: CommandPermission = CommandPermission.PUBLIC
     usage: str = ""
     i18n_usage: Optional[I18nDict] = None
@@ -178,6 +239,20 @@ class PluginCommand(BaseModel):
     execute_func: Callable
 
     model_config = {"arbitrary_types_allowed": True}
+
+    @model_validator(mode="after")
+    def validate_regex_patterns(self) -> "PluginCommand":
+        """在插件导入阶段提前拒绝无效正则命令。"""
+        from nekro_agent.services.command.parser import ArgumentParser
+
+        parameter_names, required_parameter_names = ArgumentParser.get_parameter_names(self.execute_func)
+        compile_command_regex_patterns(
+            self.regex_patterns,
+            parameter_names,
+            required_parameter_names,
+            f"{self.namespace}:{self.name}",
+        )
+        return self
 
 
 class PluginCommandAdapter(BaseCommand):
@@ -201,6 +276,7 @@ class PluginCommandAdapter(BaseCommand):
             name=self._cmd.name,
             namespace=self._cmd.namespace,
             aliases=self._cmd.aliases,
+            regex_patterns=self._cmd.regex_patterns,
             description=self._cmd.description,
             i18n_description=self._cmd.i18n_description,
             usage=self._cmd.usage,
@@ -220,8 +296,25 @@ class PluginCommandAdapter(BaseCommand):
             return result
         return await result
 
-    def _parse_args(self, raw_args: str, lang: SupportedLang = SupportedLang.ZH_CN) -> dict[str, Any]:
+    def _parse_args(
+        self,
+        raw_args: str,
+        lang: SupportedLang = SupportedLang.ZH_CN,
+        *,
+        matched_args: Optional[dict[str, str]] = None,
+    ) -> dict[str, Any]:
         """根据原始插件函数的类型注解解析参数"""
         from nekro_agent.services.command.parser import ArgumentParser
 
-        return ArgumentParser.parse(self._cmd.execute_func, raw_args, lang=lang)
+        return ArgumentParser.parse(
+            self._cmd.execute_func,
+            raw_args,
+            lang=lang,
+            matched_args=matched_args,
+        )
+
+    def get_parameter_names(self) -> tuple[set[str], set[str]]:
+        """返回插件命令函数的全部参数名与必填参数名。"""
+        from nekro_agent.services.command.parser import ArgumentParser
+
+        return ArgumentParser.get_parameter_names(self._cmd.execute_func)

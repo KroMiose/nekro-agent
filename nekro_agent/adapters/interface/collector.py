@@ -51,13 +51,17 @@ async def collect_message(
 
     # 命令检测与执行（在 is_active 检查之前，确保 na_on 等命令在频道关闭时仍可用）
     chat_key = db_chat_channel.chat_key
-    content_text = platform_message.content_text.strip()
-    if content_text and adapter.record_command_input and adapter.detect_command(content_text):
-        command_message = _build_chat_message(adapter, chat_key, platform_channel, platform_user, platform_message)
-        await message_service.record_human_message(command_message, db_chat_channel=db_chat_channel)
-
-    if content_text and await _try_handle_command(
-        adapter, chat_key, platform_channel, platform_user, platform_message, content_text,
+    raw_content_text = platform_message.content_text
+    content_text = raw_content_text.strip()
+    if (content_text or raw_content_text) and await _try_handle_command(
+        adapter,
+        chat_key,
+        platform_channel,
+        platform_user,
+        platform_message,
+        content_text,
+        raw_content_text,
+        db_chat_channel,
     ):
         return
 
@@ -221,16 +225,29 @@ async def _try_handle_command(
     platform_user: "PlatformUser",
     platform_message: "PlatformMessage",
     content_text: str,
+    regex_text: Optional[str] = None,
+    db_chat_channel: Optional[DBChatChannel] = None,
 ) -> bool:
     """尝试检测和执行命令，返回 True 表示消息已被命令系统消费
 
     检测顺序:
     1. 检测命令前缀 → 执行命令
     2. 检测挂起的 wait 交互 → 路由到回调命令
+    3. 对原始普通消息执行正则全文匹配
     """
     # 1. 命令前缀检测
-    cmd_result = adapter.detect_command(content_text)
+    cmd_result = adapter.detect_command(content_text) if content_text else None
     if cmd_result:
+        if db_chat_channel is not None and adapter.record_command_input:
+            command_message = _build_chat_message(
+                adapter,
+                chat_key,
+                platform_channel,
+                platform_user,
+                platform_message,
+            )
+            await message_service.record_human_message(command_message, db_chat_channel=db_chat_channel)
+
         is_super, is_advanced = await _resolve_user_command_flags(
             adapter,
             platform_channel,
@@ -255,8 +272,47 @@ async def _try_handle_command(
     # 2. 挂起的 wait 交互检测
     from nekro_agent.services.command.wait_manager import wait_manager
 
-    if not wait_manager.has_pending(chat_key, platform_user.user_id):
+    is_command_system_enabled = getattr(adapter, "is_command_system_enabled", None)
+    if is_command_system_enabled is not None and not is_command_system_enabled():
         return False
+
+    if content_text and wait_manager.has_pending(chat_key, platform_user.user_id):
+        is_super, is_advanced = await _resolve_user_command_flags(
+            adapter,
+            platform_channel,
+            platform_user,
+            platform_message,
+        )
+        consumed = await adapter.try_handle_wait_input(
+            chat_key=chat_key,
+            user_id=platform_user.user_id,
+            username=platform_user.user_name,
+            text=content_text,
+            is_super_user=is_super,
+            is_advanced_user=is_advanced,
+        )
+        if consumed:
+            logger.info(f"Wait Consumed: [{chat_key}] {platform_user.user_name}: {content_text}")
+            return True
+
+    # 3. 正则命令仅在显式命令和 wait 均未消费消息时尝试
+    detect_regex_command = getattr(adapter, "detect_regex_command", None)
+    if detect_regex_command is None:
+        return False
+
+    regex_match = detect_regex_command(regex_text if regex_text is not None else content_text, chat_key)
+    if regex_match is None:
+        return False
+
+    if db_chat_channel is not None and adapter.record_command_input:
+        command_message = _build_chat_message(
+            adapter,
+            chat_key,
+            platform_channel,
+            platform_user,
+            platform_message,
+        )
+        await message_service.record_human_message(command_message, db_chat_channel=db_chat_channel)
 
     is_super, is_advanced = await _resolve_user_command_flags(
         adapter,
@@ -264,19 +320,21 @@ async def _try_handle_command(
         platform_user,
         platform_message,
     )
-    consumed = await adapter.try_handle_wait_input(
+    logger.info(
+        f"Regex Command Detect: [{chat_key}] {platform_user.user_name}: "
+        f"{regex_match.command_name} ({regex_match.pattern})"
+    )
+    await adapter.execute_command(
         chat_key=chat_key,
         user_id=platform_user.user_id,
         username=platform_user.user_name,
-        text=content_text,
+        command_name=regex_match.command_name,
+        raw_args="",
+        matched_args=regex_match.matched_args,
         is_super_user=is_super,
         is_advanced_user=is_advanced,
     )
-    if consumed:
-        logger.info(f"Wait Consumed: [{chat_key}] {platform_user.user_name}: {content_text}")
-        return True
-
-    return False
+    return True
 
 
 async def _resolve_user_command_flags(
