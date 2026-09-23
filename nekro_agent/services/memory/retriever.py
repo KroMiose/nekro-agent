@@ -37,8 +37,12 @@ from nekro_agent.services.memory.recall_contract import (
     MemoryKnowledgeHint,
     MemoryTypeHint,
 )
+from nekro_agent.services.rerank_service import rerank as rerank_candidates
 
 logger = get_sub_logger("memory.retriever")
+
+# 记忆重排候选池上限：有效权重排序后最多取前 N 条送重排模型二次打分
+MEMORY_RERANK_CANDIDATE_LIMIT = 40
 
 
 @dataclass
@@ -217,6 +221,14 @@ class MemoryRetriever:
         )
 
         memories = list(paragraph_candidates.values()) + relation_memories + episode_memories
+        # 重排开关开启时，对有效权重排序后的候选做二次打分；失败自动回退原排序
+        if config.MEMORY_RERANK_ENABLED:
+            try:
+                reranked_memories = await self._rerank_memories(query, memories)
+                if reranked_memories is not None:
+                    memories = reranked_memories
+            except Exception as e:
+                logger.warning(f"记忆检索重排失败，回退有效权重排序: {e}")
         # 按有效权重排序
         memories.sort(key=lambda m: m.effective_weight, reverse=True)
         memories = memories[:resolved_limit]
@@ -268,6 +280,40 @@ class MemoryRetriever:
                 score *= config.MEMORY_RETRIEVAL_RECENT_BOOST_FACTOR
 
         return score
+
+    async def _rerank_memories(
+        self,
+        query: str,
+        memories: list[RetrievedMemory],
+    ) -> list[RetrievedMemory] | None:
+        """对候选记忆做重排二次打分；返回重排后的列表，失败或不可用时返回 None。"""
+        candidates = sorted(
+            memories,
+            key=lambda mem: mem.effective_weight,
+            reverse=True,
+        )[:MEMORY_RERANK_CANDIDATE_LIMIT]
+        if len(candidates) < 2:
+            return None
+
+        texts = [mem.content or mem.summary for mem in candidates]
+        results = await rerank_candidates(query=query, documents=texts)
+        if not results:
+            return None
+
+        score_map = {result.index: result.score for result in results}
+        for index, mem in enumerate(candidates):
+            score = score_map.get(index, 0.0)
+            # 重排分数覆盖相似度与有效权重，后续排序与配额筛选均以其为准
+            mem.similarity_score = score
+            mem.effective_weight = score
+
+        reranked = [
+            candidates[index]
+            for index, score in sorted(score_map.items(), key=lambda item: item[1], reverse=True)
+            if score > 0
+        ]
+        unranked = [mem for mem in memories if mem not in candidates]
+        return reranked + unranked
 
     @staticmethod
     def _normalize_datetime(value: datetime) -> datetime:

@@ -33,6 +33,7 @@ export interface ModelGroupConfig {
   PRESENCE_PENALTY?: number | null
   FREQUENCY_PENALTY?: number | null
   EXTRA_BODY?: string | null
+  RERANK_ENDPOINT?: string
   ENABLE_VISION?: boolean
   ENABLE_COT?: boolean
 }
