@@ -135,7 +135,7 @@ def register_matcher(adapter: BaseAdapter):
 
         # 用户信息处理
         platform_userid: str = str(event.user_id)
-        user: Optional[DBUser] = await DBUser.get_or_none(adapter_key=adapter.key, platform_userid=platform_userid)
+        user: Optional[DBUser] = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_userid)
 
         if not user:
             if platform_userid == (await adapter.get_self_info()).user_id:

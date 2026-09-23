@@ -5,6 +5,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.errors import ConflictError
 from nekro_agent.schemas.user import UserCreate
 from nekro_agent.services.command.base import CommandPermission
 from nekro_agent.services.message_service import message_service
@@ -67,27 +68,9 @@ async def collect_message(
     user: Optional[DBUser] = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
 
     if not user:
-        try:
-            await user_register(
-                UserCreate(
-                    username=platform_user.user_name,
-                    password="",
-                    adapter_key=adapter.key,
-                    platform_userid=platform_user.user_id,
-                ),
-            )
-        except Exception:
-            logger.exception(f"注册用户失败: {platform_user.user_name} - {platform_user.user_id}")
+        user = await _register_message_user(adapter, platform_channel, platform_user, platform_message)
+        if not user:
             return
-
-        user = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
-        assert user
-        await _persist_registered_user_command_permission(
-            adapter,
-            platform_channel,
-            platform_user,
-            platform_message,
-        )
 
     if not user.is_active:
         logger.info(f"用户 {platform_user.user_id} 被封禁，封禁结束时间: {user.ban_until}")
@@ -110,6 +93,47 @@ async def collect_message(
     )
 
     await message_service.push_human_message(message=chat_message, user=user, db_chat_channel=db_chat_channel)
+
+
+async def _register_message_user(
+    adapter: "BaseAdapter",
+    platform_channel: "PlatformChannel",
+    platform_user: "PlatformUser",
+    platform_message: "PlatformMessage",
+) -> Optional[DBUser]:
+    """为首次发言的平台用户建档，返回 None 表示这条消息需要丢弃。"""
+    try:
+        await user_register(
+            UserCreate(
+                username=platform_user.user_name,
+                password="",
+                adapter_key=adapter.key,
+                platform_userid=platform_user.user_id,
+            ),
+        )
+    except ConflictError as e:
+        existing = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
+        if existing:
+            # 同一用户的另一条消息并发完成了建档，直接复用那一行，不算这次失败
+            return existing
+        logger.warning(f"注册用户被拒绝，消息丢弃: {platform_user.user_name} - {platform_user.user_id} - {e}")
+        return None
+    except Exception:
+        logger.exception(f"注册用户失败: {platform_user.user_name} - {platform_user.user_id}")
+        return None
+
+    user = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
+    if not user:
+        logger.error(f"注册用户后未能读回该用户: adapter={adapter.key}, user_id={platform_user.user_id}")
+        return None
+
+    await _persist_registered_user_command_permission(
+        adapter,
+        platform_channel,
+        platform_user,
+        platform_message,
+    )
+    return user
 
 
 def _build_chat_message(
