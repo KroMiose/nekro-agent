@@ -31,7 +31,7 @@ RUN pnpm build
 FROM busybox:1.36 AS frontend-dist
 COPY --from=frontend-builder /app/frontend/dist /frontend-dist
 
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim-bookworm
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
@@ -40,17 +40,15 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
-RUN apt update
-
-# 分批安装依赖以避免 QEMU 段错误
-RUN apt install -y ca-certificates curl
-RUN apt install -y gnupg git
-RUN apt install -y gcc libpq-dev libmagic-dev
-RUN apt install -y docker.io
-RUN apt install -y git
-
-# 清理缓存
-RUN apt clean && rm -rf /var/lib/apt/lists/*
+# 分批安装依赖以避免 QEMU 段错误；每批更新索引，避免复用过期的 apt 缓存层。
+RUN apt-get update && apt-get install -y ca-certificates curl \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y gnupg git \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y gcc libpq-dev libmagic-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y docker.io \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
 WORKDIR /app
