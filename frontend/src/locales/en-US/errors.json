@@ -8,5 +8,9 @@
   "timeout": "Request timeout, please try again later",
   "validationError": "Invalid request parameters",
   "conflict": "Resource conflict",
-  "tooManyRequests": "Too many requests, please try again later"
+  "tooManyRequests": "Too many requests, please try again later",
+  "routeLoadFailedTitle": "Failed to load this page",
+  "routeLoadFailedDescription": "Page resources could not be loaded, usually caused by a network hiccup or a version update. Retry to reload this page, or go back to the dashboard to keep working. Your login session is unaffected.",
+  "routeLoadFailedRetry": "Retry",
+  "routeLoadFailedBackToDashboard": "Back to dashboard"
 }
