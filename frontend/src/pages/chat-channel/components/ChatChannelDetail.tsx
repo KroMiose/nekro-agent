@@ -305,8 +305,16 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
           onChange={handleTabChange}
           variant="fullWidth"
           sx={{
+            minWidth: 0,
+            '& .MuiTabs-flexContainer': {
+              flexWrap: { xs: 'wrap', sm: 'nowrap' },
+            },
             '& .MuiTab-root': {
               minHeight: 56,
+              minWidth: { xs: '50%', sm: 0 },
+              flex: { xs: '0 0 50%', sm: 1 },
+              px: { xs: 0.5, sm: 1 },
+              whiteSpace: 'normal',
             },
           }}
         >

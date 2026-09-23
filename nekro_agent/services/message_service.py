@@ -483,7 +483,7 @@ class MessageService:
         """持久化并广播人类用户消息。"""
         content_data = [o.model_dump() for o in message.content_data]
 
-        await DBChatMessage.create(
+        db_message = await DBChatMessage.create(
             message_id=message.message_id,
             sender_id=message.sender_id,
             sender_name=message.sender_name,
@@ -510,8 +510,8 @@ class MessageService:
             ),
         )
 
-        # 广播消息到所有订阅者
-        await message_broadcaster.publish(message.chat_key, message)
+        # 广播消息到所有订阅者。携带数据库 ID，WebUI 可据此与历史记录合并去重。
+        await message_broadcaster.publish(message.chat_key, message.model_copy(update={"id": db_message.id}))
 
         # 同时广播频道更新事件，使频道列表实时更新（新消息会将频道移到最上面）
         await channel_broadcaster.publish_update(
@@ -647,7 +647,7 @@ class MessageService:
         else:
             platform_userid = (await adapter.get_self_info()).user_id
 
-        await DBChatMessage.create(
+        db_message = await DBChatMessage.create(
             message_id=plt_response.message_id if plt_response and plt_response.message_id else "",
             sender_id=-1,
             sender_name=preset.name,
@@ -676,6 +676,7 @@ class MessageService:
 
         # 广播消息到所有订阅者 - 构建 ChatMessage 对象用于广播
         broadcast_message = ChatMessage(
+            id=db_message.id,
             message_id=plt_response.message_id if plt_response and plt_response.message_id else "",
             sender_id="-1",
             sender_name=preset.name,
@@ -726,7 +727,7 @@ class MessageService:
             logger.info(f"系统消息 {content_text} 被插件阻止响应，跳过本次处理...")
             return
 
-        await DBChatMessage.create(
+        db_message = await DBChatMessage.create(
             message_id="",
             sender_id=-1,
             sender_name="SYSTEM",
@@ -746,6 +747,7 @@ class MessageService:
 
         # 广播消息到所有订阅者 - 构建 ChatMessage 对象用于广播
         broadcast_message = ChatMessage(
+            id=db_message.id,
             message_id="",
             sender_id="-1",
             sender_name="SYSTEM",

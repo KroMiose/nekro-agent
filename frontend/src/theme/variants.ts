@@ -1004,6 +1004,37 @@ export const UNIFIED_TABLE_STYLES = {
     }
   },
 
+  /** 窄屏表格以卡片形式纵向排列，避免固定列宽撑开页面。 */
+  get responsive(): SxProps<Theme> {
+    return {
+      minWidth: 0,
+      width: '100%',
+      tableLayout: { xs: 'fixed', sm: 'auto' },
+      '& .MuiTableHead-root': {
+        display: { xs: 'none', sm: 'table-header-group' },
+      },
+      '& .MuiTableBody-root': {
+        display: { xs: 'block', sm: 'table-row-group' },
+      },
+      '& .MuiTableRow-root': {
+        display: { xs: 'flex', sm: 'table-row' },
+        flexDirection: { xs: 'column', sm: 'initial' },
+        mb: { xs: 1, sm: 0 },
+        border: { xs: 1, sm: 0 },
+        borderColor: { xs: 'divider', sm: 'transparent' },
+        borderRadius: { xs: 1, sm: 0 },
+      },
+      '& .MuiTableCell-root': {
+        display: { xs: 'block', sm: 'table-cell' },
+        width: { xs: '100% !important', sm: 'auto' },
+        minWidth: { xs: '0 !important', sm: 'auto' },
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        overflowWrap: 'anywhere',
+      },
+    }
+  },
+
   get paper(): SxProps<Theme> {
     const palette = getCurrentExtendedPalette()
     const mode = getCurrentThemeMode()

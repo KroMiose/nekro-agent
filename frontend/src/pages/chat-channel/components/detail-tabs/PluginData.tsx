@@ -20,6 +20,7 @@ import {
   ListItemText,
   Divider,
   useTheme,
+  useMediaQuery,
   alpha,
 } from '@mui/material'
 import {
@@ -65,6 +66,7 @@ export default function PluginData({ chatKey }: PluginDataProps) {
   const [editValue, setEditValue] = useState('')
 
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { mode } = useColorMode()
   const { enqueueSnackbar } = useSnackbar()
   const queryClient = useQueryClient()
@@ -380,13 +382,24 @@ export default function PluginData({ chatKey }: PluginDataProps) {
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        height: '100%',
+        minWidth: 0,
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        overflow: 'hidden',
+      }}
+    >
       {/* Left panel - list */}
       <Box
         sx={{
-          width: 300,
-          flexShrink: 0,
-          borderRight: `1px solid ${theme.palette.divider}`,
+          width: { xs: '100%', sm: 300 },
+          maxHeight: { xs: selectedId === null ? '100%' : 240, sm: 'none' },
+          flexShrink: { xs: selectedId === null ? 1 : 0, sm: 0 },
+          minHeight: 0,
+          borderRight: { xs: 'none', sm: `1px solid ${theme.palette.divider}` },
+          borderBottom: { xs: `1px solid ${theme.palette.divider}`, sm: 'none' },
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -509,16 +522,28 @@ export default function PluginData({ chatKey }: PluginDataProps) {
       </Box>
 
       {/* Right panel - detail */}
-      <Box sx={{ flex: 1, overflow: 'hidden' }}>{renderDetailPanel()}</Box>
+      <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>{renderDetailPanel()}</Box>
 
       {/* Edit Dialog with Monaco */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="md" fullWidth>
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle>{t('pluginData.editTitle')}</DialogTitle>
         <DialogContent sx={{ p: 0, overflow: 'hidden' }}>
-          <Stack spacing={0} sx={{ height: 500 }}>
+          <Stack spacing={0} sx={{ height: { xs: 'calc(100dvh - 112px)', sm: 500 }, minWidth: 0 }}>
             {/* Meta info bar */}
             {selectedItem && (
-              <Stack direction="row" spacing={2} sx={{ px: 2, py: 1, borderBottom: `1px solid ${theme.palette.divider}` }}>
+              <Stack
+                direction="row"
+                spacing={2}
+                useFlexGap
+                flexWrap="wrap"
+                sx={{ px: 2, py: 1, borderBottom: `1px solid ${theme.palette.divider}` }}
+              >
                 <Stack direction="row" spacing={0.5} alignItems="center">
                   <ExtensionIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
                   <Typography variant="caption" color="text.secondary">

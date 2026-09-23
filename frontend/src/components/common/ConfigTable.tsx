@@ -1759,7 +1759,17 @@ export default function ConfigTable({
                 }}
               />
             )}
-            <Stack direction="row" spacing={1} sx={{ flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                width: { xs: '100%', md: 'auto' },
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                justifyContent: { xs: 'stretch', md: 'flex-end' },
+                '& > *': { flex: { xs: '1 1 auto', md: '0 0 auto' }, minWidth: 0 },
+              }}
+            >
               {toolbarActions}
               <Button
                 variant="contained"
@@ -1797,8 +1807,21 @@ export default function ConfigTable({
           ...UNIFIED_TABLE_STYLES.paper,
         }}
       >
-        <TableContainer sx={{ flex: 1, overflow: 'auto', ...UNIFIED_TABLE_STYLES.scrollbar }}>
-          <Table stickyHeader size={isSmall ? 'small' : 'medium'}>
+        <TableContainer
+          sx={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: { xs: 'hidden', sm: 'auto' },
+            ...UNIFIED_TABLE_STYLES.scrollbar,
+          }}
+        >
+          <Table
+            stickyHeader
+            size={isSmall ? 'small' : 'medium'}
+            sx={{
+              ...(UNIFIED_TABLE_STYLES.responsive as SxProps<Theme>),
+            }}
+          >
             <TableHead>
               <TableRow sx={UNIFIED_TABLE_STYLES.header}>
                 {isOverridePage && (
