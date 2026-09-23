@@ -56,8 +56,8 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
     backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
     border: UI_STYLES.BORDERS.CARD.DEFAULT,
     overflow: 'hidden',
-    width: fullScreen || isMobile ? '100%' : undefined,
-    maxWidth: fullScreen || isMobile ? '100%' : '800px',
+    width: fullScreen ? '100%' : isMobile ? `calc(100% - ${theme.spacing(2)})` : undefined,
+    maxWidth: fullScreen ? '100%' : isMobile ? `calc(100% - ${theme.spacing(2)})` : '800px',
     maxHeight: fullScreen ? '100%' : isMobile ? 'calc(100dvh - 16px)' : '80vh',
     margin: fullScreen ? 0 : isMobile ? 1 : undefined,
   }

@@ -816,8 +816,9 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   const autoScrollRef = useRef(true)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const messageListRef = useRef<HTMLDivElement>(null)
   const [initialLoad, setInitialLoad] = useState(true)
-  const prevScrollMetricsRef = useRef<{ scrollHeight: number; scrollTop: number } | null>(null)
+  const scrollAnchorRef = useRef<{ element: Element; offsetTop: number } | null>(null)
   const isLoadingMoreRef = useRef(false)
 
   // 发送消息状态
@@ -869,7 +870,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     setInitialLoad(true)
     setAutoScroll(true)
     autoScrollRef.current = true
-    prevScrollMetricsRef.current = null
+    scrollAnchorRef.current = null
     isLoadingMoreRef.current = false
   }, [chatKey])
 
@@ -959,20 +960,27 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     if (!container) return
 
     isLoadingMoreRef.current = true
-    prevScrollMetricsRef.current = {
-      scrollHeight: container.scrollHeight,
-      scrollTop: container.scrollTop,
-    }
+    const containerTop = container.getBoundingClientRect().top
+    const anchorElement = Array.from(messageListRef.current?.children ?? []).find(
+      element => element.getBoundingClientRect().bottom > containerTop,
+    )
+    // 记录可见消息在滚动内容中的位置，底部 SSE 追加不会改变该位置。
+    scrollAnchorRef.current = anchorElement
+      ? {
+          element: anchorElement,
+          offsetTop: anchorElement.getBoundingClientRect().top - containerTop + container.scrollTop,
+        }
+      : null
     void fetchNextPage()
       .then(result => {
         // React Query 在默认配置下可能将请求错误作为结果返回，不能只依赖 catch。
         if (result.isError) {
-          prevScrollMetricsRef.current = null
+          scrollAnchorRef.current = null
         }
       })
       .catch(() => {
         // 请求异常时必须清理快照，否则后续 SSE 或其他数据更新会误恢复滚动位置。
-        prevScrollMetricsRef.current = null
+        scrollAnchorRef.current = null
       })
       .finally(() => {
         isLoadingMoreRef.current = false
@@ -1008,12 +1016,16 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   // Restore the viewport before the browser paints the prepended messages.
   useLayoutEffect(() => {
     const container = containerRef.current
-    const previousMetrics = prevScrollMetricsRef.current
-    if (!container || !data?.pages || !previousMetrics || isFetchingNextPage) return
+    const anchor = scrollAnchorRef.current
+    if (!container || !data?.pages || !anchor || isFetchingNextPage) return
 
-    const heightDelta = container.scrollHeight - previousMetrics.scrollHeight
-    container.scrollTop = previousMetrics.scrollTop + heightDelta
-    prevScrollMetricsRef.current = null
+    if (container.contains(anchor.element)) {
+      const offsetTop = anchor.element.getBoundingClientRect().top
+        - container.getBoundingClientRect().top + container.scrollTop
+      // 只补偿锚点之前的内容变化，同时保留请求期间用户主动滚动的距离。
+      container.scrollTop += offsetTop - anchor.offsetTop
+    }
+    scrollAnchorRef.current = null
   }, [data?.pages, isFetchingNextPage])
 
   // 处理回到底部
@@ -1218,7 +1230,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
             <Typography color="textSecondary">{t('messageHistory.noMessages')}</Typography>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box ref={messageListRef} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {allMessages.map((message, index) => {
               const isBot = message.sender_id === BOT_SENDER_ID && message.sender_name !== 'SYSTEM'
               // Web Chat 的显示名可配置，用户归属只能依赖稳定的 admin_{id} sender_id。

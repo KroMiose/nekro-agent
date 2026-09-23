@@ -703,7 +703,7 @@ export default function SandboxPage() {
         <TableContainer
           sx={{
             ...UNIFIED_TABLE_STYLES.tableViewport,
-            overflowX: 'hidden',
+            ...(isMobile && { overflowX: 'hidden' }),
           }}
         >
           <Table
