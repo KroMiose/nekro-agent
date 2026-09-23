@@ -288,7 +288,7 @@ async def _(_: Matcher, event: NoticeEvent, bot: Bot):
     else:
         # 使用普通消息
         platform_userid: str = handler.get_sender_platform_userid(info)
-        user: Optional[DBUser] = await DBUser.get_or_none(
+        user: Optional[DBUser] = await DBUser.get_by_union_id(
             adapter_key=db_chat_channel.adapter_key,
             platform_userid=platform_userid,
         )

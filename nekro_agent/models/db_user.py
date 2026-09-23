@@ -62,5 +62,10 @@ class DBUser(Model):
 
     @classmethod
     async def get_by_union_id(cls, adapter_key: str, platform_userid: str) -> Optional["DBUser"]:
-        """根据适配器ID和平台用户ID获取用户"""
-        return await cls.get_or_none(adapter_key=adapter_key, platform_userid=platform_userid)
+        """根据适配器ID和平台用户ID获取用户
+
+        同一 (adapter_key, platform_userid) 在历史部署中可能存在重复行（并发建档遗留，
+        表上没有唯一约束），因此这里固定取最早的一行，而不是用 `get_or_none`
+        在遇到重复时抛 MultipleObjectsReturned —— 那会让该用户的每条消息都处理失败。
+        """
+        return await cls.filter(adapter_key=adapter_key, platform_userid=platform_userid).order_by("id").first()
