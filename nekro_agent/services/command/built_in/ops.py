@@ -1,7 +1,9 @@
 """内置命令 - 运维类: clear_sandbox_cache, docker_restart, docker_logs, sh, instance_id, github_stars_check, log_err_list"""
 
 import os
+import re
 import shutil
+import subprocess
 from collections.abc import AsyncIterator
 from datetime import datetime
 from pathlib import Path
@@ -67,6 +69,16 @@ class ClearSandboxCacheCommand(BaseCommand):
         )
 
 
+logger_container_name = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]*$")
+
+
+def _validate_container_name(container: str) -> str:
+    """容器名仅允许 Docker 合法字符,阻断 shell 元字符注入"""
+    if not logger_container_name.match(container):
+        raise ValueError(f"非法的容器名称: {container}")
+    return container
+
+
 class DockerRestartCommand(BaseCommand):
     """重启 Docker 容器"""
 
@@ -96,7 +108,19 @@ class DockerRestartCommand(BaseCommand):
                 t(zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
             )
 
-        os.system(f"docker restart {container}")  # noqa: S605
+        try:
+            _validate_container_name(container)
+        except ValueError as e:
+            return CmdCtl.failed(str(e))
+
+        proc = subprocess.run(["docker", "restart", container], capture_output=True, text=True)
+        if proc.returncode != 0:
+            return CmdCtl.failed(
+                t(
+                    zh_CN=f"重启容器失败: {proc.stderr.strip() or proc.stdout.strip()}",
+                    en_US=f"Failed to restart container: {proc.stderr.strip() or proc.stdout.strip()}",
+                )
+            )
         return CmdCtl.success(
             t(zh_CN=f"已发送重启命令: docker restart {container}", en_US=f"Restart command sent: docker restart {container}")
         )
@@ -131,7 +155,13 @@ class DockerLogsCommand(BaseCommand):
                 t(zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
             )
 
-        logs = os.popen(f"docker logs {container} --tail 100").read()  # noqa: S605
+        try:
+            _validate_container_name(container)
+        except ValueError as e:
+            return CmdCtl.failed(str(e))
+
+        proc = subprocess.run(["docker", "logs", container, "--tail", "100"], capture_output=True, text=True)
+        logs = proc.stdout or proc.stderr
         return CmdCtl.success(
             t(zh_CN=f"容器日志: \n{logs}", en_US=f"Container logs: \n{logs}")
         )

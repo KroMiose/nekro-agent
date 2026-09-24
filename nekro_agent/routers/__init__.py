@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from nekro_agent.adapters import load_adapters_api
 from nekro_agent.adapters.email.routers import router as email_adapter_config_router
 from nekro_agent.core.args import Args
+from nekro_agent.core.cors_origins import parse_cors_origins
 from nekro_agent.core.exception_handlers import register_exception_handlers
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
@@ -60,13 +61,26 @@ from .workspaces import router as workspaces_router
 
 def mount_middlewares(app: FastAPI):
     """挂载中间件和全局处理器"""
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    # 前端静态资源与本服务同源部署(/webui),默认无需开放跨域。
+    # 仅当 NEKRO_CORS_ORIGINS 显式配置来源列表时启用 CORS;
+    # 通配符或非法 Origin 会在解析时抛错终止启动,防止
+    # "*" + allow_credentials 反射任意 Origin(CWE-942)。
+    try:
+        cors_origins = parse_cors_origins(OsEnv.CORS_ORIGINS)
+    except ValueError as e:
+        logger.error(str(e))
+        raise
+    if cors_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=cors_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        logger.info(f"已启用 CORS,允许来源: {cors_origins}")
+    else:
+        logger.info("未配置 NEKRO_CORS_ORIGINS,仅允许同源访问(前端 /webui 不受影响)")
 
     @app.middleware("http")
     async def request_timing_middleware(request: Request, call_next):
@@ -123,6 +137,11 @@ def mount_middlewares(app: FastAPI):
 
 def mount_api_routes(app: FastAPI):
     """挂载 API 路由"""
+    if OsEnv.RPC_MAX_BODY_BYTES <= 0:
+        raise ValueError("NEKRO_RPC_MAX_BODY_BYTES 必须大于 0")
+    if not OsEnv.WEBHOOK_SECRET_KEY and not OsEnv.ALLOW_UNAUTHENTICATED_WEBHOOKS:
+        logger.info("未设置 WEBHOOK_SECRET_KEY,webhook 端点已默认拒绝所有请求(fail-closed);如需兼容旧部署可设置 NEKRO_ALLOW_UNAUTHENTICATED_WEBHOOKS=true")
+
     api = APIRouter(prefix="/api")
 
     api.include_router(user_router)

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Header, Request, Response
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
-from nekro_agent.schemas.errors import NotFoundError, UnauthorizedError
+from nekro_agent.schemas.errors import NotFoundError, PayloadTooLargeError, UnauthorizedError, ValidationError
 from nekro_agent.schemas.rpc import RPCRequest
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
@@ -26,9 +26,34 @@ async def verify_rpc_token(x_rpc_token: str = Header(...)):
     return True
 
 
+async def _read_request_body_limited(request: Request, max_bytes: int) -> bytes:
+    if max_bytes <= 0:
+        raise ValueError("NEKRO_RPC_MAX_BODY_BYTES 必须大于 0")
+
+    content_lengths = request.headers.getlist("content-length")
+    if content_lengths:
+        content_length = content_lengths[0]
+        if len(content_lengths) != 1 or not content_length.isascii() or not content_length.isdecimal():
+            raise ValidationError(reason="Content-Length 无效")
+        try:
+            declared_length = int(content_length)
+        except ValueError as e:
+            raise ValidationError(reason="Content-Length 无效") from e
+        if declared_length > max_bytes:
+            raise PayloadTooLargeError(resource="RPC 请求体")
+
+    body = bytearray()
+    async for chunk in request.stream():
+        if len(chunk) > max_bytes - len(body):
+            raise PayloadTooLargeError(resource="RPC 请求体")
+        body.extend(chunk)
+    return bytes(body)
+
+
 @router.post("/rpc_exec", summary="RPC 命令执行", dependencies=[Depends(verify_rpc_token)])
 async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Response:
-    rpc_request: RPCRequest = decode_rpc_request(await data.body())
+    body = await _read_request_body_limited(data, OsEnv.RPC_MAX_BODY_BYTES)
+    rpc_request: RPCRequest = decode_rpc_request(body)
 
     logger.info(f"收到 RPC 执行请求: {rpc_request.method}")
 

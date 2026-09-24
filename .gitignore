@@ -194,3 +194,6 @@ nekro_cc_sandbox
 
 # .codex
 .codex
+
+# Mimosa 安全扫描运行产物
+.mimosa/
