@@ -23,6 +23,7 @@ class CommandStateResponse(BaseModel):
     name: str
     namespace: str
     aliases: list[str]
+    regex_patterns: list[str]
     description: str
     usage: str
     permission: str
@@ -156,10 +157,12 @@ async def batch_set_command_state(
 
 
 @router.get("/completions", summary="获取命令补全列表")
+@require_role(Role.Admin)
 async def get_command_completions(
     chat_key: Optional[str] = Query(None),
     prefix: Optional[str] = Query(None, description="输入前缀过滤"),
     lang: Optional[str] = Query(None, description="语言代码 (zh-CN / en-US)"),
+    _current_user: DBUser = Depends(get_current_active_user),
 ):
     """获取命令补全列表（供前端输入框使用）"""
     from nekro_agent.schemas.i18n import SupportedLang
@@ -302,8 +305,10 @@ async def webui_execute_command(
 
 
 @router.get("/tools", summary="获取 Agent Tool 列表")
+@require_role(Role.Admin)
 async def get_agent_tools(
     chat_key: Optional[str] = Query(None),
+    _current_user: DBUser = Depends(get_current_active_user),
 ):
     """导出命令为 Agent Tool-Use 格式（OpenAI Function Calling）"""
     from nekro_agent.services.command.tool_export import agent_tool_exporter

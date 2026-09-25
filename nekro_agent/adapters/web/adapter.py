@@ -142,6 +142,7 @@ class WebAdapter(BaseAdapter[WebAdapterConfig]):
         raw_args: str,
         is_super_user: bool = False,
         is_advanced_user: bool = False,
+        matched_args: dict[str, str] | None = None,
     ) -> "List[CommandResponse] | None":
         from nekro_agent.services.command.schemas import CommandResponseStatus
 
@@ -157,6 +158,7 @@ class WebAdapter(BaseAdapter[WebAdapterConfig]):
             raw_args=raw_args,
             is_super_user=effective_is_super_user,
             is_advanced_user=effective_is_advanced_user,
+            matched_args=matched_args,
         )
         if not responses:
             return responses
