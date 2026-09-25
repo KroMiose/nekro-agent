@@ -296,11 +296,15 @@ async def _try_handle_command(
         return False
 
     # 3. 正则命令仅在显式命令和 wait 均未消费消息时尝试
+    regex_input = regex_text if regex_text is not None else content_text
+    if not regex_input or not regex_input.strip():
+        return False
+
     detect_regex_command = getattr(adapter, "detect_regex_command", None)
     if detect_regex_command is None:
         return False
 
-    regex_match = detect_regex_command(regex_text if regex_text is not None else content_text, chat_key)
+    regex_match = detect_regex_command(regex_input, chat_key)
     if regex_match is None:
         return False
 

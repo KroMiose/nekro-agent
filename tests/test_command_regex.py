@@ -450,6 +450,20 @@ async def test_disabled_command_system_skips_regex_without_wait(monkeypatch: pyt
 
 
 @pytest.mark.asyncio
+async def test_whitespace_only_message_skips_regex_matching(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(wait_manager, "has_pending", lambda chat_key, user_id: False)
+    adapter = _CollectorAdapter(
+        regex_match=CommandRegexMatch("built_in:weather", {"location": "上海"}, r"\s+"),
+    )
+    channel, user, message = _platform_context()
+
+    consumed = await _try_handle_command(adapter, "fake-channel", channel, user, message, "", " \n\t")
+
+    assert consumed is False
+    assert adapter.events == []
+
+
+@pytest.mark.asyncio
 async def test_command_routing_executes_regex_after_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(wait_manager, "has_pending", lambda chat_key, user_id: False)
     adapter = _CollectorAdapter(
