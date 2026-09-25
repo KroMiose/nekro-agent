@@ -419,11 +419,26 @@ async def test_command_routing_prefers_wait_over_regex(monkeypatch: pytest.Monke
 
 
 @pytest.mark.asyncio
-async def test_disabled_command_system_skips_wait_and_regex(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_disabled_command_system_still_consumes_wait(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(wait_manager, "has_pending", lambda chat_key, user_id: True)
     adapter = _CollectorAdapter(
         regex_match=CommandRegexMatch("built_in:weather", {"location": "上海"}, "天气.+"),
         wait_consumed=True,
+    )
+    adapter.command_system_enabled = False
+    channel, user, message = _platform_context()
+
+    consumed = await _try_handle_command(adapter, "fake-channel", channel, user, message, "天气上海", "天气上海")
+
+    assert consumed is True
+    assert adapter.events == ["command", "wait"]
+
+
+@pytest.mark.asyncio
+async def test_disabled_command_system_skips_regex_without_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(wait_manager, "has_pending", lambda chat_key, user_id: False)
+    adapter = _CollectorAdapter(
+        regex_match=CommandRegexMatch("built_in:weather", {"location": "上海"}, "天气.+"),
     )
     adapter.command_system_enabled = False
     channel, user, message = _platform_context()

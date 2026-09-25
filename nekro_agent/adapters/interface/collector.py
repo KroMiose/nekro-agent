@@ -272,10 +272,6 @@ async def _try_handle_command(
     # 2. 挂起的 wait 交互检测
     from nekro_agent.services.command.wait_manager import wait_manager
 
-    is_command_system_enabled = getattr(adapter, "is_command_system_enabled", None)
-    if is_command_system_enabled is not None and not is_command_system_enabled():
-        return False
-
     if content_text and wait_manager.has_pending(chat_key, platform_user.user_id):
         is_super, is_advanced = await _resolve_user_command_flags(
             adapter,
@@ -294,6 +290,10 @@ async def _try_handle_command(
         if consumed:
             logger.info(f"Wait Consumed: [{chat_key}] {platform_user.user_name}: {content_text}")
             return True
+
+    is_command_system_enabled = getattr(adapter, "is_command_system_enabled", None)
+    if is_command_system_enabled is not None and not is_command_system_enabled():
+        return False
 
     # 3. 正则命令仅在显式命令和 wait 均未消费消息时尝试
     detect_regex_command = getattr(adapter, "detect_regex_command", None)
