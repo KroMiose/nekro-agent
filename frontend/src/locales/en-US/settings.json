@@ -384,6 +384,7 @@
     "detail": {
       "usage": "Usage",
       "aliases": "Aliases",
+      "regexPatterns": "Regex Triggers",
       "category": "Category",
       "source": "Source",
       "permission": "Effective Permission",

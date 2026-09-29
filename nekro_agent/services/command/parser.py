@@ -40,7 +40,14 @@ class ArgumentParser:
     """命令参数解析器 - 支持位置参数和 K-V 参数混合模式"""
 
     @classmethod
-    def parse(cls, func: Callable, raw_args: str, *, lang: SupportedLang = SupportedLang.ZH_CN) -> dict[str, Any]:
+    def parse(
+        cls,
+        func: Callable,
+        raw_args: str,
+        *,
+        lang: SupportedLang = SupportedLang.ZH_CN,
+        matched_args: Optional[dict[str, str]] = None,
+    ) -> dict[str, Any]:
         """从函数签名 + 原始参数字符串 -> 解析后的 kwargs
 
         解析规则：
@@ -56,13 +63,37 @@ class ArgumentParser:
 
         params = cls._extract_params(func)
         if not params:
+            if matched_args:
+                unknown = ", ".join(sorted(matched_args))
+                raise ValueError(
+                    t(
+                        zh_CN=f"无法识别的正则捕获参数: {unknown}",
+                        en_US=f"Unrecognized regex capture arguments: {unknown}",
+                    )
+                )
             return {}
+
+        result: dict[str, Any] = {}
+        if matched_args is not None:
+            params_by_name = {param.name: param for param in params}
+            unknown_names = sorted(set(matched_args) - set(params_by_name))
+            if unknown_names:
+                unknown = ", ".join(unknown_names)
+                raise ValueError(
+                    t(
+                        zh_CN=f"无法识别的正则捕获参数: {unknown}",
+                        en_US=f"Unrecognized regex capture arguments: {unknown}",
+                    )
+                )
+            for name, value in matched_args.items():
+                result[name] = cls._convert_type(value, params_by_name[name], lang=lang)
 
         raw_args = raw_args.strip()
         if not raw_args:
             # 无参数输入，检查是否所有参数都有默认值
-            result = {}
             for p in params:
+                if p.name in result:
+                    continue
                 if p.is_required:
                     raise ValueError(
                         t(zh_CN="缺少必填参数: ", en_US="Missing required argument: ")
@@ -110,8 +141,6 @@ class ArgumentParser:
             i += 1
 
         # 填充结果
-        result: dict[str, Any] = {}
-
         # 1. 先填充 K-V 指定的参数
         for key, value in kv_args.items():
             param = next((p for p in params if p.name == key), None)
@@ -123,6 +152,15 @@ class ArgumentParser:
         for idx, param in enumerate(positional_params):
             if idx < len(positional_values):
                 result[param.name] = cls._convert_type(positional_values[idx], param, lang=lang)
+
+        if len(positional_values) > len(positional_params):
+            extra_values = " ".join(positional_values[len(positional_params) :])
+            raise ValueError(
+                t(
+                    zh_CN=f"无法识别的多余参数: {extra_values}",
+                    en_US=f"Unrecognized extra arguments: {extra_values}",
+                )
+            )
 
         # 3. 填充默认值
         for p in params:
@@ -136,6 +174,12 @@ class ArgumentParser:
                 result[p.name] = p.default
 
         return result
+
+    @classmethod
+    def get_parameter_names(cls, func: Callable) -> tuple[set[str], set[str]]:
+        """返回命令函数的全部参数名与必填参数名。"""
+        params = cls._extract_params(func)
+        return ({param.name for param in params}, {param.name for param in params if param.is_required})
 
     @classmethod
     def extract_params_schema(cls, func: Callable) -> Optional[dict]:
@@ -272,7 +316,17 @@ class ArgumentParser:
 
         # bool 特殊处理
         if target_type is bool:
-            return value.lower() in ("true", "1", "yes", "on")
+            normalized_value = value.lower()
+            if normalized_value in ("true", "1", "yes", "on"):
+                return True
+            if normalized_value in ("false", "0", "no", "off"):
+                return False
+            raise ValueError(
+                t(
+                    zh_CN=f"参数 {param.name} 需要布尔值（true/false）",
+                    en_US=f"Argument {param.name} requires a boolean value (true/false)",
+                )
+            )
 
         # int
         if target_type is int:

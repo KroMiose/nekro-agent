@@ -15,6 +15,7 @@ export interface CommandState {
   name: string
   namespace: string
   aliases: string[]
+  regex_patterns: string[]
   description: string
   usage: string
   permission: string

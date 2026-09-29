@@ -20,6 +20,7 @@ class ConfShowCommand(BaseCommand):
             i18n_description=i18n_text(zh_CN="查看配置项", en_US="Show configuration"),
             usage="conf_show [key]",
             permission=CommandPermission.SUPER_USER,
+            requires_advanced_command=True,
             category="配置",
             i18n_category=i18n_text(zh_CN="配置", en_US="Configuration"),
             params_schema=self._auto_params_schema(),
@@ -66,6 +67,7 @@ class ConfSetCommand(BaseCommand):
             i18n_description=i18n_text(zh_CN="设置配置项", en_US="Set configuration"),
             usage="conf_set key=value",
             permission=CommandPermission.SUPER_USER,
+            requires_advanced_command=True,
             category="配置",
             i18n_category=i18n_text(zh_CN="配置", en_US="Configuration"),
             params_schema=self._auto_params_schema(),
@@ -140,6 +142,7 @@ class ConfReloadCommand(BaseCommand):
             description="重载配置文件",
             i18n_description=i18n_text(zh_CN="重载配置文件", en_US="Reload configuration file"),
             permission=CommandPermission.SUPER_USER,
+            requires_advanced_command=True,
             category="配置",
             i18n_category=i18n_text(zh_CN="配置", en_US="Configuration"),
         )
@@ -169,6 +172,7 @@ class ConfSaveCommand(BaseCommand):
             description="保存当前配置到文件",
             i18n_description=i18n_text(zh_CN="保存当前配置到文件", en_US="Save configuration to file"),
             permission=CommandPermission.SUPER_USER,
+            requires_advanced_command=True,
             category="配置",
             i18n_category=i18n_text(zh_CN="配置", en_US="Configuration"),
         )

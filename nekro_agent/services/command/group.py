@@ -60,6 +60,7 @@ class CommandGroup:
         i18n_description: Optional[I18nDict] = None,
         i18n_usage: Optional[I18nDict] = None,
         i18n_category: Optional[I18nDict] = None,
+        regex_patterns: Optional[list[str]] = None,
     ) -> Callable[[Callable], Callable]:
         """注册子命令
 
@@ -67,6 +68,7 @@ class CommandGroup:
             name: 子命令名（将生成 `group.name` 的完整名）
             description: 子命令描述
             aliases: 别名列表（将自动添加 group 前缀）
+            regex_patterns: 无需命令前缀的普通消息全文匹配规则
             permission: 权限级别（默认继承组级别）
             usage: 使用说明
             category: 分类（默认继承组级别）
@@ -92,6 +94,7 @@ class CommandGroup:
                 description=description,
                 i18n_description=i18n_description,
                 aliases=full_aliases,
+                regex_patterns=regex_patterns or [],
                 permission=perm,
                 usage=usage or f"{full_name}",
                 i18n_usage=i18n_usage,

@@ -675,6 +675,7 @@ class NekroPlugin:
         i18n_description: Optional[Dict[str, str]] = None,
         i18n_usage: Optional[Dict[str, str]] = None,
         i18n_category: Optional[Dict[str, str]] = None,
+        regex_patterns: Optional[List[str]] = None,
     ) -> Callable[[Callable], Callable]:
         """挂载命令
 
@@ -685,6 +686,7 @@ class NekroPlugin:
             name: 命令名
             description: 命令描述
             aliases: 别名列表
+            regex_patterns: 无需命令前缀的普通消息全文匹配规则；命名组会传入同名参数
             permission: 权限级别 (CommandPermission 枚举值)
             usage: 使用说明
             category: 分类
@@ -707,6 +709,7 @@ class NekroPlugin:
                 name="weather",
                 description="查询天气",
                 aliases=["天气"],
+                regex_patterns=[r"天气(?P<location>.+)"],
                 permission=CommandPermission.PUBLIC,
             )
             async def weather_command(
@@ -729,6 +732,7 @@ class NekroPlugin:
                 description=description,
                 i18n_description=i18n_description,
                 aliases=aliases or [],
+                regex_patterns=regex_patterns or [],
                 permission=perm,
                 usage=usage,
                 i18n_usage=i18n_usage,

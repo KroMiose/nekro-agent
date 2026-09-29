@@ -59,6 +59,7 @@ dependencies = [
     "jinja2>=3.1.6",
     "wechatbot-sdk>=0.1.0,<1.0.0",
     "defusedxml>=0.7.1,<1.0.0",
+    "regex>=2024.11.6",
 ]
 
 [project.optional-dependencies]

@@ -170,6 +170,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
     _POLLING_STATUS_LOG_INTERVAL_SECONDS = 3600
 
+    @property
+    def supports_regex_commands(self) -> bool:
+        """邮箱正文不参与无前缀正则命令匹配。"""
+        return False
+
     def __init__(self, config_cls: Type[EmailConfig] = EmailConfig):
         """初始化邮箱适配器"""
         super().__init__(config_cls)

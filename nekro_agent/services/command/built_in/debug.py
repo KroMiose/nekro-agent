@@ -22,6 +22,7 @@ class ExecCommand(BaseCommand):
             i18n_description=i18n_text(zh_CN="执行代码", en_US="Execute code"),
             usage="exec <code>",
             permission=CommandPermission.SUPER_USER,
+            requires_advanced_command=True,
             category="调试",
             i18n_category=i18n_text(zh_CN="调试", en_US="Debug"),
             params_schema=self._auto_params_schema(),
