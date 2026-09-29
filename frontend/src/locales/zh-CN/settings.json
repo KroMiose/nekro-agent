@@ -38,12 +38,14 @@
     "types": {
       "chat": "聊天",
       "embedding": "嵌入",
-      "draw": "绘图"
+      "draw": "绘图",
+      "rerank": "重排"
     },
     "typeDescriptions": {
       "chat": "用于对话的模型",
       "embedding": "用于将文本转换为向量的模型",
-      "draw": "用于生成图像的模型"
+      "draw": "用于生成图像的模型",
+      "rerank": "用于对检索结果进行相关性重排的模型"
     },
     "form": {
       "groupName": "组名",
@@ -58,7 +60,8 @@
       "topP": "Top P (多样性)",
       "presencePenalty": "Presence Penalty (新话题)",
       "frequencyPenalty": "Frequency Penalty (重复度)",
-      "extraBody": "Extra Body (JSON参数)"
+      "extraBody": "Extra Body (JSON参数)",
+      "rerankEndpoint": "重排接口路径"
     },
     "placeholders": {
       "apiAddress": "https://api.nekro.ai/v1",
@@ -80,7 +83,8 @@
       "topP": "控制输出的多样性 (0-1)",
       "presencePenalty": "基于生成文本中已出现的内容对新内容的惩罚 (-2 到 2)",
       "frequencyPenalty": "基于生成文本中出现的内容频率对新内容的惩罚 (-2 到 2)",
-      "extraBody": "额外的请求参数 (JSON 格式)"
+      "extraBody": "额外的请求参数 (JSON 格式)",
+      "rerankEndpoint": "重排接口路径（相对 API 地址）。默认 /rerank 兼容 SiliconFlow / Jina；阿里云百炼 compatible-api 填 /reranks"
     },
     "actions": {
       "fetchModels": "拉取模型列表",

@@ -197,7 +197,8 @@
     "modelTypes": {
       "chat": "Chat",
       "embedding": "Embedding",
-      "draw": "Drawing"
+      "draw": "Drawing",
+      "rerank": "Rerank"
     },
     "newItemPlaceholder": "Enter key name and press Enter",
     "headerEnableOverride": "Enable Override",
