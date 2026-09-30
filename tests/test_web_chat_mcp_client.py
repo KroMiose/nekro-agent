@@ -10,10 +10,10 @@ import pytest
 from nekro_agent.core import auto_inject_mcp
 from nekro_agent.services.mcp import web_chat_auth
 from nekro_agent.services.mcp.registry import get_registry
-from nekro_agent.services.user.role import Role
-from nekro_agent.services.workspace.manager import _build_disk_mcp_config
 from nekro_agent.services.mcp.web_chat_mcp.na_app import AuthenticatedMcpApp
 from nekro_agent.services.mcp.web_chat_mcp.service import ChatMessageItem, WebChatMcpService
+from nekro_agent.services.user.role import Role
+from nekro_agent.services.workspace.manager import _build_disk_mcp_config
 
 
 @pytest.mark.asyncio

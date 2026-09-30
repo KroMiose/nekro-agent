@@ -6,12 +6,15 @@ from pydantic import ValidationError as PydanticValidationError
 
 from nekro_agent.schemas.errors import ValidationError
 from nekro_agent.schemas.rpc import RPCRequest
+from nekro_agent.services.sandbox.rpc_pickle import restricted_pickle_loads
 
 
 def decode_rpc_request(raw_body: bytes) -> RPCRequest:
     try:
-        payload = pickle.loads(raw_body)
-    except (pickle.UnpicklingError, EOFError, AttributeError, ValueError) as e:
+        # 请求体来自不可信沙箱(执行 LLM 生成代码的环境),
+        # 必须使用白名单受限加载器,阻止 pickle gadget 导致的宿主 RCE
+        payload = restricted_pickle_loads(raw_body)
+    except (pickle.UnpicklingError, EOFError, AttributeError, ValueError, ImportError, TypeError) as e:
         raise ValidationError(reason="RPC 请求格式错误") from e
     try:
         return RPCRequest.model_validate(payload)

@@ -36,11 +36,44 @@ class OsEnv:
     ACCESS_TOKEN_EXPIRE_DAYS: int = OsEnvTypes.Int("ACCESS_TOKEN_EXPIRE_DAYS", default=7)
     ENCRYPT_ALGORITHM: str = OsEnvTypes.Str("ENCRYPT_ALGORITHM", default="HS256")
 
-    """RPC 配置"""
-    RPC_SECRET_KEY: str = OsEnvTypes.Str("RPC_SECRET_KEY", default=f"rpc:{secrets.token_urlsafe(32)}")
+    """Webhook 配置
 
-    """Webhook 配置"""
-    WEBHOOK_SECRET_KEY: str = OsEnvTypes.Str("WEBHOOK_SECRET_KEY", default=f"webhook:{secrets.token_urlsafe(32)}")
+    WEBHOOK_SECRET_KEY 显式设置后,所有 /api/webhook/* 调用必须携带
+    匹配的 X-Webhook-Token 请求头;未设置时默认拒绝所有 webhook 请求
+    (fail-closed)。如需兼容旧的未鉴权部署,显式设置
+    NEKRO_ALLOW_UNAUTHENTICATED_WEBHOOKS=true 逃生开关。
+    """
+    WEBHOOK_SECRET_KEY: str = OsEnvTypes.Str("WEBHOOK_SECRET_KEY", default="")
+    ALLOW_UNAUTHENTICATED_WEBHOOKS: bool = OsEnvTypes.Bool("ALLOW_UNAUTHENTICATED_WEBHOOKS", default=False)
+
+    """RPC 配置
+
+    RPC_SECRET_KEY 为宿主与沙箱间的调用令牌(运行时随机生成)。
+    RPC_MAX_BODY_BYTES 限制 /ext/rpc_exec 请求体大小,防止超大
+    pickle 造成内存型拒绝服务。
+    """
+    RPC_SECRET_KEY: str = OsEnvTypes.Str("RPC_SECRET_KEY", default=f"rpc:{secrets.token_urlsafe(32)}")
+    RPC_MAX_BODY_BYTES: int = OsEnvTypes.Int("RPC_MAX_BODY_BYTES", default=8 * 1024 * 1024)
+
+    """CORS 允许来源
+
+    逗号分隔的来源列表,如 "http://127.0.0.1:8021,https://na.example.com"。
+    留空(默认)则不启用跨域,前端与本服务同源部署(/webui)不受影响。
+    不再支持 "*" 通配:Starlette 在 allow_credentials=True 下会反射任意 Origin,
+    导致任何恶意网页都能以受害者浏览器凭据调用管理 API。
+
+    注意:OsEnvTypes 会自动为键名加 NEKRO_ 前缀,此处传 "CORS_ORIGINS"
+    即读取环境变量 NEKRO_CORS_ORIGINS(与其余配置项约定一致)。
+    """
+    CORS_ORIGINS: str = OsEnvTypes.Str("CORS_ORIGINS", default="")
+
+    """沙箱安全配置
+
+    仅当非 Docker 本地运行且确实被宿主 AppArmor 拦截时,
+    设置 NEKRO_SANDBOX_DISABLE_APPARMOR=true 关闭沙箱容器的 AppArmor 配置。
+    默认关闭该逃生通道,始终为沙箱容器启用 no-new-privileges。
+    """
+    SANDBOX_DISABLE_APPARMOR: bool = OsEnvTypes.Bool("SANDBOX_DISABLE_APPARMOR", default=False)
 
     """其他配置"""
     RUN_IN_DOCKER: bool = OsEnvTypes.Bool("RUN_IN_DOCKER")
