@@ -6,6 +6,7 @@ import AdapterLayout from '../layouts/AdapterLayout'
 import LoginPage from '../pages/login'
 import OobePage from '../pages/oobe'
 import RequireAuth from './RequireAuth'
+import RouteErrorPage from './RouteErrorPage'
 
 // 创建一个包装器组件来处理懒加载和加载状态
 const lazyLoad = (importFn: () => Promise<{ default: ComponentType }>) => {
@@ -51,7 +52,7 @@ const router = createHashRouter([
         <MainLayout />
       </RequireAuth>
     ),
-    errorElement: <Navigate to="/login" />,
+    errorElement: <RouteErrorPage />,
     children: [
       {
         index: true,

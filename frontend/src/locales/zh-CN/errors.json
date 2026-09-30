@@ -8,5 +8,9 @@
   "timeout": "请求超时，请稍后重试",
   "validationError": "请求参数无效",
   "conflict": "资源冲突",
-  "tooManyRequests": "请求过于频繁，请稍后再试"
+  "tooManyRequests": "请求过于频繁，请稍后再试",
+  "routeLoadFailedTitle": "页面加载失败",
+  "routeLoadFailedDescription": "页面资源加载出错，通常是网络波动或版本更新导致的。可以点击重试重新加载，或返回仪表盘继续使用，登录状态不会受到影响。",
+  "routeLoadFailedRetry": "重试",
+  "routeLoadFailedBackToDashboard": "返回仪表盘"
 }
