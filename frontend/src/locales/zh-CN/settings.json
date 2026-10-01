@@ -384,6 +384,7 @@
     "detail": {
       "usage": "用法",
       "aliases": "别名",
+      "regexPatterns": "正则触发",
       "category": "分类",
       "source": "来源",
       "permission": "生效权限",

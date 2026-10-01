@@ -34,6 +34,7 @@ class CommandRequest(BaseModel):
     context: CommandExecutionContext
     command_name: str  # 不含前缀，可含命名空间 (如 "weather" 或 "tools:weather")
     raw_args: str = ""  # 原始参数字符串（由解析器处理）
+    matched_args: Optional[dict[str, str]] = None  # 正则命名捕获组（结构化传参，不经字符串重组）
 
 
 class CommandResponseStatus(str, Enum):

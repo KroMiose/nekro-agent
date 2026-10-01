@@ -399,7 +399,8 @@ export default function CommandCenterPage() {
         !keyword ||
         cmd.name.toLowerCase().includes(keyword) ||
         description.toLowerCase().includes(keyword) ||
-        cmd.aliases.some(alias => alias.toLowerCase().includes(keyword))
+        cmd.aliases.some(alias => alias.toLowerCase().includes(keyword)) ||
+        cmd.regex_patterns.some(pattern => pattern.toLowerCase().includes(keyword))
       const matchCategory = !categoryFilter || cmd.category === categoryFilter
       const matchSource = !sourceFilter || cmd.source === sourceFilter
       const matchPermission = !permissionFilter || cmd.permission === permissionFilter
@@ -904,6 +905,12 @@ export default function CommandCenterPage() {
                       value={selectedCommand.aliases.length > 0 ? selectedCommand.aliases.join(', ') : '-'}
                       monospace
                     />
+                    <DetailRow
+                      label={t('commands.detail.regexPatterns', '正则触发')}
+                      value={selectedCommand.regex_patterns.length > 0 ? selectedCommand.regex_patterns.join('\n') : '-'}
+                      monospace
+                      multiline
+                    />
                     <CommandParamsPanel
                       items={selectedCommandParams}
                       emptyText={t('commands.detail.noParams', '此命令没有额外参数说明')}
@@ -1218,6 +1225,12 @@ export default function CommandCenterPage() {
                 label={t('commands.detail.aliases', '别名')}
                 value={selectedCommand.aliases.length > 0 ? selectedCommand.aliases.join(', ') : '-'}
                 monospace
+              />
+              <DetailRow
+                label={t('commands.detail.regexPatterns', '正则触发')}
+                value={selectedCommand.regex_patterns.length > 0 ? selectedCommand.regex_patterns.join('\n') : '-'}
+                monospace
+                multiline
               />
               <DetailRow
                 label={t('commands.detail.category', '分类')}
