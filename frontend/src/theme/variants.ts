@@ -647,6 +647,32 @@ export const TAB_BAR_VARIANTS = {
       },
     }
   },
+  // 两列换行的 InlineTabs 用各 Tab 自身绘制标识，避免 MUI 的单行 indicator 落到错误行。
+  get inlineWrapped(): SxProps<Theme> {
+    return {
+      minWidth: 0,
+      '& .MuiTabs-flexContainer': { flexWrap: { xs: 'wrap', sm: 'nowrap' } },
+      '& .MuiTabs-indicator': { display: { xs: 'none', sm: 'block' } },
+      '& .MuiTab-root': {
+        minHeight: 56,
+        minWidth: { xs: '50%', sm: 0 },
+        flex: { xs: '0 0 50%', sm: 1 },
+        px: { xs: 0.5, sm: 1 },
+        whiteSpace: 'normal',
+        '&.Mui-selected::after': {
+          content: '""',
+          display: { xs: 'block', sm: 'none' },
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          borderRadius: '1px',
+          backgroundColor: 'currentColor',
+        },
+      },
+    }
+  },
   get editor(): SxProps<Theme> {
     return {
       '& .MuiTab-root': {

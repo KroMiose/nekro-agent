@@ -511,7 +511,10 @@ class MessageService:
         )
 
         # 广播消息到所有订阅者。携带数据库 ID，WebUI 可据此与历史记录合并去重。
-        await message_broadcaster.publish(message.chat_key, message.model_copy(update={"id": db_message.id}))
+        await message_broadcaster.publish(
+            message.chat_key,
+            message.model_copy(update={"id": db_message.id, "create_time": db_message.create_time}),
+        )
 
         # 同时广播频道更新事件，使频道列表实时更新（新消息会将频道移到最上面）
         await channel_broadcaster.publish_update(
@@ -677,6 +680,7 @@ class MessageService:
         # 广播消息到所有订阅者 - 构建 ChatMessage 对象用于广播
         broadcast_message = ChatMessage(
             id=db_message.id,
+            create_time=db_message.create_time,
             message_id=plt_response.message_id if plt_response and plt_response.message_id else "",
             sender_id="-1",
             sender_name=preset.name,
@@ -748,6 +752,7 @@ class MessageService:
         # 广播消息到所有订阅者 - 构建 ChatMessage 对象用于广播
         broadcast_message = ChatMessage(
             id=db_message.id,
+            create_time=db_message.create_time,
             message_id="",
             sender_id="-1",
             sender_name="SYSTEM",
