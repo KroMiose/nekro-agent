@@ -43,11 +43,29 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
   showCloseButton = true,
   fullWidth = true,
   dividers = false,
+  fullScreen = false,
+  PaperProps: callerPaperProps,
   ...props
 }) => {
   const theme = useTheme()
   const { t } = useTranslation('common')
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const generatedPaperSx = {
+    borderRadius: BORDER_RADIUS.DEFAULT,
+    background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+    backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+    border: UI_STYLES.BORDERS.CARD.DEFAULT,
+    overflow: 'hidden',
+    width: fullScreen ? '100%' : isMobile ? `calc(100% - ${theme.spacing(2)})` : undefined,
+    maxWidth: fullScreen ? '100%' : isMobile ? `calc(100% - ${theme.spacing(2)})` : '800px',
+    maxHeight: fullScreen ? '100%' : isMobile ? 'calc(100dvh - 16px)' : '80vh',
+    margin: fullScreen ? 0 : isMobile ? 1 : undefined,
+  }
+  const mergedPaperProps = {
+    ...callerPaperProps,
+    elevation: callerPaperProps?.elevation ?? 8,
+    sx: [generatedPaperSx, callerPaperProps?.sx],
+  }
 
   return (
     <MuiDialog
@@ -55,20 +73,10 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
       onClose={onClose}
       maxWidth={maxWidth}
       fullWidth={fullWidth}
+      fullScreen={fullScreen}
       TransitionComponent={Fade}
       transitionDuration={{ enter: 300, exit: 200 }}
-      PaperProps={{
-        elevation: 8,
-        sx: {
-          borderRadius: BORDER_RADIUS.DEFAULT,
-          background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-          backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-          border: UI_STYLES.BORDERS.CARD.DEFAULT,
-          overflow: 'hidden',
-          maxWidth: isMobile ? '95%' : '800px',
-          maxHeight: '80vh',
-        },
-      }}
+      PaperProps={mergedPaperProps}
       {...props}
     >
       {title && (
@@ -107,7 +115,7 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
           {dividers && <Divider />}
         </>
       )}
-      <DialogContent sx={{ pt: title ? 2 : 0 }}>
+      <DialogContent sx={{ pt: title ? 2 : 0, minWidth: 0, overflowX: 'hidden', overflowWrap: 'anywhere' }}>
         {children}
       </DialogContent>
       {actions && (

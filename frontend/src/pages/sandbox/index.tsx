@@ -143,6 +143,8 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
     enabled: open, // Only fetch when the dialog is open
   })
   const { mode } = useColorMode()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   const unescapeNewlines = (text: string | undefined | null) => {
     if (!text) return ''
@@ -265,9 +267,17 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{t('dialog.logTitle')}</DialogTitle>
-      <DialogContent dividers sx={scrollableContentStyles}>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
+      <DialogTitle sx={{ overflowWrap: 'anywhere' }}>{t('dialog.logTitle')}</DialogTitle>
+      <DialogContent
+        dividers
+        sx={{
+          ...scrollableContentStyles,
+          overflowX: 'hidden',
+          overflowWrap: 'anywhere',
+          minWidth: 0,
+        }}
+      >
         {renderContent()}
       </DialogContent>
       <DialogActions>
@@ -690,8 +700,28 @@ export default function SandboxPage() {
             <CircularProgress size={32} />
           </Box>
         )}
-        <TableContainer sx={UNIFIED_TABLE_STYLES.tableViewport}>
-          <Table stickyHeader size={isSmall ? 'small' : 'medium'}>
+        <TableContainer
+          sx={{
+            ...UNIFIED_TABLE_STYLES.tableViewport,
+            ...(isMobile && { overflowX: 'hidden' }),
+          }}
+        >
+          <Table
+            stickyHeader
+            size={isSmall ? 'small' : 'medium'}
+            sx={{
+              width: '100%',
+              minWidth: 0,
+              tableLayout: isMobile ? 'fixed' : 'auto',
+              ...(isMobile && {
+                '& .MuiTableCell-root': {
+                  minWidth: '0 !important',
+                  maxWidth: '100%',
+                  overflowWrap: 'anywhere',
+                },
+              }),
+            }}
+          >
             <TableHead>
               <TableRow>
                 <TableCell

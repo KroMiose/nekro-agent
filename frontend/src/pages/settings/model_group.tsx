@@ -335,7 +335,7 @@ function EditDialog({
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth fullScreen={isMobile}>
       <DialogTitle>
         {isCopy
           ? t('modelGroup.dialog.copyTitle')
@@ -343,8 +343,8 @@ function EditDialog({
             ? t('modelGroup.dialog.editTitle')
             : t('modelGroup.dialog.createTitle')}
       </DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} className="mt-4">
+      <DialogContent sx={{ overflowX: 'hidden' }}>
+        <Stack spacing={2} className="mt-4" sx={{ minWidth: 0 }}>
           <TextField
             label={t('modelGroup.form.groupName')}
             value={groupName}
@@ -734,7 +734,7 @@ function EditDialog({
           )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+      <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2, gap: 1, flexWrap: 'wrap' }}>
         {(config.MODEL_TYPE === 'chat' || config.MODEL_TYPE === 'embedding') && (
           <Tooltip
             title={
@@ -1058,7 +1058,8 @@ export default function ModelGroupsPage() {
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { xs: 'stretch', sm: 'center' },
           mb: 1.5,
           flexShrink: 0,
           gap: 1,
@@ -1076,7 +1077,7 @@ export default function ModelGroupsPage() {
           startIcon={<AddIcon />}
           onClick={handleAdd}
           size="small"
-          sx={{ height: 40, whiteSpace: 'nowrap', flexShrink: 0 }}
+          sx={{ height: 40, width: { xs: '100%', sm: 'auto' }, whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           {t('modelGroup.actions.createBtn')}
         </ActionButton>
@@ -1097,14 +1098,17 @@ export default function ModelGroupsPage() {
         <TableContainer
           sx={{
             flex: 1,
-            overflow: 'auto',
+            overflowY: 'auto',
+            overflowX: { xs: 'hidden', sm: 'auto' },
             ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
           }}
         >
           <Table
             stickyHeader
             size={isSmall ? 'small' : 'medium'}
-            sx={{ minWidth: isMobile ? 650 : 900 }}
+            sx={{
+              ...(UNIFIED_TABLE_STYLES.responsive as SxProps<Theme>),
+            }}
           >
             <TableHead>
               <TableRow>

@@ -647,6 +647,32 @@ export const TAB_BAR_VARIANTS = {
       },
     }
   },
+  // 两列换行的 InlineTabs 用各 Tab 自身绘制标识，避免 MUI 的单行 indicator 落到错误行。
+  get inlineWrapped(): SxProps<Theme> {
+    return {
+      minWidth: 0,
+      '& .MuiTabs-flexContainer': { flexWrap: { xs: 'wrap', sm: 'nowrap' } },
+      '& .MuiTabs-indicator': { display: { xs: 'none', sm: 'block' } },
+      '& .MuiTab-root': {
+        minHeight: 56,
+        minWidth: { xs: '50%', sm: 0 },
+        flex: { xs: '0 0 50%', sm: 1 },
+        px: { xs: 0.5, sm: 1 },
+        whiteSpace: 'normal',
+        '&.Mui-selected::after': {
+          content: '""',
+          display: { xs: 'block', sm: 'none' },
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 2,
+          borderRadius: '1px',
+          backgroundColor: 'currentColor',
+        },
+      },
+    }
+  },
   get editor(): SxProps<Theme> {
     return {
       '& .MuiTab-root': {
@@ -1001,6 +1027,37 @@ export const UNIFIED_TABLE_STYLES = {
     return {
       fontSize: '0.875rem',
       borderBottom: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)'}`,
+    }
+  },
+
+  /** 窄屏表格以卡片形式纵向排列，避免固定列宽撑开页面。 */
+  get responsive(): SxProps<Theme> {
+    return {
+      minWidth: 0,
+      width: '100%',
+      tableLayout: { xs: 'fixed', sm: 'auto' },
+      '& .MuiTableHead-root': {
+        display: { xs: 'none', sm: 'table-header-group' },
+      },
+      '& .MuiTableBody-root': {
+        display: { xs: 'block', sm: 'table-row-group' },
+      },
+      '& .MuiTableRow-root': {
+        display: { xs: 'flex', sm: 'table-row' },
+        flexDirection: { xs: 'column', sm: 'initial' },
+        mb: { xs: 1, sm: 0 },
+        border: { xs: 1, sm: 0 },
+        borderColor: { xs: 'divider', sm: 'transparent' },
+        borderRadius: { xs: 1, sm: 0 },
+      },
+      '& .MuiTableCell-root': {
+        display: { xs: 'block', sm: 'table-cell' },
+        width: { xs: '100% !important', sm: 'auto' },
+        minWidth: { xs: '0 !important', sm: 'auto' },
+        maxWidth: '100%',
+        boxSizing: 'border-box',
+        overflowWrap: 'anywhere',
+      },
     }
   },
 

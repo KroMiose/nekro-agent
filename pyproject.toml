@@ -216,35 +216,41 @@ cmd = "ruff format --check ."
 # 前端任务
 [tool.poe.tasks.frontend-install]
 help = "安装前端依赖"
-cmd = "bash -c 'cd frontend && pnpm install'"
+cmd = "pnpm install --frozen-lockfile"
+cwd = "frontend"
 
 [tool.poe.tasks.frontend-dev]
 help = "启动前端开发服务器"
-cmd = "bash -c 'cd frontend && pnpm dev'"
+cmd = "pnpm dev"
+cwd = "frontend"
 
 [tool.poe.tasks.frontend-build]
 help = "构建前端"
-cmd = "bash -c 'cd frontend && pnpm build'"
+cmd = "pnpm build"
+cwd = "frontend"
 
 [tool.poe.tasks.frontend-typecheck]
 help = "运行前端类型检查"
-cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit'"
+cmd = "pnpm exec tsc -b"
+cwd = "frontend"
 
 [tool.poe.tasks.frontend-lint]
 help = "运行前端 lint"
-cmd = "bash -c 'cd frontend && pnpm exec eslint src/ --max-warnings 0'"
+cmd = "pnpm exec eslint src/ --max-warnings 0"
+cwd = "frontend"
 
 [tool.poe.tasks.frontend-check]
 help = "运行前端检查（typecheck + lint）"
-cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit && pnpm exec eslint src/ --max-warnings 0'"
+sequence = ["frontend-typecheck", "frontend-lint"]
 
 [tool.poe.tasks.frontend-check-full]
 help = "运行前端检查（typecheck + lint + build）"
-cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit && pnpm exec eslint src/ --max-warnings 0 && pnpm build'"
+sequence = ["frontend-check", "frontend-build"]
 
 [tool.poe.tasks.frontend-preview]
 help = "预览前端构建"
-cmd = "bash -c 'cd frontend && pnpm preview'"
+cmd = "pnpm preview"
+cwd = "frontend"
 
 # 依赖管理
 [tool.poe.tasks.sync]

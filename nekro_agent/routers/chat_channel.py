@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import random
 import shutil
 from pathlib import Path
@@ -959,6 +960,9 @@ async def stream_chat_channel_messages(
 
                 # 直接使用广播的消息对象，转换为可序列化的字典格式
                 try:
+                    if message.id is None or message.create_time is None:
+                        logger.warning("跳过缺少数据库 ID 或创建时间的未持久化消息")
+                        continue
                     content_data = []
                     if message.content_data:
                         if isinstance(message.content_data, str):
@@ -976,7 +980,8 @@ async def stream_chat_channel_messages(
                                     content_data.append(str(item))
 
                     message_dict = {
-                        "id": getattr(message, 'message_id', '') or str(hash(message.message_id + str(message.send_timestamp))),
+                        # 实时消息与历史接口共用数据库自增 ID，避免分页游标和 React key 使用平台 ID。
+                        "id": message.id,
                         "sender_id": str(message.sender_id),
                         "sender_name": message.sender_name,
                         "sender_nickname": message.sender_nickname or message.sender_name,
@@ -984,7 +989,7 @@ async def stream_chat_channel_messages(
                         "content": message.content_text,
                         "content_data": content_data,
                         "chat_key": message.chat_key,
-                        "create_time": "",
+                        "create_time": message.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                         "message_id": message.message_id or "",
                         "ref_msg_id": getattr(message, "ref_msg_id", "") or "",
                     }
