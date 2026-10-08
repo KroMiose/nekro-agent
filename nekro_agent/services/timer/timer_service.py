@@ -10,6 +10,7 @@ import aiofiles
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import TIMER_ONE_SHOT_PERSIST_PATH
+from nekro_agent.schemas.trigger_audit import TriggerAuditContext, TriggerAuditSource
 from nekro_agent.services.message_service import message_service
 
 logger = get_sub_logger("timer")
@@ -243,7 +244,10 @@ class TimerService:
 
         # 如果触发时间为0，立即触发频道
         if trigger_time == 0:
-            await message_service.schedule_agent_task(chat_key)
+            await message_service.schedule_agent_task(
+                chat_key,
+                trigger_audit=TriggerAuditContext(source=TriggerAuditSource.SCHEDULED_JOB),
+            )
             return True
 
         now = int(time.time())
@@ -338,7 +342,10 @@ class TimerService:
                 trigger_agent=True,
             )
         else:
-            await message_service.schedule_agent_task(task.chat_key)
+            await message_service.schedule_agent_task(
+                task.chat_key,
+                trigger_audit=TriggerAuditContext(source=TriggerAuditSource.SCHEDULED_JOB),
+            )
 
     async def _timer_loop(self):
         """定时器循环"""

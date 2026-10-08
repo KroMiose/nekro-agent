@@ -13,6 +13,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_exec_code import ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.trigger_audit import TriggerAuditContext
 from nekro_agent.services.plugin.call_priority import build_plugin_call_priority_rules
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.prompt_activation import build_plugin_activation_rules
@@ -46,6 +47,7 @@ async def run_agent(
     chat_key: str,
     chat_message: Optional[ChatMessage] = None,
     ctx: Optional[AgentCtx] = None,
+    trigger_audit: Optional[TriggerAuditContext] = None,
 ):
     # 获取当前聊天频道的有效配置
     one_time_code = os.urandom(4).hex()
@@ -202,6 +204,7 @@ async def run_agent(
                 llm_response=llm_response,
                 ctx=ctx,
                 llm_retry_errors=llm_retry_errors,
+                trigger_audit=trigger_audit,
             )
             stop_type = ExecStopType(stop_type_value)
 

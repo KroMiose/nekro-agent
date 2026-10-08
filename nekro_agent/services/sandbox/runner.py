@@ -23,6 +23,7 @@ from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.schemas.sandbox import SandboxCodeExtData
+from nekro_agent.schemas.trigger_audit import TriggerAuditContext
 from nekro_agent.services.agent.openai import OpenAIResponse
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
 from nekro_agent.tools.common_util import limited_text_output
@@ -113,6 +114,7 @@ async def limited_run_code(
     chat_message: Optional[ChatMessage] = None,
     ctx: Optional[AgentCtx] = None,
     llm_retry_errors: Optional[list[str]] = None,
+    trigger_audit: Optional[TriggerAuditContext] = None,
 ) -> Tuple[str, str, int]:
     """限制并发运行代码
 
@@ -138,6 +140,7 @@ async def limited_run_code(
             chat_message=chat_message,
             ctx=ctx,
             llm_retry_errors=llm_retry_errors,
+            trigger_audit=trigger_audit,
         )
 
 
@@ -149,6 +152,7 @@ async def run_code_in_sandbox(
     chat_message: Optional[ChatMessage] = None,
     ctx: Optional[AgentCtx] = None,
     llm_retry_errors: Optional[list[str]] = None,
+    trigger_audit: Optional[TriggerAuditContext] = None,
 ) -> Tuple[str, str, int]:
     """在沙盒容器中运行代码并获取输出"""
 
@@ -290,6 +294,24 @@ async def run_code_in_sandbox(
         )
     )
 
+    if trigger_audit and trigger_audit.is_user_trigger:
+        trigger_user_id = (trigger_audit.sender_id or "0")[:128]
+        trigger_user_name = (trigger_audit.sender_name or "Unknown")[:128]
+    elif chat_message:
+        trigger_user_id = str(chat_message.sender_id or "0")[:128]
+        trigger_user_name = (chat_message.sender_name or "Unknown")[:128]
+    else:
+        trigger_user_id = ""
+        trigger_user_name = "System"
+
+    extra_data = ""
+    if llm_response:
+        extra_data = SandboxCodeExtData.create_from_llm_response(
+            llm_response,
+            llm_retry_errors=llm_retry_errors,
+            trigger_audit=trigger_audit,
+        ).model_dump_json()
+
     await DBExecCode.create(
         chat_key=from_chat_key,
         code_text=code_run_data.code_content,
@@ -306,9 +328,9 @@ async def run_code_in_sandbox(
         exec_time_ms=exec_time,
         generation_time_ms=generation_time_ms,
         total_time_ms=total_time,
-        trigger_user_id=str(chat_message.sender_id or "0") if chat_message else "",
-        trigger_user_name=chat_message.sender_name if chat_message else "System",
-        extra_data=SandboxCodeExtData.create_from_llm_response(llm_response, llm_retry_errors=llm_retry_errors).model_dump_json() if llm_response else "",
+        trigger_user_id=trigger_user_id,
+        trigger_user_name=trigger_user_name,
+        extra_data=extra_data,
     )
 
     return final_output, output_text, stop_type.value

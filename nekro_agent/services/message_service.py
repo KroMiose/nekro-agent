@@ -28,6 +28,7 @@ from nekro_agent.schemas.agent_message import (
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.errors import AdapterUnavailableError
 from nekro_agent.schemas.signal import MsgSignal
+from nekro_agent.schemas.trigger_audit import TriggerAuditContext, TriggerAuditSource
 from nekro_agent.services.channel_broadcaster import channel_broadcaster
 from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
 from nekro_agent.services.message_broadcaster import message_broadcaster
@@ -68,6 +69,7 @@ class MessageService:
         self.running_tasks: Dict[str, asyncio.Task] = {}  # 记录每个频道正在执行的agent任务
         self.debounce_timers: Dict[str, float] = {}  # 记录每个频道的防抖计时器
         self.pending_messages: Dict[str, ChatMessage] = {}  # 记录每个频道待处理的最新消息
+        self.pending_trigger_audits: Dict[str, TriggerAuditContext | None] = {}
 
     async def cancel_agent_task(self, chat_key: str) -> bool:
         """取消指定频道正在执行的 agent 任务
@@ -116,8 +118,11 @@ class MessageService:
         chat_key: Optional[str] = None,
         message: Optional[ChatMessage] = None,
         ctx: Optional[AgentCtx] = None,
+        trigger_audit: Optional[TriggerAuditContext] = None,
     ):
         """调度 agent 任务，实现防抖和任务控制"""
+        if message and trigger_audit is None:
+            trigger_audit = TriggerAuditContext.from_chat_message(message)
         if not message:
             if not chat_key:
                 logger.error("调度 Agent 执行失败，目标 chat_key 为空")
@@ -129,6 +134,7 @@ class MessageService:
 
         # 更新待处理消息和防抖计时器
         self.pending_messages[chat_key] = message
+        self.pending_trigger_audits[chat_key] = trigger_audit
         self.debounce_timers[chat_key] = current_time
 
         # 如果已有正在执行的任务，直接返回
@@ -136,9 +142,15 @@ class MessageService:
             return
 
         # 创建防抖任务
-        asyncio.create_task(self._debounce_task(chat_key, current_time, ctx))
+        asyncio.create_task(self._debounce_task(chat_key, current_time, ctx, trigger_audit))
 
-    async def _debounce_task(self, chat_key: str, start_time: float, ctx: Optional[AgentCtx] = None):
+    async def _debounce_task(
+        self,
+        chat_key: str,
+        start_time: float,
+        ctx: Optional[AgentCtx] = None,
+        trigger_audit: Optional[TriggerAuditContext] = None,
+    ):
         """防抖任务处理
 
         Args:
@@ -156,6 +168,7 @@ class MessageService:
 
         # 获取最终要处理的消息
         final_message = self.pending_messages.pop(chat_key, None)
+        pending_audit = self.pending_trigger_audits.pop(chat_key, None)
         if not final_message:
             return
 
@@ -165,11 +178,18 @@ class MessageService:
                 chat_key=chat_key,
                 message=final_message if not final_message.is_empty() else None,
                 ctx=ctx,
+                trigger_audit=pending_audit or trigger_audit,
             ),
         )
         self.running_tasks[chat_key] = task
 
-    async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None, ctx: Optional[AgentCtx] = None):
+    async def _run_chat_agent_task(
+        self,
+        chat_key: str,
+        message: Optional[ChatMessage] = None,
+        ctx: Optional[AgentCtx] = None,
+        trigger_audit: Optional[TriggerAuditContext] = None,
+    ):
         """执行agent任务"""
         from nekro_agent.services.agent.run_agent import AllLLMRequestsFailedError, run_agent
         from nekro_agent.services.chat.universal_chat_service import universal_chat_service
@@ -229,7 +249,12 @@ class MessageService:
             try:
                 async with asyncio.timeout(_max_total_timeout):
                     try:
-                        await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
+                        await run_agent(
+                            chat_key=chat_key,
+                            chat_message=message,
+                            ctx=ctx,
+                            trigger_audit=trigger_audit,
+                        )
                     except Exception as e:
                         logger.exception(f"执行失败: {e}")
                         logger.error("Failed to Run Chat Agent.")
@@ -248,6 +273,7 @@ class MessageService:
                 del self.running_tasks[chat_key]
 
             final_message = self.pending_messages.pop(chat_key, None)
+            final_trigger_audit = self.pending_trigger_audits.pop(chat_key, None)
             self.debounce_timers.pop(chat_key, None)
 
             # 取消处理emoji（如果设置过）；NapCat 断开时 get_bot() 可能抛 RuntimeError，不能影响后续清理
@@ -294,7 +320,14 @@ class MessageService:
 
             # 如果有待处理消息，创建新的任务处理最后一条消息
             if final_message:
-                new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message, ctx=ctx))
+                new_task = asyncio.create_task(
+                    self._run_chat_agent_task(
+                        chat_key=chat_key,
+                        message=final_message,
+                        ctx=ctx,
+                        trigger_audit=final_trigger_audit,
+                    ),
+                )
                 self.running_tasks[chat_key] = new_task
 
     async def push_human_message(
@@ -784,7 +817,11 @@ class MessageService:
             if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"系统消息 {content_text} 被插件阻止触发，跳过本次处理...")
                 return
-            await self.schedule_agent_task(chat_key=chat_key, ctx=ctx)
+            await self.schedule_agent_task(
+                chat_key=chat_key,
+                ctx=ctx,
+                trigger_audit=TriggerAuditContext(source=TriggerAuditSource.SYSTEM_MESSAGE),
+            )
 
 
 # 全局消息服务实例

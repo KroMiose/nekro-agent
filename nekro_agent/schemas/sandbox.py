@@ -2,6 +2,7 @@ import json
 
 from pydantic import BaseModel
 
+from nekro_agent.schemas.trigger_audit import TriggerAuditContext
 from nekro_agent.services.agent.openai import OpenAIResponse
 
 
@@ -22,12 +23,16 @@ class SandboxCodeExtData(BaseModel):
     log_path: str = ""
     llm_retry_count: int = 0
     llm_retry_errors: list[str] = []
+    trigger_source: str = ""
+    trigger_message_id: str = ""
+    trigger_generation: int | None = None
 
     @classmethod
     def create_from_llm_response(
         cls,
         llm_response: OpenAIResponse,
         llm_retry_errors: list[str] | None = None,
+        trigger_audit: TriggerAuditContext | None = None,
     ) -> "SandboxCodeExtData":
         speed_chars_per_second = (
             len(llm_response.response_content) / (llm_response.generation_time_ms / 1000)
@@ -69,6 +74,9 @@ class SandboxCodeExtData(BaseModel):
             log_path=str(llm_response.log_path) if llm_response.log_path else "",
             llm_retry_count=len(llm_retry_errors) if llm_retry_errors else 0,
             llm_retry_errors=llm_retry_errors or [],
+            trigger_source=trigger_audit.source.value if trigger_audit else "",
+            trigger_message_id=(trigger_audit.message_id or "") if trigger_audit else "",
+            trigger_generation=trigger_audit.generation if trigger_audit else None,
         )
 
     def model_dump_json(self) -> str:
