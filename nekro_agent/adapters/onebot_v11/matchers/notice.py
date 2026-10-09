@@ -241,9 +241,20 @@ notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)
 async def _(_: Matcher, event: NoticeEvent, bot: Bot):
     from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
 
+    # 私聊类通知（如 input_status、私聊戳一戳）不携带群号，当前通知处理器均面向群聊，直接忽略
+    if not getattr(event, "group_id", None):
+        logger.debug(f"忽略无群号的通知事件: notice_type={event.notice_type}, sub_type={getattr(event, 'sub_type', None)}")
+        return
+
     # 处理通知事件
     chat_key, chat_type = await get_chat_info_old(event=event)
-    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    # 群聊在收到首条消息前可能尚未建档，此处补建频道，避免首个通知因频道不存在被丢弃
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_or_create(
+        adapter_key="onebot_v11",
+        channel_id=chat_key.removeprefix("onebot_v11-"),
+        channel_type=chat_type,
+        chat_key=chat_key,
+    )
     adapter: OnebotV11Adapter = db_chat_channel.adapter.cast(OnebotV11Adapter)
     result = await notice_manager.handle(event, bot, db_chat_channel)
     if not result:

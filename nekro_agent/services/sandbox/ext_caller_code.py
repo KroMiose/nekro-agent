@@ -58,6 +58,13 @@ def __extension_method_proxy(method: Callable):
                 )
                 exit(11)
             return ret_data
+        if response.status_code == 401:
+            raise Exception(
+                f"Plugin RPC method `{method.__name__}` call failed: 401 Unauthorized. "
+                # 注意：此处不能写成 f-string 占位形式，模板加载时会对占位符做文本替换
+                "The RPC token was rejected by `" + CHAT_API + "`, which may point to another NekroAgent instance. "
+                "Please check the `SANDBOX_CHAT_API_URL` config.",
+            )
         raise Exception(f"Plugin RPC method `{method.__name__}` call failed: {response.status_code}")
 
     return acutely_call_method
