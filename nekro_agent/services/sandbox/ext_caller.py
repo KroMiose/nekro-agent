@@ -1,10 +1,14 @@
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 from nekro_agent.core import config
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.services.plugin.collector import plugin_collector
+
+logger = get_sub_logger("sandbox")
 
 CODE_PREAMBLE = """
 from api_caller import *
@@ -17,6 +21,25 @@ METHOD_REG_TEMPLATE = """
 def {method_name}(*args, **kwargs):
     pass
 """  #! 沙盒环境下不需要使用异步方式调用，因为实际执行是通过 RPC 调用的
+
+
+def check_sandbox_api_url() -> None:
+    """检查沙盒访问 Nekro API 的地址是否指向当前实例
+
+    `SANDBOX_CHAT_API_URL` 会随配置文件持久化，若从其他实例复制配置或修改了暴露端口，
+    沙盒 RPC 请求可能发往其他实例，因令牌不匹配返回 401，表现为沙盒执行成功但消息无法发出。
+    """
+    try:
+        parsed = urlparse(config.SANDBOX_CHAT_API_URL)
+    except ValueError:
+        logger.warning(f"沙盒访问 Nekro API 地址格式无效: {config.SANDBOX_CHAT_API_URL}")
+        return
+    if parsed.hostname == "host.docker.internal" and parsed.port and parsed.port != OsEnv.EXPOSE_PORT:
+        logger.warning(
+            f"沙盒访问 Nekro API 地址端口 ({parsed.port}) 与当前实例暴露端口 ({OsEnv.EXPOSE_PORT}) 不一致: "
+            f"{config.SANDBOX_CHAT_API_URL}，沙盒插件方法调用可能访问到其他实例并返回 401，"
+            f"请在系统配置中检查「沙盒访问 Nekro API 地址」",
+        )
 
 
 async def get_api_caller_code(container_key: str, from_chat_key: str, ctx: Optional[AgentCtx] = None):

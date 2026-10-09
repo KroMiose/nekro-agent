@@ -183,7 +183,7 @@ async def get_chat_info_old(
         chat_type = ChatType.UNKNOWN
         raise ValueError("未知的消息类型")
 
-    if str(channel_id) == "0":
+    if channel_id.split("_", 1)[1] in ("0", "None"):
         raise ValueError(f"接收到频道ID为 0 的消息，源消息数据 -> {limited_text_output(event.model_dump_json(), 1024)}")
 
     return f"onebot_v11-{channel_id}", chat_type

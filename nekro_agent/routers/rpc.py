@@ -21,7 +21,7 @@ router = APIRouter(prefix="/ext", tags=["Tools"])
 async def verify_rpc_token(x_rpc_token: str = Header(...)):
     """验证 RPC 调用令牌"""
     if not OsEnv.RPC_SECRET_KEY or x_rpc_token != OsEnv.RPC_SECRET_KEY:
-        logger.warning("非法的 RPC 调用令牌")
+        logger.warning("非法的 RPC 调用令牌，若来自本机其他实例的沙盒，请检查该实例的「沙盒访问 Nekro API 地址」配置")
         raise UnauthorizedError
     return True
 

@@ -144,6 +144,10 @@ if _driver is not None:
 
         await init_plugins()
 
+        from nekro_agent.services.sandbox.ext_caller import check_sandbox_api_url
+
+        check_sandbox_api_url()
+
         # 初始化默认人设（需要在数据库和迁移完成后执行）
         from nekro_agent.services.preset_service import init_default_preset
 
