@@ -38,12 +38,14 @@
     "types": {
       "chat": "Chat",
       "embedding": "Embedding",
-      "draw": "Drawing"
+      "draw": "Drawing",
+      "rerank": "Rerank"
     },
     "typeDescriptions": {
       "chat": "Model for conversation",
       "embedding": "Model for converting text to vectors",
-      "draw": "Model for image generation"
+      "draw": "Model for image generation",
+      "rerank": "Model for relevance reranking of retrieval results"
     },
     "form": {
       "groupName": "Group Name",
@@ -58,7 +60,8 @@
       "topP": "Top P",
       "presencePenalty": "Presence Penalty",
       "frequencyPenalty": "Frequency Penalty",
-      "extraBody": "Extra Body (JSON)"
+      "extraBody": "Extra Body (JSON)",
+      "rerankEndpoint": "Rerank Endpoint"
     },
     "placeholders": {
       "apiAddress": "https://api.nekro.ai/v1",
@@ -80,7 +83,8 @@
       "topP": "Controls diversity of output (0-1)",
       "presencePenalty": "Penalty for new tokens based on their presence in the text so far (-2 to 2)",
       "frequencyPenalty": "Penalty for new tokens based on their frequency in the text so far (-2 to 2)",
-      "extraBody": "Additional request parameters (JSON format)"
+      "extraBody": "Additional request parameters (JSON format)",
+      "rerankEndpoint": "Rerank endpoint path relative to the API base URL. Default /rerank for SiliconFlow / Jina; use /reranks for Alibaba Cloud Bailian compatible-api"
     },
     "actions": {
       "fetchModels": "Fetch Model List",

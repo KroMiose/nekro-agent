@@ -23,10 +23,10 @@ class ModelConfigGroup(ConfigBase):
     CHAT_PROXY: str = Field(default="", title="聊天模型访问代理")
     BASE_URL: str = Field(default="", title="聊天模型 API 地址")
     API_KEY: str = Field(default="", title="聊天模型 API 密钥")
-    MODEL_TYPE: Literal["chat", "embedding", "draw"] = Field(
+    MODEL_TYPE: Literal["chat", "embedding", "draw", "rerank"] = Field(
         default="chat",
         title="模型类型",
-        description="模型的用途类型，可以是聊天(chat)、向量嵌入(embedding)或绘图(draw)",
+        description="模型的用途类型，可以是聊天(chat)、向量嵌入(embedding)、绘图(draw)或重排(rerank)",
     )
     ENABLE_VISION: bool = Field(
         default=False,
@@ -47,6 +47,11 @@ class ModelConfigGroup(ConfigBase):
     PRESENCE_PENALTY: Optional[float] = Field(default=None, title="提示重复惩罚")
     FREQUENCY_PENALTY: Optional[float] = Field(default=None, title="补全重复惩罚")
     EXTRA_BODY: Optional[str] = Field(default=None, title="额外参数 (JSON)")
+    RERANK_ENDPOINT: str = Field(
+        default="/rerank",
+        title="重排接口路径",
+        description="重排接口路径（相对 BASE_URL）。默认 /rerank 兼容 SiliconFlow / Jina；阿里云百炼 compatible-api 请填 /reranks",
+    )
 
 
 class CoreConfig(ConfigBase):
@@ -449,6 +454,19 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    MEMORY_RERANK_ENABLED: bool = Field(
+        default=False,
+        title="记忆检索重排开关",
+        description="开启后，记忆检索的有效权重排序结果会再经过重排模型二次打分排序。复用 KB_RERANK_MODEL_GROUP 模型组；重排失败时自动回退原排序",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            i18n_title=i18n_text(zh_CN="记忆检索重排开关", en_US="Memory Retrieval Rerank Switch"),
+            i18n_description=i18n_text(
+                zh_CN="开启后，记忆检索的有效权重排序结果会再经过重排模型二次打分排序。复用 KB_RERANK_MODEL_GROUP 模型组；重排失败时自动回退原排序",
+                en_US="When enabled, memory retrieval results ranked by effective weight are re-scored by the rerank model. Reuses the KB_RERANK_MODEL_GROUP; falls back to original ranking on rerank failure",
+            ),
+        ).model_dump(),
+    )
     KB_EMBEDDING_MODEL_GROUP: str = Field(
         default="text-embedding",
         title="知识库 Embedding 模型组",
@@ -491,6 +509,35 @@ class CoreConfig(ConfigBase):
                 en_US="Number of concurrent knowledge base indexing tasks (workspace documents and global assets are each limited by this value). Set to 1 for fully serial indexing; higher values speed up batch indexing at the cost of heavier Embedding service and Qdrant load. Restart required after changing",
             ),
             placeholder="建议 1~8",
+        ).model_dump(),
+    )
+    KB_RERANK_MODEL_GROUP: str = Field(
+        default="",
+        title="知识库重排模型组",
+        description="用于知识库检索结果重排的 rerank 模型组（OpenAI 兼容接口）。应选择 MODEL_TYPE 为 rerank 的模型组；留空则跳过重排",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            ref_model_groups=True,
+            model_type="rerank",
+            i18n_title=i18n_text(zh_CN="知识库重排模型组", en_US="Knowledge Base Rerank Model Group"),
+            i18n_description=i18n_text(
+                zh_CN="用于知识库检索结果重排的 rerank 模型组（OpenAI 兼容接口）。应选择 MODEL_TYPE 为 rerank 的模型组；留空则跳过重排",
+                en_US="Rerank model group used for re-ranking knowledge base retrieval results (OpenAI-compatible API). Should use a model group with MODEL_TYPE set to rerank; leave empty to skip reranking",
+            ),
+            placeholder="例: bge-reranker-v2-m3",
+        ).model_dump(),
+    )
+    KB_RERANK_ENABLED: bool = Field(
+        default=False,
+        title="知识库检索重排开关",
+        description="开启后，知识库检索的融合结果会再经过重排模型二次打分排序。需同时配置 KB_RERANK_MODEL_GROUP；重排失败时自动回退原排序",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="知识库", en_US="Knowledge Base"),
+            i18n_title=i18n_text(zh_CN="知识库检索重排开关", en_US="Knowledge Base Rerank Switch"),
+            i18n_description=i18n_text(
+                zh_CN="开启后，知识库检索的融合结果会再经过重排模型二次打分排序。需同时配置 KB_RERANK_MODEL_GROUP；重排失败时自动回退原排序",
+                en_US="When enabled, fused knowledge base retrieval results are re-scored by the rerank model. Requires KB_RERANK_MODEL_GROUP; falls back to original ranking on rerank failure",
+            ),
         ).model_dump(),
     )
     KB_ZIP_MAX_UPLOAD_SIZE_MB: int = Field(
