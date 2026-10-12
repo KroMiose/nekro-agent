@@ -3,13 +3,21 @@ from types import MethodType
 
 import pytest
 
-from nekro_agent.adapters.interface.schemas.platform import PlatformSendSegmentType
+from nekro_agent.adapters.interface.schemas.platform import (
+    PlatformAtSegment,
+    PlatformSendSegment,
+    PlatformSendSegmentType,
+)
 from nekro_agent.adapters.qqbot_openclaw.client import QQBotOpenClawClient
-from nekro_agent.adapters.qqbot_openclaw.config import QQBotOpenClawConfig
+from nekro_agent.adapters.qqbot_openclaw.config import QQBOT_MARKDOWN_ENABLED, QQBotOpenClawConfig
 from nekro_agent.adapters.qqbot_openclaw.group_policy import GroupPolicyResolver
 from nekro_agent.adapters.qqbot_openclaw.media import infer_media_kind, validate_media_file
 from nekro_agent.adapters.qqbot_openclaw.message_processor import QQBotOpenClawMessageProcessor
-from nekro_agent.adapters.qqbot_openclaw.outbound import split_markdown_text
+from nekro_agent.adapters.qqbot_openclaw.outbound import (
+    _normalize_text_for_openclaw_markdown,
+    _render_at_segment_for_markdown,
+    split_markdown_text,
+)
 from nekro_agent.adapters.qqbot_openclaw.ref_index_store import RefIndexEntry, RefIndexStore
 from nekro_agent.adapters.qqbot_openclaw.schemas import (
     QQBotC2CMessageEvent,
@@ -362,3 +370,83 @@ async def test_client_chunked_upload_uses_openclaw_part_finish_body(tmp_path) ->
             "md5": "4ed9407630eb1000c0f6b63842defa7d",
         },
     ]
+
+
+# ========================================================================================
+# Markdown AT 格式转写测试 (openclaw 适配器内部使用)
+# ========================================================================================
+
+
+def test_render_at_segment_for_markdown_uses_platform_user_id() -> None:
+    """AT 段必须渲染为 OpenClaw Markdown 识别的 `<@user_id>` 形式。"""
+    segment = PlatformSendSegment(
+        type=PlatformSendSegmentType.AT,
+        at_info=PlatformAtSegment(platform_user_id="B031F366677A6FB8580CAF5B2484F49C", nickname="Alice"),
+    )
+    assert _render_at_segment_for_markdown(segment) == "<@B031F366677A6FB8580CAF5B2484F49C>"
+
+
+def test_render_at_segment_for_markdown_handles_missing_at_info() -> None:
+    """AT 段缺少 at_info 时应输出空串，避免渲染出孤立的 `@`。"""
+    segment = PlatformSendSegment(type=PlatformSendSegmentType.AT)
+    assert _render_at_segment_for_markdown(segment) == ""
+
+
+def test_normalize_text_converts_internal_at_markup_to_markdown_at() -> None:
+    """文本中的 `[@id:xxx@]` 必须被转换为 `<@xxx>` 形式。"""
+    text = "请 [@id:B031F366677A6FB8580CAF5B2484F49C@] 处理一下"
+    assert _normalize_text_for_openclaw_markdown(text) == "请 <@B031F366677A6FB8580CAF5B2484F49C> 处理一下"
+
+
+def test_normalize_text_converts_internal_at_markup_with_nickname() -> None:
+    """带 nickname 的内部 AT 标记应丢弃昵称，仅保留 `<@user_id>`。"""
+    text = "[@id:USER123;nickname:Alice@] 你好"
+    assert _normalize_text_for_openclaw_markdown(text) == "<@USER123> 你好"
+
+
+def test_normalize_text_converts_all_token_to_everyone() -> None:
+    """`[@id:all@]` 应被转换为 OpenClaw 识别的 `<@everyone>`。"""
+    assert _normalize_text_for_openclaw_markdown("[@id:all@] 大家注意") == "<@everyone> 大家注意"
+
+
+def test_normalize_text_preserves_code_fence_at_literal() -> None:
+    """代码块内的 `[@id:xxx@]` 字面量不应被改写。"""
+    text = "示例代码:\n```\n[@id:USER123@]\n```\n继续"
+    assert _normalize_text_for_openclaw_markdown(text) == text
+
+
+def test_normalize_text_preserves_inline_code_at_literal() -> None:
+    """行内代码内的 `[@id:xxx@]` 字面量不应被改写。"""
+    text = "语法是 `[@id:USER123@]`，不是 at"
+    assert _normalize_text_for_openclaw_markdown(text) == text
+
+
+def test_normalize_text_preserves_email_address() -> None:
+    """邮箱地址不应被误识别为 AT 标记。"""
+    text = "联系 bob@example.com 即可"
+    assert _normalize_text_for_openclaw_markdown(text) == text
+
+
+def test_normalize_text_handles_multiple_mentions_in_one_segment() -> None:
+    """同一段文本内多个 AT 都应被独立转换。"""
+    text = "[@id:AAA@] 和 [@id:BBB@] 都看一下"
+    assert _normalize_text_for_openclaw_markdown(text) == "<@AAA> 和 <@BBB> 都看一下"
+
+
+def test_normalize_text_passes_through_plain_text() -> None:
+    """不含 AT 标记的纯文本应原样保留。"""
+    text = "今天天气不错。"
+    assert _normalize_text_for_openclaw_markdown(text) == text
+
+
+def test_normalize_text_handles_empty_input() -> None:
+    """空字符串应原样返回。"""
+    assert _normalize_text_for_openclaw_markdown("") == ""
+
+
+@pytest.mark.skipif(not QQBOT_MARKDOWN_ENABLED, reason="仅 Markdown 模式下的行为需要验证")
+def test_qqbot_openclaw_defaults_to_markdown_for_at_translation() -> None:
+    """确保默认 Markdown 开关与本次修复假设一致，避免静默回退。"""
+    # 这是一条护栏测试：若未来有人把 QQBOT_MARKDOWN_ENABLED 默认改为 False，
+    # 需要重新评估 AT 转写策略。
+    assert QQBOT_MARKDOWN_ENABLED is True

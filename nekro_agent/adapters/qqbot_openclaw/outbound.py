@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Literal
 
@@ -12,11 +13,70 @@ from nekro_agent.adapters.interface.schemas.platform import (
 from nekro_agent.core.logger import get_sub_logger
 
 from .client import QQBotOpenClawClient
-from .config import QQBOT_TEXT_CHUNK_LIMIT, QQBotOpenClawConfig
+from .config import QQBOT_MARKDOWN_ENABLED, QQBOT_TEXT_CHUNK_LIMIT, QQBotOpenClawConfig
 from .media import validate_media_file
 from .ref_index_store import RefIndexEntry, RefIndexStore
 
 logger = get_sub_logger("adapter.qqbot_openclaw.outbound")
+
+# QQBot OpenClaw 在 Markdown 模式下 (`QQBOT_MARKDOWN_ENABLED=True`) 仅识别
+# `<@user_id>` 与 `<@everyone>` 两种 AT 形式；平台内部约定的
+# `[@id:xxx@]` / `[@id:xxx;nickname:yyy@]`（参见 nekro_agent/tools/at_markup.py
+# 中的 build_at_markup）在 markdown.content 体内会被原样当作纯文本展示。
+# 本模块仅做"渲染前的转写"，不修改 Core 抽象层 (`PlatformSendSegment` /
+# `PlatformAtSegment`) 的结构，也不影响 OneBot 等其它适配器。
+_OPENCLAW_MD_AT_USER_RE = re.compile(
+    r"\[@id:(?P<uid>all|[A-Za-z0-9][A-Za-z0-9_.#\-]{2,127})(?:;nickname:[^@\]\n]+)?@\]"
+)
+
+# AT 转写前需要保护代码块 / 行内代码 / URL / 邮箱 等非 AT 上下文，
+# 避免把字面量 `[@id:xxx]` 误改成 `<@xxx>`。复刻 at_markup.py 中的
+# _PROTECTED_TEXT_PATTERN 思路，但不依赖其内部实现。
+_PROTECTED_SPANS_RE = re.compile(
+    r"```[\s\S]*?```|`[^`\n]*`|https?://[^\s<>'\"，。！？、]+|[\w.+\-]+@[\w.\-]+\.[A-Za-z]{2,}",
+)
+_PLACEHOLDER_PREFIX = "\uE000OPENCLAW_PROTECTED_"
+_PLACEHOLDER_SUFFIX = "\uE001"
+
+
+def _render_at_segment_for_markdown(segment: PlatformSendSegment) -> str:
+    """将 AT 段渲染为 OpenClaw Markdown 识别的 `<@user_id>`。"""
+    at_info = segment.at_info
+    if not at_info or not at_info.platform_user_id:
+        return ""
+    return f"<@{at_info.platform_user_id}>"
+
+
+def _normalize_text_for_openclaw_markdown(text: str) -> str:
+    """将文本中残留的内部 `[@id:xxx@]` 形式转换为 Markdown `<@xxx>` 形式。
+
+    代码块 / 行内代码 / URL / 邮箱 内的字面量不会被改写。
+    """
+    if not text:
+        return text
+
+    stash: list[str] = []
+
+    def _protect(match: re.Match[str]) -> str:
+        stash.append(match.group(0))
+        return f"{_PLACEHOLDER_PREFIX}{len(stash) - 1}{_PLACEHOLDER_SUFFIX}"
+
+    protected = _PROTECTED_SPANS_RE.sub(_protect, text)
+    converted = _OPENCLAW_MD_AT_USER_RE.sub(
+        lambda m: "<@everyone>" if m.group("uid") == "all" else f"<@{m.group('uid')}>",
+        protected,
+    )
+    if not stash:
+        return converted
+
+    def _restore(match: re.Match[str]) -> str:
+        index = int(match.group(1))
+        return stash[index] if 0 <= index < len(stash) else match.group(0)
+
+    placeholder_pattern = re.compile(
+        rf"{re.escape(_PLACEHOLDER_PREFIX)}(\d+){re.escape(_PLACEHOLDER_SUFFIX)}",
+    )
+    return placeholder_pattern.sub(_restore, converted)
 
 
 @dataclass(slots=True)
@@ -98,14 +158,28 @@ class QQBotOpenClawOutbound:
         return recent.message_id if recent else None
 
     def _coalesce_text_segments(self, segments: list[PlatformSendSegment]) -> list[PlatformSendSegment]:
+        """合并相邻 TEXT / AT 段。
+
+        - Markdown 模式下 (`QQBOT_MARKDOWN_ENABLED=True`): AT 段渲染为
+          `<@user_id>`；TEXT 段中残留的内部 `[@id:xxx@]` 标记一并转写为
+          `<@xxx>`，确保 OpenClaw Markdown 渲染器能识别。
+        - 非 Markdown 模式下: 保持原行为 (AT 段 → `@昵称`)，不破坏现有
+          纯文本消息体。
+        """
         result: list[PlatformSendSegment] = []
         text_buffer: list[str] = []
         for segment in segments:
             if segment.type == PlatformSendSegmentType.TEXT and segment.content:
-                text_buffer.append(segment.content)
+                content = segment.content
+                if QQBOT_MARKDOWN_ENABLED:
+                    content = _normalize_text_for_openclaw_markdown(content)
+                text_buffer.append(content)
                 continue
             if segment.type == PlatformSendSegmentType.AT and segment.at_info:
-                text_buffer.append(f"@{segment.at_info.nickname or segment.at_info.platform_user_id}")
+                if QQBOT_MARKDOWN_ENABLED:
+                    text_buffer.append(_render_at_segment_for_markdown(segment))
+                else:
+                    text_buffer.append(f"@{segment.at_info.nickname or segment.at_info.platform_user_id}")
                 continue
             self._flush_text_buffer(result, text_buffer)
             result.append(segment)
