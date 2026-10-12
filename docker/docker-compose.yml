@@ -47,6 +47,7 @@ services:
       - ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN:-}
       - NEKRO_QDRANT_URL=${QDRANT_URL:-http://nekro_qdrant:6333}
       - NEKRO_QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - NEKRO_WEBHOOK_SECRET_KEY=${WEBHOOK_SECRET_KEY:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${NEKRO_DATA_DIR}:${NEKRO_DATA_DIR}:rw

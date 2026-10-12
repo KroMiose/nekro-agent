@@ -1,3 +1,4 @@
+import hmac
 import json
 from typing import Any, Dict, Optional
 
@@ -6,7 +7,8 @@ from pydantic import BaseModel
 
 from nekro_agent.api.schemas import AgentCtx, WebhookRequest
 from nekro_agent.core.logger import get_sub_logger
-from nekro_agent.schemas.errors import NotFoundError
+from nekro_agent.core.os_env import OsEnv
+from nekro_agent.schemas.errors import NotFoundError, UnauthorizedError
 from nekro_agent.services.plugin.collector import plugin_collector
 
 logger = get_sub_logger("webhook")
@@ -14,11 +16,32 @@ router = APIRouter(prefix="/webhook", tags=["Webhook"])
 
 
 class WebhookResponse(BaseModel):
-    """Webhook响应"""
+    """WebhookResponse"""
 
     success: bool
     message: str
     data: Optional[Dict[str, Any]] = None
+
+
+def _verify_webhook_token(request: Request) -> None:
+    """校验 Webhook 调用令牌(fail-closed)
+
+    - 设置了 WEBHOOK_SECRET_KEY:必须携带匹配的 X-Webhook-Token 请求头。
+      仅接受请求头:查询参数形式的令牌容易进入反向代理访问日志、
+      浏览器历史与监控记录,不再支持。
+    - 未设置密钥:默认拒绝所有请求。如需兼容旧的未鉴权部署,
+      显式设置 NEKRO_ALLOW_UNAUTHENTICATED_WEBHOOKS=true。
+    """
+    secret = OsEnv.WEBHOOK_SECRET_KEY
+    if not secret:
+        if OsEnv.ALLOW_UNAUTHENTICATED_WEBHOOKS:
+            return
+        raise UnauthorizedError
+    provided = request.headers.get("X-Webhook-Token", "")
+    # 常时比较,避免逐字节比较的时序侧信道泄露密钥
+    if not hmac.compare_digest(provided.encode("utf-8"), secret.encode("utf-8")):
+        logger.warning("Webhook 令牌校验失败")
+        raise UnauthorizedError
 
 
 @router.post("/{endpoint}", summary="Webhook 调用")
@@ -36,6 +59,7 @@ async def webhook_handler(
     Returns:
         WebhookResponse: Webhook 响应
     """
+    _verify_webhook_token(request)
     logger.info(f"收到 Webhook 请求: {endpoint}")
 
     # 获取所有处理这个endpoint的webhook方法
