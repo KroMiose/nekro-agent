@@ -36,7 +36,7 @@ import MessageHistory from './detail-tabs/MessageHistory'
 import OverrideSettings from './detail-tabs/OverrideSettings'
 import PluginData from './detail-tabs/PluginData'
 import DangerZone from './detail-tabs/DangerZone'
-import { CARD_VARIANTS } from '../../../theme/variants'
+import { CARD_VARIANTS, TAB_BAR_VARIANTS } from '../../../theme/variants'
 import { useMediaQuery } from '@mui/material'
 import { InlineTabs } from '../../../components/common/NekroTabs'
 import { useTranslation } from 'react-i18next'
@@ -66,6 +66,7 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const queryClient = useQueryClient()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const wrapTabs = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('chat-channel')
   const { refresh } = useChatChannelRefresh(chatKey)
 
@@ -304,10 +305,14 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
           value={currentTabIndex}
           onChange={handleTabChange}
           variant="fullWidth"
-          sx={{
-            '& .MuiTab-root': {
-              minHeight: 56,
-            },
+          sx={TAB_BAR_VARIANTS.inlineWrapped}
+          onKeyDown={event => {
+            if (!wrapTabs || !['ArrowUp', 'ArrowDown'].includes(event.key)) return
+            const tabs = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]'))
+            const focusedIndex = tabs.findIndex(tab => tab === document.activeElement)
+            if (focusedIndex < 0) return
+            event.preventDefault()
+            tabs[(focusedIndex + 2) % tabs.length]?.focus()
           }}
         >
           <Tab label={t('channelDetail.tabs.messageHistory')} />

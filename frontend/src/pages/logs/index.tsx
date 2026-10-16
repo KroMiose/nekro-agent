@@ -44,7 +44,8 @@ const MAX_REALTIME_LOGS = 1000
 const MOBILE_MAX_REALTIME_LOGS = 400
 const INITIAL_LOGS_COUNT = 500
 const MOBILE_INITIAL_LOGS_COUNT = 250
-const ROW_HEIGHT = 36 // 固定行高
+const ROW_HEIGHT = 36 // 桌面端固定行高
+const MOBILE_ROW_HEIGHT = 56 // 窄屏允许日志内容换行
 const LOG_UPDATE_INTERVAL = 250 // 实时日志更新间隔 (ms)
 const MOBILE_LOG_UPDATE_INTERVAL = 500
 
@@ -159,7 +160,7 @@ const LogRow = memo(
         <Box
           sx={{
             width: 4,
-            height: ROW_HEIGHT - 2,
+            height: (isMobile ? MOBILE_ROW_HEIGHT : ROW_HEIGHT) - 2,
             backgroundColor: severityColor,
             borderRadius: '2px',
             mr: 1,
@@ -199,10 +200,15 @@ const LogRow = memo(
         <Box
           sx={{
             flex: '1 1 auto',
+            display: isMobile ? '-webkit-box' : 'block',
+            WebkitBoxOrient: isMobile ? 'vertical' : undefined,
+            WebkitLineClamp: isMobile ? 2 : undefined,
             overflow: 'hidden',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
+            whiteSpace: isMobile ? 'normal' : 'nowrap',
+            textOverflow: isMobile ? 'clip' : 'ellipsis',
+            overflowWrap: 'anywhere',
             fontSize: isSmall ? '0.75rem' : '0.8rem',
+            lineHeight: isMobile ? 1.25 : 'normal',
             ml: 1,
           }}
         >
@@ -553,6 +559,7 @@ export default function LogsPage() {
         height: '100%',
         minHeight: 0,
         p: { xs: 1, sm: 2 },
+        pb: { xs: 'calc(72px + env(safe-area-inset-bottom))', sm: 2 },
       }}
     >
       {isDisconnected && (
@@ -695,7 +702,7 @@ export default function LogsPage() {
                   height={height}
                   width={width}
                   itemCount={filteredLogs.length}
-                  itemSize={ROW_HEIGHT}
+                  itemSize={isMobile ? MOBILE_ROW_HEIGHT : ROW_HEIGHT}
                   overscanCount={isMobile ? 8 : 20}
                   style={{
                     overflowX: 'hidden',
@@ -731,8 +738,8 @@ export default function LogsPage() {
             onClick={() => setFilterDrawerOpen(true)}
             sx={{
               position: 'fixed',
-              bottom: 16,
-              right: 16,
+              bottom: 'calc(16px + env(safe-area-inset-bottom))',
+              right: 'calc(16px + env(safe-area-inset-right))',
               zIndex: 1099,
             }}
             size={isSmall ? 'medium' : 'large'}
@@ -747,6 +754,7 @@ export default function LogsPage() {
         onClose={() => setDialogOpen(false)}
         maxWidth="md"
         fullWidth
+        fullScreen={isMobile}
         dividers
         title={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

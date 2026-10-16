@@ -29,26 +29,14 @@ import AudioFileIcon from '@mui/icons-material/AudioFile'
 import VideoFileIcon from '@mui/icons-material/VideoFile'
 import FolderZipIcon from '@mui/icons-material/FolderZip'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
-import { chatChannelApi, ChatMessage, ChatMessageListResponse, ChatMessageSegment, ForwardMessageItem } from '../../../../services/api/chat-channel'
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { chatChannelApi, ChatMessage, ChatMessageSegment, ForwardMessageItem } from '../../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
 import MarkdownRenderer from '../../../../components/common/MarkdownRenderer'
 import SegmentedControl from '../../../../components/common/SegmentedControl'
 import ActionButton from '../../../../components/common/ActionButton'
 import IconActionButton from '../../../../components/common/IconActionButton'
 import { useNotification } from '../../../../hooks/useNotification'
-
-// 防抖函数
-function debounce<T extends (...args: unknown[]) => unknown>(
-  fn: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: number
-  return (...args: Parameters<T>) => {
-    window.clearTimeout(timeoutId)
-    timeoutId = window.setTimeout(() => fn(...args), delay)
-  }
-}
 
 interface MessageHistoryProps {
   chatKey: string
@@ -60,6 +48,15 @@ interface MessageHistoryProps {
 interface MessageResponse {
   total: number
   items: ChatMessage[]
+}
+
+const MESSAGE_PAGE_SIZE = 32
+
+/** Return a stable identity shared by history and live messages. */
+function getMessageIdentity(message: ChatMessage): string {
+  if (Number.isInteger(message.id)) return `id:${message.id}`
+  if (message.message_id) return `message:${message.message_id}`
+  return `fallback:${message.sender_id}:${message.sender_name}:${message.create_time}:${message.content}`
 }
 
 /** Bot 的 sender_id 固定为 "-1" */
@@ -804,11 +801,17 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   const queryClient = useQueryClient()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
+  const autoScrollRef = useRef(true)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const messageListRef = useRef<HTMLDivElement>(null)
   const [initialLoad, setInitialLoad] = useState(true)
-  const prevScrollHeightRef = useRef<number>(0)
+  const scrollAnchorRef = useRef<{ element: Element; offsetTop: number } | null>(null)
   const isLoadingMoreRef = useRef(false)
+  // 独立保留实时消息，首屏/分页请求的旧快照不能覆盖它们。
+  const [liveMessages, setLiveMessages] = useState<{ chatKey: string; items: ChatMessage[] }>({
+    chatKey, items: [],
+  })
 
   // 发送消息状态
   const [inputValue, setInputValue] = useState('')
@@ -858,6 +861,10 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   useLayoutEffect(() => {
     setInitialLoad(true)
     setAutoScroll(true)
+    autoScrollRef.current = true
+    scrollAnchorRef.current = null
+    isLoadingMoreRef.current = false
+    setLiveMessages({ chatKey, items: [] })
   }, [chatKey])
 
   // 管理附件预览 Blob URL 生命周期
@@ -879,35 +886,44 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
       const response = await chatChannelApi.getMessages({
         chat_key: chatKey,
         before_id: pageParam,
+        page_size: MESSAGE_PAGE_SIZE,
       })
       return response
     },
-    getNextPageParam: (lastPage: MessageResponse) => {
-      if (lastPage.items.length === 0) return undefined
-      return lastPage.items[lastPage.items.length - 1].id
+    getNextPageParam: (
+      lastPage: MessageResponse,
+      _allPages: MessageResponse[],
+      lastPageParam: number | undefined,
+    ) => {
+      if (lastPage.items.length === 0 || lastPage.items.length >= lastPage.total) return undefined
+
+      const persistedIds = lastPage.items.map(item => item.id).filter(Number.isInteger)
+      if (persistedIds.length === 0) return undefined
+
+      const nextCursor = Math.min(...persistedIds)
+      if (lastPageParam !== undefined && nextCursor >= lastPageParam) return undefined
+      return nextCursor
     },
   })
 
   // 实时消息流订阅 (SSE)
   useEffect(() => {
     let cleanup: (() => void) | undefined
+    let active = true
 
     const handleNewMessage = (message: ChatMessage) => {
-      // 将消息添加到 React Query 缓存的最后一页
-      queryClient.setQueryData<InfiniteData<ChatMessageListResponse> | undefined>(['chat-messages', chatKey], (oldData) => {
-        if (!oldData?.pages) return oldData
-
-        const newPages = [...oldData.pages]
-        const lastPage = { ...newPages[newPages.length - 1] }
-        lastPage.items = [...lastPage.items, message]
-        newPages[newPages.length - 1] = lastPage
-
-        return { ...oldData, pages: newPages }
+      if (!active) return
+      setLiveMessages(previous => {
+        const items = previous.chatKey === chatKey ? previous.items : []
+        if (items.some(item => getMessageIdentity(item) === getMessageIdentity(message))) return previous
+        return { chatKey, items: [...items, message] }
       })
 
       // 如果用户在底部，自动滚动到最新消息
-      if (autoScroll) {
-        setTimeout(() => scrollToBottom('smooth'), 100)
+      if (autoScrollRef.current) {
+        setTimeout(() => {
+          if (active && autoScrollRef.current) scrollToBottom('smooth')
+        }, 100)
       }
     }
 
@@ -918,8 +934,45 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
       })
     }
 
-    return () => cleanup?.()
-  }, [chatKey, aiAlwaysIncludeMsgId, queryClient, autoScroll, scrollToBottom])
+    return () => {
+      active = false
+      cleanup?.()
+    }
+  }, [chatKey, aiAlwaysIncludeMsgId, scrollToBottom])
+
+  const captureScrollAnchor = useCallback(() => {
+    const container = containerRef.current
+    if (!container) return
+    const containerTop = container.getBoundingClientRect().top
+    const currentAnchor = scrollAnchorRef.current
+    if (currentAnchor && container.contains(currentAnchor.element)) {
+      const anchorBounds = currentAnchor.element.getBoundingClientRect()
+      // 补偿触发的 scroll 事件不能换掉仍可见的锚点，也不能吞掉下一帧的高度变化。
+      if (anchorBounds.bottom > containerTop && anchorBounds.top < containerTop + container.clientHeight) {
+        return
+      }
+    }
+    const anchorElement = Array.from(messageListRef.current?.children ?? []).find(
+      element => element.getBoundingClientRect().bottom > containerTop,
+    )
+    // 记录可见消息在滚动内容中的位置，底部 SSE 追加不会改变该位置。
+    scrollAnchorRef.current = anchorElement
+      ? {
+          element: anchorElement,
+          offsetTop: anchorElement.getBoundingClientRect().top - containerTop + container.scrollTop,
+        }
+      : null
+  }, [])
+
+  const restoreScrollAnchor = useCallback(() => {
+    const container = containerRef.current
+    const anchor = scrollAnchorRef.current
+    if (!container || !anchor || !container.contains(anchor.element)) return
+    const offsetTop = anchor.element.getBoundingClientRect().top
+      - container.getBoundingClientRect().top + container.scrollTop
+    container.scrollTop += offsetTop - anchor.offsetTop
+    anchor.offsetTop = offsetTop
+  }, [])
 
   // 处理加载更多
   const handleLoadMore = useCallback(() => {
@@ -928,11 +981,22 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     if (!container) return
 
     isLoadingMoreRef.current = true
-    prevScrollHeightRef.current = container.scrollHeight
-    fetchNextPage().finally(() => {
-      isLoadingMoreRef.current = false
-    })
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+    captureScrollAnchor()
+    void fetchNextPage()
+      .then(result => {
+        // React Query 在默认配置下可能将请求错误作为结果返回，不能只依赖 catch。
+        if (result.isError && containerRef.current === container) {
+          captureScrollAnchor()
+        }
+      })
+      .catch(() => {
+        // 请求异常时必须清理快照，否则后续 SSE 或其他数据更新会误恢复滚动位置。
+        if (containerRef.current === container) captureScrollAnchor()
+      })
+      .finally(() => {
+        isLoadingMoreRef.current = false
+      })
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, captureScrollAnchor])
 
   // 处理滚动事件
   const handleScroll = useCallback(() => {
@@ -942,39 +1006,33 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     const { scrollHeight, scrollTop, clientHeight } = container
 
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100
+    autoScrollRef.current = isNearBottom
     setAutoScroll(isNearBottom)
+    captureScrollAnchor()
 
     if (scrollTop < 50 && !isFetchingNextPage && hasNextPage) {
       handleLoadMore()
     }
-  }, [hasNextPage, isFetchingNextPage, handleLoadMore])
+  }, [hasNextPage, isFetchingNextPage, handleLoadMore, captureScrollAnchor])
 
   // 监听滚动位置
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
 
-    const debouncedScroll = debounce(handleScroll, 100)
-    container.addEventListener('scroll', debouncedScroll)
-    return () => container.removeEventListener('scroll', debouncedScroll)
+    container.addEventListener('scroll', handleScroll, { passive: true })
+    return () => container.removeEventListener('scroll', handleScroll)
   }, [handleScroll])
 
-  // 保持滚动位置
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container || !data?.pages) return
-
-    if (prevScrollHeightRef.current > 0) {
-      const newScrollHeight = container.scrollHeight
-      const scrollDiff = newScrollHeight - prevScrollHeightRef.current
-      container.scrollTop = scrollDiff
-      prevScrollHeightRef.current = 0
-    }
-  }, [data?.pages])
+  // Restore the viewport before the browser paints the prepended messages.
+  useLayoutEffect(() => {
+    if (!isFetchingNextPage) restoreScrollAnchor()
+  }, [data?.pages, isFetchingNextPage, restoreScrollAnchor])
 
   // 处理回到底部
   const handleScrollToBottom = useCallback(() => {
     scrollToBottom('smooth')
+    autoScrollRef.current = true
     setAutoScroll(true)
   }, [scrollToBottom])
 
@@ -1089,13 +1147,20 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   }
 
   // 按时间正序排列消息
-  const allMessages = useMemo(
-    () =>
-      data?.pages
-        .flatMap(page => page.items)
-        .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) ?? [],
-    [data?.pages]
-  )
+  const allMessages = useMemo(() => {
+    const uniqueMessages = new Map<string, ChatMessage>()
+    for (const message of liveMessages.chatKey === chatKey ? liveMessages.items : []) {
+      uniqueMessages.set(getMessageIdentity(message), message)
+    }
+    // 同一 DB ID 以历史记录为准；平台 message_id 相同的不同记录仍各自保留。
+    for (const message of data?.pages.flatMap(page => page.items) ?? []) {
+      uniqueMessages.set(getMessageIdentity(message), message)
+    }
+
+    return [...uniqueMessages.values()].sort(
+      (a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime() || a.id - b.id,
+    )
+  }, [data?.pages, liveMessages, chatKey])
 
   // 首次打开或切换会话时，在浏览器绘制前定位到最新消息，避免先显示顶部再跳到底部。
   useLayoutEffect(() => {
@@ -1105,6 +1170,26 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   }, [isLoading, initialLoad, allMessages.length, scrollToBottomImmediately])
 
   const isInitialPositioning = initialLoad && allMessages.length > 0
+
+  // 列表提交及后续图片/转发内容的高度变化都需要维护当前阅读位置。
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    const list = messageListRef.current
+    if (!container || !list || initialLoad) return
+    // 先补偿再更新锚点，避免同批 SSE 或媒体变化覆盖尚未恢复的旧坐标。
+    restoreScrollAnchor()
+    captureScrollAnchor()
+    const observer = new ResizeObserver(() => {
+      if (autoScrollRef.current && !isLoadingMoreRef.current) {
+        container.scrollTop = container.scrollHeight
+      } else {
+        restoreScrollAnchor()
+      }
+      captureScrollAnchor()
+    })
+    for (const element of list.children) observer.observe(element)
+    return () => observer.disconnect()
+  }, [allMessages, initialLoad, captureScrollAnchor, restoreScrollAnchor])
 
   // 构建 message_id -> ChatMessage 的映射，用于引用消息查找
   const messageByMsgId = useMemo(() => {
@@ -1154,10 +1239,11 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
             ? 'linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 100%)'
             : 'linear-gradient(180deg, rgba(0,0,0,0.02) 0%, transparent 100%)',
           visibility: isInitialPositioning ? 'hidden' : 'visible',
+          overflowAnchor: 'none',
         }}
       >
         {/* 加载更多提示 */}
-        {(hasNextPage || isFetchingNextPage) && allMessages.length >= 32 && (
+        {(hasNextPage || isFetchingNextPage) && (
           <Box ref={loadMoreRef} className="p-2 flex justify-center">
             <CircularProgress size={24} />
           </Box>
@@ -1169,7 +1255,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
             <Typography color="textSecondary">{t('messageHistory.noMessages')}</Typography>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+          <Box ref={messageListRef} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {allMessages.map((message, index) => {
               const isBot = message.sender_id === BOT_SENDER_ID && message.sender_name !== 'SYSTEM'
               // Web Chat 的显示名可配置，用户归属只能依赖稳定的 admin_{id} sender_id。
