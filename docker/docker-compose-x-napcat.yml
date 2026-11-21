@@ -62,7 +62,8 @@ services:
 
   # Napcat 服务
   nekro_napcat:
-    image: mlikiowa/napcat-docker
+    image: mlikiowa/napcat-docker:latest
+    pull_policy: never
     container_name: ${INSTANCE_NAME:-}nekro_napcat
     ports:
       - "${NAPCAT_EXPOSE_PORT:-6099}:6099"
